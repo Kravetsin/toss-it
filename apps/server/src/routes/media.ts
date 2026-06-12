@@ -10,7 +10,12 @@ import type { UploadResponse } from '@tmw/shared';
 import { db } from '../db/index';
 import { bans, channels, submissions, users, whitelist, type SubmissionRow } from '../db/schema';
 import { config } from '../config';
-import { probeDurationMs, trimTo } from '../media/ffmpeg';
+import {
+  probeDurationMs,
+  processImage,
+  transcodeAudio,
+  transcodeVideo,
+} from '../media/process';
 import { requireUser } from '../auth';
 import {
   dashboardRoomOf,
@@ -30,7 +35,15 @@ export interface MediaRoutesDeps {
 export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps): void {
   const { playback, storage, tmpDir, io } = deps;
 
-  app.post<{ Params: { login: string } }>('/api/c/:login/upload', async (req, reply) => {
+  app.post<{ Params: { login: string } }>(
+    '/api/c/:login/upload',
+    {
+      // Жёсткий HTTP-лимит поверх кулдаунов: транскодирование — дорогая операция.
+      config: {
+        rateLimit: { max: config.rateLimit.upload, timeWindow: '1 minute' },
+      },
+    },
+    async (req, reply) => {
     const user = await requireUser(req, reply);
     if (!user) return;
 
@@ -130,28 +143,41 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
         });
       }
 
+      // Фаза 5: всё перекодируется в предсказуемые форматы (webp/mp4/mp3) —
+      // обрезка, отрезание экзотических кодеков и метаданных одним проходом.
       let durationMs: number;
-      let finalTmp = uploadTmp;
+      let outExt: string;
+      let outMime: string;
 
-      if (kind === 'image') {
-        durationMs = Math.min(config.imageDurationMs, channel.maxDurationMs);
-      } else {
-        const probed = await probeDurationMs(uploadTmp);
-        if (probed === null) {
-          return reply.code(422).send({ error: 'Не удалось прочитать медиафайл (битый?)' });
-        }
-        if (probed > channel.maxDurationMs) {
-          const trimmed = path.join(tmpDir, `${id}.${detected.ext}`);
-          await trimTo(uploadTmp, trimmed, channel.maxDurationMs);
-          await fsp.rm(uploadTmp, { force: true });
-          finalTmp = trimmed;
-          durationMs = channel.maxDurationMs;
+      try {
+        if (kind === 'image') {
+          durationMs = Math.min(config.imageDurationMs, channel.maxDurationMs);
+          outExt = 'webp';
+          outMime = 'image/webp';
+          await processImage(uploadTmp, path.join(tmpDir, `${id}.${outExt}`));
         } else {
-          durationMs = probed;
+          const probed = await probeDurationMs(uploadTmp);
+          if (probed === null) {
+            return reply.code(422).send({ error: 'Не удалось прочитать медиафайл (битый?)' });
+          }
+          durationMs = Math.min(probed, channel.maxDurationMs);
+          if (kind === 'video') {
+            outExt = 'mp4';
+            outMime = 'video/mp4';
+            await transcodeVideo(uploadTmp, path.join(tmpDir, `${id}.${outExt}`), durationMs);
+          } else {
+            outExt = 'mp3';
+            outMime = 'audio/mpeg';
+            await transcodeAudio(uploadTmp, path.join(tmpDir, `${id}.${outExt}`), durationMs);
+          }
         }
+      } catch (err) {
+        req.log.warn({ err, submissionId: id }, 'media processing failed');
+        return reply.code(422).send({ error: 'Не удалось обработать медиафайл' });
       }
 
-      const filePath = `${channel.id}/${id}.${detected.ext}`;
+      const finalTmp = path.join(tmpDir, `${id}.${outExt}`);
+      const filePath = `${channel.id}/${id}.${outExt}`;
       await storage.putFile(filePath, finalTmp);
 
       // Гибридная модерация: владелец и белый список → сразу на экран, остальные → pending.
@@ -171,7 +197,7 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
         senderName: user.displayName,
         originalName: file.filename ?? 'unknown',
         filePath,
-        mime: detected.mime,
+        mime: outMime,
         kind,
         durationMs,
         status: whitelisted ? 'approved' : 'pending',
@@ -192,7 +218,8 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
     } finally {
       await fsp.rm(uploadTmp, { force: true });
     }
-  });
+    },
+  );
 
   app.get<{ Params: { id: string } }>('/api/media/:id', async (req, reply) => {
     const sub = await db

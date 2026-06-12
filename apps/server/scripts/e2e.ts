@@ -139,8 +139,15 @@ const approveRes = await fetch(`${SERVER}/api/dashboard/submissions/${first.body
 assert(approveRes.status === 200, `approve: ожидал 200, получил ${approveRes.status}`);
 await waitFor(() => plays.some((p) => p.submissionId === first.body.id), 'media:play после одобрения');
 await waitFor(() => moderationResolved.includes(first.body.id), 'moderation:resolved');
+const firstPlay = plays.find((p) => p.submissionId === first.body.id)!;
+const firstMedia = await fetch(SERVER + firstPlay.url);
+assert(firstMedia.ok, `файл не отдаётся: ${firstMedia.status}`);
+assert(
+  firstMedia.headers.get('content-type')?.includes('image/webp') === true,
+  `png должен перекодироваться в webp, получил ${firstMedia.headers.get('content-type')}`,
+);
 overlaySocket.emit('playback:done', first.body.id);
-console.log('6. одобрено: проиграно в оверлее, дашборд получил resolved');
+console.log('6. одобрено: проиграно в оверлее (перекодировано в webp), resolved получен');
 
 // --- 6. Белый список → автопоказ ---
 await sleep(COOLDOWN_WAIT_MS);
@@ -157,8 +164,14 @@ assert(
 );
 assert(second.body.durationMs === 15_000, `видео 20с должно обрезаться до 15с`);
 await waitFor(() => plays.some((p) => p.submissionId === second.body.id), 'автопоказ из белого списка');
+const secondPlay = plays.find((p) => p.submissionId === second.body.id)!;
+const secondMedia = await fetch(SERVER + secondPlay.url);
+assert(
+  secondMedia.headers.get('content-type')?.includes('video/mp4') === true,
+  `видео должно перекодироваться в mp4, получил ${secondMedia.headers.get('content-type')}`,
+);
 overlaySocket.emit('playback:done', second.body.id);
-console.log('7. зритель из белого списка играет без модерации (и видео обрезано)');
+console.log('7. зритель из белого списка играет без модерации (видео обрезано и перекодировано)');
 
 // --- 7. Кулдаун ---
 const tooFast = await upload(viewerCookie, 'scripts/fixtures/frame.png', 'image/png', 'frame.png');
@@ -308,7 +321,29 @@ assert(
 );
 console.log('15. история отдаёт проигранные отправки');
 
-console.log('PASS: все проверки фаз 2–4 прошли');
+// --- 14. Фаза 5: гифка → анимированный webp ---
+const gif = await upload(streamerCookie, 'scripts/fixtures/anim.gif', 'image/gif', 'anim.gif');
+assert(gif.status === 201, `гифка: ожидал 201, получил ${gif.status}`);
+await waitFor(() => plays.some((p) => p.submissionId === gif.body.id), 'показ гифки');
+const gifPlay = plays.find((p) => p.submissionId === gif.body.id)!;
+const gifMedia = await fetch(SERVER + gifPlay.url);
+assert(
+  gifMedia.headers.get('content-type')?.includes('image/webp') === true,
+  `gif должен перекодироваться в webp, получил ${gifMedia.headers.get('content-type')}`,
+);
+overlaySocket.emit('playback:done', gif.body.id);
+console.log('16. гифка перекодируется в webp и играет');
+
+// --- 15. Rate limit: глобальный потолок в конце концов отвечает 429 ---
+let limited = false;
+for (let i = 0; i < 300 && !limited; i++) {
+  const r = await fetch(`${SERVER}/api/ping`);
+  if (r.status === 429) limited = true;
+}
+assert(limited, 'rate limit не сработал за 300 запросов подряд');
+console.log('17. глобальный rate limit отвечает 429 при спаме');
+
+console.log('PASS: все проверки фаз 2–5 прошли');
 // Без process.exit: на Windows он роняет libuv при живых сокетах.
 overlaySocket.close();
 dashSocket.close();

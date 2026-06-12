@@ -3,6 +3,7 @@ import path from 'node:path';
 import Fastify from 'fastify';
 import fastifyCookie from '@fastify/cookie';
 import fastifyMultipart from '@fastify/multipart';
+import fastifyRateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
 import { Server } from 'socket.io';
 
@@ -32,6 +33,10 @@ const storage = new LocalDiskStorage(mediaDir);
 // trustProxy: на Render/за реверс-прокси нужен X-Forwarded-* для https-редиректов и secure-cookies.
 const app = Fastify({ logger: true, trustProxy: true });
 
+await app.register(fastifyRateLimit, {
+  max: config.rateLimit.global,
+  timeWindow: '1 minute',
+});
 await app.register(fastifyCookie, { secret: config.cookieSecret });
 await app.register(fastifyMultipart, {
   limits: { fileSize: config.maxFileSizeBytes, files: 1 },

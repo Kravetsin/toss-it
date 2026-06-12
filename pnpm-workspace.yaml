@@ -3,5 +3,7 @@ packages:
   - packages/*
 
 allowBuilds:
-  better-sqlite3: true
+  # optional peer у drizzle-orm; в рантайме не используется (мы на @libsql/client)
+  better-sqlite3: false
   esbuild: true
+  sharp: true

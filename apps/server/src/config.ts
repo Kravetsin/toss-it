@@ -51,6 +51,13 @@ export const config = {
     'audio/x-wav': 'audio',
   } as Record<string, MediaKind>,
 
+  rateLimit: {
+    /** Общий потолок запросов с одного IP в минуту. */
+    global: Number(process.env.RATE_LIMIT_GLOBAL ?? 120),
+    /** Отдельный потолок на аплоад: транскодирование — дорогая операция. */
+    upload: Number(process.env.RATE_LIMIT_UPLOAD ?? 10),
+  },
+
   moderation: {
     /** Минимальный интервал между отправками одного зрителя в один канал. */
     viewerCooldownMs: Number(process.env.VIEWER_COOLDOWN_MS ?? 60_000),
