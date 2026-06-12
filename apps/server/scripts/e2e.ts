@@ -60,12 +60,19 @@ const plays: MediaPlayPayload[] = [];
 const moderationNew: SubmissionSummary[] = [];
 const moderationResolved: string[] = [];
 
+const skips: string[] = [];
+const playbackStarted: SubmissionSummary[] = [];
+const playbackEnded: string[] = [];
+
 const overlaySocket = io(SERVER, { query: { role: 'overlay', token: overlayToken } });
 overlaySocket.on('media:play', (p: MediaPlayPayload) => plays.push(p));
+overlaySocket.on('media:skip', (id: string) => skips.push(id));
 
 const dashSocket = io(SERVER, { query: { role: 'dashboard', token: overlayToken } });
 dashSocket.on('moderation:new', (s: SubmissionSummary) => moderationNew.push(s));
 dashSocket.on('moderation:resolved', (id: string) => moderationResolved.push(id));
+dashSocket.on('playback:started', (s: SubmissionSummary) => playbackStarted.push(s));
+dashSocket.on('playback:ended', (id: string) => playbackEnded.push(id));
 
 async function waitFor(pred: () => boolean, what: string, timeoutMs = 5000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
@@ -201,7 +208,107 @@ const junk = await upload(streamerCookie, 'scripts/fixtures/junk.txt', 'video/mp
 assert(junk.status === 415, `мусор должен дать 415, получил ${junk.status}`);
 console.log('11. текстовый файл под видом mp4 отклонён (415)');
 
-console.log('PASS: все проверки фаз 2–3 прошли');
+// --- 11. Фаза 4: тестовая отправка владельца + скип ---
+async function dashFetch(pathname: string, init?: RequestInit) {
+  return fetch(`${SERVER}${pathname}`, {
+    ...init,
+    headers: { cookie: streamerCookie, 'content-type': 'application/json', ...init?.headers },
+  });
+}
+
+const ownerTest = await upload(
+  streamerCookie,
+  'scripts/fixtures/frame.png',
+  'image/png',
+  'frame.png',
+);
+assert(ownerTest.status === 201, `тест-отправка владельца: ожидал 201, получил ${ownerTest.status}`);
+assert(
+  ownerTest.body.status === 'approved',
+  `владелец должен играть без модерации, получил ${ownerTest.body.status}`,
+);
+await waitFor(
+  () => playbackStarted.some((s) => s.id === ownerTest.body.id),
+  'playback:started в дашборде',
+);
+const nowRes = (await (await dashFetch('/api/dashboard/now')).json()) as {
+  now: SubmissionSummary | null;
+};
+assert(nowRes.now?.id === ownerTest.body.id, '«сейчас играет» не совпадает');
+
+const skipRes = (await (
+  await dashFetch('/api/dashboard/skip', { method: 'POST', body: '{}' })
+).json()) as {
+  skipped: boolean;
+};
+assert(skipRes.skipped, 'skip ответил skipped=false при играющем медиа');
+await waitFor(() => skips.includes(ownerTest.body.id), 'media:skip в оверлее');
+await waitFor(() => playbackEnded.includes(ownerTest.body.id), 'playback:ended в дашборде');
+const nowAfter = (await (await dashFetch('/api/dashboard/now')).json()) as {
+  now: SubmissionSummary | null;
+};
+assert(nowAfter.now === null, 'после скипа «сейчас играет» должно опустеть');
+console.log('12. тест-отправка владельца проиграла без модерации и скипнулась');
+
+// --- 12. Настройки: maxDurationMs и стоп-кран ---
+const newSettings = (await (
+  await dashFetch('/api/dashboard/settings', {
+    method: 'PUT',
+    body: JSON.stringify({ maxDurationMs: 5000 }),
+  })
+).json()) as { maxDurationMs: number };
+assert(newSettings.maxDurationMs === 5000, 'настройка maxDurationMs не сохранилась');
+
+const shortVideo = await upload(
+  streamerCookie,
+  'scripts/fixtures/video20.mp4',
+  'video/mp4',
+  'video20.mp4',
+);
+assert(
+  shortVideo.body.durationMs === 5000,
+  `видео должно обрезаться по настройке канала до 5000мс, получил ${shortVideo.body.durationMs}`,
+);
+await waitFor(() => plays.some((p) => p.submissionId === shortVideo.body.id), 'показ после настройки');
+overlaySocket.emit('playback:done', shortVideo.body.id);
+console.log('13. per-channel лимит длительности работает (20с → 5с)');
+
+await dashFetch('/api/dashboard/settings', {
+  method: 'PUT',
+  body: JSON.stringify({ accepting: false }),
+});
+await sleep(COOLDOWN_WAIT_MS);
+const closedViewer = await upload(
+  viewerCookie,
+  'scripts/fixtures/frame.png',
+  'image/png',
+  'frame.png',
+);
+assert(closedViewer.status === 403, `стоп-кран: зритель должен получить 403, получил ${closedViewer.status}`);
+const closedOwner = await upload(
+  streamerCookie,
+  'scripts/fixtures/frame.png',
+  'image/png',
+  'frame.png',
+);
+assert(closedOwner.status === 201, 'владелец должен слать даже при стоп-кране');
+await waitFor(() => plays.some((p) => p.submissionId === closedOwner.body.id), 'показ при стоп-кране');
+overlaySocket.emit('playback:done', closedOwner.body.id);
+console.log('14. стоп-кран: зрителям 403, владельцу можно');
+
+// --- 13. История ---
+await waitFor(() => playbackEnded.includes(closedOwner.body.id), 'последний показ завершён');
+const history = (await (await dashFetch('/api/dashboard/history')).json()) as {
+  id: string;
+  status: string;
+}[];
+assert(
+  history.some((h) => h.id === first.body.id && h.status === 'played'),
+  'история не содержит проигранную отправку',
+);
+console.log('15. история отдаёт проигранные отправки');
+
+console.log('PASS: все проверки фаз 2–4 прошли');
 // Без process.exit: на Windows он роняет libuv при живых сокетах.
 overlaySocket.close();
 dashSocket.close();

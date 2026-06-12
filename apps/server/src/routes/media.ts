@@ -6,13 +6,18 @@ import { pipeline } from 'node:stream/promises';
 import { and, count, desc, eq, gt } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { fileTypeFromFile } from 'file-type';
-import type { SubmissionSummary, UploadResponse } from '@tmw/shared';
+import type { UploadResponse } from '@tmw/shared';
 import { db } from '../db/index';
 import { bans, channels, submissions, users, whitelist, type SubmissionRow } from '../db/schema';
 import { config } from '../config';
 import { probeDurationMs, trimTo } from '../media/ffmpeg';
 import { requireUser } from '../auth';
-import { dashboardRoomOf, type PlaybackManager, type RealtimeServer } from '../playback';
+import {
+  dashboardRoomOf,
+  toSummary,
+  type PlaybackManager,
+  type RealtimeServer,
+} from '../playback';
 import type { Storage } from '../storage';
 
 export interface MediaRoutesDeps {
@@ -22,19 +27,6 @@ export interface MediaRoutesDeps {
   io: RealtimeServer;
 }
 
-export function toSummary(sub: SubmissionRow): SubmissionSummary {
-  return {
-    id: sub.id,
-    senderUserId: sub.senderUserId,
-    senderName: sub.senderName,
-    kind: sub.kind,
-    mime: sub.mime,
-    durationMs: sub.durationMs,
-    createdAt: sub.createdAt.getTime(),
-    url: `/api/media/${sub.id}`,
-  };
-}
-
 export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps): void {
   const { playback, storage, tmpDir, io } = deps;
 
@@ -42,58 +34,68 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
     const user = await requireUser(req, reply);
     if (!user) return;
 
-    const channel = await db
-      .select({ id: channels.id })
+    const found = await db
+      .select({ ch: channels })
       .from(channels)
       .innerJoin(users, eq(users.id, channels.ownerUserId))
       .where(eq(users.login, req.params.login.toLowerCase()))
       .get();
-    if (!channel) return reply.code(404).send({ error: 'Канал не найден' });
+    if (!found) return reply.code(404).send({ error: 'Канал не найден' });
+    const channel = found.ch;
 
-    // Бан — молчаливое отклонение: ответ неотличим от «ушло на модерацию»,
-    // но файл не обрабатывается и никуда не попадает.
-    const banned = await db
-      .select()
-      .from(bans)
-      .where(and(eq(bans.channelId, channel.id), eq(bans.userId, user.id)))
-      .get();
-    if (banned) {
-      const fake: UploadResponse = {
-        id: crypto.randomUUID(),
-        status: 'pending',
-        durationMs: 0,
-        queuePosition: 0,
-      };
-      return reply.code(201).send(fake);
+    // Владелец канала шлёт без ограничений: это «тестовая отправка» из дашборда.
+    const isOwner = channel.ownerUserId === user.id;
+
+    if (!channel.accepting && !isOwner) {
+      return reply.code(403).send({ error: 'Стример приостановил приём отправок' });
     }
 
-    // Кулдаун зрителя в этом канале.
-    const last = await db
-      .select({ createdAt: submissions.createdAt })
-      .from(submissions)
-      .where(and(eq(submissions.channelId, channel.id), eq(submissions.senderUserId, user.id)))
-      .orderBy(desc(submissions.createdAt))
-      .get();
-    if (last && Date.now() - last.createdAt.getTime() < config.moderation.viewerCooldownMs) {
-      const waitS = Math.ceil(
-        (config.moderation.viewerCooldownMs - (Date.now() - last.createdAt.getTime())) / 1000,
-      );
-      return reply.code(429).send({ error: `Слишком часто — подожди ещё ${waitS} с` });
-    }
+    if (!isOwner) {
+      // Бан — молчаливое отклонение: ответ неотличим от «ушло на модерацию»,
+      // но файл не обрабатывается и никуда не попадает.
+      const banned = await db
+        .select()
+        .from(bans)
+        .where(and(eq(bans.channelId, channel.id), eq(bans.userId, user.id)))
+        .get();
+      if (banned) {
+        const fake: UploadResponse = {
+          id: crypto.randomUUID(),
+          status: 'pending',
+          durationMs: 0,
+          queuePosition: 0,
+        };
+        return reply.code(201).send(fake);
+      }
 
-    // Часовой лимит канала.
-    const hourly = await db
-      .select({ n: count() })
-      .from(submissions)
-      .where(
-        and(
-          eq(submissions.channelId, channel.id),
-          gt(submissions.createdAt, new Date(Date.now() - 3_600_000)),
-        ),
-      )
-      .get();
-    if ((hourly?.n ?? 0) >= config.moderation.channelHourlyLimit) {
-      return reply.code(429).send({ error: 'Канал получил слишком много отправок за час' });
+      // Кулдаун зрителя в этом канале.
+      const last = await db
+        .select({ createdAt: submissions.createdAt })
+        .from(submissions)
+        .where(and(eq(submissions.channelId, channel.id), eq(submissions.senderUserId, user.id)))
+        .orderBy(desc(submissions.createdAt))
+        .get();
+      if (last && Date.now() - last.createdAt.getTime() < config.moderation.viewerCooldownMs) {
+        const waitS = Math.ceil(
+          (config.moderation.viewerCooldownMs - (Date.now() - last.createdAt.getTime())) / 1000,
+        );
+        return reply.code(429).send({ error: `Слишком часто — подожди ещё ${waitS} с` });
+      }
+
+      // Часовой лимит канала.
+      const hourly = await db
+        .select({ n: count() })
+        .from(submissions)
+        .where(
+          and(
+            eq(submissions.channelId, channel.id),
+            gt(submissions.createdAt, new Date(Date.now() - 3_600_000)),
+          ),
+        )
+        .get();
+      if ((hourly?.n ?? 0) >= config.moderation.channelHourlyLimit) {
+        return reply.code(429).send({ error: 'Канал получил слишком много отправок за час' });
+      }
     }
 
     const file = await req.file();
@@ -111,6 +113,13 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
           error: `Файл больше лимита ${Math.round(config.maxFileSizeBytes / 1024 / 1024)} МБ`,
         });
       }
+      // Глобальный лимит проверяет multipart, лимит канала — по факту.
+      const { size } = await fsp.stat(uploadTmp);
+      if (size > channel.maxFileSizeBytes) {
+        return reply.code(413).send({
+          error: `Файл больше лимита канала ${Math.round(channel.maxFileSizeBytes / 1024 / 1024)} МБ`,
+        });
+      }
 
       // Тип определяем по magic bytes, расширению и mime из запроса не доверяем.
       const detected = await fileTypeFromFile(uploadTmp);
@@ -125,18 +134,18 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
       let finalTmp = uploadTmp;
 
       if (kind === 'image') {
-        durationMs = config.imageDurationMs;
+        durationMs = Math.min(config.imageDurationMs, channel.maxDurationMs);
       } else {
         const probed = await probeDurationMs(uploadTmp);
         if (probed === null) {
           return reply.code(422).send({ error: 'Не удалось прочитать медиафайл (битый?)' });
         }
-        if (probed > config.maxDurationMs) {
+        if (probed > channel.maxDurationMs) {
           const trimmed = path.join(tmpDir, `${id}.${detected.ext}`);
-          await trimTo(uploadTmp, trimmed, config.maxDurationMs);
+          await trimTo(uploadTmp, trimmed, channel.maxDurationMs);
           await fsp.rm(uploadTmp, { force: true });
           finalTmp = trimmed;
-          durationMs = config.maxDurationMs;
+          durationMs = channel.maxDurationMs;
         } else {
           durationMs = probed;
         }
@@ -145,12 +154,14 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
       const filePath = `${channel.id}/${id}.${detected.ext}`;
       await storage.putFile(filePath, finalTmp);
 
-      // Гибридная модерация: белый список → сразу на экран, остальные → pending.
-      const whitelisted = await db
-        .select()
-        .from(whitelist)
-        .where(and(eq(whitelist.channelId, channel.id), eq(whitelist.userId, user.id)))
-        .get();
+      // Гибридная модерация: владелец и белый список → сразу на экран, остальные → pending.
+      const whitelisted = isOwner
+        ? true
+        : (await db
+            .select()
+            .from(whitelist)
+            .where(and(eq(whitelist.channelId, channel.id), eq(whitelist.userId, user.id)))
+            .get()) !== undefined;
 
       const now = new Date();
       const row: SubmissionRow = {

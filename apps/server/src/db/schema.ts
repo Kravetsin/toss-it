@@ -35,6 +35,12 @@ export const channels = sqliteTable('channels', {
     .unique()
     .references(() => users.id),
   overlayToken: text('overlay_token').notNull().unique(),
+  // Настройки канала (правятся в дашборде).
+  maxDurationMs: integer('max_duration_ms').notNull().default(15_000),
+  maxFileSizeBytes: integer('max_file_size_bytes').notNull().default(50 * 1024 * 1024),
+  volume: integer('volume').notNull().default(100),
+  accepting: integer('accepting', { mode: 'boolean' }).notNull().default(true),
+  showSenderName: integer('show_sender_name', { mode: 'boolean' }).notNull().default(true),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 });
 

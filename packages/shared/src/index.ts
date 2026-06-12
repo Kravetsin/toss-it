@@ -9,6 +9,9 @@ export interface MediaPlayPayload {
   kind: MediaKind;
   /** Жёсткий лимит показа: оверлей снимает медиа с экрана по этому таймеру. */
   durationMs: number;
+  /** Громкость воспроизведения, 0–100 (настройка канала). */
+  volume: number;
+  /** Отсутствует, если стример выключил показ имени отправителя. */
   senderName?: string;
 }
 
@@ -42,6 +45,25 @@ export interface ServerToDashboardEvents {
   'moderation:new': (submission: SubmissionSummary) => void;
   /** Отправка ушла из pending (одобрена/отклонена) — убрать из списка. */
   'moderation:resolved': (submissionId: string) => void;
+  /** На оверлее начался показ — панель «сейчас играет». */
+  'playback:started': (submission: SubmissionSummary) => void;
+  'playback:ended': (submissionId: string) => void;
+}
+
+/** Настройки канала (правит стример в дашборде). */
+export interface ChannelSettings {
+  /** Максимальная длительность показа, мс. Более длинные видео/аудио обрезаются. */
+  maxDurationMs: number;
+  maxFileSizeBytes: number;
+  /** Громкость в оверлее, 0–100. */
+  volume: number;
+  /** «Стоп-кран»: false — приём отправок приостановлен. */
+  accepting: boolean;
+  showSenderName: boolean;
+}
+
+export interface HistoryEntry extends SubmissionSummary {
+  status: SubmissionStatus;
 }
 
 export interface ListedUser {
@@ -81,6 +103,8 @@ export interface MeResponse {
 export interface PublicChannelInfo {
   login: string;
   displayName: string;
+  /** false — стример приостановил приём отправок. */
+  accepting: boolean;
 }
 
 export interface ApiError {

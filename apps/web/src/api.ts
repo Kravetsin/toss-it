@@ -1,6 +1,8 @@
 import type {
   ApiError,
   ChannelSelf,
+  ChannelSettings,
+  HistoryEntry,
   ListedUser,
   MeResponse,
   PublicChannelInfo,
@@ -85,6 +87,32 @@ export function removeBan(userId: string): Promise<unknown> {
   return fetch(`/api/dashboard/bans/${encodeURIComponent(userId)}`, { method: 'DELETE' }).then(
     (r) => json(r),
   );
+}
+
+export function getNowPlaying(): Promise<{ now: SubmissionSummary | null }> {
+  return fetch('/api/dashboard/now').then((r) => json<{ now: SubmissionSummary | null }>(r));
+}
+
+export function skipCurrent(): Promise<{ skipped: boolean }> {
+  return fetch('/api/dashboard/skip', { method: 'POST' }).then((r) =>
+    json<{ skipped: boolean }>(r),
+  );
+}
+
+export function getSettings(): Promise<ChannelSettings> {
+  return fetch('/api/dashboard/settings').then((r) => json<ChannelSettings>(r));
+}
+
+export function saveSettings(patch: Partial<ChannelSettings>): Promise<ChannelSettings> {
+  return fetch('/api/dashboard/settings', {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(patch),
+  }).then((r) => json<ChannelSettings>(r));
+}
+
+export function getHistory(): Promise<HistoryEntry[]> {
+  return fetch('/api/dashboard/history').then((r) => json<HistoryEntry[]>(r));
 }
 
 /** В dev оверлей живёт на собственном vite-порту; в проде его раздаёт сервер под /overlay. */

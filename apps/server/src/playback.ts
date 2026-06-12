@@ -5,6 +5,7 @@ import type {
   OverlayToServerEvents,
   ServerToDashboardEvents,
   ServerToOverlayEvents,
+  SubmissionSummary,
 } from '@tmw/shared';
 import { db } from './db/index';
 import { channels, submissions, type SubmissionRow } from './db/schema';
@@ -19,9 +20,23 @@ export function roomOf(channelId: string): string {
   return `channel:${channelId}`;
 }
 
-/** Комната дашборда стримера: live-события модерации. */
+/** Комната дашборда стримера: live-события модерации и показа. */
 export function dashboardRoomOf(channelId: string): string {
   return `dashboard:${channelId}`;
+}
+
+/** Краткая карточка отправки для дашборда. */
+export function toSummary(sub: SubmissionRow): SubmissionSummary {
+  return {
+    id: sub.id,
+    senderUserId: sub.senderUserId,
+    senderName: sub.senderName,
+    kind: sub.kind,
+    mime: sub.mime,
+    durationMs: sub.durationMs,
+    createdAt: sub.createdAt.getTime(),
+    url: `/api/media/${sub.id}`,
+  };
 }
 
 interface ChannelState {
@@ -61,11 +76,29 @@ export class PlaybackManager {
     }
   }
 
-  onOverlayConnected(channelId: string, replayTo: (payload: MediaPlayPayload) => void): void {
+  getCurrent(channelId: string): SubmissionRow | null {
+    return this.state(channelId).current;
+  }
+
+  /** Скип текущего показа стримером. true, если что-то играло. */
+  async skip(channelId: string): Promise<boolean> {
+    const current = this.state(channelId).current;
+    if (!current) return false;
+    // Оверлей получит media:skip и погасит экран; onDone продвинет очередь
+    // независимо от того, жив ли оверлей.
+    this.io.to(roomOf(channelId)).emit('media:skip', current.id);
+    await this.onDone(channelId, current.id);
+    return true;
+  }
+
+  async onOverlayConnected(
+    channelId: string,
+    replayTo: (payload: MediaPlayPayload) => void,
+  ): Promise<void> {
     const st = this.state(channelId);
     if (st.current) {
       // Оверлей переподключился посреди показа — переигрываем текущий элемент.
-      replayTo(this.payloadOf(st.current));
+      replayTo(await this.buildPayload(st.current));
     } else {
       void this.tryNext(channelId);
     }
@@ -85,6 +118,7 @@ export class PlaybackManager {
 
     // Гасим отставшие копии оверлея (несколько открытых вкладок и т.п.).
     this.io.to(roomOf(channelId)).emit('media:skip', submissionId);
+    this.io.to(dashboardRoomOf(channelId)).emit('playback:ended', submissionId);
     void this.tryNext(channelId);
   }
 
@@ -108,7 +142,8 @@ export class PlaybackManager {
       }
 
       st.current = fresh;
-      this.io.to(roomOf(channelId)).emit('media:play', this.payloadOf(fresh));
+      this.io.to(roomOf(channelId)).emit('media:play', await this.buildPayload(fresh));
+      this.io.to(dashboardRoomOf(channelId)).emit('playback:started', toSummary(fresh));
       st.watchdog = setTimeout(
         () => void this.onDone(channelId, fresh.id),
         fresh.durationMs + config.watchdogGraceMs,
@@ -121,13 +156,20 @@ export class PlaybackManager {
     return this.io.sockets.adapter.rooms.get(roomOf(channelId))?.size ?? 0;
   }
 
-  private payloadOf(sub: SubmissionRow): MediaPlayPayload {
+  private async buildPayload(sub: SubmissionRow): Promise<MediaPlayPayload> {
+    const channel = await db
+      .select({ volume: channels.volume, showSenderName: channels.showSenderName })
+      .from(channels)
+      .where(eq(channels.id, sub.channelId))
+      .get();
     return {
       submissionId: sub.id,
       url: `/api/media/${sub.id}`,
       kind: sub.kind,
       durationMs: sub.durationMs,
-      senderName: sub.senderName ?? undefined,
+      volume: channel?.volume ?? 100,
+      senderName:
+        (channel?.showSenderName ?? true) ? (sub.senderName ?? undefined) : undefined,
     };
   }
 
@@ -176,7 +218,9 @@ export function setupRealtime(io: RealtimeServer): PlaybackManager {
       socket.on('playback:done', (submissionId) => {
         if (typeof submissionId === 'string') void playback.onDone(channel.id, submissionId);
       });
-      playback.onOverlayConnected(channel.id, (payload) => socket.emit('media:play', payload));
+      void playback.onOverlayConnected(channel.id, (payload) =>
+        socket.emit('media:play', payload),
+      );
     })();
   });
 

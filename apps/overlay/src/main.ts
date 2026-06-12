@@ -47,18 +47,33 @@ function show(payload: MediaPlayPayload): void {
 
 function createMediaElement(payload: MediaPlayPayload, url: string): HTMLElement {
   const style = 'max-width: 80vw; max-height: 80vh;';
+  const volume = Math.min(100, Math.max(0, payload.volume ?? 100)) / 100;
+
+  const withCaption = (media: HTMLElement): HTMLElement => {
+    if (!payload.senderName) return media;
+    const wrap = document.createElement('div');
+    wrap.style.cssText =
+      'display: flex; flex-direction: column; align-items: center; gap: 6px;';
+    const caption = document.createElement('div');
+    caption.style.cssText =
+      'font: bold 22px system-ui, sans-serif; color: #fff; text-shadow: 0 1px 4px #000c;';
+    caption.textContent = `от ${payload.senderName}`;
+    wrap.append(media, caption);
+    return wrap;
+  };
 
   if (payload.kind === 'image') {
     const img = document.createElement('img');
     img.src = url;
     img.style.cssText = style;
-    return img;
+    return withCaption(img);
   }
 
   if (payload.kind === 'video') {
     const video = document.createElement('video');
     video.src = url;
     video.autoplay = true;
+    video.volume = volume;
     video.style.cssText = style;
     video.addEventListener('ended', finish);
     // В OBS autoplay со звуком разрешён; в обычном браузере политика
@@ -67,17 +82,18 @@ function createMediaElement(payload: MediaPlayPayload, url: string): HTMLElement
       video.muted = true;
       void video.play();
     });
-    return video;
+    return withCaption(video);
   }
 
   // Аудио: самого медиа не видно, показываем имя отправителя.
   const wrap = document.createElement('div');
   wrap.style.cssText =
     'font: bold 28px system-ui, sans-serif; color: #fff; text-shadow: 0 1px 4px #000a;';
-  wrap.textContent = `🎵 ${payload.senderName ?? 'аноним'}`;
+  wrap.textContent = `🎵 ${payload.senderName ?? ''}`.trim() || '🎵';
   const audio = document.createElement('audio');
   audio.src = url;
   audio.autoplay = true;
+  audio.volume = volume;
   audio.addEventListener('ended', finish);
   audio.play().catch(() => console.warn('[overlay] audio autoplay blocked'));
   wrap.appendChild(audio);

@@ -1,11 +1,16 @@
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import type { ListedUser, SubmissionSummary } from '@tmw/shared';
+import type { ChannelSettings, HistoryEntry, ListedUser, SubmissionSummary } from '@tmw/shared';
 import { db } from '../db/index';
 import { bans, channels, submissions, users, whitelist, type ChannelRow } from '../db/schema';
+import { config } from '../config';
 import { requireUser } from '../auth';
-import { dashboardRoomOf, type PlaybackManager, type RealtimeServer } from '../playback';
-import { toSummary } from './media';
+import {
+  dashboardRoomOf,
+  toSummary,
+  type PlaybackManager,
+  type RealtimeServer,
+} from '../playback';
 
 export interface DashboardRoutesDeps {
   playback: PlaybackManager;
@@ -31,8 +36,87 @@ async function requireOwnChannel(
   return channel;
 }
 
+const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
+
+function toSettings(ch: ChannelRow): ChannelSettings {
+  return {
+    maxDurationMs: ch.maxDurationMs,
+    maxFileSizeBytes: ch.maxFileSizeBytes,
+    volume: ch.volume,
+    accepting: ch.accepting,
+    showSenderName: ch.showSenderName,
+  };
+}
+
 export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRoutesDeps): void {
   const { playback, io } = deps;
+
+  /** Что сейчас на экране (для панели «сейчас играет» при загрузке дашборда). */
+  app.get('/api/dashboard/now', async (req, reply) => {
+    const channel = await requireOwnChannel(req, reply);
+    if (!channel) return;
+    const current = playback.getCurrent(channel.id);
+    return { now: current ? toSummary(current) : null };
+  });
+
+  /** Скип текущего показа: мгновенно гасит оверлей и двигает очередь. */
+  app.post('/api/dashboard/skip', async (req, reply) => {
+    const channel = await requireOwnChannel(req, reply);
+    if (!channel) return;
+    const skipped = await playback.skip(channel.id);
+    return { skipped };
+  });
+
+  app.get('/api/dashboard/settings', async (req, reply): Promise<ChannelSettings | undefined> => {
+    const channel = await requireOwnChannel(req, reply);
+    if (!channel) return;
+    return toSettings(channel);
+  });
+
+  app.put<{ Body: Partial<ChannelSettings> | null }>(
+    '/api/dashboard/settings',
+    async (req, reply): Promise<ChannelSettings | undefined> => {
+      const channel = await requireOwnChannel(req, reply);
+      if (!channel) return;
+      const b = req.body ?? {};
+
+      const patch = {
+        maxDurationMs:
+          typeof b.maxDurationMs === 'number'
+            ? clamp(Math.round(b.maxDurationMs), 1_000, 60_000)
+            : channel.maxDurationMs,
+        maxFileSizeBytes:
+          typeof b.maxFileSizeBytes === 'number'
+            ? clamp(Math.round(b.maxFileSizeBytes), 1024 * 1024, config.maxFileSizeBytes)
+            : channel.maxFileSizeBytes,
+        volume: typeof b.volume === 'number' ? clamp(Math.round(b.volume), 0, 100) : channel.volume,
+        accepting: typeof b.accepting === 'boolean' ? b.accepting : channel.accepting,
+        showSenderName:
+          typeof b.showSenderName === 'boolean' ? b.showSenderName : channel.showSenderName,
+      };
+      await db.update(channels).set(patch).where(eq(channels.id, channel.id));
+      return toSettings({ ...channel, ...patch });
+    },
+  );
+
+  /** История: всё, что покинуло pending (метаданные; файлы эфемерны и уже удалены). */
+  app.get('/api/dashboard/history', async (req, reply): Promise<HistoryEntry[] | undefined> => {
+    const channel = await requireOwnChannel(req, reply);
+    if (!channel) return;
+    const rows = await db
+      .select()
+      .from(submissions)
+      .where(
+        and(
+          eq(submissions.channelId, channel.id),
+          inArray(submissions.status, ['played', 'rejected', 'expired']),
+        ),
+      )
+      .orderBy(desc(submissions.updatedAt))
+      .limit(50)
+      .all();
+    return rows.map((r) => ({ ...toSummary(r), status: r.status }));
+  });
 
   app.get(
     '/api/dashboard/pending',

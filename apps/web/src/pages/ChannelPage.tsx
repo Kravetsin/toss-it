@@ -54,7 +54,9 @@ export function ChannelPage() {
       <h1>Канал {channel.displayName}</h1>
       <p>Отправь картинку, гифку, видео или звук — оно появится на стриме.</p>
 
-      {!me?.user ? (
+      {!channel.accepting ? (
+        <p>⛔ Стример приостановил приём отправок — загляни позже.</p>
+      ) : !me?.user ? (
         <p>
           <a href={`/api/auth/login?returnTo=/c/${encodeURIComponent(login)}`}>
             <button>Войти через Twitch, чтобы отправлять</button>

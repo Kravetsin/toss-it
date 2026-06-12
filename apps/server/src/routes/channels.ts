@@ -57,7 +57,11 @@ export function registerChannelRoutes(app: FastifyInstance): void {
   /** Публичная информация о канале для страницы зрителя. */
   app.get<{ Params: { login: string } }>('/api/c/:login', async (req, reply) => {
     const row = await db
-      .select({ login: users.login, displayName: users.displayName })
+      .select({
+        login: users.login,
+        displayName: users.displayName,
+        accepting: channels.accepting,
+      })
       .from(channels)
       .innerJoin(users, eq(users.id, channels.ownerUserId))
       .where(eq(users.login, req.params.login.toLowerCase()))
