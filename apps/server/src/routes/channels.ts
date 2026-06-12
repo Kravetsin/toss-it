@@ -60,7 +60,10 @@ export function registerChannelRoutes(app: FastifyInstance): void {
       .select({
         login: users.login,
         displayName: users.displayName,
+        avatarUrl: users.avatarUrl,
         accepting: channels.accepting,
+        maxDurationMs: channels.maxDurationMs,
+        maxFileSizeBytes: channels.maxFileSizeBytes,
       })
       .from(channels)
       .innerJoin(users, eq(users.id, channels.ownerUserId))

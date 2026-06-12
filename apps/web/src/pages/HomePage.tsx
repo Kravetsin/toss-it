@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { MeResponse } from '@tmw/shared';
 import { OVERLAY_BASE_URL, createChannel, getMe, logout, rotateOverlayToken } from '../api';
+import { Alert, Avatar, Button, Card } from '../ui';
 
 export function HomePage() {
   const [me, setMe] = useState<MeResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [fakeLogin, setFakeLogin] = useState('');
+  const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = () =>
@@ -29,97 +31,140 @@ export function HomePage() {
     }
   }
 
-  if (loading) return <main style={pageStyle}>Загрузка…</main>;
+  if (loading) return <Shell>Загрузка…</Shell>;
 
   if (!me?.user) {
     return (
-      <main style={pageStyle}>
-        <h1>Twitch Media Widget</h1>
-        <p>Зрители отправляют медиа на твой стрим. Войди, чтобы создать канал.</p>
-        <p>
-          <a href="/api/auth/login?returnTo=/">
-            <button>Войти через Twitch</button>
-          </a>
-        </p>
-        <details>
-          <summary>Dev-вход без Twitch-ключей</summary>
-          <p>
-            <input
-              placeholder="придумай логин"
-              value={fakeLogin}
-              onChange={(e) => setFakeLogin(e.target.value)}
-            />{' '}
-            <button
-              disabled={!fakeLogin}
-              onClick={() => {
-                window.location.href = `/api/auth/login?fake=${encodeURIComponent(fakeLogin)}&returnTo=/`;
-              }}
-            >
-              Fake-войти
-            </button>
+      <Shell>
+        <div className="flex flex-col items-center gap-6 py-16 text-center">
+          <h1 className="text-4xl font-extrabold">
+            Twitch <span className="text-twitch-light">Media</span> Widget
+          </h1>
+          <p className="max-w-md text-muted">
+            Зрители отправляют картинки, гифки, видео и звуки прямо на твой стрим — с
+            модерацией, белым списком и лимитами.
           </p>
-        </details>
-      </main>
+          <a href="/api/auth/login?returnTo=/">
+            <Button variant="primary" className="px-8 py-3 text-base">
+              Войти через Twitch
+            </Button>
+          </a>
+          <details className="text-sm text-muted">
+            <summary className="cursor-pointer hover:text-text">
+              Dev-вход без Twitch-ключей
+            </summary>
+            <div className="mt-3 flex gap-2">
+              <input
+                placeholder="придумай логин"
+                value={fakeLogin}
+                onChange={(e) => setFakeLogin(e.target.value)}
+                className="rounded-lg border border-line bg-surface px-3 py-2 text-text outline-none focus:border-twitch"
+              />
+              <Button
+                disabled={!fakeLogin}
+                onClick={() => {
+                  window.location.href = `/api/auth/login?fake=${encodeURIComponent(fakeLogin)}&returnTo=/`;
+                }}
+              >
+                Войти
+              </Button>
+            </div>
+          </details>
+        </div>
+      </Shell>
     );
   }
 
-  const overlayUrl = me.channel
-    ? `${OVERLAY_BASE_URL}/?token=${me.channel.overlayToken}`
-    : null;
+  const overlayUrl = me.channel ? `${OVERLAY_BASE_URL}/?token=${me.channel.overlayToken}` : null;
 
   return (
-    <main style={pageStyle}>
-      <h1>Twitch Media Widget</h1>
-      <p>
-        Привет, <b>{me.user.displayName}</b>!{' '}
-        <button onClick={() => void act(logout)}>Выйти</button>
-      </p>
+    <Shell>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Avatar url={me.user.avatarUrl} name={me.user.displayName} size={44} />
+          <div>
+            <p className="font-semibold">{me.user.displayName}</p>
+            <p className="text-xs text-muted">{me.user.login}</p>
+          </div>
+        </div>
+        <Button variant="ghost" onClick={() => void act(logout)}>
+          Выйти
+        </Button>
+      </div>
 
-      {!me.channel ? (
-        <p>
-          <button onClick={() => void act(createChannel)}>Создать канал</button>
-        </p>
-      ) : (
-        <>
-          <h2>Твой канал</h2>
-          <p>
-            <Link to="/dashboard">
-              <button>Открыть дашборд модерации</button>
-            </Link>
-          </p>
-          <p>
-            Страница для зрителей:{' '}
-            <Link to={`/c/${me.user.login}`}>
-              /c/{me.user.login}
-            </Link>{' '}
-            — отправь её в чат или закрепи в описании стрима.
-          </p>
-          <h3>Оверлей для OBS</h3>
-          <p>
-            Добавь Browser Source с этим URL (содержит секретный токен — не свети его на
-            стриме):
-          </p>
-          <p>
-            <code style={{ wordBreak: 'break-all' }}>{overlayUrl}</code>
-          </p>
-          <p>
-            <button onClick={() => void navigator.clipboard.writeText(overlayUrl!)}>
-              Скопировать
-            </button>{' '}
-            <button onClick={() => void act(rotateOverlayToken)}>
-              Перевыпустить токен
-            </button>
-          </p>
-        </>
+      {error && (
+        <div className="mt-4">
+          <Alert tone="danger">{error}</Alert>
+        </div>
       )}
 
-      {error && <p style={{ color: 'crimson' }}>{error}</p>}
-    </main>
+      {!me.channel ? (
+        <Card className="mt-6 flex flex-col items-center gap-4 py-10 text-center">
+          <p className="text-muted">
+            Канала ещё нет. Создай его — получишь страницу для зрителей и оверлей для OBS.
+          </p>
+          <Button variant="primary" onClick={() => void act(createChannel)}>
+            ✨ Создать канал
+          </Button>
+        </Card>
+      ) : (
+        <div className="mt-6 flex flex-col gap-4">
+          <Card>
+            <h2 className="mb-3 text-lg font-bold">Управление</h2>
+            <div className="flex flex-wrap gap-2">
+              <Link to="/dashboard">
+                <Button variant="primary">🛡 Дашборд модерации</Button>
+              </Link>
+              <Link to={`/c/${me.user.login}`}>
+                <Button>👁 Страница зрителя</Button>
+              </Link>
+            </div>
+            <p className="mt-3 text-sm text-muted">
+              Ссылку для зрителей{' '}
+              <code className="rounded bg-surface-2 px-1.5 py-0.5 text-twitch-light">
+                /c/{me.user.login}
+              </code>{' '}
+              отправь в чат или закрепи в описании стрима.
+            </p>
+          </Card>
+
+          <Card>
+            <h2 className="mb-1 text-lg font-bold">Оверлей для OBS</h2>
+            <p className="mb-3 text-sm text-muted">
+              Добавь Browser Source с этим URL. ⚠️ URL содержит секретный токен — не
+              показывай его на стриме.
+            </p>
+            <code className="block break-all rounded-lg bg-surface-2 px-3 py-2 text-xs text-muted">
+              {overlayUrl}
+            </code>
+            <div className="mt-3 flex gap-2">
+              <Button
+                onClick={() => {
+                  void navigator.clipboard.writeText(overlayUrl!);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+              >
+                {copied ? '✅ Скопировано' : '📋 Скопировать'}
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => {
+                  if (window.confirm('Старый URL в OBS перестанет работать. Перевыпустить?')) {
+                    void act(rotateOverlayToken);
+                  }
+                }}
+              >
+                ♻️ Перевыпустить токен
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+    </Shell>
   );
 }
 
-const pageStyle: React.CSSProperties = {
-  fontFamily: 'system-ui, sans-serif',
-  padding: '2rem',
-  maxWidth: 640,
-};
+function Shell({ children }: { children: React.ReactNode }) {
+  return <main className="mx-auto min-h-screen max-w-2xl px-4 py-10">{children}</main>;
+}

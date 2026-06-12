@@ -103,8 +103,12 @@ export interface MeResponse {
 export interface PublicChannelInfo {
   login: string;
   displayName: string;
+  avatarUrl: string | null;
   /** false — стример приостановил приём отправок. */
   accepting: boolean;
+  /** Лимиты канала — показываем зрителю до отправки, а не ошибкой после. */
+  maxDurationMs: number;
+  maxFileSizeBytes: number;
 }
 
 export interface ApiError {

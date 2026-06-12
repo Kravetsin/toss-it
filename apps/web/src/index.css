@@ -1,0 +1,24 @@
+@import 'tailwindcss';
+
+/* Тёмная Twitch-палитра */
+@theme {
+  --color-twitch: #9146ff;
+  --color-twitch-light: #a970ff;
+  --color-twitch-dark: #772ce8;
+  --color-bg: #0e0e10;
+  --color-surface: #18181b;
+  --color-surface-2: #26262c;
+  --color-line: #35353b;
+  --color-text: #efeff1;
+  --color-muted: #adadb8;
+  --color-ok: #00f593;
+  --color-warn: #ffca5f;
+  --color-danger: #f13c4c;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family:
+    'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+}

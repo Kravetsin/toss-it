@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "widget-prod-preview",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@tmw/server", "exec", "tsx", "scripts/preview.ts"],
+      "autoPort": true,
+      "port": 3100
+    }
+  ]
+}

@@ -24,6 +24,7 @@ import {
   skipCurrent,
   uploadMedia,
 } from '../api';
+import { Alert, Button, Card } from '../ui';
 
 export function DashboardPage() {
   const [me, setMe] = useState<MeResponse | null | 'loading'>('loading');
@@ -59,7 +60,6 @@ export function DashboardPage() {
     refreshLists();
 
     // Live-обновления: тот же секретный токен канала, что и у оверлея.
-    // Сокет идёт через vite-proxy (same-origin), поэтому без CORS-плясок.
     const socket = io({ query: { role: 'dashboard', token: me.channel.overlayToken } });
     socket.on('moderation:new', (s: SubmissionSummary) =>
       setPending((prev) => (prev.some((p) => p.id === s.id) ? prev : [...prev, s])),
@@ -95,125 +95,169 @@ export function DashboardPage() {
     setTestFile(null);
   }
 
-  if (me === 'loading') return <main style={pageStyle}>Загрузка…</main>;
+  if (me === 'loading') return <Shell>Загрузка…</Shell>;
   if (!me?.user) {
     return (
-      <main style={pageStyle}>
-        <h1>Дашборд</h1>
-        <p>
+      <Shell>
+        <Card className="flex flex-col items-center gap-4 py-10">
+          <p className="text-muted">Дашборд доступен после входа</p>
           <a href="/api/auth/login?returnTo=/dashboard">
-            <button>Войти через Twitch</button>
+            <Button variant="primary">Войти через Twitch</Button>
           </a>
-        </p>
-      </main>
+        </Card>
+      </Shell>
     );
   }
   if (!me.channel) {
     return (
-      <main style={pageStyle}>
-        <h1>Дашборд</h1>
-        <p>
-          Сначала <Link to="/">создай канал</Link>.
+      <Shell>
+        <p className="text-muted">
+          Сначала{' '}
+          <Link to="/" className="text-twitch-light underline">
+            создай канал
+          </Link>
+          .
         </p>
-      </main>
+      </Shell>
     );
   }
 
   return (
-    <main style={{ ...pageStyle, maxWidth: 860 }}>
-      <h1>Дашборд — {me.user.displayName}</h1>
-      <p>
-        <Link to="/">← на главную</Link>
-      </p>
-      {error && <p style={{ color: 'crimson' }}>{error}</p>}
+    <Shell>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold">🛡 Дашборд</h1>
+        <Link to="/" className="text-sm text-muted hover:text-text">
+          ← на главную
+        </Link>
+      </div>
 
-      <section style={cardStyle}>
-        <h2 style={{ marginTop: 0 }}>Сейчас играет</h2>
-        {now ? (
-          <p>
-            <b>{now.senderName ?? 'аноним'}</b> · {now.mime} ·{' '}
-            {Math.round(now.durationMs / 1000)} с{' '}
-            <button onClick={() => void act(skipCurrent)} style={{ marginLeft: 8 }}>
+      {error && (
+        <div className="mb-4">
+          <Alert tone="danger">{error}</Alert>
+        </div>
+      )}
+
+      {/* Сейчас играет */}
+      <Card className="mb-4">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h2 className="font-bold">Сейчас играет</h2>
+            {now ? (
+              <p className="mt-1 text-sm text-muted">
+                <b className="text-text">{now.senderName ?? 'аноним'}</b> · {now.mime} ·{' '}
+                {Math.round(now.durationMs / 1000)} с
+              </p>
+            ) : (
+              <p className="mt-1 text-sm text-muted">Ничего не играет</p>
+            )}
+          </div>
+          {now && (
+            <Button variant="danger" className="shrink-0" onClick={() => void act(skipCurrent)}>
               ⏭ Скип
-            </button>
-          </p>
-        ) : (
-          <p style={{ color: '#888' }}>Ничего не играет.</p>
-        )}
-        <form onSubmit={(e) => void sendTest(e)} style={{ display: 'flex', gap: 8 }}>
+            </Button>
+          )}
+        </div>
+        <form
+          onSubmit={(e) => void sendTest(e)}
+          className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-4"
+        >
           <input
             type="file"
             accept="image/*,video/mp4,video/webm,audio/*"
             onChange={(e) => setTestFile(e.target.files?.[0] ?? null)}
+            className="text-sm text-muted file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-surface-2 file:px-3 file:py-1.5 file:text-text"
           />
-          <button type="submit" disabled={!testFile}>
+          <Button type="submit" disabled={!testFile}>
             Тестовая отправка
-          </button>
+          </Button>
         </form>
-      </section>
+      </Card>
 
       {settings && (
-        <SettingsForm
+        <SettingsCard
           settings={settings}
           onSave={(patch) => void act(async () => setSettings(await saveSettings(patch)))}
         />
       )}
 
-      <h2>Очередь модерации ({pending.length})</h2>
+      {/* Модерация */}
+      <h2 className="mb-3 mt-8 text-lg font-bold">
+        Очередь модерации{' '}
+        {pending.length > 0 && (
+          <span className="ml-1 rounded-full bg-twitch px-2.5 py-0.5 text-sm text-white">
+            {pending.length}
+          </span>
+        )}
+      </h2>
       {pending.length === 0 && (
-        <p style={{ color: '#888' }}>Пусто. Новые отправки появятся сами.</p>
+        <p className="text-sm text-muted">Пусто. Новые отправки появятся здесь сами.</p>
       )}
-      <div style={{ display: 'grid', gap: '1rem' }}>
+      <div className="flex flex-col gap-3">
         {pending.map((s) => (
-          <div key={s.id} style={cardStyle}>
-            <p style={{ margin: '0 0 0.5rem' }}>
-              <b>{s.senderName ?? 'аноним'}</b> · {s.mime} ·{' '}
+          <Card key={s.id}>
+            <p className="mb-2 text-sm text-muted">
+              <b className="text-text">{s.senderName ?? 'аноним'}</b> · {s.mime} ·{' '}
               {Math.round(s.durationMs / 1000)} с · {new Date(s.createdAt).toLocaleTimeString()}
             </p>
             <Preview s={s} />
-            <p style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', margin: '0.5rem 0 0' }}>
-              <button onClick={() => void act(() => approveSubmission(s.id, false))}>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button variant="primary" onClick={() => void act(() => approveSubmission(s.id, false))}>
                 ✅ Одобрить
-              </button>
-              <button onClick={() => void act(() => approveSubmission(s.id, true), refreshLists)}>
-                ⭐ Одобрить + в белый список
-              </button>
-              <button onClick={() => void act(() => rejectSubmission(s.id, false))}>
+              </Button>
+              <Button onClick={() => void act(() => approveSubmission(s.id, true), refreshLists)}>
+                ⭐ Одобрить + автопоказ
+              </Button>
+              <Button variant="ghost" onClick={() => void act(() => rejectSubmission(s.id, false))}>
                 ❌ Отклонить
-              </button>
-              <button onClick={() => void act(() => rejectSubmission(s.id, true), refreshLists)}>
-                🔨 Отклонить + бан
-              </button>
-            </p>
-          </div>
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => {
+                  if (window.confirm(`Забанить ${s.senderName ?? 'отправителя'}? Все его отправки будут молча отклоняться.`)) {
+                    void act(() => rejectSubmission(s.id, true), refreshLists);
+                  }
+                }}
+              >
+                🔨 Бан
+              </Button>
+            </div>
+          </Card>
         ))}
       </div>
 
-      <UserList
-        title="Белый список (автопоказ)"
-        users={allowed}
-        onRemove={(id) => void act(() => removeFromWhitelist(id), refreshLists)}
-      />
-      <UserList
-        title="Баны"
-        users={banned}
-        onRemove={(id) => void act(() => removeBan(id), refreshLists)}
-      />
+      <div className="mt-8 grid gap-4 md:grid-cols-2">
+        <UserList
+          title="⭐ Белый список"
+          hint="играют без модерации"
+          users={allowed}
+          onRemove={(id) => void act(() => removeFromWhitelist(id), refreshLists)}
+        />
+        <UserList
+          title="🔨 Баны"
+          hint="молчаливое отклонение"
+          users={banned}
+          onRemove={(id) => void act(() => removeBan(id), refreshLists)}
+        />
+      </div>
 
-      <h2>История ({history.length})</h2>
+      <h2 className="mb-3 mt-8 text-lg font-bold">История</h2>
       {history.length === 0 ? (
-        <p style={{ color: '#888' }}>Пока ничего не показывалось.</p>
+        <p className="text-sm text-muted">Пока ничего не показывалось.</p>
       ) : (
-        <ul>
-          {history.map((h) => (
-            <li key={h.id}>
-              {statusIcon(h.status)} <b>{h.senderName ?? 'аноним'}</b> · {h.kind} ·{' '}
-              {new Date(h.createdAt).toLocaleString()}
-            </li>
-          ))}
-        </ul>
+        <Card>
+          <ul className="flex flex-col gap-1.5 text-sm">
+            {history.map((h) => (
+              <li key={h.id} className="flex items-center gap-2 text-muted">
+                <span>{statusIcon(h.status)}</span>
+                <b className="text-text">{h.senderName ?? 'аноним'}</b>
+                <span>· {h.kind}</span>
+                <span className="ml-auto text-xs">{new Date(h.createdAt).toLocaleString()}</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
       )}
-    </main>
+    </Shell>
   );
 }
 
@@ -223,7 +267,7 @@ function statusIcon(status: HistoryEntry['status']): string {
   return '⌛';
 }
 
-function SettingsForm({
+function SettingsCard({
   settings,
   onSave,
 }: {
@@ -236,61 +280,52 @@ function SettingsForm({
   const [showSender, setShowSender] = useState(settings.showSenderName);
 
   return (
-    <section style={cardStyle}>
-      <h2 style={{ marginTop: 0 }}>
-        Настройки{' '}
-        <label style={{ fontSize: '0.8em', fontWeight: 'normal', marginLeft: 12 }}>
+    <Card>
+      <div className="flex items-center justify-between">
+        <h2 className="font-bold">Настройки</h2>
+        <label
+          className={`flex cursor-pointer items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold ${
+            settings.accepting ? 'bg-ok/15 text-ok' : 'bg-danger/15 text-danger'
+          }`}
+        >
           <input
             type="checkbox"
             checked={settings.accepting}
             onChange={(e) => onSave({ accepting: e.target.checked })}
-          />{' '}
-          приём отправок {settings.accepting ? 'включён' : '⛔ ОСТАНОВЛЕН'}
-        </label>
-      </h2>
-      <div style={{ display: 'grid', gap: 8, maxWidth: 420 }}>
-        <label>
-          Макс. длительность показа: {maxDurS} с
-          <input
-            type="range"
-            min={1}
-            max={60}
-            value={maxDurS}
-            onChange={(e) => setMaxDurS(Number(e.target.value))}
-            style={{ width: '100%' }}
+            className="accent-current"
           />
+          {settings.accepting ? 'Приём включён' : '⛔ Приём остановлен'}
         </label>
-        <label>
-          Макс. размер файла: {maxSizeMb} МБ
-          <input
-            type="range"
-            min={1}
-            max={50}
-            value={maxSizeMb}
-            onChange={(e) => setMaxSizeMb(Number(e.target.value))}
-            style={{ width: '100%' }}
-          />
-        </label>
-        <label>
-          Громкость: {volume}%
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={volume}
-            onChange={(e) => setVolume(Number(e.target.value))}
-            style={{ width: '100%' }}
-          />
-        </label>
-        <label>
+      </div>
+      <div className="mt-4 grid gap-4 sm:grid-cols-3">
+        <Slider
+          label={`Показ: до ${maxDurS} с`}
+          min={1}
+          max={60}
+          value={maxDurS}
+          onChange={setMaxDurS}
+        />
+        <Slider
+          label={`Файл: до ${maxSizeMb} МБ`}
+          min={1}
+          max={50}
+          value={maxSizeMb}
+          onChange={setMaxSizeMb}
+        />
+        <Slider label={`Громкость: ${volume}%`} min={0} max={100} value={volume} onChange={setVolume} />
+      </div>
+      <div className="mt-4 flex items-center justify-between">
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-muted">
           <input
             type="checkbox"
             checked={showSender}
             onChange={(e) => setShowSender(e.target.checked)}
-          />{' '}
+            className="accent-twitch"
+          />
           показывать имя отправителя в оверлее
         </label>
-        <button
+        <Button
+          variant="primary"
           onClick={() =>
             onSave({
               maxDurationMs: maxDurS * 1000,
@@ -300,60 +335,86 @@ function SettingsForm({
             })
           }
         >
-          Сохранить настройки
-        </button>
+          Сохранить
+        </Button>
       </div>
-    </section>
+    </Card>
+  );
+}
+
+function Slider({
+  label,
+  min,
+  max,
+  value,
+  onChange,
+}: {
+  label: string;
+  min: number;
+  max: number;
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <label className="text-sm text-muted">
+      {label}
+      <input
+        type="range"
+        min={min}
+        max={max}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="mt-1 w-full accent-twitch"
+      />
+    </label>
   );
 }
 
 function Preview({ s }: { s: SubmissionSummary }) {
-  const style: React.CSSProperties = { maxWidth: 320, maxHeight: 240 };
-  if (s.kind === 'image') return <img src={s.url} style={style} />;
-  if (s.kind === 'video') return <video src={s.url} controls muted style={style} />;
+  const cls = 'max-h-60 max-w-sm rounded-lg bg-black/40';
+  if (s.kind === 'image') return <img src={s.url} className={cls} />;
+  if (s.kind === 'video') return <video src={s.url} controls muted className={cls} />;
   return <audio src={s.url} controls />;
 }
 
 function UserList({
   title,
+  hint,
   users,
   onRemove,
 }: {
   title: string;
+  hint: string;
   users: ListedUser[];
   onRemove: (userId: string) => void;
 }) {
   return (
-    <>
-      <h2>
-        {title} ({users.length})
+    <Card>
+      <h2 className="font-bold">
+        {title} <span className="text-sm font-normal text-muted">— {hint}</span>
       </h2>
       {users.length === 0 ? (
-        <p style={{ color: '#888' }}>Пусто.</p>
+        <p className="mt-2 text-sm text-muted">Пусто.</p>
       ) : (
-        <ul>
+        <ul className="mt-2 flex flex-col gap-1.5 text-sm">
           {users.map((u) => (
-            <li key={u.userId}>
-              <b>{u.displayName}</b> ({u.login}) — с{' '}
-              {new Date(u.addedAt).toLocaleDateString()}{' '}
-              <button onClick={() => onRemove(u.userId)}>убрать</button>
+            <li key={u.userId} className="flex items-center gap-2">
+              <b>{u.displayName}</b>
+              <span className="text-xs text-muted">с {new Date(u.addedAt).toLocaleDateString()}</span>
+              <button
+                onClick={() => onRemove(u.userId)}
+                className="ml-auto cursor-pointer text-xs text-muted hover:text-danger"
+              >
+                убрать ✕
+              </button>
             </li>
           ))}
         </ul>
       )}
-    </>
+    </Card>
   );
 }
 
-const pageStyle: React.CSSProperties = {
-  fontFamily: 'system-ui, sans-serif',
-  padding: '2rem',
-  maxWidth: 640,
-};
-
-const cardStyle: React.CSSProperties = {
-  border: '1px solid #ccc',
-  borderRadius: 8,
-  padding: '1rem',
-  marginBottom: '1rem',
-};
+function Shell({ children }: { children: React.ReactNode }) {
+  return <main className="mx-auto min-h-screen max-w-3xl px-4 py-10">{children}</main>;
+}

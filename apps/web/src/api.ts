@@ -49,6 +49,40 @@ export function uploadMedia(login: string, file: File): Promise<UploadResponse> 
   }).then((r) => json<UploadResponse>(r));
 }
 
+/**
+ * Загрузка с прогрессом (XHR — у fetch нет upload-прогресса).
+ * onProgress: 0..1 пока файл едет на сервер, затем null = «сервер обрабатывает»
+ * (транскодирование может занимать секунды, особенно на слабом хостинге).
+ */
+export function uploadMediaWithProgress(
+  login: string,
+  file: File,
+  onProgress: (value: number | null) => void,
+): Promise<UploadResponse> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `/api/c/${encodeURIComponent(login)}/upload`);
+    xhr.responseType = 'json';
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress(e.loaded >= e.total ? null : e.loaded / e.total);
+    };
+    xhr.onerror = () => reject(new Error('Сервер недоступен'));
+    xhr.onload = () => {
+      const body = xhr.response as UploadResponse | ApiError | null;
+      if (xhr.status >= 200 && xhr.status < 300 && body && !('error' in body)) {
+        resolve(body);
+      } else {
+        reject(new Error(body && 'error' in body ? body.error : `Ошибка ${xhr.status}`));
+      }
+    };
+
+    const fd = new FormData();
+    fd.append('file', file);
+    xhr.send(fd);
+  });
+}
+
 export function getPending(): Promise<SubmissionSummary[]> {
   return fetch('/api/dashboard/pending').then((r) => json<SubmissionSummary[]>(r));
 }
