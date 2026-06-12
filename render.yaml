@@ -1,0 +1,24 @@
+# Render Blueprint: при создании сервиса выбери "New > Blueprint" и укажи репозиторий.
+services:
+  - type: web
+    name: twitch-media-widget
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/ping
+    envVars:
+      - key: TWITCH_CLIENT_ID
+        sync: false
+      - key: TWITCH_CLIENT_SECRET
+        sync: false
+      - key: COOKIE_SECRET
+        generateValue: true
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false
+      # Публичный URL сервиса, например https://twitch-media-widget.onrender.com
+      - key: PUBLIC_WEB_URL
+        sync: false
+      # https://<тот же домен>/api/auth/callback — и добавь его в Twitch-консоль
+      - key: TWITCH_REDIRECT_URI
+        sync: false

@@ -1,0 +1,184 @@
+import { eq } from 'drizzle-orm';
+import type { Server } from 'socket.io';
+import type {
+  MediaPlayPayload,
+  OverlayToServerEvents,
+  ServerToDashboardEvents,
+  ServerToOverlayEvents,
+} from '@tmw/shared';
+import { db } from './db/index';
+import { channels, submissions, type SubmissionRow } from './db/schema';
+import { config } from './config';
+
+export type RealtimeServer = Server<
+  OverlayToServerEvents,
+  ServerToOverlayEvents & ServerToDashboardEvents
+>;
+
+export function roomOf(channelId: string): string {
+  return `channel:${channelId}`;
+}
+
+/** Комната дашборда стримера: live-события модерации. */
+export function dashboardRoomOf(channelId: string): string {
+  return `dashboard:${channelId}`;
+}
+
+interface ChannelState {
+  queue: SubmissionRow[];
+  current: SubmissionRow | null;
+  watchdog: NodeJS.Timeout | null;
+}
+
+/**
+ * Очередь показа per-channel. Проигрывание строго по одному:
+ * следующий элемент уходит в оверлей только после playback:done
+ * (или по watchdog-таймеру, если оверлей умер посреди показа).
+ */
+export class PlaybackManager {
+  private states = new Map<string, ChannelState>();
+
+  constructor(private io: RealtimeServer) {}
+
+  /** Возвращает позицию в очереди (1 = следующий). */
+  enqueue(sub: SubmissionRow): number {
+    const st = this.state(sub.channelId);
+    st.queue.push(sub);
+    const position = st.queue.length + (st.current ? 1 : 0);
+    void this.tryNext(sub.channelId);
+    return position;
+  }
+
+  /** При старте сервера возвращаем в очередь всё, что не успело проиграться. */
+  async recoverFromDb(): Promise<void> {
+    const rows = await db
+      .select()
+      .from(submissions)
+      .where(eq(submissions.status, 'approved'))
+      .all();
+    for (const row of rows) {
+      this.state(row.channelId).queue.push(row);
+    }
+  }
+
+  onOverlayConnected(channelId: string, replayTo: (payload: MediaPlayPayload) => void): void {
+    const st = this.state(channelId);
+    if (st.current) {
+      // Оверлей переподключился посреди показа — переигрываем текущий элемент.
+      replayTo(this.payloadOf(st.current));
+    } else {
+      void this.tryNext(channelId);
+    }
+  }
+
+  async onDone(channelId: string, submissionId: string): Promise<void> {
+    const st = this.state(channelId);
+    if (st.current?.id !== submissionId) return;
+    if (st.watchdog) clearTimeout(st.watchdog);
+    st.watchdog = null;
+    st.current = null;
+
+    await db
+      .update(submissions)
+      .set({ status: 'played', updatedAt: new Date() })
+      .where(eq(submissions.id, submissionId));
+
+    // Гасим отставшие копии оверлея (несколько открытых вкладок и т.п.).
+    this.io.to(roomOf(channelId)).emit('media:skip', submissionId);
+    void this.tryNext(channelId);
+  }
+
+  private async tryNext(channelId: string): Promise<void> {
+    const st = this.state(channelId);
+    if (st.current || st.queue.length === 0 || this.overlayCount(channelId) === 0) return;
+
+    while (st.queue.length > 0) {
+      const candidate = st.queue.shift()!;
+      // Статус мог измениться, пока элемент ждал в памяти (например, протух).
+      const fresh = await db
+        .select()
+        .from(submissions)
+        .where(eq(submissions.id, candidate.id))
+        .get();
+      if (!fresh || fresh.status !== 'approved' || !fresh.filePath) continue;
+      // Пока ходили в БД, другой вызов tryNext мог занять слот.
+      if (st.current) {
+        st.queue.unshift(candidate);
+        return;
+      }
+
+      st.current = fresh;
+      this.io.to(roomOf(channelId)).emit('media:play', this.payloadOf(fresh));
+      st.watchdog = setTimeout(
+        () => void this.onDone(channelId, fresh.id),
+        fresh.durationMs + config.watchdogGraceMs,
+      );
+      return;
+    }
+  }
+
+  private overlayCount(channelId: string): number {
+    return this.io.sockets.adapter.rooms.get(roomOf(channelId))?.size ?? 0;
+  }
+
+  private payloadOf(sub: SubmissionRow): MediaPlayPayload {
+    return {
+      submissionId: sub.id,
+      url: `/api/media/${sub.id}`,
+      kind: sub.kind,
+      durationMs: sub.durationMs,
+      senderName: sub.senderName ?? undefined,
+    };
+  }
+
+  private state(channelId: string): ChannelState {
+    let st = this.states.get(channelId);
+    if (!st) {
+      st = { queue: [], current: null, watchdog: null };
+      this.states.set(channelId, st);
+    }
+    return st;
+  }
+}
+
+export function setupRealtime(io: RealtimeServer): PlaybackManager {
+  const playback = new PlaybackManager(io);
+
+  io.on('connection', (socket) => {
+    void (async () => {
+      // И оверлей (OBS Browser Source не умеет OAuth), и дашборд
+      // аутентифицируются секретным токеном канала.
+      const { role, token } = socket.handshake.query;
+      if (
+        (role !== 'overlay' && role !== 'dashboard') ||
+        typeof token !== 'string' ||
+        token.length === 0
+      ) {
+        socket.disconnect(true);
+        return;
+      }
+      const channel = await db
+        .select({ id: channels.id })
+        .from(channels)
+        .where(eq(channels.overlayToken, token))
+        .get();
+      if (!channel) {
+        socket.disconnect(true);
+        return;
+      }
+
+      if (role === 'dashboard') {
+        void socket.join(dashboardRoomOf(channel.id));
+        return;
+      }
+
+      void socket.join(roomOf(channel.id));
+      socket.on('playback:done', (submissionId) => {
+        if (typeof submissionId === 'string') void playback.onDone(channel.id, submissionId);
+      });
+      playback.onOverlayConnected(channel.id, (payload) => socket.emit('media:play', payload));
+    })();
+  });
+
+  return playback;
+}
