@@ -8,8 +8,14 @@ export function HomePage() {
   const [me, setMe] = useState<MeResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [fakeLogin, setFakeLogin] = useState('');
-  const [copied, setCopied] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  function copy(key: string, value: string) {
+    void navigator.clipboard.writeText(value);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 2000);
+  }
 
   const refresh = () =>
     getMe()
@@ -76,6 +82,7 @@ export function HomePage() {
   }
 
   const overlayUrl = me.channel ? `${OVERLAY_BASE_URL}/?token=${me.channel.overlayToken}` : null;
+  const viewerUrl = `${window.location.origin}/c/${me.user.login}`;
 
   return (
     <Shell>
@@ -119,13 +126,22 @@ export function HomePage() {
                 <Button>👁 Страница зрителя</Button>
               </Link>
             </div>
-            <p className="mt-3 text-sm text-muted">
-              Ссылку для зрителей{' '}
-              <code className="rounded bg-surface-2 px-1.5 py-0.5 text-twitch-light">
-                /c/{me.user.login}
-              </code>{' '}
-              отправь в чат или закрепи в описании стрима.
+            <p className="mb-2 mt-4 text-sm text-muted">
+              Ссылка для зрителей — отправь её в чат или закрепи в описании стрима:
             </p>
+            <div className="flex items-center gap-2">
+              <a
+                href={viewerUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="flex-1 break-all rounded-lg bg-surface-2 px-3 py-2 text-sm text-twitch-light hover:underline"
+              >
+                {viewerUrl}
+              </a>
+              <Button className="shrink-0" onClick={() => copy('viewer', viewerUrl)}>
+                {copiedKey === 'viewer' ? '✅' : '📋'}
+              </Button>
+            </div>
           </Card>
 
           <Card>
@@ -138,14 +154,8 @@ export function HomePage() {
               {overlayUrl}
             </code>
             <div className="mt-3 flex gap-2">
-              <Button
-                onClick={() => {
-                  void navigator.clipboard.writeText(overlayUrl!);
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 2000);
-                }}
-              >
-                {copied ? '✅ Скопировано' : '📋 Скопировать'}
+              <Button onClick={() => copy('overlay', overlayUrl!)}>
+                {copiedKey === 'overlay' ? '✅ Скопировано' : '📋 Скопировать'}
               </Button>
               <Button
                 variant="danger"
