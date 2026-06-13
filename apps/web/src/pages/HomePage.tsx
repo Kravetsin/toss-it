@@ -50,11 +50,19 @@ export function HomePage() {
             Зрители отправляют картинки, гифки, видео и звуки прямо на твой стрим — с
             модерацией, белым списком и лимитами.
           </p>
-          <a href="/api/auth/login?returnTo=/">
-            <Button variant="primary" className="px-8 py-3 text-base">
-              Войти через Twitch
-            </Button>
-          </a>
+          <div className="flex flex-col items-center gap-2">
+            <a href="/api/auth/login?returnTo=/">
+              <Button variant="primary" className="px-8 py-3 text-base">
+                Войти через Twitch
+              </Button>
+            </a>
+            <a
+              href="/api/auth/login?returnTo=/&switch=1"
+              className="text-xs text-muted hover:text-text"
+            >
+              Войти под другим аккаунтом
+            </a>
+          </div>
           <details className="text-sm text-muted">
             <summary className="cursor-pointer hover:text-text">
               Dev-вход без Twitch-ключей

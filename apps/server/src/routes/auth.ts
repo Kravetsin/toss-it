@@ -25,10 +25,12 @@ function safeReturnTo(value: unknown): string {
 }
 
 export function registerAuthRoutes(app: FastifyInstance): void {
-  app.get<{ Querystring: { fake?: string; returnTo?: string } }>(
+  app.get<{ Querystring: { fake?: string; returnTo?: string; switch?: string } }>(
     '/api/auth/login',
     async (req, reply) => {
       const returnTo = safeReturnTo(req.query.returnTo);
+      // ?switch=1 → принудительно показать экран Twitch для смены аккаунта.
+      const forceVerify = req.query.switch !== undefined;
 
       if (req.query.fake !== undefined) {
         if (!config.allowFakeAuth) {
@@ -63,7 +65,7 @@ export function registerAuthRoutes(app: FastifyInstance): void {
         path: '/api/auth',
         maxAge: 600,
       });
-      return reply.redirect(buildAuthorizeUrl(state));
+      return reply.redirect(buildAuthorizeUrl(state, forceVerify));
     },
   );
 

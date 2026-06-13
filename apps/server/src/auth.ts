@@ -14,7 +14,7 @@ export interface TwitchUserInfo {
   avatarUrl: string | null;
 }
 
-export function buildAuthorizeUrl(state: string): string {
+export function buildAuthorizeUrl(state: string, forceVerify = false): string {
   const params = new URLSearchParams({
     client_id: config.twitch.clientId,
     redirect_uri: config.twitch.redirectUri,
@@ -22,6 +22,9 @@ export function buildAuthorizeUrl(state: string): string {
     scope: '', // нам нужна только личность пользователя
     state,
   });
+  // force_verify заставляет Twitch показать экран авторизации даже при живой
+  // сессии — иначе он молча релогинит в тот же аккаунт. Нужно для «сменить аккаунт».
+  if (forceVerify) params.set('force_verify', 'true');
   return `https://id.twitch.tv/oauth2/authorize?${params}`;
 }
 
