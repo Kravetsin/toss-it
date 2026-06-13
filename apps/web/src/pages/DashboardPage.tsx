@@ -24,9 +24,11 @@ import {
   skipCurrent,
   uploadMedia,
 } from '../api';
+import { formatDuration, useI18n } from '../i18n';
 import { Alert, Button, Card } from '../ui';
 
 export function DashboardPage() {
+  const { t } = useI18n();
   const [me, setMe] = useState<MeResponse | null | 'loading'>('loading');
   const [pending, setPending] = useState<SubmissionSummary[]>([]);
   const [now, setNow] = useState<SubmissionSummary | null>(null);
@@ -95,14 +97,14 @@ export function DashboardPage() {
     setTestFile(null);
   }
 
-  if (me === 'loading') return <Shell>Загрузка…</Shell>;
+  if (me === 'loading') return <Shell>{t('common.loading')}</Shell>;
   if (!me?.user) {
     return (
       <Shell>
         <Card className="flex flex-col items-center gap-4 py-10">
-          <p className="text-muted">Дашборд доступен после входа</p>
+          <p className="text-muted">{t('dash.loginToView')}</p>
           <a href="/api/auth/login?returnTo=/dashboard">
-            <Button variant="primary">Войти через Twitch</Button>
+            <Button variant="primary">{t('common.loginTwitch')}</Button>
           </a>
         </Card>
       </Shell>
@@ -112,9 +114,9 @@ export function DashboardPage() {
     return (
       <Shell>
         <p className="text-muted">
-          Сначала{' '}
+          {t('dash.createFirstPre')}
           <Link to="/" className="text-twitch-light underline">
-            создай канал
+            {t('dash.createFirstLink')}
           </Link>
           .
         </p>
@@ -125,9 +127,9 @@ export function DashboardPage() {
   return (
     <Shell>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">🛡 Дашборд</h1>
+        <h1 className="text-2xl font-bold">{t('dash.title')}</h1>
         <Link to="/" className="text-sm text-muted hover:text-text">
-          ← на главную
+          {t('common.home')}
         </Link>
       </div>
 
@@ -141,19 +143,19 @@ export function DashboardPage() {
       <Card className="mb-4">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h2 className="font-bold">Сейчас играет</h2>
+            <h2 className="font-bold">{t('dash.nowPlaying')}</h2>
             {now ? (
               <p className="mt-1 text-sm text-muted">
-                <b className="text-text">{now.senderName ?? 'аноним'}</b> · {now.mime} ·{' '}
-                {Math.round(now.durationMs / 1000)} с
+                <b className="text-text">{now.senderName ?? t('common.anon')}</b> · {now.mime} ·{' '}
+                {formatDuration(now.durationMs, t)}
               </p>
             ) : (
-              <p className="mt-1 text-sm text-muted">Ничего не играет</p>
+              <p className="mt-1 text-sm text-muted">{t('dash.nothingPlaying')}</p>
             )}
           </div>
           {now && (
             <Button variant="danger" className="shrink-0" onClick={() => void act(skipCurrent)}>
-              ⏭ Скип
+              {t('dash.skip')}
             </Button>
           )}
         </div>
@@ -168,7 +170,7 @@ export function DashboardPage() {
             className="text-sm text-muted file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-surface-2 file:px-3 file:py-1.5 file:text-text"
           />
           <Button type="submit" disabled={!testFile}>
-            Тестовая отправка
+            {t('dash.testSend')}
           </Button>
         </form>
       </Card>
@@ -182,43 +184,42 @@ export function DashboardPage() {
 
       {/* Модерация */}
       <h2 className="mb-3 mt-8 text-lg font-bold">
-        Очередь модерации{' '}
+        {t('dash.modQueue')}{' '}
         {pending.length > 0 && (
           <span className="ml-1 rounded-full bg-twitch px-2.5 py-0.5 text-sm text-white">
             {pending.length}
           </span>
         )}
       </h2>
-      {pending.length === 0 && (
-        <p className="text-sm text-muted">Пусто. Новые отправки появятся здесь сами.</p>
-      )}
+      {pending.length === 0 && <p className="text-sm text-muted">{t('dash.modEmpty')}</p>}
       <div className="flex flex-col gap-3">
         {pending.map((s) => (
           <Card key={s.id}>
             <p className="mb-2 text-sm text-muted">
-              <b className="text-text">{s.senderName ?? 'аноним'}</b> · {s.mime} ·{' '}
-              {Math.round(s.durationMs / 1000)} с · {new Date(s.createdAt).toLocaleTimeString()}
+              <b className="text-text">{s.senderName ?? t('common.anon')}</b> · {s.mime} ·{' '}
+              {formatDuration(s.durationMs, t)} · {new Date(s.createdAt).toLocaleTimeString()}
             </p>
             <Preview s={s} />
             <div className="mt-3 flex flex-wrap gap-2">
               <Button variant="primary" onClick={() => void act(() => approveSubmission(s.id, false))}>
-                ✅ Одобрить
+                {t('dash.approve')}
               </Button>
               <Button onClick={() => void act(() => approveSubmission(s.id, true), refreshLists)}>
-                ⭐ Одобрить + автопоказ
+                {t('dash.approveWhitelist')}
               </Button>
               <Button variant="ghost" onClick={() => void act(() => rejectSubmission(s.id, false))}>
-                ❌ Отклонить
+                {t('dash.reject')}
               </Button>
               <Button
                 variant="danger"
                 onClick={() => {
-                  if (window.confirm(`Забанить ${s.senderName ?? 'отправителя'}? Все его отправки будут молча отклоняться.`)) {
+                  const name = s.senderName ?? t('dash.thisSender');
+                  if (window.confirm(t('dash.banConfirm', { name }))) {
                     void act(() => rejectSubmission(s.id, true), refreshLists);
                   }
                 }}
               >
-                🔨 Бан
+                {t('dash.ban')}
               </Button>
             </div>
           </Card>
@@ -227,29 +228,29 @@ export function DashboardPage() {
 
       <div className="mt-8 grid gap-4 md:grid-cols-2">
         <UserList
-          title="⭐ Белый список"
-          hint="играют без модерации"
+          title={t('dash.whitelist')}
+          hint={t('dash.whitelistHint')}
           users={allowed}
           onRemove={(id) => void act(() => removeFromWhitelist(id), refreshLists)}
         />
         <UserList
-          title="🔨 Баны"
-          hint="молчаливое отклонение"
+          title={t('dash.bans')}
+          hint={t('dash.bansHint')}
           users={banned}
           onRemove={(id) => void act(() => removeBan(id), refreshLists)}
         />
       </div>
 
-      <h2 className="mb-3 mt-8 text-lg font-bold">История</h2>
+      <h2 className="mb-3 mt-8 text-lg font-bold">{t('dash.history')}</h2>
       {history.length === 0 ? (
-        <p className="text-sm text-muted">Пока ничего не показывалось.</p>
+        <p className="text-sm text-muted">{t('dash.historyEmpty')}</p>
       ) : (
         <Card>
           <ul className="flex flex-col gap-1.5 text-sm">
             {history.map((h) => (
               <li key={h.id} className="flex items-center gap-2 text-muted">
                 <span>{statusIcon(h.status)}</span>
-                <b className="text-text">{h.senderName ?? 'аноним'}</b>
+                <b className="text-text">{h.senderName ?? t('common.anon')}</b>
                 <span>· {h.kind}</span>
                 <span className="ml-auto text-xs">{new Date(h.createdAt).toLocaleString()}</span>
               </li>
@@ -274,6 +275,7 @@ function SettingsCard({
   settings: ChannelSettings;
   onSave: (patch: Partial<ChannelSettings>) => void;
 }) {
+  const { t } = useI18n();
   const [maxDurS, setMaxDurS] = useState(Math.round(settings.maxDurationMs / 1000));
   const [maxAudioMin, setMaxAudioMin] = useState(
     Math.min(10, Math.max(1, Math.round(settings.maxAudioDurationMs / 60_000))),
@@ -285,7 +287,7 @@ function SettingsCard({
   return (
     <Card>
       <div className="flex items-center justify-between">
-        <h2 className="font-bold">Настройки</h2>
+        <h2 className="font-bold">{t('dash.settings')}</h2>
         <label
           className={`flex cursor-pointer items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold ${
             settings.accepting ? 'bg-ok/15 text-ok' : 'bg-danger/15 text-danger'
@@ -297,32 +299,38 @@ function SettingsCard({
             onChange={(e) => onSave({ accepting: e.target.checked })}
             className="accent-current"
           />
-          {settings.accepting ? 'Приём включён' : '⛔ Приём остановлен'}
+          {settings.accepting ? t('dash.accepting') : t('dash.acceptingOff')}
         </label>
       </div>
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <Slider
-          label={`🎬 Видео и фото: до ${maxDurS} с`}
+          label={t('dash.sliderVideo', { n: maxDurS })}
           min={1}
           max={60}
           value={maxDurS}
           onChange={setMaxDurS}
         />
         <Slider
-          label={`🎵 Аудио: до ${maxAudioMin} мин`}
+          label={t('dash.sliderAudio', { n: maxAudioMin })}
           min={1}
           max={10}
           value={maxAudioMin}
           onChange={setMaxAudioMin}
         />
         <Slider
-          label={`📦 Файл: до ${maxSizeMb} МБ`}
+          label={t('dash.sliderSize', { n: maxSizeMb })}
           min={1}
           max={50}
           value={maxSizeMb}
           onChange={setMaxSizeMb}
         />
-        <Slider label={`🔊 Громкость: ${volume}%`} min={0} max={100} value={volume} onChange={setVolume} />
+        <Slider
+          label={t('dash.sliderVolume', { n: volume })}
+          min={0}
+          max={100}
+          value={volume}
+          onChange={setVolume}
+        />
       </div>
       <div className="mt-4 flex items-center justify-between">
         <label className="flex cursor-pointer items-center gap-2 text-sm text-muted">
@@ -332,7 +340,7 @@ function SettingsCard({
             onChange={(e) => setShowSender(e.target.checked)}
             className="accent-twitch"
           />
-          показывать имя отправителя в оверлее
+          {t('dash.showSender')}
         </label>
         <Button
           variant="primary"
@@ -346,7 +354,7 @@ function SettingsCard({
             })
           }
         >
-          Сохранить
+          {t('dash.save')}
         </Button>
       </div>
     </Card>
@@ -399,24 +407,27 @@ function UserList({
   users: ListedUser[];
   onRemove: (userId: string) => void;
 }) {
+  const { t } = useI18n();
   return (
     <Card>
       <h2 className="font-bold">
         {title} <span className="text-sm font-normal text-muted">— {hint}</span>
       </h2>
       {users.length === 0 ? (
-        <p className="mt-2 text-sm text-muted">Пусто.</p>
+        <p className="mt-2 text-sm text-muted">{t('common.empty')}</p>
       ) : (
         <ul className="mt-2 flex flex-col gap-1.5 text-sm">
           {users.map((u) => (
             <li key={u.userId} className="flex items-center gap-2">
               <b>{u.displayName}</b>
-              <span className="text-xs text-muted">с {new Date(u.addedAt).toLocaleDateString()}</span>
+              <span className="text-xs text-muted">
+                {t('dash.since', { date: new Date(u.addedAt).toLocaleDateString() })}
+              </span>
               <button
                 onClick={() => onRemove(u.userId)}
                 className="ml-auto cursor-pointer text-xs text-muted hover:text-danger"
               >
-                убрать ✕
+                {t('dash.removeUser')}
               </button>
             </li>
           ))}

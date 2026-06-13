@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react'
 import { useParams } from 'react-router-dom';
 import type { MeResponse, PublicChannelInfo, UploadResponse } from '@tmw/shared';
 import { getChannel, getMe, uploadMediaWithProgress } from '../api';
+import { formatDuration, useI18n } from '../i18n';
 import { Alert, Avatar, Button, Card, ProgressBar } from '../ui';
 
 const ACCEPT = 'image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,audio/*';
@@ -13,6 +14,7 @@ type Phase =
   | { name: 'error'; message: string };
 
 export function ChannelPage() {
+  const { t } = useI18n();
   const { login = '' } = useParams();
   const [channel, setChannel] = useState<PublicChannelInfo | null | 'loading'>('loading');
   const [me, setMe] = useState<MeResponse | null>(null);
@@ -43,14 +45,14 @@ export function ChannelPage() {
       if (f.size > channel.maxFileSizeBytes) {
         setPhase({
           name: 'error',
-          message: `Файл слишком большой: лимит канала ${mb(channel.maxFileSizeBytes)} МБ`,
+          message: t('channel.tooBig', { mb: mb(channel.maxFileSizeBytes) }),
         });
         return;
       }
       setPhase({ name: 'idle' });
       setFile(f);
     },
-    [channel],
+    [channel, t],
   );
 
   function onDrop(e: DragEvent) {
@@ -74,15 +76,13 @@ export function ChannelPage() {
   }
 
   if (channel === 'loading') {
-    return <Shell>Загрузка…</Shell>;
+    return <Shell>{t('common.loading')}</Shell>;
   }
   if (!channel) {
     return (
       <Shell>
-        <h1 className="text-2xl font-bold">Канал не найден</h1>
-        <p className="mt-2 text-muted">
-          Канала <code className="rounded bg-surface-2 px-1">{login}</code> не существует.
-        </p>
+        <h1 className="text-2xl font-bold">{t('channel.notFoundTitle')}</h1>
+        <p className="mt-2 text-muted">{t('channel.notFoundBody', { login })}</p>
       </Shell>
     );
   }
@@ -94,29 +94,31 @@ export function ChannelPage() {
         <Avatar url={channel.avatarUrl} name={channel.displayName} size={56} />
         <div>
           <h1 className="text-2xl font-bold">{channel.displayName}</h1>
-          <p className="text-sm text-muted">Отправь медиа — оно появится на стриме</p>
+          <p className="text-sm text-muted">{t('channel.subtitle')}</p>
         </div>
       </div>
 
       {/* Лимиты канала */}
       <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted">
         <span className="rounded-full bg-surface-2 px-3 py-1">
-          🎬 видео/фото до {fmtDur(channel.maxDurationMs)}
+          {t('channel.limitVideo', { dur: formatDuration(channel.maxDurationMs, t) })}
         </span>
         <span className="rounded-full bg-surface-2 px-3 py-1">
-          🎵 аудио до {fmtDur(channel.maxAudioDurationMs)}
+          {t('channel.limitAudio', { dur: formatDuration(channel.maxAudioDurationMs, t) })}
         </span>
-        <span className="rounded-full bg-surface-2 px-3 py-1">📦 до {mb(channel.maxFileSizeBytes)} МБ</span>
+        <span className="rounded-full bg-surface-2 px-3 py-1">
+          {t('channel.limitSize', { mb: mb(channel.maxFileSizeBytes) })}
+        </span>
       </div>
 
       <div className="mt-6">
         {!channel.accepting ? (
-          <Alert tone="warn">⛔ Стример приостановил приём отправок — загляни позже.</Alert>
+          <Alert tone="warn">{t('channel.paused')}</Alert>
         ) : !me?.user ? (
           <Card className="flex flex-col items-center gap-4 py-10 text-center">
-            <p className="text-muted">Чтобы отправлять медиа, нужно войти через Twitch</p>
+            <p className="text-muted">{t('channel.loginToSend')}</p>
             <a href={`/api/auth/login?returnTo=/c/${encodeURIComponent(login)}`}>
-              <Button variant="primary">Войти через Twitch</Button>
+              <Button variant="primary">{t('common.loginTwitch')}</Button>
             </a>
           </Card>
         ) : (
@@ -138,9 +140,9 @@ export function ChannelPage() {
                 }`}
               >
                 <span className="text-4xl">📁</span>
-                <p className="font-medium">Перетащи файл сюда или нажми, чтобы выбрать</p>
+                <p className="font-medium">{t('channel.dropzone')}</p>
                 <p className="text-xs text-muted">
-                  Отправляешь как <b className="text-text">{me.user.displayName}</b>
+                  {t('channel.sendingAs', { name: me.user.displayName })}
                 </p>
                 <input
                   ref={inputRef}
@@ -157,14 +159,14 @@ export function ChannelPage() {
               <Card className="flex flex-col gap-4">
                 <FilePreview file={file} url={previewUrl} />
                 <p className="text-sm text-muted">
-                  {file.name} · {mb(file.size, 1)} МБ
+                  {file.name} · {mb(file.size, 1)} MB
                 </p>
                 <div className="flex gap-2">
                   <Button variant="primary" className="flex-1" onClick={() => void send()}>
-                    🚀 Отправить на стрим
+                    {t('channel.send')}
                   </Button>
                   <Button variant="ghost" onClick={() => setFile(null)}>
-                    Убрать
+                    {t('channel.removeFile')}
                   </Button>
                 </div>
               </Card>
@@ -175,8 +177,8 @@ export function ChannelPage() {
               <Card className="flex flex-col gap-3">
                 <p className="text-sm">
                   {phase.progress === null
-                    ? '⚙️ Сервер обрабатывает файл (обрезка и перекодирование)…'
-                    : `⬆️ Загрузка: ${Math.round(phase.progress * 100)}%`}
+                    ? t('channel.processing')
+                    : t('channel.uploading', { pct: Math.round(phase.progress * 100) })}
                 </p>
                 <ProgressBar value={phase.progress} />
               </Card>
@@ -186,14 +188,13 @@ export function ChannelPage() {
             {phase.name === 'done' && (
               <div className="mt-4">
                 {phase.result.status === 'pending' ? (
-                  <Alert tone="warn">
-                    🕐 Отправлено! Стример посмотрит и одобрит — после этого медиа попадёт на
-                    стрим.
-                  </Alert>
+                  <Alert tone="warn">{t('channel.donePending')}</Alert>
                 ) : (
                   <Alert tone="ok">
-                    🎉 Принято! Позиция в очереди: {phase.result.queuePosition}, на экране
-                    будет {Math.round(phase.result.durationMs / 1000)} с.
+                    {t('channel.doneApproved', {
+                      pos: phase.result.queuePosition,
+                      dur: formatDuration(phase.result.durationMs, t),
+                    })}
                   </Alert>
                 )}
               </div>
@@ -230,13 +231,4 @@ function Shell({ children }: { children: React.ReactNode }) {
 
 function mb(bytes: number, digits = 0): string {
   return (bytes / 1024 / 1024).toFixed(digits);
-}
-
-/** Миллисекунды → «45 с» / «3 мин» / «3 мин 20 с». */
-function fmtDur(ms: number): string {
-  const total = Math.round(ms / 1000);
-  if (total < 60) return `${total} с`;
-  const m = Math.floor(total / 60);
-  const s = total % 60;
-  return s === 0 ? `${m} мин` : `${m} мин ${s} с`;
 }

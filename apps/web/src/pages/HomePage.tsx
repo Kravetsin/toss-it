@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { MeResponse } from '@tmw/shared';
 import { OVERLAY_BASE_URL, createChannel, getMe, logout, rotateOverlayToken } from '../api';
+import { useI18n } from '../i18n';
 import { Alert, Avatar, Button, Card } from '../ui';
 
 export function HomePage() {
+  const { t } = useI18n();
   const [me, setMe] = useState<MeResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [fakeLogin, setFakeLogin] = useState('');
@@ -37,7 +39,7 @@ export function HomePage() {
     }
   }
 
-  if (loading) return <Shell>Загрузка…</Shell>;
+  if (loading) return <Shell>{t('common.loading')}</Shell>;
 
   if (!me?.user) {
     return (
@@ -46,30 +48,25 @@ export function HomePage() {
           <h1 className="text-4xl font-extrabold">
             Twitch <span className="text-twitch-light">Media</span> Widget
           </h1>
-          <p className="max-w-md text-muted">
-            Зрители отправляют картинки, гифки, видео и звуки прямо на твой стрим — с
-            модерацией, белым списком и лимитами.
-          </p>
+          <p className="max-w-md text-muted">{t('home.tagline')}</p>
           <div className="flex flex-col items-center gap-2">
             <a href="/api/auth/login?returnTo=/">
               <Button variant="primary" className="px-8 py-3 text-base">
-                Войти через Twitch
+                {t('common.loginTwitch')}
               </Button>
             </a>
             <a
               href="/api/auth/login?returnTo=/&switch=1"
               className="text-xs text-muted hover:text-text"
             >
-              Войти под другим аккаунтом
+              {t('home.loginOther')}
             </a>
           </div>
           <details className="text-sm text-muted">
-            <summary className="cursor-pointer hover:text-text">
-              Dev-вход без Twitch-ключей
-            </summary>
+            <summary className="cursor-pointer hover:text-text">{t('home.devLogin')}</summary>
             <div className="mt-3 flex gap-2">
               <input
-                placeholder="придумай логин"
+                placeholder={t('home.devPlaceholder')}
                 value={fakeLogin}
                 onChange={(e) => setFakeLogin(e.target.value)}
                 className="rounded-lg border border-line bg-surface px-3 py-2 text-text outline-none focus:border-twitch"
@@ -80,7 +77,7 @@ export function HomePage() {
                   window.location.href = `/api/auth/login?fake=${encodeURIComponent(fakeLogin)}&returnTo=/`;
                 }}
               >
-                Войти
+                {t('home.logInShort')}
               </Button>
             </div>
           </details>
@@ -103,7 +100,7 @@ export function HomePage() {
           </div>
         </div>
         <Button variant="ghost" onClick={() => void act(logout)}>
-          Выйти
+          {t('home.logout')}
         </Button>
       </div>
 
@@ -115,28 +112,24 @@ export function HomePage() {
 
       {!me.channel ? (
         <Card className="mt-6 flex flex-col items-center gap-4 py-10 text-center">
-          <p className="text-muted">
-            Канала ещё нет. Создай его — получишь страницу для зрителей и оверлей для OBS.
-          </p>
+          <p className="text-muted">{t('home.noChannel')}</p>
           <Button variant="primary" onClick={() => void act(createChannel)}>
-            ✨ Создать канал
+            {t('home.createChannel')}
           </Button>
         </Card>
       ) : (
         <div className="mt-6 flex flex-col gap-4">
           <Card>
-            <h2 className="mb-3 text-lg font-bold">Управление</h2>
+            <h2 className="mb-3 text-lg font-bold">{t('home.manage')}</h2>
             <div className="flex flex-wrap gap-2">
               <Link to="/dashboard">
-                <Button variant="primary">🛡 Дашборд модерации</Button>
+                <Button variant="primary">{t('home.dashboardBtn')}</Button>
               </Link>
               <Link to={`/c/${me.user.login}`}>
-                <Button>👁 Страница зрителя</Button>
+                <Button>{t('home.viewerPageBtn')}</Button>
               </Link>
             </div>
-            <p className="mb-2 mt-4 text-sm text-muted">
-              Ссылка для зрителей — отправь её в чат или закрепи в описании стрима:
-            </p>
+            <p className="mb-2 mt-4 text-sm text-muted">{t('home.viewerLinkLabel')}</p>
             <div className="flex items-center gap-2">
               <a
                 href={viewerUrl}
@@ -153,27 +146,24 @@ export function HomePage() {
           </Card>
 
           <Card>
-            <h2 className="mb-1 text-lg font-bold">Оверлей для OBS</h2>
-            <p className="mb-3 text-sm text-muted">
-              Добавь Browser Source с этим URL. ⚠️ URL содержит секретный токен — не
-              показывай его на стриме.
-            </p>
+            <h2 className="mb-1 text-lg font-bold">{t('home.overlayTitle')}</h2>
+            <p className="mb-3 text-sm text-muted">{t('home.overlayDesc')}</p>
             <code className="block break-all rounded-lg bg-surface-2 px-3 py-2 text-xs text-muted">
               {overlayUrl}
             </code>
             <div className="mt-3 flex gap-2">
               <Button onClick={() => copy('overlay', overlayUrl!)}>
-                {copiedKey === 'overlay' ? '✅ Скопировано' : '📋 Скопировать'}
+                {copiedKey === 'overlay' ? t('home.copied') : t('home.copy')}
               </Button>
               <Button
                 variant="danger"
                 onClick={() => {
-                  if (window.confirm('Старый URL в OBS перестанет работать. Перевыпустить?')) {
+                  if (window.confirm(t('home.rotateConfirm'))) {
                     void act(rotateOverlayToken);
                   }
                 }}
               >
-                ♻️ Перевыпустить токен
+                {t('home.rotate')}
               </Button>
             </div>
           </Card>
