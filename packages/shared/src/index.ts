@@ -52,8 +52,10 @@ export interface ServerToDashboardEvents {
 
 /** Настройки канала (правит стример в дашборде). */
 export interface ChannelSettings {
-  /** Максимальная длительность показа, мс. Более длинные видео/аудио обрезаются. */
+  /** Лимит длительности для видео и картинок, мс. Более длинные видео обрезаются. */
   maxDurationMs: number;
+  /** Отдельный лимит для аудио (музыка длиннее мемов), мс. */
+  maxAudioDurationMs: number;
   maxFileSizeBytes: number;
   /** Громкость в оверлее, 0–100. */
   volume: number;
@@ -108,6 +110,7 @@ export interface PublicChannelInfo {
   accepting: boolean;
   /** Лимиты канала — показываем зрителю до отправки, а не ошибкой после. */
   maxDurationMs: number;
+  maxAudioDurationMs: number;
   maxFileSizeBytes: number;
 }
 

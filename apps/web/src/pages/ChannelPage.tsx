@@ -99,14 +99,14 @@ export function ChannelPage() {
       </div>
 
       {/* Лимиты канала */}
-      <div className="mt-3 flex gap-2 text-xs text-muted">
+      <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted">
         <span className="rounded-full bg-surface-2 px-3 py-1">
-          ⏱ до {Math.round(channel.maxDurationMs / 1000)} c
+          🎬 видео/фото до {fmtDur(channel.maxDurationMs)}
         </span>
         <span className="rounded-full bg-surface-2 px-3 py-1">
-          📦 до {mb(channel.maxFileSizeBytes)} МБ
+          🎵 аудио до {fmtDur(channel.maxAudioDurationMs)}
         </span>
-        <span className="rounded-full bg-surface-2 px-3 py-1">🖼 фото · гиф · видео · звук</span>
+        <span className="rounded-full bg-surface-2 px-3 py-1">📦 до {mb(channel.maxFileSizeBytes)} МБ</span>
       </div>
 
       <div className="mt-6">
@@ -230,4 +230,13 @@ function Shell({ children }: { children: React.ReactNode }) {
 
 function mb(bytes: number, digits = 0): string {
   return (bytes / 1024 / 1024).toFixed(digits);
+}
+
+/** Миллисекунды → «45 с» / «3 мин» / «3 мин 20 с». */
+function fmtDur(ms: number): string {
+  const total = Math.round(ms / 1000);
+  if (total < 60) return `${total} с`;
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return s === 0 ? `${m} мин` : `${m} мин ${s} с`;
 }

@@ -160,7 +160,9 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
           if (probed === null) {
             return reply.code(422).send({ error: 'Не удалось прочитать медиафайл (битый?)' });
           }
-          durationMs = Math.min(probed, channel.maxDurationMs);
+          // У аудио свой, более длинный лимит — музыке нужно больше 60 с.
+          const limit = kind === 'audio' ? channel.maxAudioDurationMs : channel.maxDurationMs;
+          durationMs = Math.min(probed, limit);
           if (kind === 'video') {
             outExt = 'mp4';
             outMime = 'video/mp4';

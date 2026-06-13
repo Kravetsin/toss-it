@@ -41,6 +41,7 @@ const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(mi
 function toSettings(ch: ChannelRow): ChannelSettings {
   return {
     maxDurationMs: ch.maxDurationMs,
+    maxAudioDurationMs: ch.maxAudioDurationMs,
     maxFileSizeBytes: ch.maxFileSizeBytes,
     volume: ch.volume,
     accepting: ch.accepting,
@@ -85,6 +86,10 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
           typeof b.maxDurationMs === 'number'
             ? clamp(Math.round(b.maxDurationMs), 1_000, 60_000)
             : channel.maxDurationMs,
+        maxAudioDurationMs:
+          typeof b.maxAudioDurationMs === 'number'
+            ? clamp(Math.round(b.maxAudioDurationMs), 1_000, 600_000)
+            : channel.maxAudioDurationMs,
         maxFileSizeBytes:
           typeof b.maxFileSizeBytes === 'number'
             ? clamp(Math.round(b.maxFileSizeBytes), 1024 * 1024, config.maxFileSizeBytes)

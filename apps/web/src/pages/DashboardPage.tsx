@@ -275,6 +275,9 @@ function SettingsCard({
   onSave: (patch: Partial<ChannelSettings>) => void;
 }) {
   const [maxDurS, setMaxDurS] = useState(Math.round(settings.maxDurationMs / 1000));
+  const [maxAudioMin, setMaxAudioMin] = useState(
+    Math.min(10, Math.max(1, Math.round(settings.maxAudioDurationMs / 60_000))),
+  );
   const [maxSizeMb, setMaxSizeMb] = useState(Math.round(settings.maxFileSizeBytes / 1024 / 1024));
   const [volume, setVolume] = useState(settings.volume);
   const [showSender, setShowSender] = useState(settings.showSenderName);
@@ -297,22 +300,29 @@ function SettingsCard({
           {settings.accepting ? 'Приём включён' : '⛔ Приём остановлен'}
         </label>
       </div>
-      <div className="mt-4 grid gap-4 sm:grid-cols-3">
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <Slider
-          label={`Показ: до ${maxDurS} с`}
+          label={`🎬 Видео и фото: до ${maxDurS} с`}
           min={1}
           max={60}
           value={maxDurS}
           onChange={setMaxDurS}
         />
         <Slider
-          label={`Файл: до ${maxSizeMb} МБ`}
+          label={`🎵 Аудио: до ${maxAudioMin} мин`}
+          min={1}
+          max={10}
+          value={maxAudioMin}
+          onChange={setMaxAudioMin}
+        />
+        <Slider
+          label={`📦 Файл: до ${maxSizeMb} МБ`}
           min={1}
           max={50}
           value={maxSizeMb}
           onChange={setMaxSizeMb}
         />
-        <Slider label={`Громкость: ${volume}%`} min={0} max={100} value={volume} onChange={setVolume} />
+        <Slider label={`🔊 Громкость: ${volume}%`} min={0} max={100} value={volume} onChange={setVolume} />
       </div>
       <div className="mt-4 flex items-center justify-between">
         <label className="flex cursor-pointer items-center gap-2 text-sm text-muted">
@@ -329,6 +339,7 @@ function SettingsCard({
           onClick={() =>
             onSave({
               maxDurationMs: maxDurS * 1000,
+              maxAudioDurationMs: maxAudioMin * 60_000,
               maxFileSizeBytes: maxSizeMb * 1024 * 1024,
               volume,
               showSenderName: showSender,

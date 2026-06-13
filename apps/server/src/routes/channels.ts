@@ -63,6 +63,7 @@ export function registerChannelRoutes(app: FastifyInstance): void {
         avatarUrl: users.avatarUrl,
         accepting: channels.accepting,
         maxDurationMs: channels.maxDurationMs,
+        maxAudioDurationMs: channels.maxAudioDurationMs,
         maxFileSizeBytes: channels.maxFileSizeBytes,
       })
       .from(channels)

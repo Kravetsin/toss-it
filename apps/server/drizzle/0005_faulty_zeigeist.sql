@@ -1,0 +1,1 @@
+ALTER TABLE `channels` ADD `max_audio_duration_ms` integer DEFAULT 60000 NOT NULL;

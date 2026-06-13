@@ -36,7 +36,9 @@ export const channels = sqliteTable('channels', {
     .references(() => users.id),
   overlayToken: text('overlay_token').notNull().unique(),
   // Настройки канала (правятся в дашборде).
+  // Лимит для видео и картинок; у аудио свой, более длинный (музыка длиннее мемов).
   maxDurationMs: integer('max_duration_ms').notNull().default(15_000),
+  maxAudioDurationMs: integer('max_audio_duration_ms').notNull().default(60_000),
   maxFileSizeBytes: integer('max_file_size_bytes').notNull().default(50 * 1024 * 1024),
   volume: integer('volume').notNull().default(100),
   accepting: integer('accepting', { mode: 'boolean' }).notNull().default(true),
