@@ -201,35 +201,21 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
       emitSubmissionStatus(io, sub.id, 'rejected');
 
       if (req.body?.ban && sub.senderUserId) {
-        await db
-          .insert(bans)
-          .values({ channelId: channel.id, userId: sub.senderUserId, createdAt: new Date() })
-          .onConflictDoNothing();
-        // Бан снимает из очереди и все остальные pending этого зрителя.
-        const others = await db
-          .select()
-          .from(submissions)
-          .where(
-            and(
-              eq(submissions.channelId, channel.id),
-              eq(submissions.senderUserId, sub.senderUserId),
-              eq(submissions.status, 'pending'),
-            ),
-          )
-          .all();
-        for (const o of others) {
-          await db
-            .update(submissions)
-            .set({ status: 'rejected', updatedAt: new Date() })
-            .where(eq(submissions.id, o.id));
-          io.to(dashboardRoomOf(channel.id)).emit('moderation:resolved', o.id);
-          emitSubmissionStatus(io, o.id, 'rejected');
-        }
+        await banUserInChannel(io, channel.id, sub.senderUserId);
       }
 
       return { ok: true };
     },
   );
+
+  /** Прямой бан по userId (например, из истории — для зрителей из белого списка,
+   *  чьи отправки не проходят через очередь модерации). */
+  app.post<{ Params: { userId: string } }>('/api/dashboard/bans/:userId', async (req, reply) => {
+    const channel = await requireOwnChannel(req, reply);
+    if (!channel) return;
+    await banUserInChannel(io, channel.id, req.params.userId);
+    return { ok: true };
+  });
 
   app.get('/api/dashboard/whitelist', async (req, reply): Promise<ListedUser[] | undefined> => {
     const channel = await requireOwnChannel(req, reply);
@@ -263,6 +249,42 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
       .where(and(eq(bans.channelId, channel.id), eq(bans.userId, req.params.userId)));
     return { ok: true };
   });
+}
+
+/** Забанить зрителя в канале: вытеснить из белого списка и снять с модерации его pending. */
+async function banUserInChannel(
+  io: RealtimeServer,
+  channelId: string,
+  userId: string,
+): Promise<void> {
+  await db
+    .insert(bans)
+    .values({ channelId, userId, createdAt: new Date() })
+    .onConflictDoNothing();
+  // Бан несовместим с автопоказом — убираем из белого списка.
+  await db
+    .delete(whitelist)
+    .where(and(eq(whitelist.channelId, channelId), eq(whitelist.userId, userId)));
+  // Снимаем с модерации все ожидающие отправки этого зрителя.
+  const pending = await db
+    .select()
+    .from(submissions)
+    .where(
+      and(
+        eq(submissions.channelId, channelId),
+        eq(submissions.senderUserId, userId),
+        eq(submissions.status, 'pending'),
+      ),
+    )
+    .all();
+  for (const o of pending) {
+    await db
+      .update(submissions)
+      .set({ status: 'rejected', updatedAt: new Date() })
+      .where(eq(submissions.id, o.id));
+    io.to(dashboardRoomOf(channelId)).emit('moderation:resolved', o.id);
+    emitSubmissionStatus(io, o.id, 'rejected');
+  }
 }
 
 async function listUsers(

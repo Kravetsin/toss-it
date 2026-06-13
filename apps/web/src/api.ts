@@ -137,6 +137,13 @@ export function getBans(): Promise<ListedUser[]> {
   return fetch('/api/dashboard/bans').then((r) => json<ListedUser[]>(r));
 }
 
+/** Прямой бан зрителя по userId (из истории/белого списка, без привязки к отправке). */
+export function banUser(userId: string): Promise<unknown> {
+  return fetch(`/api/dashboard/bans/${encodeURIComponent(userId)}`, { method: 'POST' }).then((r) =>
+    json(r),
+  );
+}
+
 export function removeBan(userId: string): Promise<unknown> {
   return fetch(`/api/dashboard/bans/${encodeURIComponent(userId)}`, { method: 'DELETE' }).then(
     (r) => json(r),

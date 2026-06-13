@@ -409,14 +409,38 @@ assert(
 );
 console.log('19. лидерборд отдаёт топ отправителей, отсортирован по убыванию');
 
-// --- 20. Rate limit: глобальный потолок в конце концов отвечает 429 ---
+// --- 20. Прямой бан по userId (из истории): вытесняет из белого списка + молчаливый отказ ---
+const viewerId = `fake:${VIEWER}`; // e2e_viewer был добавлен в белый список в тесте 6
+const banRes = await fetch(`${SERVER}/api/dashboard/bans/${encodeURIComponent(viewerId)}`, {
+  method: 'POST',
+  headers: { cookie: streamerCookie, 'content-type': 'application/json' },
+  body: '{}',
+});
+assert(banRes.status === 200, `прямой бан: ожидал 200, получил ${banRes.status}`);
+
+const wlAfter = (await (
+  await fetch(`${SERVER}/api/dashboard/whitelist`, { headers: { cookie: streamerCookie } })
+).json()) as ListedUser[];
+assert(!wlAfter.some((u) => u.login === VIEWER), 'бан должен убрать зрителя из белого списка');
+const blAfter = (await (
+  await fetch(`${SERVER}/api/dashboard/bans`, { headers: { cookie: streamerCookie } })
+).json()) as ListedUser[];
+assert(blAfter.some((u) => u.login === VIEWER), 'забаненный должен появиться в банах');
+
+await sleep(COOLDOWN_WAIT_MS);
+const afterBan = await upload(viewerCookie, 'scripts/fixtures/frame.png', 'image/png', 'frame.png');
+assert(afterBan.status === 201, `после бана аплоад маскируется под успех, получил ${afterBan.status}`);
+assert(afterBan.body.durationMs === 0, 'после бана — молчаливый отказ (файл не обрабатывается)');
+console.log('20. прямой бан убрал из белого списка и включил молчаливый отказ');
+
+// --- 21. Rate limit: глобальный потолок в конце концов отвечает 429 ---
 let limited = false;
 for (let i = 0; i < 300 && !limited; i++) {
   const r = await fetch(`${SERVER}/api/ping`);
   if (r.status === 429) limited = true;
 }
 assert(limited, 'rate limit не сработал за 300 запросов подряд');
-console.log('20. глобальный rate limit отвечает 429 при спаме');
+console.log('21. глобальный rate limit отвечает 429 при спаме');
 
 console.log('PASS: все проверки прошли');
 // Без process.exit: на Windows он роняет libuv при живых сокетах.

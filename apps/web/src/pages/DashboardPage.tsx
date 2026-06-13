@@ -10,6 +10,7 @@ import type {
 } from '@tmw/shared';
 import {
   approveSubmission,
+  banUser,
   getBans,
   getHistory,
   getMe,
@@ -95,6 +96,13 @@ export function DashboardPage() {
     const login = me.user.login;
     await act(() => uploadMedia(login, testFile));
     setTestFile(null);
+  }
+
+  const bannedIds = new Set(banned.map((b) => b.userId));
+  function banById(userId: string, name: string) {
+    if (window.confirm(t('dash.banConfirm', { name }))) {
+      void act(() => banUser(userId), refreshLists);
+    }
   }
 
   if (me === 'loading') return <Shell>{t('common.loading')}</Shell>;
@@ -232,6 +240,7 @@ export function DashboardPage() {
           hint={t('dash.whitelistHint')}
           users={allowed}
           onRemove={(id) => void act(() => removeFromWhitelist(id), refreshLists)}
+          onBan={banById}
         />
         <UserList
           title={t('dash.bans')}
@@ -253,6 +262,15 @@ export function DashboardPage() {
                 <b className="text-text">{h.senderName ?? t('common.anon')}</b>
                 <span>· {h.kind}</span>
                 <span className="ml-auto text-xs">{new Date(h.createdAt).toLocaleString()}</span>
+                {h.senderUserId && !bannedIds.has(h.senderUserId) && (
+                  <button
+                    onClick={() => banById(h.senderUserId!, h.senderName ?? t('dash.thisSender'))}
+                    className="cursor-pointer text-xs text-muted hover:text-danger"
+                    title={t('dash.ban')}
+                  >
+                    🔨
+                  </button>
+                )}
               </li>
             ))}
           </ul>
@@ -423,11 +441,13 @@ function UserList({
   hint,
   users,
   onRemove,
+  onBan,
 }: {
   title: string;
   hint: string;
   users: ListedUser[];
   onRemove: (userId: string) => void;
+  onBan?: (userId: string, displayName: string) => void;
 }) {
   const { t } = useI18n();
   return (
@@ -445,12 +465,23 @@ function UserList({
               <span className="text-xs text-muted">
                 {t('dash.since', { date: new Date(u.addedAt).toLocaleDateString() })}
               </span>
-              <button
-                onClick={() => onRemove(u.userId)}
-                className="ml-auto cursor-pointer text-xs text-muted hover:text-danger"
-              >
-                {t('dash.removeUser')}
-              </button>
+              <span className="ml-auto flex gap-2">
+                {onBan && (
+                  <button
+                    onClick={() => onBan(u.userId, u.displayName)}
+                    className="cursor-pointer text-xs text-muted hover:text-danger"
+                    title={t('dash.ban')}
+                  >
+                    🔨
+                  </button>
+                )}
+                <button
+                  onClick={() => onRemove(u.userId)}
+                  className="cursor-pointer text-xs text-muted hover:text-danger"
+                >
+                  {t('dash.removeUser')}
+                </button>
+              </span>
             </li>
           ))}
         </ul>
