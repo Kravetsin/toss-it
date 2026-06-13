@@ -1,9 +1,9 @@
 import crypto from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { and, count, desc, eq, isNotNull } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
-import type { ChannelSelf, PublicChannelInfo } from '@tmw/shared';
+import type { ChannelSelf, LeaderboardEntry, PublicChannelInfo } from '@tmw/shared';
 import { db } from '../db/index';
-import { channels, users } from '../db/schema';
+import { channels, submissions, users } from '../db/schema';
 import { requireUser } from '../auth';
 
 function newOverlayToken(): string {
@@ -72,6 +72,46 @@ export function registerChannelRoutes(app: FastifyInstance): void {
       .get();
     if (!row) return reply.code(404).send({ error: 'Канал не найден' });
     const response: PublicChannelInfo = row;
+    return response;
+  });
+
+  /** Таблица лидеров канала: кто больше всех мемов протолкнул на стрим. */
+  app.get<{ Params: { login: string } }>('/api/c/:login/leaderboard', async (req, reply) => {
+    const channel = await db
+      .select({ id: channels.id })
+      .from(channels)
+      .innerJoin(users, eq(users.id, channels.ownerUserId))
+      .where(eq(users.login, req.params.login.toLowerCase()))
+      .get();
+    if (!channel) return reply.code(404).send({ error: 'Канал не найден' });
+
+    const rows = await db
+      .select({
+        userId: submissions.senderUserId,
+        login: users.login,
+        displayName: users.displayName,
+        count: count(),
+      })
+      .from(submissions)
+      .innerJoin(users, eq(users.id, submissions.senderUserId))
+      .where(
+        and(
+          eq(submissions.channelId, channel.id),
+          eq(submissions.status, 'played'),
+          isNotNull(submissions.senderUserId),
+        ),
+      )
+      .groupBy(submissions.senderUserId)
+      .orderBy(desc(count()))
+      .limit(10)
+      .all();
+
+    const response: LeaderboardEntry[] = rows.map((r) => ({
+      userId: r.userId!,
+      login: r.login,
+      displayName: r.displayName,
+      count: r.count,
+    }));
     return response;
   });
 }

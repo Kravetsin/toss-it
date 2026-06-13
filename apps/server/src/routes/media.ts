@@ -92,7 +92,11 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
         const waitS = Math.ceil(
           (config.moderation.viewerCooldownMs - (Date.now() - last.createdAt.getTime())) / 1000,
         );
-        return reply.code(429).send({ error: `Слишком часто — подожди ещё ${waitS} с` });
+        return reply.code(429).send({
+          error: `Слишком часто — подожди ещё ${waitS} с`,
+          code: 'cooldown',
+          retryAfterSec: waitS,
+        });
       }
 
       // Часовой лимит канала.

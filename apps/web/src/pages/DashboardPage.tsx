@@ -283,6 +283,8 @@ function SettingsCard({
   const [maxSizeMb, setMaxSizeMb] = useState(Math.round(settings.maxFileSizeBytes / 1024 / 1024));
   const [volume, setVolume] = useState(settings.volume);
   const [showSender, setShowSender] = useState(settings.showSenderName);
+  const [soundAlert, setSoundAlert] = useState(settings.soundAlert);
+  const [ttsName, setTtsName] = useState(settings.ttsName);
 
   return (
     <Card>
@@ -332,16 +334,12 @@ function SettingsCard({
           onChange={setVolume}
         />
       </div>
-      <div className="mt-4 flex items-center justify-between">
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-muted">
-          <input
-            type="checkbox"
-            checked={showSender}
-            onChange={(e) => setShowSender(e.target.checked)}
-            className="accent-twitch"
-          />
-          {t('dash.showSender')}
-        </label>
+      <div className="mt-4 flex flex-col gap-2">
+        <Toggle checked={showSender} onChange={setShowSender} label={t('dash.showSender')} />
+        <Toggle checked={soundAlert} onChange={setSoundAlert} label={t('dash.soundAlert')} />
+        <Toggle checked={ttsName} onChange={setTtsName} label={t('dash.tts')} />
+      </div>
+      <div className="mt-4 flex justify-end">
         <Button
           variant="primary"
           onClick={() =>
@@ -351,6 +349,8 @@ function SettingsCard({
               maxFileSizeBytes: maxSizeMb * 1024 * 1024,
               volume,
               showSenderName: showSender,
+              soundAlert,
+              ttsName,
             })
           }
         >
@@ -358,6 +358,28 @@ function SettingsCard({
         </Button>
       </div>
     </Card>
+  );
+}
+
+function Toggle({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+}) {
+  return (
+    <label className="flex cursor-pointer items-center gap-2 text-sm text-muted">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="accent-twitch"
+      />
+      {label}
+    </label>
   );
 }
 

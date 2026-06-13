@@ -70,6 +70,20 @@ const en: Dict = {
   'channel.donePending':
     '🕐 Sent! The streamer will review and approve it — then it goes on stream.',
   'channel.doneApproved': '🎉 Accepted! Queue position: {pos}, on screen for {dur}.',
+  'channel.cooldown': '⏳ You can send again in {time}',
+
+  // Живой статус отправки
+  'status.pending': '🕐 Waiting for moderation',
+  'status.approved': '✅ Approved — waiting in the queue',
+  'status.playing': '📺 Now on stream!',
+  'status.played': '✅ Shown on stream!',
+  'status.rejected': '❌ Rejected by the streamer',
+  'status.expired': '⌛ Expired — was not shown in time',
+
+  // Лидерборд
+  'channel.leaderboard': '🏆 Top contributors',
+  'channel.leaderboardEmpty': 'No memes on stream yet — be the first!',
+  'channel.you': 'you',
 
   // Дашборд
   'dash.title': '🛡 Dashboard',
@@ -88,6 +102,8 @@ const en: Dict = {
   'dash.sliderSize': '📦 File: up to {n} MB',
   'dash.sliderVolume': '🔊 Volume: {n}%',
   'dash.showSender': 'show sender name in the overlay',
+  'dash.soundAlert': 'play a sound when media appears',
+  'dash.tts': 'read the sender’s name aloud (TTS)',
   'dash.save': 'Save',
   'dash.modQueue': 'Moderation queue',
   'dash.modEmpty': 'Empty. New submissions will appear here automatically.',
@@ -160,6 +176,18 @@ const ru: Dict = {
   'channel.donePending':
     '🕐 Отправлено! Стример посмотрит и одобрит — после этого медиа попадёт на стрим.',
   'channel.doneApproved': '🎉 Принято! Позиция в очереди: {pos}, на экране будет {dur}.',
+  'channel.cooldown': '⏳ Отправить снова можно через {time}',
+
+  'status.pending': '🕐 Ждёт модерации',
+  'status.approved': '✅ Одобрено — в очереди показа',
+  'status.playing': '📺 Сейчас на стриме!',
+  'status.played': '✅ Показано на стриме!',
+  'status.rejected': '❌ Отклонено стримером',
+  'status.expired': '⌛ Истекло — не успело показаться',
+
+  'channel.leaderboard': '🏆 Топ отправителей',
+  'channel.leaderboardEmpty': 'Пока никто не отправлял — будь первым!',
+  'channel.you': 'ты',
 
   'dash.title': '🛡 Дашборд',
   'dash.loginToView': 'Дашборд доступен после входа',
@@ -177,6 +205,8 @@ const ru: Dict = {
   'dash.sliderSize': '📦 Файл: до {n} МБ',
   'dash.sliderVolume': '🔊 Громкость: {n}%',
   'dash.showSender': 'показывать имя отправителя в оверлее',
+  'dash.soundAlert': 'звук при появлении медиа',
+  'dash.tts': 'озвучивать имя отправителя (TTS)',
   'dash.save': 'Сохранить',
   'dash.modQueue': 'Очередь модерации',
   'dash.modEmpty': 'Пусто. Новые отправки появятся здесь сами.',

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ru">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <title>Overlay</title>
@@ -12,6 +12,7 @@
         overflow: hidden;
         width: 100vw;
         height: 100vh;
+        font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
       }
       #stage {
         position: fixed;
@@ -19,6 +20,62 @@
         display: flex;
         align-items: center;
         justify-content: center;
+      }
+
+      .alert {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+      }
+      .alert.enter {
+        animation: pop-in 0.45s cubic-bezier(0.18, 0.89, 0.32, 1.28) both;
+      }
+      .alert.exit {
+        animation: pop-out 0.3s ease-in both;
+      }
+      .alert media,
+      .alert img,
+      .alert video {
+        max-width: 80vw;
+        max-height: 80vh;
+        border-radius: 12px;
+      }
+      .sender {
+        font-weight: 800;
+        font-size: 26px;
+        color: #fff;
+        padding: 4px 16px;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #9146ff, #772ce8);
+        box-shadow: 0 4px 20px rgba(145, 70, 255, 0.5);
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+        white-space: nowrap;
+      }
+      .audio-icon {
+        font-size: 72px;
+        filter: drop-shadow(0 4px 16px rgba(145, 70, 255, 0.6));
+      }
+
+      @keyframes pop-in {
+        0% {
+          opacity: 0;
+          transform: scale(0.6) translateY(40px);
+        }
+        100% {
+          opacity: 1;
+          transform: scale(1) translateY(0);
+        }
+      }
+      @keyframes pop-out {
+        0% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        100% {
+          opacity: 0;
+          transform: scale(0.85) translateY(-20px);
+        }
       }
     </style>
   </head>

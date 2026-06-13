@@ -3,6 +3,7 @@ import type {
   ChannelSelf,
   ChannelSettings,
   HistoryEntry,
+  LeaderboardEntry,
   ListedUser,
   MeResponse,
   PublicChannelInfo,
@@ -10,10 +11,22 @@ import type {
   UploadResponse,
 } from '@tmw/shared';
 
+/** Ошибка API с машиночитаемым кодом (напр. кулдаун с retryAfterSec). */
+export class ApiRequestError extends Error {
+  constructor(
+    message: string,
+    readonly code?: string,
+    readonly retryAfterSec?: number,
+  ) {
+    super(message);
+  }
+}
+
 async function json<T>(res: Response): Promise<T> {
   const body = (await res.json()) as T | ApiError;
   if (!res.ok) {
-    throw new Error('error' in (body as ApiError) ? (body as ApiError).error : `HTTP ${res.status}`);
+    const e = body as ApiError;
+    throw new ApiRequestError('error' in e ? e.error : `HTTP ${res.status}`, e.code, e.retryAfterSec);
   }
   return body as T;
 }
@@ -67,13 +80,20 @@ export function uploadMediaWithProgress(
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) onProgress(e.loaded >= e.total ? null : e.loaded / e.total);
     };
-    xhr.onerror = () => reject(new Error('Сервер недоступен'));
+    xhr.onerror = () => reject(new ApiRequestError('Сервер недоступен'));
     xhr.onload = () => {
       const body = xhr.response as UploadResponse | ApiError | null;
       if (xhr.status >= 200 && xhr.status < 300 && body && !('error' in body)) {
         resolve(body);
       } else {
-        reject(new Error(body && 'error' in body ? body.error : `Ошибка ${xhr.status}`));
+        const e = (body ?? {}) as ApiError;
+        reject(
+          new ApiRequestError(
+            'error' in e ? e.error : `Ошибка ${xhr.status}`,
+            e.code,
+            e.retryAfterSec,
+          ),
+        );
       }
     };
 
@@ -147,6 +167,12 @@ export function saveSettings(patch: Partial<ChannelSettings>): Promise<ChannelSe
 
 export function getHistory(): Promise<HistoryEntry[]> {
   return fetch('/api/dashboard/history').then((r) => json<HistoryEntry[]>(r));
+}
+
+export function getLeaderboard(login: string): Promise<LeaderboardEntry[]> {
+  return fetch(`/api/c/${encodeURIComponent(login)}/leaderboard`).then((r) =>
+    json<LeaderboardEntry[]>(r),
+  );
 }
 
 /** В dev оверлей живёт на собственном vite-порту; в проде его раздаёт сервер под /overlay. */

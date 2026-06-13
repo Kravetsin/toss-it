@@ -11,14 +11,31 @@ export interface MediaPlayPayload {
   durationMs: number;
   /** Громкость воспроизведения, 0–100 (настройка канала). */
   volume: number;
+  /** Проиграть короткий звук при появлении медиа (настройка канала). */
+  sound: boolean;
+  /** Зачитать имя отправителя голосом (TTS, настройка канала). */
+  tts: boolean;
   /** Отсутствует, если стример выключил показ имени отправителя. */
   senderName?: string;
+}
+
+/** Статус отправки для живого индикатора у зрителя ('playing' — транзиентный, не в БД). */
+export type LiveStatus = SubmissionStatus | 'playing';
+
+export interface SubmissionStatusEvent {
+  submissionId: string;
+  status: LiveStatus;
 }
 
 /** События сервер → оверлей. */
 export interface ServerToOverlayEvents {
   'media:play': (payload: MediaPlayPayload) => void;
   'media:skip': (submissionId: string) => void;
+}
+
+/** События сервер → страница зрителя (живой статус его отправки). */
+export interface ServerToViewerEvents {
+  'submission:status': (event: SubmissionStatusEvent) => void;
 }
 
 /** События оверлей → сервер. */
@@ -62,6 +79,10 @@ export interface ChannelSettings {
   /** «Стоп-кран»: false — приём отправок приостановлен. */
   accepting: boolean;
   showSenderName: boolean;
+  /** Короткий звук при появлении медиа в оверлее. */
+  soundAlert: boolean;
+  /** Зачитывать имя отправителя голосом (TTS). */
+  ttsName: boolean;
 }
 
 export interface HistoryEntry extends SubmissionSummary {
@@ -114,6 +135,19 @@ export interface PublicChannelInfo {
   maxFileSizeBytes: number;
 }
 
+/** Один отправитель в таблице лидеров канала. */
+export interface LeaderboardEntry {
+  userId: string;
+  login: string;
+  displayName: string;
+  /** Сколько медиа этого зрителя реально проигралось на стриме. */
+  count: number;
+}
+
 export interface ApiError {
   error: string;
+  /** Машиночитаемый код для особой обработки на клиенте (напр. 'cooldown'). */
+  code?: string;
+  /** Для code='cooldown': через сколько секунд можно повторить. */
+  retryAfterSec?: number;
 }

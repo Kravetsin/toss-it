@@ -1,10 +1,12 @@
 import { eq } from 'drizzle-orm';
 import type { Server } from 'socket.io';
 import type {
+  LiveStatus,
   MediaPlayPayload,
   OverlayToServerEvents,
   ServerToDashboardEvents,
   ServerToOverlayEvents,
+  ServerToViewerEvents,
   SubmissionSummary,
 } from '@tmw/shared';
 import { db } from './db/index';
@@ -13,7 +15,7 @@ import { config } from './config';
 
 export type RealtimeServer = Server<
   OverlayToServerEvents,
-  ServerToOverlayEvents & ServerToDashboardEvents
+  ServerToOverlayEvents & ServerToDashboardEvents & ServerToViewerEvents
 >;
 
 export function roomOf(channelId: string): string {
@@ -23,6 +25,20 @@ export function roomOf(channelId: string): string {
 /** Комната дашборда стримера: live-события модерации и показа. */
 export function dashboardRoomOf(channelId: string): string {
   return `dashboard:${channelId}`;
+}
+
+/** Комната одной отправки: живой статус для страницы зрителя. */
+export function submissionRoomOf(submissionId: string): string {
+  return `submission:${submissionId}`;
+}
+
+/** Отправить живой статус зрителю, который ждёт судьбу своей отправки. */
+export function emitSubmissionStatus(
+  io: RealtimeServer,
+  submissionId: string,
+  status: LiveStatus,
+): void {
+  io.to(submissionRoomOf(submissionId)).emit('submission:status', { submissionId, status });
 }
 
 /** Краткая карточка отправки для дашборда. */
@@ -119,6 +135,7 @@ export class PlaybackManager {
     // Гасим отставшие копии оверлея (несколько открытых вкладок и т.п.).
     this.io.to(roomOf(channelId)).emit('media:skip', submissionId);
     this.io.to(dashboardRoomOf(channelId)).emit('playback:ended', submissionId);
+    emitSubmissionStatus(this.io, submissionId, 'played');
     void this.tryNext(channelId);
   }
 
@@ -144,6 +161,7 @@ export class PlaybackManager {
       st.current = fresh;
       this.io.to(roomOf(channelId)).emit('media:play', await this.buildPayload(fresh));
       this.io.to(dashboardRoomOf(channelId)).emit('playback:started', toSummary(fresh));
+      emitSubmissionStatus(this.io, fresh.id, 'playing');
       st.watchdog = setTimeout(
         () => void this.onDone(channelId, fresh.id),
         fresh.durationMs + config.watchdogGraceMs,
@@ -158,18 +176,26 @@ export class PlaybackManager {
 
   private async buildPayload(sub: SubmissionRow): Promise<MediaPlayPayload> {
     const channel = await db
-      .select({ volume: channels.volume, showSenderName: channels.showSenderName })
+      .select({
+        volume: channels.volume,
+        showSenderName: channels.showSenderName,
+        soundAlert: channels.soundAlert,
+        ttsName: channels.ttsName,
+      })
       .from(channels)
       .where(eq(channels.id, sub.channelId))
       .get();
+    const showName = channel?.showSenderName ?? true;
     return {
       submissionId: sub.id,
       url: `/api/media/${sub.id}`,
       kind: sub.kind,
       durationMs: sub.durationMs,
       volume: channel?.volume ?? 100,
-      senderName:
-        (channel?.showSenderName ?? true) ? (sub.senderName ?? undefined) : undefined,
+      sound: channel?.soundAlert ?? false,
+      // TTS озвучивает имя — без показа имени оно тоже не имеет смысла.
+      tts: (channel?.ttsName ?? false) && showName && sub.senderName !== null,
+      senderName: showName ? (sub.senderName ?? undefined) : undefined,
     };
   }
 
@@ -188,9 +214,36 @@ export function setupRealtime(io: RealtimeServer): PlaybackManager {
 
   io.on('connection', (socket) => {
     void (async () => {
+      const { role } = socket.handshake.query;
+
+      // Зритель следит за судьбой своей отправки. Аутентификация не нужна:
+      // id отправки — случайный UUID, знание его и есть пропуск в комнату.
+      if (role === 'viewer') {
+        const submissionId = socket.handshake.query.submission;
+        if (typeof submissionId !== 'string' || !submissionId) {
+          socket.disconnect(true);
+          return;
+        }
+        void socket.join(submissionRoomOf(submissionId));
+        // Текущий статус сразу — на случай, если показ уже случился до подписки.
+        const sub = await db
+          .select({ status: submissions.status, channelId: submissions.channelId })
+          .from(submissions)
+          .where(eq(submissions.id, submissionId))
+          .get();
+        if (sub) {
+          const playing = playback.getCurrent(sub.channelId)?.id === submissionId;
+          socket.emit('submission:status', {
+            submissionId,
+            status: playing ? 'playing' : sub.status,
+          });
+        }
+        return;
+      }
+
       // И оверлей (OBS Browser Source не умеет OAuth), и дашборд
       // аутентифицируются секретным токеном канала.
-      const { role, token } = socket.handshake.query;
+      const { token } = socket.handshake.query;
       if (
         (role !== 'overlay' && role !== 'dashboard') ||
         typeof token !== 'string' ||

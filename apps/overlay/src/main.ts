@@ -25,6 +25,7 @@ const socket: Socket<ServerToOverlayEvents, OverlayToServerEvents> = io(SERVER_U
 
 let currentId: string | null = null;
 let hideTimer: number | undefined;
+let finishing = false;
 
 socket.on('connect', () => console.log('[overlay] connected'));
 socket.on('media:play', show);
@@ -35,10 +36,22 @@ socket.on('media:skip', (submissionId) => {
 function show(payload: MediaPlayPayload): void {
   clearStage();
   currentId = payload.submissionId;
+  finishing = false;
 
   const url = SERVER_URL + payload.url;
-  const el = createMediaElement(payload, url);
-  stage.appendChild(el);
+  const alert = document.createElement('div');
+  alert.className = 'alert enter';
+  alert.appendChild(createMediaElement(payload, url));
+  if (payload.senderName) {
+    const banner = document.createElement('div');
+    banner.className = 'sender';
+    banner.textContent = `🎉 ${payload.senderName}`;
+    alert.appendChild(banner);
+  }
+  stage.appendChild(alert);
+
+  if (payload.sound) playChime(payload.volume);
+  if (payload.tts && payload.senderName) speakName(payload.senderName, payload.volume);
 
   // Жёсткий таймер: что бы файл ни «думал» о своей длительности,
   // с экрана он уйдёт не позже durationMs, выданного сервером.
@@ -46,27 +59,12 @@ function show(payload: MediaPlayPayload): void {
 }
 
 function createMediaElement(payload: MediaPlayPayload, url: string): HTMLElement {
-  const style = 'max-width: 80vw; max-height: 80vh;';
   const volume = Math.min(100, Math.max(0, payload.volume ?? 100)) / 100;
-
-  const withCaption = (media: HTMLElement): HTMLElement => {
-    if (!payload.senderName) return media;
-    const wrap = document.createElement('div');
-    wrap.style.cssText =
-      'display: flex; flex-direction: column; align-items: center; gap: 6px;';
-    const caption = document.createElement('div');
-    caption.style.cssText =
-      'font: bold 22px system-ui, sans-serif; color: #fff; text-shadow: 0 1px 4px #000c;';
-    caption.textContent = `от ${payload.senderName}`;
-    wrap.append(media, caption);
-    return wrap;
-  };
 
   if (payload.kind === 'image') {
     const img = document.createElement('img');
     img.src = url;
-    img.style.cssText = style;
-    return withCaption(img);
+    return img;
   }
 
   if (payload.kind === 'video') {
@@ -74,7 +72,6 @@ function createMediaElement(payload: MediaPlayPayload, url: string): HTMLElement
     video.src = url;
     video.autoplay = true;
     video.volume = volume;
-    video.style.cssText = style;
     video.addEventListener('ended', finish);
     // В OBS autoplay со звуком разрешён; в обычном браузере политика
     // может его заблокировать — тогда повторяем без звука.
@@ -82,29 +79,74 @@ function createMediaElement(payload: MediaPlayPayload, url: string): HTMLElement
       video.muted = true;
       void video.play();
     });
-    return withCaption(video);
+    return video;
   }
 
-  // Аудио: самого медиа не видно, показываем имя отправителя.
-  const wrap = document.createElement('div');
-  wrap.style.cssText =
-    'font: bold 28px system-ui, sans-serif; color: #fff; text-shadow: 0 1px 4px #000a;';
-  wrap.textContent = `🎵 ${payload.senderName ?? ''}`.trim() || '🎵';
+  // Аудио: самого медиа не видно, показываем иконку.
+  const icon = document.createElement('div');
+  icon.className = 'audio-icon';
+  icon.textContent = '🎵';
   const audio = document.createElement('audio');
   audio.src = url;
   audio.autoplay = true;
   audio.volume = volume;
   audio.addEventListener('ended', finish);
   audio.play().catch(() => console.warn('[overlay] audio autoplay blocked'));
-  wrap.appendChild(audio);
-  return wrap;
+  icon.appendChild(audio);
+  return icon;
+}
+
+/** Короткий приятный «динь» через Web Audio — без бандла звукового файла. */
+function playChime(volume: number): void {
+  try {
+    const Ctx = window.AudioContext;
+    const ctx = new Ctx();
+    const gain = ctx.createGain();
+    gain.gain.value = (Math.min(100, Math.max(0, volume)) / 100) * 0.2;
+    gain.connect(ctx.destination);
+    [880, 1320].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      osc.connect(gain);
+      const start = ctx.currentTime + i * 0.12;
+      osc.start(start);
+      osc.stop(start + 0.12);
+    });
+    setTimeout(() => void ctx.close(), 600);
+  } catch {
+    /* звук не критичен */
+  }
+}
+
+/** Озвучка имени отправителя встроенным синтезом речи браузера. */
+function speakName(name: string, volume: number): void {
+  try {
+    const u = new SpeechSynthesisUtterance(name);
+    u.volume = Math.min(100, Math.max(0, volume)) / 100;
+    window.speechSynthesis.speak(u);
+  } catch {
+    /* TTS не критичен */
+  }
 }
 
 function finish(): void {
+  if (finishing) return;
+  finishing = true;
   const id = currentId;
-  clearStage();
-  currentId = null;
-  if (id) socket.emit('playback:done', id);
+  if (hideTimer !== undefined) {
+    window.clearTimeout(hideTimer);
+    hideTimer = undefined;
+  }
+  // Анимация ухода, затем чистка и сигнал серверу «можно следующий».
+  const alert = stage.querySelector('.alert');
+  alert?.classList.remove('enter');
+  alert?.classList.add('exit');
+  window.setTimeout(() => {
+    stage.replaceChildren();
+    currentId = null;
+    if (id) socket.emit('playback:done', id);
+  }, 300);
 }
 
 function clearStage(): void {

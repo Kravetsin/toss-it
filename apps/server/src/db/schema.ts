@@ -43,6 +43,8 @@ export const channels = sqliteTable('channels', {
   volume: integer('volume').notNull().default(100),
   accepting: integer('accepting', { mode: 'boolean' }).notNull().default(true),
   showSenderName: integer('show_sender_name', { mode: 'boolean' }).notNull().default(true),
+  soundAlert: integer('sound_alert', { mode: 'boolean' }).notNull().default(false),
+  ttsName: integer('tts_name', { mode: 'boolean' }).notNull().default(false),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 });
 

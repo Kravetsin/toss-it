@@ -7,6 +7,7 @@ import { config } from '../config';
 import { requireUser } from '../auth';
 import {
   dashboardRoomOf,
+  emitSubmissionStatus,
   toSummary,
   type PlaybackManager,
   type RealtimeServer,
@@ -46,6 +47,8 @@ function toSettings(ch: ChannelRow): ChannelSettings {
     volume: ch.volume,
     accepting: ch.accepting,
     showSenderName: ch.showSenderName,
+    soundAlert: ch.soundAlert,
+    ttsName: ch.ttsName,
   };
 }
 
@@ -98,6 +101,8 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         accepting: typeof b.accepting === 'boolean' ? b.accepting : channel.accepting,
         showSenderName:
           typeof b.showSenderName === 'boolean' ? b.showSenderName : channel.showSenderName,
+        soundAlert: typeof b.soundAlert === 'boolean' ? b.soundAlert : channel.soundAlert,
+        ttsName: typeof b.ttsName === 'boolean' ? b.ttsName : channel.ttsName,
       };
       await db.update(channels).set(patch).where(eq(channels.id, channel.id));
       return toSettings({ ...channel, ...patch });
@@ -168,6 +173,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
 
       const queuePosition = playback.enqueue(updated);
       io.to(dashboardRoomOf(channel.id)).emit('moderation:resolved', sub.id);
+      emitSubmissionStatus(io, sub.id, 'approved');
       return { ok: true, queuePosition };
     },
   );
@@ -192,6 +198,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         .set({ status: 'rejected', updatedAt: new Date() })
         .where(eq(submissions.id, sub.id));
       io.to(dashboardRoomOf(channel.id)).emit('moderation:resolved', sub.id);
+      emitSubmissionStatus(io, sub.id, 'rejected');
 
       if (req.body?.ban && sub.senderUserId) {
         await db
@@ -216,6 +223,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
             .set({ status: 'rejected', updatedAt: new Date() })
             .where(eq(submissions.id, o.id));
           io.to(dashboardRoomOf(channel.id)).emit('moderation:resolved', o.id);
+          emitSubmissionStatus(io, o.id, 'rejected');
         }
       }
 

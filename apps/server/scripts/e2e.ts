@@ -165,18 +165,27 @@ assert(
 assert(second.body.durationMs === 15_000, `видео 20с должно обрезаться до 15с`);
 await waitFor(() => plays.some((p) => p.submissionId === second.body.id), 'автопоказ из белого списка');
 const secondPlay = plays.find((p) => p.submissionId === second.body.id)!;
+assert(
+  typeof secondPlay.sound === 'boolean' && typeof secondPlay.tts === 'boolean',
+  'media:play payload должен содержать флаги sound/tts',
+);
 const secondMedia = await fetch(SERVER + secondPlay.url);
 assert(
   secondMedia.headers.get('content-type')?.includes('video/mp4') === true,
   `видео должно перекодироваться в mp4, получил ${secondMedia.headers.get('content-type')}`,
 );
 overlaySocket.emit('playback:done', second.body.id);
-console.log('7. зритель из белого списка играет без модерации (видео обрезано и перекодировано)');
+console.log('7. зритель из белого списка играет без модерации (payload со звуком/TTS)');
 
-// --- 7. Кулдаун ---
+// --- 7. Кулдаун (структурированный ответ) ---
 const tooFast = await upload(viewerCookie, 'scripts/fixtures/frame.png', 'image/png', 'frame.png');
 assert(tooFast.status === 429, `кулдаун должен дать 429, получил ${tooFast.status}`);
-console.log('8. повторная отправка раньше кулдауна отклонена (429)');
+const cd = tooFast.body as { code?: string; retryAfterSec?: number };
+assert(
+  cd.code === 'cooldown' && typeof cd.retryAfterSec === 'number' && cd.retryAfterSec > 0,
+  `кулдаун должен вернуть code и retryAfterSec, получил ${JSON.stringify(cd)}`,
+);
+console.log('8. кулдаун отклонён (429) со structured retryAfterSec');
 
 // --- 8. Бан: молчаливое отклонение ---
 const badCookie = await fakeLogin(BAD_VIEWER);
@@ -355,16 +364,61 @@ assert(
 overlaySocket.emit('playback:done', gif.body.id);
 console.log('17. гифка перекодируется в webp и играет');
 
-// --- 15. Rate limit: глобальный потолок в конце концов отвечает 429 ---
+// --- 18. Живой статус отправки у зрителя (фаза вовлечённости) ---
+// Тест стоп-крана выше оставил accepting=false — возвращаем приём.
+await dashFetch('/api/dashboard/settings', {
+  method: 'PUT',
+  body: JSON.stringify({ accepting: true }),
+});
+const watcherCookie = await fakeLogin(`e2e_watch_${RUN}`);
+const watched = await upload(watcherCookie, 'scripts/fixtures/frame.png', 'image/png', 'frame.png');
+assert(watched.body.status === 'pending', 'новичок-наблюдатель должен попасть в pending');
+
+const statusEvents: string[] = [];
+const viewerSocket = io(SERVER, { query: { role: 'viewer', submission: watched.body.id } });
+viewerSocket.on('submission:status', (e: { status: string }) => statusEvents.push(e.status));
+await waitFor(() => viewerSocket.connected, 'подключение viewer-сокета');
+await waitFor(() => statusEvents.includes('pending'), 'начальный статус pending при подписке');
+
+await fetch(`${SERVER}/api/dashboard/submissions/${watched.body.id}/approve`, {
+  method: 'POST',
+  headers: { cookie: streamerCookie, 'content-type': 'application/json' },
+  body: JSON.stringify({}),
+});
+await waitFor(() => statusEvents.includes('approved'), 'статус approved у зрителя');
+await waitFor(() => plays.some((p) => p.submissionId === watched.body.id), 'показ наблюдаемого');
+await waitFor(() => statusEvents.includes('playing'), 'статус playing у зрителя');
+overlaySocket.emit('playback:done', watched.body.id);
+await waitFor(() => statusEvents.includes('played'), 'статус played у зрителя');
+viewerSocket.close();
+console.log('18. зритель видит живой статус: pending → approved → playing → played');
+
+// --- 19. Лидерборд канала ---
+const board = (await (await fetch(`${SERVER}/api/c/${STREAMER}/leaderboard`)).json()) as {
+  userId: string;
+  count: number;
+}[];
+assert(Array.isArray(board) && board.length >= 1, 'лидерборд должен быть непустым массивом');
+assert(
+  board.every((e) => typeof e.count === 'number' && e.count >= 1),
+  'у каждого в лидерборде count >= 1',
+);
+assert(
+  board.every((e, i) => i === 0 || board[i - 1]!.count >= e.count),
+  'лидерборд должен быть отсортирован по убыванию',
+);
+console.log('19. лидерборд отдаёт топ отправителей, отсортирован по убыванию');
+
+// --- 20. Rate limit: глобальный потолок в конце концов отвечает 429 ---
 let limited = false;
 for (let i = 0; i < 300 && !limited; i++) {
   const r = await fetch(`${SERVER}/api/ping`);
   if (r.status === 429) limited = true;
 }
 assert(limited, 'rate limit не сработал за 300 запросов подряд');
-console.log('18. глобальный rate limit отвечает 429 при спаме');
+console.log('20. глобальный rate limit отвечает 429 при спаме');
 
-console.log('PASS: все проверки фаз 2–5 прошли');
+console.log('PASS: все проверки прошли');
 // Без process.exit: на Windows он роняет libuv при живых сокетах.
 overlaySocket.close();
 dashSocket.close();

@@ -43,6 +43,13 @@
       "when": 1781341143112,
       "tag": "0005_faulty_zeigeist",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1781351780392,
+      "tag": "0006_calm_saracen",
+      "breakpoints": true
     }
   ]
 }
