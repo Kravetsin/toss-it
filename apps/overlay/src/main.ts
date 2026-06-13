@@ -51,7 +51,8 @@ function show(payload: MediaPlayPayload): void {
   stage.appendChild(alert);
 
   if (payload.sound) playChime(payload.volume);
-  if (payload.tts && payload.senderName) speakName(payload.senderName, payload.volume);
+  // Озвучку имени даём чуть позже, чтобы не наложилась на «динь».
+  if (payload.tts) window.setTimeout(() => speakName(payload.submissionId, payload.volume), 280);
 
   // Жёсткий таймер: что бы файл ни «думал» о своей длительности,
   // с экрана он уйдёт не позже durationMs, выданного сервером.
@@ -119,12 +120,17 @@ function playChime(volume: number): void {
   }
 }
 
-/** Озвучка имени отправителя встроенным синтезом речи браузера. */
-function speakName(name: string, volume: number): void {
+/**
+ * Озвучка имени отправителя. Web Speech API в OBS не работает (нет голосов),
+ * поэтому проигрываем готовый mp3 от серверного TTS-прокси как обычное аудио.
+ */
+function speakName(submissionId: string, volume: number): void {
   try {
-    const u = new SpeechSynthesisUtterance(name);
-    u.volume = Math.min(100, Math.max(0, volume)) / 100;
-    window.speechSynthesis.speak(u);
+    const audio = new Audio(`${SERVER_URL}/api/tts/${submissionId}`);
+    audio.volume = Math.min(100, Math.max(0, volume)) / 100;
+    void audio.play().catch(() => {
+      /* автоплей мог быть заблокирован вне OBS */
+    });
   } catch {
     /* TTS не критичен */
   }

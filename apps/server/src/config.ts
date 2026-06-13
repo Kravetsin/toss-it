@@ -51,6 +51,12 @@ export const config = {
     'audio/x-wav': 'audio',
   } as Record<string, MediaKind>,
 
+  /** TTS через Google Translate (бесплатно, без ключа). */
+  tts: {
+    /** Принудительный язык озвучки (en/ru/...); по умолчанию определяется по имени. */
+    lang: process.env.TTS_LANG,
+  },
+
   rateLimit: {
     /** Общий потолок запросов с одного IP в минуту. */
     global: Number(process.env.RATE_LIMIT_GLOBAL ?? 120),

@@ -239,4 +239,32 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
     // Локальная реализация: отдаём с диска через @fastify/static (root = storage.root).
     return reply.type(sub.mime).sendFile(sub.filePath);
   });
+
+  // Озвучка имени отправителя. Web Speech API в OBS не работает (нет голосов),
+  // поэтому проксируем готовый mp3 от Google Translate TTS (бесплатно, без ключа).
+  // Имя берём из БД по id отправки — клиент не передаёт произвольный текст.
+  app.get<{ Params: { id: string } }>('/api/tts/:id', async (req, reply) => {
+    const sub = await db
+      .select({ senderName: submissions.senderName })
+      .from(submissions)
+      .where(eq(submissions.id, req.params.id))
+      .get();
+    if (!sub?.senderName) return reply.code(404).send({ error: 'Не найдено' });
+
+    const text = sub.senderName.slice(0, 180);
+    // Кириллица → русское произношение, иначе английское (или env-override).
+    const lang = config.tts.lang ?? (/[Ѐ-ӿ]/i.test(text) ? 'ru' : 'en');
+    const url =
+      `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob` +
+      `&tl=${encodeURIComponent(lang)}&q=${encodeURIComponent(text)}`;
+    try {
+      const res = await fetch(url, { headers: { 'user-agent': 'Mozilla/5.0' } });
+      if (!res.ok) return reply.code(502).send({ error: 'TTS upstream error' });
+      const buf = Buffer.from(await res.arrayBuffer());
+      return reply.type('audio/mpeg').send(buf);
+    } catch (err) {
+      req.log.warn({ err }, 'tts proxy failed');
+      return reply.code(502).send({ error: 'TTS upstream error' });
+    }
+  });
 }
