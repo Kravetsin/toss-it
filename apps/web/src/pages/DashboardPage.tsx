@@ -10,6 +10,7 @@ import {
   type MediaKind,
   type MeResponse,
   type OverlayPosition,
+  type ReputationStats,
   type SubmissionSummary,
 } from '@tmw/shared';
 import {
@@ -20,6 +21,7 @@ import {
   getMe,
   getNowPlaying,
   getPending,
+  getReputation,
   getSettings,
   getWhitelist,
   rejectSubmission,
@@ -47,6 +49,10 @@ export function DashboardPage() {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [allowed, setAllowed] = useState<ListedUser[]>([]);
   const [banned, setBanned] = useState<ListedUser[]>([]);
+  // Кэш кросс-канальной репутации по userId (догружаем по мере появления заявок).
+  const [reputation, setReputation] = useState<Record<string, ReputationStats>>({});
+  const reputationRef = useRef(reputation);
+  reputationRef.current = reputation;
   const [testFile, setTestFile] = useState<File | null>(null);
   const [soundOn, setSoundOn] = useState(() => localStorage.getItem('tmw_modsound') !== '0');
   // Читаем актуальное значение из обработчика сокета без переподключения при переключении.
@@ -76,6 +82,17 @@ export function DashboardPage() {
       document.title = 'Twitch Media Widget';
     };
   }, [pending.length]);
+
+  // Догружаем репутацию для новых отправителей в очереди (только отсутствующих в кэше).
+  useEffect(() => {
+    const ids = [...new Set(pending.map((p) => p.senderUserId).filter((x): x is string => !!x))].filter(
+      (id) => !(id in reputationRef.current),
+    );
+    if (ids.length === 0) return;
+    void getReputation(ids)
+      .then((rep) => setReputation((prev) => ({ ...prev, ...rep })))
+      .catch(() => {});
+  }, [pending]);
 
   const refreshLists = useCallback(() => {
     void getWhitelist().then(setAllowed).catch(() => {});
@@ -285,6 +302,7 @@ export function DashboardPage() {
       <ModerationQueue
         pending={pending}
         allowed={allowed}
+        reputation={reputation}
         view={queueView}
         onView={changeQueueView}
         onApprove={onApprove}
@@ -705,10 +723,47 @@ const KIND_ICON: Record<MediaKind, IconName> = {
   text: 'send',
 };
 
+/** Кросс-канальная репутация отправителя: ✓принято · ✗отклонено · WL · BAN (или «новичок»). */
+function RepChip({ rep }: { rep?: ReputationStats }) {
+  const { t } = useI18n();
+  if (!rep) return null;
+  if (rep.accepted === 0 && rep.rejected === 0) {
+    return (
+      <span className="w-max border border-twitch/40 bg-twitch/15 px-1.5 text-xs text-twitch-light">
+        {t('dash.repNew')}
+      </span>
+    );
+  }
+  return (
+    <span className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs text-muted">
+      <span className="flex items-center gap-0.5 text-ok" title={t('dash.repAccepted')}>
+        <Icon name="check" size={12} />
+        {rep.accepted}
+      </span>
+      <span className="flex items-center gap-0.5" title={t('dash.repRejected')}>
+        <Icon name="close" size={12} />
+        {rep.rejected}
+      </span>
+      <span className="flex items-center gap-0.5" title={t('dash.repWhitelisted')}>
+        <Icon name="star" size={12} />
+        {rep.whitelistedChannels}
+      </span>
+      <span
+        className={`flex items-center gap-0.5 ${rep.bannedChannels > 0 ? 'text-danger' : ''}`}
+        title={t('dash.repBanned')}
+      >
+        <Icon name="user-x" size={12} />
+        {rep.bannedChannels}
+      </span>
+    </span>
+  );
+}
+
 /** Очередь модерации с двумя видами: «Список» (всё разом) и «Разбор» (по одной + хоткеи). */
 function ModerationQueue({
   pending,
   allowed,
+  reputation,
   view,
   onView,
   onApprove,
@@ -719,6 +774,7 @@ function ModerationQueue({
 }: {
   pending: SubmissionSummary[];
   allowed: ListedUser[];
+  reputation: Record<string, ReputationStats>;
   view: 'list' | 'review';
   onView: (v: 'list' | 'review') => void;
   onApprove: (s: SubmissionSummary) => void;
@@ -798,14 +854,19 @@ function ModerationQueue({
         <div className="flex flex-col gap-3">
           {pending.map((s) => (
             <Card key={s.id}>
-              <p className="mb-2 flex items-center gap-2 text-sm text-muted">
-                <Icon name={KIND_ICON[s.kind]} size={15} />
-                <b className="text-text">{s.senderName ?? t('common.anon')}</b>
-                {s.senderUserId && trustedIds.has(s.senderUserId) && (
-                  <span className="border border-ok/40 bg-ok/15 px-1.5 text-xs text-ok">{t('dash.trusted')}</span>
-                )}
-                · {formatDuration(s.durationMs, t)} · {new Date(s.createdAt).toLocaleTimeString()}
-              </p>
+              <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
+                <span className="flex items-center gap-2">
+                  <Icon name={KIND_ICON[s.kind]} size={15} />
+                  <b className="text-text">{s.senderName ?? t('common.anon')}</b>
+                  {s.senderUserId && trustedIds.has(s.senderUserId) && (
+                    <span className="border border-ok/40 bg-ok/15 px-1.5 text-xs text-ok">{t('dash.trusted')}</span>
+                  )}
+                </span>
+                <RepChip rep={s.senderUserId ? reputation[s.senderUserId] : undefined} />
+                <span className="text-xs">
+                  {formatDuration(s.durationMs, t)} · {new Date(s.createdAt).toLocaleTimeString()}
+                </span>
+              </div>
               <Preview s={s} />
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button variant="primary" onClick={() => approve(s)}>
@@ -837,6 +898,7 @@ function ModerationQueue({
               rest={pending.length - 1}
               next={pending.slice(1, 8)}
               trusted={!!head.senderUserId && trustedIds.has(head.senderUserId)}
+              rep={head.senderUserId ? reputation[head.senderUserId] : undefined}
               onApprove={() => approve(head)}
               onTrust={() => trust(head)}
               onReject={() => reject(head)}
@@ -883,6 +945,7 @@ function ReviewCard({
   rest,
   next,
   trusted,
+  rep,
   onApprove,
   onTrust,
   onReject,
@@ -893,6 +956,7 @@ function ReviewCard({
   rest: number;
   next: SubmissionSummary[];
   trusted: boolean;
+  rep?: ReputationStats;
   onApprove: () => void;
   onTrust: () => void;
   onReject: () => void;
@@ -902,15 +966,18 @@ function ReviewCard({
   const { t } = useI18n();
   return (
     <Card>
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Icon name={KIND_ICON[cur.kind]} size={18} className="text-twitch-light" />
-          <b className="text-text">{cur.senderName ?? t('common.anon')}</b>
-          {trusted && (
-            <span className="border border-ok/40 bg-ok/15 px-1.5 text-xs text-ok">{t('dash.trusted')}</span>
-          )}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <Icon name={KIND_ICON[cur.kind]} size={18} className="text-twitch-light" />
+            <b className="text-text">{cur.senderName ?? t('common.anon')}</b>
+            {trusted && (
+              <span className="border border-ok/40 bg-ok/15 px-1.5 text-xs text-ok">{t('dash.trusted')}</span>
+            )}
+          </div>
+          <RepChip rep={rep} />
         </div>
-        <span className="text-xs text-muted">{formatDuration(cur.durationMs, t)}</span>
+        <span className="shrink-0 text-xs text-muted">{formatDuration(cur.durationMs, t)}</span>
       </div>
       <div className="mt-3">
         <Preview s={cur} />

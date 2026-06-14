@@ -1,10 +1,11 @@
-import { and, asc, desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray } from 'drizzle-orm';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import {
   OVERLAY_POSITIONS,
   type ChannelSettings,
   type HistoryEntry,
   type ListedUser,
+  type ReputationStats,
   type SubmissionSummary,
 } from '@tmw/shared';
 import { db } from '../db/index';
@@ -179,6 +180,70 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         .orderBy(asc(submissions.createdAt))
         .all();
       return rows.map(toSummary);
+    },
+  );
+
+  /** Кросс-канальная репутация набора пользователей (агрегаты по всем каналам). */
+  app.post<{ Body: { userIds?: unknown } | null }>(
+    '/api/dashboard/reputation',
+    async (req, reply): Promise<Record<string, ReputationStats> | undefined> => {
+      const channel = await requireOwnChannel(req, reply);
+      if (!channel) return;
+      const raw = Array.isArray(req.body?.userIds) ? req.body.userIds : [];
+      const ids = [
+        ...new Set(raw.filter((x): x is string => typeof x === 'string' && x.length > 0)),
+      ].slice(0, 200);
+      if (ids.length === 0) return {};
+
+      const result: Record<string, ReputationStats> = {};
+      for (const id of ids) {
+        result[id] = { accepted: 0, rejected: 0, whitelistedChannels: 0, bannedChannels: 0 };
+      }
+
+      // Принято (показано) / отклонено — по всем каналам.
+      const subs = await db
+        .select({ userId: submissions.senderUserId, status: submissions.status, n: count() })
+        .from(submissions)
+        .where(
+          and(
+            inArray(submissions.senderUserId, ids),
+            inArray(submissions.status, ['played', 'rejected']),
+          ),
+        )
+        .groupBy(submissions.senderUserId, submissions.status)
+        .all();
+      for (const r of subs) {
+        const rep = r.userId ? result[r.userId] : undefined;
+        if (!rep) continue;
+        if (r.status === 'played') rep.accepted = r.n;
+        else if (r.status === 'rejected') rep.rejected = r.n;
+      }
+
+      // На скольких каналах в белом списке.
+      const wl = await db
+        .select({ userId: whitelist.userId, n: count() })
+        .from(whitelist)
+        .where(inArray(whitelist.userId, ids))
+        .groupBy(whitelist.userId)
+        .all();
+      for (const r of wl) {
+        const rep = result[r.userId];
+        if (rep) rep.whitelistedChannels = r.n;
+      }
+
+      // На скольких каналах забанен.
+      const bn = await db
+        .select({ userId: bans.userId, n: count() })
+        .from(bans)
+        .where(inArray(bans.userId, ids))
+        .groupBy(bans.userId)
+        .all();
+      for (const r of bn) {
+        const rep = result[r.userId];
+        if (rep) rep.bannedChannels = r.n;
+      }
+
+      return result;
     },
   );
 

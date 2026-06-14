@@ -6,6 +6,7 @@ import type {
   LeaderboardEntry,
   ListedUser,
   MeResponse,
+  ReputationStats,
   PublicChannelInfo,
   SubmissionSummary,
   UploadResponse,
@@ -107,6 +108,15 @@ export function uploadMediaWithProgress(
 
 export function getPending(): Promise<SubmissionSummary[]> {
   return fetch('/api/dashboard/pending').then((r) => json<SubmissionSummary[]>(r));
+}
+
+/** Кросс-канальная репутация набора пользователей (батчем). */
+export function getReputation(userIds: string[]): Promise<Record<string, ReputationStats>> {
+  return fetch('/api/dashboard/reputation', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ userIds }),
+  }).then((r) => json<Record<string, ReputationStats>>(r));
 }
 
 export function approveSubmission(id: string, addToWhitelist: boolean): Promise<unknown> {

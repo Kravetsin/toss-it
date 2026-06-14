@@ -210,6 +210,18 @@ export interface LeaderboardEntry {
   count: number;
 }
 
+/** Кросс-канальная репутация пользователя — агрегаты по всем каналам сразу. */
+export interface ReputationStats {
+  /** Сколько отправок зрителя реально показано на стримах (status='played'). */
+  accepted: number;
+  /** Сколько отправок отклонено модерацией. */
+  rejected: number;
+  /** На скольких каналах зритель в белом списке. */
+  whitelistedChannels: number;
+  /** На скольких каналах зритель забанен. */
+  bannedChannels: number;
+}
+
 export interface ApiError {
   error: string;
   /** Машиночитаемый код для особой обработки на клиенте (напр. 'cooldown'). */
