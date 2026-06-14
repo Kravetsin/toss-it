@@ -390,7 +390,6 @@ function SettingsCard({
   const [margin, setMargin] = useState(settings.overlayMargin);
   const [musicSeparate, setMusicSeparate] = useState(settings.musicSeparate);
   const [musicPos, setMusicPos] = useState<OverlayPosition>(settings.musicPosition);
-  const [musicSize, setMusicSize] = useState(settings.musicSize);
   const [musicMargin, setMusicMargin] = useState(settings.musicMargin);
   // Карточка настроек большая и заслоняет очередь модерации — по умолчанию свёрнута.
   // Состояние помним в localStorage, чтобы не сворачивалось при каждом заходе.
@@ -527,20 +526,12 @@ function SettingsCard({
               </div>
               <LayoutPreview
                 position={musicPos}
-                size={musicSize}
+                size={22}
                 margin={musicMargin}
                 label={t('dash.previewMusic')}
               />
             </div>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <Slider
-                icon="volume-3"
-                label={t('dash.sliderMediaSize', { n: musicSize })}
-                min={10}
-                max={100}
-                value={musicSize}
-                onChange={setMusicSize}
-              />
               <Slider
                 icon="monitor"
                 label={t('dash.sliderMargin', { n: musicMargin })}
@@ -550,6 +541,7 @@ function SettingsCard({
                 onChange={setMusicMargin}
               />
             </div>
+            <p className="mt-2 text-xs text-muted">{t('dash.musicSizeNote')}</p>
           </div>
         )}
       </div>
@@ -577,7 +569,6 @@ function SettingsCard({
               overlayMargin: margin,
               musicSeparate,
               musicPosition: musicPos,
-              musicSize,
               musicMargin,
             })
           }

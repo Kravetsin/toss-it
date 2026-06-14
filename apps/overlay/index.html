@@ -75,11 +75,13 @@
          Ширина масштабируется настройкой размера (--overlay-size). */
       .music {
         box-sizing: border-box;
-        width: clamp(220px, calc(var(--overlay-size, 80) * 0.7vw + 150px), 80vw);
+        /* Компактный фикс. размер: плеер живёт в уголке как индикатор «когда закончится
+           музыка», а не как большое медиа — поэтому НЕ зависит от размера медиа (--overlay-size). */
+        width: min(320px, 80vw);
         display: flex;
         flex-direction: column;
-        gap: 12px;
-        padding: 18px 20px;
+        gap: 8px;
+        padding: 12px 14px;
         background: #16161a;
         border: 3px solid #6a24d4;
         image-rendering: pixelated;
@@ -89,23 +91,8 @@
           4px 4px 0 0 rgba(5, 5, 7, 0.85),
           0 0 22px rgba(145, 70, 255, 0.45);
       }
-      /* Эквалайзер: бары пляшут вверх-вниз дискретными «щелчками» (steps). */
-      .music .eq {
-        display: flex;
-        align-items: flex-end;
-        justify-content: center;
-        gap: 5px;
-        height: 56px;
-      }
-      .music .eq span {
-        width: 9px;
-        height: 100%;
-        background: #a970ff;
-        transform-origin: 50% 100%;
-        animation: eq-bounce 0.9s steps(4) infinite;
-      }
       .music .progress {
-        height: 14px;
+        height: 10px;
         background: #202028;
         border: 2px solid #33333d;
         box-shadow: inset 2px 2px 0 0 #0c0c0f;
@@ -120,20 +107,9 @@
         display: flex;
         justify-content: space-between;
         font-family: 'Pixelify Sans', sans-serif;
-        font-size: 18px;
+        font-size: 15px;
         color: #f4f4f6;
         text-shadow: 1px 1px 0 #050507;
-      }
-      @keyframes eq-bounce {
-        0% {
-          transform: scaleY(0.25);
-        }
-        50% {
-          transform: scaleY(1);
-        }
-        100% {
-          transform: scaleY(0.4);
-        }
       }
 
       /* Текст-онли: карточка-сообщение. Ширина — от настройки размера (--overlay-size). */

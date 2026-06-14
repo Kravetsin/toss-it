@@ -54,14 +54,15 @@ function show(payload: MediaPlayPayload): void {
   const url = SERVER_URL + payload.url;
   const alert = document.createElement('div');
   alert.className = 'alert enter';
-  alert.appendChild(createMediaElement(payload, url));
-  // Подпись к файлу (для текста-онли сам контент уже в карточке).
+  // Подпись — НАД медиа: так при её исчезновении плеер/медиа не «прыгают».
+  // (Для текста-онли сам контент уже в карточке.)
   if (payload.text && payload.kind !== 'text') {
     const cap = document.createElement('div');
     cap.className = 'caption';
     cap.textContent = payload.text;
     alert.appendChild(cap);
   }
+  alert.appendChild(createMediaElement(payload, url));
   if (payload.senderName) {
     const banner = document.createElement('div');
     banner.className = 'sender';
@@ -115,19 +116,10 @@ function createMediaElement(payload: MediaPlayPayload, url: string): HTMLElement
   return createMusicWidget(payload, url, volume);
 }
 
-/** Музыкальный виджет: пляшущий эквалайзер + заполняющийся прогресс-бар + время mm:ss. */
+/** Музыкальный виджет: заполняющийся прогресс-бар + время mm:ss. */
 function createMusicWidget(payload: MediaPlayPayload, url: string, volume: number): HTMLElement {
   const widget = document.createElement('div');
   widget.className = 'music';
-
-  // Эквалайзер: ряд баров, каждый пляшет со своим сдвигом фазы (animation-delay).
-  const eq = document.createElement('div');
-  eq.className = 'eq';
-  for (let i = 0; i < 7; i++) {
-    const bar = document.createElement('span');
-    bar.style.animationDelay = `${i * 0.12}s`;
-    eq.appendChild(bar);
-  }
 
   const progress = document.createElement('div');
   progress.className = 'progress';
@@ -164,7 +156,7 @@ function createMusicWidget(payload: MediaPlayPayload, url: string, volume: numbe
   });
   audio.play().catch(() => console.warn('[overlay] audio autoplay blocked'));
 
-  widget.append(eq, progress, time, audio);
+  widget.append(progress, time, audio);
   return widget;
 }
 

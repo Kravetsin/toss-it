@@ -212,10 +212,12 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
         filePath = `${channel.id}/${id}.${outExt}`;
         await storage.putFile(filePath, finalTmp);
       } else {
-        // Текст-онли: без транскода. Длительность показа — по «времени чтения».
+        // Текст-онли: без транскода. Длительность показа — по «времени чтения»,
+        // но не дольше 15 с (хватает даже на 280 символов). Если озвучка длиннее —
+        // она доиграет уже без текста на экране.
         kind = 'text';
         outMime = 'text/plain';
-        durationMs = Math.min(channel.maxDurationMs, Math.max(4000, 4000 + 60 * text!.length));
+        durationMs = Math.min(15_000, Math.max(4000, 4000 + 60 * text!.length));
       }
 
       // Гибридная модерация: владелец и белый список → сразу на экран, остальные → pending.
