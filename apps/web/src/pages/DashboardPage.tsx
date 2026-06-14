@@ -7,6 +7,7 @@ import {
   type ChannelSettings,
   type HistoryEntry,
   type ListedUser,
+  type MediaKind,
   type MeResponse,
   type OverlayPosition,
   type SubmissionSummary,
@@ -51,6 +52,18 @@ export function DashboardPage() {
   // Читаем актуальное значение из обработчика сокета без переподключения при переключении.
   const soundOnRef = useRef(soundOn);
   soundOnRef.current = soundOn;
+  // Вид очереди: «Список» (всё разом) или «Разбор» (по одной с хоткеями). Запоминаем выбор.
+  const [queueView, setQueueView] = useState<'list' | 'review'>(() =>
+    localStorage.getItem('tmw_queueview') === 'review' ? 'review' : 'list',
+  );
+  const changeQueueView = (v: 'list' | 'review') => {
+    setQueueView(v);
+    try {
+      localStorage.setItem('tmw_queueview', v);
+    } catch {
+      /* приватный режим — не критично */
+    }
+  };
 
   useEffect(() => {
     initAudioUnlock();
@@ -132,6 +145,32 @@ export function DashboardPage() {
       void act(() => banUser(userId), refreshLists, t('toast.banned'));
     }
   }
+
+  // Действия модерации — общие для вида «Список» и «Разбор».
+  const onApprove = (s: SubmissionSummary) =>
+    void act(() => approveSubmission(s.id, false), undefined, t('toast.approved'));
+  const onTrust = (s: SubmissionSummary) =>
+    void act(() => approveSubmission(s.id, true), refreshLists, t('toast.approved'));
+  const onReject = (s: SubmissionSummary) =>
+    void act(() => rejectSubmission(s.id, false), undefined, t('toast.rejected'));
+  const onBan = (s: SubmissionSummary) => {
+    void (async () => {
+      const name = s.senderName ?? t('dash.thisSender');
+      if (await confirm({ message: t('dash.banConfirm', { name }), confirmLabel: t('dash.ban'), danger: true })) {
+        void act(() => rejectSubmission(s.id, true), refreshLists, t('toast.banned'));
+      }
+    })();
+  };
+  // «Позже» — только клиентский reorder: текущую заявку в конец очереди.
+  const onLater = (id: string) =>
+    setPending((prev) => {
+      const i = prev.findIndex((p) => p.id === id);
+      if (i < 0) return prev;
+      const copy = prev.slice();
+      const removed = copy.splice(i, 1);
+      copy.push(...removed);
+      return copy;
+    });
 
   if (me === 'loading')
     return (
@@ -243,70 +282,17 @@ export function DashboardPage() {
       )}
 
       {/* Модерация */}
-      <h2 className="mb-3 mt-8 text-lg font-bold">
-        {t('dash.modQueue')}{' '}
-        {pending.length > 0 && (
-          <span className="ml-1 border-2 border-twitch-dark bg-twitch px-2 py-0.5 text-sm text-white">
-            {pending.length}
-          </span>
-        )}
-      </h2>
-      {pending.length === 0 && <p className="text-sm text-muted">{t('dash.modEmpty')}</p>}
-      <div className="flex flex-col gap-3">
-        {pending.map((s) => (
-          <Card key={s.id}>
-            <p className="mb-2 text-sm text-muted">
-              <b className="text-text">{s.senderName ?? t('common.anon')}</b> · {s.mime} ·{' '}
-              {formatDuration(s.durationMs, t)} · {new Date(s.createdAt).toLocaleTimeString()}
-            </p>
-            <Preview s={s} />
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button
-                variant="primary"
-                onClick={() => void act(() => approveSubmission(s.id, false), undefined, t('toast.approved'))}
-              >
-                <Icon name="check" size={16} />
-                {t('dash.approve')}
-              </Button>
-              <Button
-                onClick={() =>
-                  void act(() => approveSubmission(s.id, true), refreshLists, t('toast.approved'))
-                }
-              >
-                <Icon name="star" size={16} />
-                {t('dash.approveWhitelist')}
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => void act(() => rejectSubmission(s.id, false), undefined, t('toast.rejected'))}
-              >
-                <Icon name="close" size={16} />
-                {t('dash.reject')}
-              </Button>
-              <Button
-                variant="danger"
-                onClick={() => {
-                  void (async () => {
-                    const name = s.senderName ?? t('dash.thisSender');
-                    if (
-                      await confirm({
-                        message: t('dash.banConfirm', { name }),
-                        confirmLabel: t('dash.ban'),
-                        danger: true,
-                      })
-                    ) {
-                      void act(() => rejectSubmission(s.id, true), refreshLists, t('toast.banned'));
-                    }
-                  })();
-                }}
-              >
-                <Icon name="user-x" size={16} />
-                {t('dash.ban')}
-              </Button>
-            </div>
-          </Card>
-        ))}
-      </div>
+      <ModerationQueue
+        pending={pending}
+        allowed={allowed}
+        view={queueView}
+        onView={changeQueueView}
+        onApprove={onApprove}
+        onTrust={onTrust}
+        onReject={onReject}
+        onBan={onBan}
+        onLater={onLater}
+      />
 
       <div className="mt-8 grid gap-4 md:grid-cols-2">
         <UserList
@@ -709,6 +695,268 @@ function LayoutPreview({
         </div>
       </div>
     </div>
+  );
+}
+
+const KIND_ICON: Record<MediaKind, IconName> = {
+  image: 'image',
+  video: 'play',
+  audio: 'volume-2',
+  text: 'send',
+};
+
+/** Очередь модерации с двумя видами: «Список» (всё разом) и «Разбор» (по одной + хоткеи). */
+function ModerationQueue({
+  pending,
+  allowed,
+  view,
+  onView,
+  onApprove,
+  onTrust,
+  onReject,
+  onBan,
+  onLater,
+}: {
+  pending: SubmissionSummary[];
+  allowed: ListedUser[];
+  view: 'list' | 'review';
+  onView: (v: 'list' | 'review') => void;
+  onApprove: (s: SubmissionSummary) => void;
+  onTrust: (s: SubmissionSummary) => void;
+  onReject: (s: SubmissionSummary) => void;
+  onBan: (s: SubmissionSummary) => void;
+  onLater: (id: string) => void;
+}) {
+  const { t } = useI18n();
+  const [stats, setStats] = useState({ approved: 0, rejected: 0 });
+  const trustedIds = new Set(allowed.map((a) => a.userId));
+
+  const approve = (s: SubmissionSummary) => {
+    onApprove(s);
+    setStats((p) => ({ ...p, approved: p.approved + 1 }));
+  };
+  const trust = (s: SubmissionSummary) => {
+    onTrust(s);
+    setStats((p) => ({ ...p, approved: p.approved + 1 }));
+  };
+  const reject = (s: SubmissionSummary) => {
+    onReject(s);
+    setStats((p) => ({ ...p, rejected: p.rejected + 1 }));
+  };
+
+  // Хоткеи активны только в разборе; действуют на голову очереди (pending[0]).
+  useEffect(() => {
+    if (view !== 'review') return;
+    const onKey = (e: KeyboardEvent) => {
+      const el = document.activeElement;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) return;
+      if (document.querySelector('[role="dialog"]')) return; // открыт confirm бана
+      const cur = pending[0];
+      if (!cur) return;
+      const k = e.key.toLowerCase();
+      if (e.key === ' ' || e.key === 'ArrowRight' || e.key === 'Enter') {
+        e.preventDefault();
+        approve(cur);
+      } else if (k === 'r' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        reject(cur);
+      } else if (k === 'w') {
+        e.preventDefault();
+        trust(cur);
+      } else if (k === 'b') {
+        e.preventDefault();
+        onBan(cur);
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        onLater(cur.id);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+
+  return (
+    <>
+      <div className="mb-3 mt-8 flex items-center justify-between gap-2">
+        <h2 className="flex items-center gap-2 text-lg font-bold">
+          {t('dash.modQueue')}
+          {pending.length > 0 && (
+            <span className="border-2 border-twitch-dark bg-twitch px-2 py-0.5 text-sm text-white">
+              {pending.length}
+            </span>
+          )}
+        </h2>
+        <div className="flex gap-1 border-2 border-line bg-surface-2 p-1">
+          <ViewBtn active={view === 'list'} onClick={() => onView('list')} label={t('dash.viewList')} />
+          <ViewBtn active={view === 'review'} onClick={() => onView('review')} label={t('dash.viewReview')} />
+        </div>
+      </div>
+
+      {pending.length === 0 ? (
+        <p className="text-sm text-muted">{t('dash.modEmpty')}</p>
+      ) : view === 'list' ? (
+        <div className="flex flex-col gap-3">
+          {pending.map((s) => (
+            <Card key={s.id}>
+              <p className="mb-2 flex items-center gap-2 text-sm text-muted">
+                <Icon name={KIND_ICON[s.kind]} size={15} />
+                <b className="text-text">{s.senderName ?? t('common.anon')}</b>
+                {s.senderUserId && trustedIds.has(s.senderUserId) && (
+                  <span className="border border-ok/40 bg-ok/15 px-1.5 text-xs text-ok">{t('dash.trusted')}</span>
+                )}
+                · {formatDuration(s.durationMs, t)} · {new Date(s.createdAt).toLocaleTimeString()}
+              </p>
+              <Preview s={s} />
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button variant="primary" onClick={() => approve(s)}>
+                  <Icon name="check" size={16} />
+                  {t('dash.approve')}
+                </Button>
+                <Button onClick={() => trust(s)}>
+                  <Icon name="star" size={16} />
+                  {t('dash.approveWhitelist')}
+                </Button>
+                <Button variant="ghost" onClick={() => reject(s)}>
+                  <Icon name="close" size={16} />
+                  {t('dash.reject')}
+                </Button>
+                <Button variant="danger" onClick={() => onBan(s)}>
+                  <Icon name="user-x" size={16} />
+                  {t('dash.ban')}
+                </Button>
+              </div>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        (() => {
+          const head = pending[0]!;
+          return (
+            <ReviewCard
+              cur={head}
+              rest={pending.length - 1}
+              next={pending.slice(1, 8)}
+              trusted={!!head.senderUserId && trustedIds.has(head.senderUserId)}
+              onApprove={() => approve(head)}
+              onTrust={() => trust(head)}
+              onReject={() => reject(head)}
+              onBan={() => onBan(head)}
+              onLater={() => onLater(head.id)}
+            />
+          );
+        })()
+      )}
+
+      {(stats.approved > 0 || stats.rejected > 0) && (
+        <p className="mt-3 text-xs text-muted">
+          {t('dash.sessionStats', { a: stats.approved, r: stats.rejected })}
+        </p>
+      )}
+    </>
+  );
+}
+
+function ViewBtn({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`cursor-pointer px-3 py-1 font-display text-sm uppercase tracking-wide ${
+        active ? 'bg-twitch text-white' : 'text-muted hover:text-text'
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function Kbd({ k }: { k: string }) {
+  return (
+    <span className="ml-1 border border-line px-1 text-xs normal-case text-muted">{k}</span>
+  );
+}
+
+/** Фокус-карточка разбора: одна заявка крупно + кнопки с хоткеями + «дальше». */
+function ReviewCard({
+  cur,
+  rest,
+  next,
+  trusted,
+  onApprove,
+  onTrust,
+  onReject,
+  onBan,
+  onLater,
+}: {
+  cur: SubmissionSummary;
+  rest: number;
+  next: SubmissionSummary[];
+  trusted: boolean;
+  onApprove: () => void;
+  onTrust: () => void;
+  onReject: () => void;
+  onBan: () => void;
+  onLater: () => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <Card>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Icon name={KIND_ICON[cur.kind]} size={18} className="text-twitch-light" />
+          <b className="text-text">{cur.senderName ?? t('common.anon')}</b>
+          {trusted && (
+            <span className="border border-ok/40 bg-ok/15 px-1.5 text-xs text-ok">{t('dash.trusted')}</span>
+          )}
+        </div>
+        <span className="text-xs text-muted">{formatDuration(cur.durationMs, t)}</span>
+      </div>
+      <div className="mt-3">
+        <Preview s={cur} />
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button variant="primary" onClick={onApprove}>
+          <Icon name="check" size={16} />
+          {t('dash.approve')}
+          <Kbd k="Space" />
+        </Button>
+        <Button onClick={onTrust}>
+          <Icon name="star" size={16} />
+          {t('dash.approveWhitelist')}
+          <Kbd k="W" />
+        </Button>
+        <Button variant="ghost" onClick={onReject}>
+          <Icon name="close" size={16} />
+          {t('dash.reject')}
+          <Kbd k="R" />
+        </Button>
+        <Button onClick={onLater}>
+          <Icon name="clock" size={16} />
+          {t('dash.later')}
+          <Kbd k="↓" />
+        </Button>
+        <Button variant="danger" onClick={onBan}>
+          <Icon name="user-x" size={16} />
+          {t('dash.ban')}
+          <Kbd k="B" />
+        </Button>
+      </div>
+      <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-muted">
+        <span>{t('dash.next')}:</span>
+        {next.map((n) => (
+          <span
+            key={n.id}
+            title={n.senderName ?? ''}
+            className="flex h-7 w-7 items-center justify-center border-2 border-line bg-surface-2"
+          >
+            <Icon name={KIND_ICON[n.kind]} size={14} />
+          </span>
+        ))}
+        {rest > next.length && <span>+{rest - next.length}</span>}
+      </div>
+      <p className="mt-3 text-xs text-muted/70">{t('dash.hotkeyHint')}</p>
+    </Card>
   );
 }
 
