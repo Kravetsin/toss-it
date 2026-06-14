@@ -391,11 +391,42 @@ function SettingsCard({
   const [musicPos, setMusicPos] = useState<OverlayPosition>(settings.musicPosition);
   const [musicSize, setMusicSize] = useState(settings.musicSize);
   const [musicMargin, setMusicMargin] = useState(settings.musicMargin);
+  // Карточка настроек большая и заслоняет очередь модерации — по умолчанию свёрнута.
+  // Состояние помним в localStorage, чтобы не сворачивалось при каждом заходе.
+  const [open, setOpen] = useState(() => {
+    try {
+      return localStorage.getItem('tmw_settings_open') === '1';
+    } catch {
+      return false;
+    }
+  });
+  const toggleOpen = () =>
+    setOpen((o) => {
+      const next = !o;
+      try {
+        localStorage.setItem('tmw_settings_open', next ? '1' : '0');
+      } catch {
+        /* приватный режим — не критично */
+      }
+      return next;
+    });
 
   return (
     <Card>
       <div className="flex items-center justify-between">
-        <h2 className="font-bold">{t('dash.settings')}</h2>
+        <button
+          type="button"
+          onClick={toggleOpen}
+          aria-expanded={open}
+          className="flex cursor-pointer items-center gap-2"
+        >
+          <Icon
+            name="play"
+            size={13}
+            className={`transition-transform text-muted ${open ? 'rotate-90' : ''}`}
+          />
+          <h2 className="font-bold">{t('dash.settings')}</h2>
+        </button>
         <label
           className={`flex cursor-pointer items-center gap-2 border-2 px-3 py-1.5 text-sm font-semibold ${
             settings.accepting ? 'border-ok/40 bg-ok/15 text-ok' : 'border-danger/40 bg-danger/15 text-danger'
@@ -410,6 +441,8 @@ function SettingsCard({
           {settings.accepting ? t('dash.accepting') : t('dash.acceptingOff')}
         </label>
       </div>
+      {open && (
+        <>
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <Slider
           icon="image"
@@ -549,6 +582,8 @@ function SettingsCard({
           {t('dash.save')}
         </Button>
       </div>
+        </>
+      )}
     </Card>
   );
 }
