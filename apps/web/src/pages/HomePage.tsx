@@ -6,7 +6,7 @@ import { useConfirm } from '../confirm';
 import { Icon } from '../icons';
 import { useI18n } from '../i18n';
 import { useToast } from '../toast';
-import { Avatar, Button, Card } from '../ui';
+import { Avatar, Button, Card, Loader } from '../ui';
 
 export function HomePage() {
   const { t } = useI18n();
@@ -43,7 +43,12 @@ export function HomePage() {
     }
   }
 
-  if (loading) return <Shell>{t('common.loading')}</Shell>;
+  if (loading)
+    return (
+      <Shell>
+        <Loader label={t('common.loading')} />
+      </Shell>
+    );
 
   if (!me?.user) {
     return (

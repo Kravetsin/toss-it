@@ -12,7 +12,7 @@ import type {
 import { ApiRequestError, getChannel, getLeaderboard, getMe, uploadMediaWithProgress } from '../api';
 import { Icon, type IconName } from '../icons';
 import { formatDuration, useI18n } from '../i18n';
-import { Alert, Avatar, Button, Card, ProgressBar } from '../ui';
+import { Alert, Avatar, Button, Card, Loader, ProgressBar } from '../ui';
 
 const ACCEPT = 'image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,audio/*';
 
@@ -130,7 +130,12 @@ export function ChannelPage() {
     setFile(null);
   }
 
-  if (channel === 'loading') return <Shell>{t('common.loading')}</Shell>;
+  if (channel === 'loading')
+    return (
+      <Shell>
+        <Loader label={t('common.loading')} />
+      </Shell>
+    );
   if (!channel) {
     return (
       <Shell>

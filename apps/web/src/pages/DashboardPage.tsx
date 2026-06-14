@@ -30,7 +30,7 @@ import { Icon, type IconName } from '../icons';
 import { formatDuration, useI18n } from '../i18n';
 import { initAudioUnlock, playNotify } from '../notify';
 import { useToast } from '../toast';
-import { Button, Card } from '../ui';
+import { Button, Card, Loader } from '../ui';
 
 export function DashboardPage() {
   const { t } = useI18n();
@@ -130,7 +130,12 @@ export function DashboardPage() {
     }
   }
 
-  if (me === 'loading') return <Shell>{t('common.loading')}</Shell>;
+  if (me === 'loading')
+    return (
+      <Shell>
+        <Loader label={t('common.loading')} />
+      </Shell>
+    );
   if (!me?.user) {
     return (
       <Shell>

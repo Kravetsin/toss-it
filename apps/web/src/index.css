@@ -96,6 +96,67 @@ textarea {
   animation: pixel-loading 1s steps(8) infinite;
 }
 
+/* Брендовый лоадер — «сплит-флэп» табло. Ряд плиток-кубиков: каждая вертикально
+   переворачивается (rotateX) и открывает свою букву слова. Буквы появляются по
+   очереди, затем так же по очереди закрываются — и цикл повторяется (порядком
+   переворотов рулит JS через data-on). steps(4) на перевороте — механический,
+   дискретный «щелчок», как на настоящем табло. */
+.loader-board {
+  display: flex;
+  gap: 6px;
+  perspective: 340px;
+}
+.loader-tile {
+  position: relative;
+  width: 26px;
+  height: 34px;
+  transform-style: preserve-3d;
+  transform: rotateX(0deg);
+  transition: transform 0.34s steps(4);
+}
+.loader-tile[data-on='true'] {
+  transform: rotateX(180deg);
+}
+.loader-tile-face {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  backface-visibility: hidden;
+  border: 2px solid var(--color-line);
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  line-height: 1;
+}
+/* Закрытая грань — пустой «кубик»; открытая — буква акцентным цветом. */
+.loader-tile-front {
+  background: var(--color-surface-2);
+  box-shadow: inset 0 0 0 1px var(--color-bg);
+}
+.loader-tile-back {
+  background: var(--color-surface);
+  color: var(--color-twitch-light);
+  transform: rotateX(180deg);
+  box-shadow: inset 0 2px 0 0 var(--color-twitch-dark);
+}
+.loader-gap {
+  width: 12px;
+}
+
+@keyframes pixel-blink {
+  0%,
+  62% {
+    opacity: 1;
+  }
+  63%,
+  100% {
+    opacity: 0.28;
+  }
+}
+.pixel-blink {
+  animation: pixel-blink 1.1s steps(1) infinite;
+}
+
 @keyframes toast-in {
   0% {
     opacity: 0;
