@@ -1,5 +1,5 @@
 import { sqliteTable, text, integer, index, primaryKey } from 'drizzle-orm/sqlite-core';
-import type { MediaKind, SubmissionStatus } from '@tmw/shared';
+import type { MediaKind, OverlayPosition, SubmissionStatus } from '@tmw/shared';
 
 /**
  * Служебная таблица «ключ-значение»: health-check и прочая мелочь.
@@ -45,6 +45,15 @@ export const channels = sqliteTable('channels', {
   showSenderName: integer('show_sender_name', { mode: 'boolean' }).notNull().default(true),
   soundAlert: integer('sound_alert', { mode: 'boolean' }).notNull().default(false),
   ttsName: integer('tts_name', { mode: 'boolean' }).notNull().default(false),
+  // Раскладка оверлея: якорь-позиция, размер (% вьюпорта) и отступ от края (% вьюпорта).
+  overlayPosition: text('overlay_position').$type<OverlayPosition>().notNull().default('center'),
+  overlaySize: integer('overlay_size').notNull().default(80),
+  overlayMargin: integer('overlay_margin').notNull().default(0),
+  // Отдельная раскладка для музыкального плеера (если musicSeparate, иначе наследует overlay*).
+  musicSeparate: integer('music_separate', { mode: 'boolean' }).notNull().default(false),
+  musicPosition: text('music_position').$type<OverlayPosition>().notNull().default('center'),
+  musicSize: integer('music_size').notNull().default(80),
+  musicMargin: integer('music_margin').notNull().default(0),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 });
 

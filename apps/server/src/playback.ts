@@ -181,6 +181,13 @@ export class PlaybackManager {
         showSenderName: channels.showSenderName,
         soundAlert: channels.soundAlert,
         ttsName: channels.ttsName,
+        overlayPosition: channels.overlayPosition,
+        overlaySize: channels.overlaySize,
+        overlayMargin: channels.overlayMargin,
+        musicSeparate: channels.musicSeparate,
+        musicPosition: channels.musicPosition,
+        musicSize: channels.musicSize,
+        musicMargin: channels.musicMargin,
       })
       .from(channels)
       .where(eq(channels.id, sub.channelId))
@@ -196,6 +203,9 @@ export class PlaybackManager {
       // TTS озвучивает имя — без показа имени оно тоже не имеет смысла.
       tts: (channel?.ttsName ?? false) && showName && sub.senderName !== null,
       senderName: showName ? (sub.senderName ?? undefined) : undefined,
+      // У музыки может быть своя раскладка; сервер сам выбирает нужную по типу медиа,
+      // поэтому оверлею всё равно — он просто применяет position/size/margin из payload.
+      ...resolveLayout(sub.kind, channel),
     };
   }
 
@@ -207,6 +217,26 @@ export class PlaybackManager {
     }
     return st;
   }
+}
+
+/** Какую раскладку показать для данного типа медиа: общую (overlay*) или музыкальную (music*). */
+function resolveLayout(
+  kind: SubmissionRow['kind'],
+  channel: {
+    overlayPosition: MediaPlayPayload['position'];
+    overlaySize: number;
+    overlayMargin: number;
+    musicSeparate: boolean;
+    musicPosition: MediaPlayPayload['position'];
+    musicSize: number;
+    musicMargin: number;
+  } | null | undefined,
+): Pick<MediaPlayPayload, 'position' | 'size' | 'margin'> {
+  if (!channel) return { position: 'center', size: 80, margin: 0 };
+  const useMusic = kind === 'audio' && channel.musicSeparate;
+  return useMusic
+    ? { position: channel.musicPosition, size: channel.musicSize, margin: channel.musicMargin }
+    : { position: channel.overlayPosition, size: channel.overlaySize, margin: channel.overlayMargin };
 }
 
 export function setupRealtime(io: RealtimeServer): PlaybackManager {

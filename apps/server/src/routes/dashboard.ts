@@ -1,6 +1,12 @@
 import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import type { ChannelSettings, HistoryEntry, ListedUser, SubmissionSummary } from '@tmw/shared';
+import {
+  OVERLAY_POSITIONS,
+  type ChannelSettings,
+  type HistoryEntry,
+  type ListedUser,
+  type SubmissionSummary,
+} from '@tmw/shared';
 import { db } from '../db/index';
 import { bans, channels, submissions, users, whitelist, type ChannelRow } from '../db/schema';
 import { config } from '../config';
@@ -49,6 +55,13 @@ function toSettings(ch: ChannelRow): ChannelSettings {
     showSenderName: ch.showSenderName,
     soundAlert: ch.soundAlert,
     ttsName: ch.ttsName,
+    overlayPosition: ch.overlayPosition,
+    overlaySize: ch.overlaySize,
+    overlayMargin: ch.overlayMargin,
+    musicSeparate: ch.musicSeparate,
+    musicPosition: ch.musicPosition,
+    musicSize: ch.musicSize,
+    musicMargin: ch.musicMargin,
   };
 }
 
@@ -103,6 +116,30 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
           typeof b.showSenderName === 'boolean' ? b.showSenderName : channel.showSenderName,
         soundAlert: typeof b.soundAlert === 'boolean' ? b.soundAlert : channel.soundAlert,
         ttsName: typeof b.ttsName === 'boolean' ? b.ttsName : channel.ttsName,
+        overlayPosition: OVERLAY_POSITIONS.includes(b.overlayPosition as never)
+          ? (b.overlayPosition as (typeof OVERLAY_POSITIONS)[number])
+          : channel.overlayPosition,
+        overlaySize:
+          typeof b.overlaySize === 'number'
+            ? clamp(Math.round(b.overlaySize), 10, 100)
+            : channel.overlaySize,
+        overlayMargin:
+          typeof b.overlayMargin === 'number'
+            ? clamp(Math.round(b.overlayMargin), 0, 25)
+            : channel.overlayMargin,
+        musicSeparate:
+          typeof b.musicSeparate === 'boolean' ? b.musicSeparate : channel.musicSeparate,
+        musicPosition: OVERLAY_POSITIONS.includes(b.musicPosition as never)
+          ? (b.musicPosition as (typeof OVERLAY_POSITIONS)[number])
+          : channel.musicPosition,
+        musicSize:
+          typeof b.musicSize === 'number'
+            ? clamp(Math.round(b.musicSize), 10, 100)
+            : channel.musicSize,
+        musicMargin:
+          typeof b.musicMargin === 'number'
+            ? clamp(Math.round(b.musicMargin), 0, 25)
+            : channel.musicMargin,
       };
       await db.update(channels).set(patch).where(eq(channels.id, channel.id));
       return toSettings({ ...channel, ...patch });

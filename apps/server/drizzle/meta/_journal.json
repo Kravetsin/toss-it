@@ -50,6 +50,20 @@
       "when": 1781351780392,
       "tag": "0006_calm_saracen",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1781446398823,
+      "tag": "0007_zippy_dust",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1781447140098,
+      "tag": "0008_open_wild_child",
+      "breakpoints": true
     }
   ]
 }

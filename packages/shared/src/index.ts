@@ -1,5 +1,40 @@
 export type MediaKind = 'image' | 'video' | 'audio';
 
+/** Один из 9 якорей-пресетов для позиционирования медиа в оверлее (в порядке сетки 3×3). */
+export type OverlayPosition =
+  | 'top-left'
+  | 'top'
+  | 'top-right'
+  | 'left'
+  | 'center'
+  | 'right'
+  | 'bottom-left'
+  | 'bottom'
+  | 'bottom-right';
+
+/** Порядок как в UI-сетке (слева направо, сверху вниз). */
+export const OVERLAY_POSITIONS: OverlayPosition[] = [
+  'top-left',
+  'top',
+  'top-right',
+  'left',
+  'center',
+  'right',
+  'bottom-left',
+  'bottom',
+  'bottom-right',
+];
+
+/**
+ * Маппинг якоря во flexbox-выравнивание (justify-content / align-items).
+ * Единый источник правды для оверлея и для превью в дашборде — чтобы они совпадали.
+ */
+export function positionToFlex(pos: OverlayPosition): { justify: string; align: string } {
+  const justify = pos.includes('left') ? 'flex-start' : pos.includes('right') ? 'flex-end' : 'center';
+  const align = pos.includes('top') ? 'flex-start' : pos.includes('bottom') ? 'flex-end' : 'center';
+  return { justify, align };
+}
+
 export type SubmissionStatus = 'pending' | 'approved' | 'rejected' | 'played' | 'expired';
 
 export interface MediaPlayPayload {
@@ -17,6 +52,12 @@ export interface MediaPlayPayload {
   tts: boolean;
   /** Отсутствует, если стример выключил показ имени отправителя. */
   senderName?: string;
+  /** Якорь-позиция медиа в кадре (настройка канала). */
+  position: OverlayPosition;
+  /** Максимальный размер медиа в % вьюпорта (настройка канала). */
+  size: number;
+  /** Отступ от края кадра в % вьюпорта — для прижатых к краю позиций. */
+  margin: number;
 }
 
 /** Статус отправки для живого индикатора у зрителя ('playing' — транзиентный, не в БД). */
@@ -83,6 +124,20 @@ export interface ChannelSettings {
   soundAlert: boolean;
   /** Зачитывать имя отправителя голосом (TTS). */
   ttsName: boolean;
+  /** Якорь-позиция медиа в кадре оверлея (общая для картинок/видео; музыка наследует, если musicSeparate=false). */
+  overlayPosition: OverlayPosition;
+  /** Максимальный размер медиа, % вьюпорта (10–100). */
+  overlaySize: number;
+  /** Отступ от края кадра, % вьюпорта (0–25) — для прижатых к краю позиций. */
+  overlayMargin: number;
+  /** true — у музыкального плеера своя раскладка (поля music*), иначе наследует overlay*. */
+  musicSeparate: boolean;
+  /** Якорь-позиция музыкального плеера (если musicSeparate). */
+  musicPosition: OverlayPosition;
+  /** Размер музыкального плеера, % вьюпорта (если musicSeparate). */
+  musicSize: number;
+  /** Отступ музыкального плеера от края, % вьюпорта (если musicSeparate). */
+  musicMargin: number;
 }
 
 export interface HistoryEntry extends SubmissionSummary {
