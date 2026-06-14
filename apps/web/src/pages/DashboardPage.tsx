@@ -691,11 +691,19 @@ function LayoutPreview({
       <span className="text-sm text-muted">{t('dash.preview')}</span>
       <div
         className="scanlines mt-1 flex aspect-[16/9] w-full overflow-hidden border-2 border-line bg-surface-2"
-        style={{ justifyContent: justify, alignItems: align, padding: `${margin}%` }}
+        style={{ justifyContent: justify, alignItems: align }}
       >
         <div
-          className="flex items-center justify-center border border-twitch-light bg-twitch/60 text-[10px] text-white"
-          style={{ width: `${size}%`, height: `${size}%` }}
+          className="flex shrink-0 items-center justify-center border border-twitch-light bg-twitch/60 text-[10px] text-white"
+          style={{
+            // Размер — от всего бокса (как медиа от вьюпорта), не от области внутри отступа.
+            width: `${size}%`,
+            height: `${size}%`,
+            // Отступ прижимает к краю, НЕ меняя размер. % margin относителен ширины,
+            // поэтому для вертикали умножаем на 9/16, чтобы попасть в vh-отступ оверлея.
+            marginInline: `${margin}%`,
+            marginBlock: `${(margin * 9) / 16}%`,
+          }}
         >
           {label}
         </div>
