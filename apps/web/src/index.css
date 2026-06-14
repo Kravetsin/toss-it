@@ -95,3 +95,17 @@ textarea {
 .progress-indeterminate {
   animation: pixel-loading 1s steps(8) infinite;
 }
+
+@keyframes toast-in {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.toast-in {
+  animation: toast-in 0.18s steps(3) both;
+}

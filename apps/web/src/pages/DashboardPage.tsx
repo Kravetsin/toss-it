@@ -29,11 +29,13 @@ import { useConfirm } from '../confirm';
 import { Icon, type IconName } from '../icons';
 import { formatDuration, useI18n } from '../i18n';
 import { initAudioUnlock, playNotify } from '../notify';
-import { Alert, Button, Card } from '../ui';
+import { useToast } from '../toast';
+import { Button, Card } from '../ui';
 
 export function DashboardPage() {
   const { t } = useI18n();
   const confirm = useConfirm();
+  const toast = useToast();
   const [me, setMe] = useState<MeResponse | null | 'loading'>('loading');
   const [pending, setPending] = useState<SubmissionSummary[]>([]);
   const [now, setNow] = useState<SubmissionSummary | null>(null);
@@ -42,7 +44,6 @@ export function DashboardPage() {
   const [allowed, setAllowed] = useState<ListedUser[]>([]);
   const [banned, setBanned] = useState<ListedUser[]>([]);
   const [testFile, setTestFile] = useState<File | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [soundOn, setSoundOn] = useState(() => localStorage.getItem('tmw_modsound') !== '0');
   // Читаем актуальное значение из обработчика сокета без переподключения при переключении.
   const soundOnRef = useRef(soundOn);
@@ -104,13 +105,13 @@ export function DashboardPage() {
     };
   }, [me, refreshLists]);
 
-  async function act(fn: () => Promise<unknown>, after?: () => void) {
-    setError(null);
+  async function act(fn: () => Promise<unknown>, after?: () => void, success?: string) {
     try {
       await fn();
       after?.();
+      if (success) toast(success);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      toast(e instanceof Error ? e.message : String(e), 'danger');
     }
   }
 
@@ -118,14 +119,14 @@ export function DashboardPage() {
     e.preventDefault();
     if (!testFile || me === 'loading' || !me?.user) return;
     const login = me.user.login;
-    await act(() => uploadMedia(login, testFile));
+    await act(() => uploadMedia(login, testFile), undefined, t('toast.testSent'));
     setTestFile(null);
   }
 
   const bannedIds = new Set(banned.map((b) => b.userId));
   async function banById(userId: string, name: string) {
     if (await confirm({ message: t('dash.banConfirm', { name }), confirmLabel: t('dash.ban'), danger: true })) {
-      void act(() => banUser(userId), refreshLists);
+      void act(() => banUser(userId), refreshLists, t('toast.banned'));
     }
   }
 
@@ -182,12 +183,6 @@ export function DashboardPage() {
         </div>
       </div>
 
-      {error && (
-        <div className="mb-4">
-          <Alert tone="danger">{error}</Alert>
-        </div>
-      )}
-
       {/* Сейчас играет */}
       <Card className="mb-4">
         <div className="flex items-center justify-between gap-4">
@@ -203,7 +198,11 @@ export function DashboardPage() {
             )}
           </div>
           {now && (
-            <Button variant="danger" className="shrink-0" onClick={() => void act(skipCurrent)}>
+            <Button
+              variant="danger"
+              className="shrink-0"
+              onClick={() => void act(skipCurrent, undefined, t('toast.skipped'))}
+            >
               <Icon name="forward" size={16} />
               {t('dash.skip')}
             </Button>
@@ -229,7 +228,9 @@ export function DashboardPage() {
       {settings && (
         <SettingsCard
           settings={settings}
-          onSave={(patch) => void act(async () => setSettings(await saveSettings(patch)))}
+          onSave={(patch) =>
+            void act(async () => setSettings(await saveSettings(patch)), undefined, t('toast.saved'))
+          }
         />
       )}
 
@@ -252,15 +253,25 @@ export function DashboardPage() {
             </p>
             <Preview s={s} />
             <div className="mt-3 flex flex-wrap gap-2">
-              <Button variant="primary" onClick={() => void act(() => approveSubmission(s.id, false))}>
+              <Button
+                variant="primary"
+                onClick={() => void act(() => approveSubmission(s.id, false), undefined, t('toast.approved'))}
+              >
                 <Icon name="check" size={16} />
                 {t('dash.approve')}
               </Button>
-              <Button onClick={() => void act(() => approveSubmission(s.id, true), refreshLists)}>
+              <Button
+                onClick={() =>
+                  void act(() => approveSubmission(s.id, true), refreshLists, t('toast.approved'))
+                }
+              >
                 <Icon name="star" size={16} />
                 {t('dash.approveWhitelist')}
               </Button>
-              <Button variant="ghost" onClick={() => void act(() => rejectSubmission(s.id, false))}>
+              <Button
+                variant="ghost"
+                onClick={() => void act(() => rejectSubmission(s.id, false), undefined, t('toast.rejected'))}
+              >
                 <Icon name="close" size={16} />
                 {t('dash.reject')}
               </Button>
@@ -276,7 +287,7 @@ export function DashboardPage() {
                         danger: true,
                       })
                     ) {
-                      void act(() => rejectSubmission(s.id, true), refreshLists);
+                      void act(() => rejectSubmission(s.id, true), refreshLists, t('toast.banned'));
                     }
                   })();
                 }}
@@ -295,7 +306,7 @@ export function DashboardPage() {
           title={t('dash.whitelist')}
           hint={t('dash.whitelistHint')}
           users={allowed}
-          onRemove={(id) => void act(() => removeFromWhitelist(id), refreshLists)}
+          onRemove={(id) => void act(() => removeFromWhitelist(id), refreshLists, t('toast.removed'))}
           onBan={(id, name) => void banById(id, name)}
         />
         <UserList
@@ -303,7 +314,7 @@ export function DashboardPage() {
           title={t('dash.bans')}
           hint={t('dash.bansHint')}
           users={banned}
-          onRemove={(id) => void act(() => removeBan(id), refreshLists)}
+          onRemove={(id) => void act(() => removeBan(id), refreshLists, t('toast.removed'))}
         />
       </div>
 

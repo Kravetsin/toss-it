@@ -5,16 +5,17 @@ import { OVERLAY_BASE_URL, createChannel, getMe, logout, rotateOverlayToken } fr
 import { useConfirm } from '../confirm';
 import { Icon } from '../icons';
 import { useI18n } from '../i18n';
-import { Alert, Avatar, Button, Card } from '../ui';
+import { useToast } from '../toast';
+import { Avatar, Button, Card } from '../ui';
 
 export function HomePage() {
   const { t } = useI18n();
   const confirm = useConfirm();
+  const toast = useToast();
   const [me, setMe] = useState<MeResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [fakeLogin, setFakeLogin] = useState('');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   function copy(key: string, value: string) {
     void navigator.clipboard.writeText(value);
@@ -32,13 +33,13 @@ export function HomePage() {
     void refresh();
   }, []);
 
-  async function act(fn: () => Promise<unknown>) {
-    setError(null);
+  async function act(fn: () => Promise<unknown>, success?: string) {
     try {
       await fn();
       await refresh();
+      if (success) toast(success);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      toast(e instanceof Error ? e.message : String(e), 'danger');
     }
   }
 
@@ -107,16 +108,10 @@ export function HomePage() {
         </Button>
       </div>
 
-      {error && (
-        <div className="mt-4">
-          <Alert tone="danger">{error}</Alert>
-        </div>
-      )}
-
       {!me.channel ? (
         <Card className="mt-6 flex flex-col items-center gap-4 py-10 text-center">
           <p className="text-muted">{t('home.noChannel')}</p>
-          <Button variant="primary" onClick={() => void act(createChannel)}>
+          <Button variant="primary" onClick={() => void act(createChannel, t('toast.channelCreated'))}>
             <Icon name="sparkles" size={16} />
             {t('home.createChannel')}
           </Button>
@@ -180,7 +175,7 @@ export function HomePage() {
                         danger: true,
                       })
                     ) {
-                      void act(rotateOverlayToken);
+                      void act(rotateOverlayToken, t('toast.tokenReissued'));
                     }
                   })();
                 }}
