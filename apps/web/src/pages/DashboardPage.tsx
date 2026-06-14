@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import type {
@@ -26,6 +26,7 @@ import {
   uploadMedia,
 } from '../api';
 import { formatDuration, useI18n } from '../i18n';
+import { initAudioUnlock, playNotify } from '../notify';
 import { Alert, Button, Card } from '../ui';
 
 export function DashboardPage() {
@@ -39,6 +40,22 @@ export function DashboardPage() {
   const [banned, setBanned] = useState<ListedUser[]>([]);
   const [testFile, setTestFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [soundOn, setSoundOn] = useState(() => localStorage.getItem('tmw_modsound') !== '0');
+  // Читаем актуальное значение из обработчика сокета без переподключения при переключении.
+  const soundOnRef = useRef(soundOn);
+  soundOnRef.current = soundOn;
+
+  useEffect(() => {
+    initAudioUnlock();
+  }, []);
+
+  // Счётчик в заголовке вкладки — виден, даже когда дашборд в фоне.
+  useEffect(() => {
+    document.title = (pending.length > 0 ? `(${pending.length}) ` : '') + 'Twitch Media Widget';
+    return () => {
+      document.title = 'Twitch Media Widget';
+    };
+  }, [pending.length]);
 
   const refreshLists = useCallback(() => {
     void getWhitelist().then(setAllowed).catch(() => {});
@@ -65,7 +82,11 @@ export function DashboardPage() {
     // Live-обновления: тот же секретный токен канала, что и у оверлея.
     const socket = io({ query: { role: 'dashboard', token: me.channel.overlayToken } });
     socket.on('moderation:new', (s: SubmissionSummary) =>
-      setPending((prev) => (prev.some((p) => p.id === s.id) ? prev : [...prev, s])),
+      setPending((prev) => {
+        if (prev.some((p) => p.id === s.id)) return prev;
+        if (soundOnRef.current) playNotify(); // звуковой сигнал на новую отправку
+        return [...prev, s];
+      }),
     );
     socket.on('moderation:resolved', (id: string) =>
       setPending((prev) => prev.filter((p) => p.id !== id)),
@@ -136,9 +157,23 @@ export function DashboardPage() {
     <Shell>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">{t('dash.title')}</h1>
-        <Link to="/" className="text-sm text-muted hover:text-text">
-          {t('common.home')}
-        </Link>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => {
+              const next = !soundOn;
+              setSoundOn(next);
+              localStorage.setItem('tmw_modsound', next ? '1' : '0');
+              if (next) playNotify(); // дать услышать и заодно разблокировать аудио
+            }}
+            title={soundOn ? t('dash.notifyOn') : t('dash.notifyOff')}
+            className="cursor-pointer text-lg"
+          >
+            {soundOn ? '🔔' : '🔕'}
+          </button>
+          <Link to="/" className="text-sm text-muted hover:text-text">
+            {t('common.home')}
+          </Link>
+        </div>
       </div>
 
       {error && (

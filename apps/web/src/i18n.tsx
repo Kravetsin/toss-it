@@ -87,6 +87,8 @@ const en: Dict = {
 
   // Дашборд
   'dash.title': '🛡 Dashboard',
+  'dash.notifyOn': 'Sound on new submission: ON',
+  'dash.notifyOff': 'Sound on new submission: OFF',
   'dash.loginToView': 'The dashboard is available after logging in',
   'dash.createFirstPre': 'First ',
   'dash.createFirstLink': 'create a channel',
@@ -190,6 +192,8 @@ const ru: Dict = {
   'channel.you': 'ты',
 
   'dash.title': '🛡 Дашборд',
+  'dash.notifyOn': 'Звук на новую отправку: ВКЛ',
+  'dash.notifyOff': 'Звук на новую отправку: ВЫКЛ',
   'dash.loginToView': 'Дашборд доступен после входа',
   'dash.createFirstPre': 'Сначала ',
   'dash.createFirstLink': 'создай канал',
