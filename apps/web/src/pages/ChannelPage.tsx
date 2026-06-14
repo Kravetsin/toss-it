@@ -10,10 +10,21 @@ import type {
   UploadResponse,
 } from '@tmw/shared';
 import { ApiRequestError, getChannel, getLeaderboard, getMe, uploadMediaWithProgress } from '../api';
+import { Icon, type IconName } from '../icons';
 import { formatDuration, useI18n } from '../i18n';
 import { Alert, Avatar, Button, Card, ProgressBar } from '../ui';
 
 const ACCEPT = 'image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,audio/*';
+
+const STATUS_META: Record<LiveStatus, { icon: IconName; tone: 'ok' | 'warn' | 'danger' }> = {
+  pending: { icon: 'clock', tone: 'warn' },
+  approved: { icon: 'check', tone: 'ok' },
+  playing: { icon: 'monitor', tone: 'ok' },
+  played: { icon: 'check', tone: 'ok' },
+  rejected: { icon: 'close', tone: 'danger' },
+  expired: { icon: 'clock', tone: 'warn' },
+};
+const TONE_TEXT = { ok: 'text-ok', warn: 'text-warn', danger: 'text-danger' } as const;
 
 type Phase =
   | { name: 'idle' }
@@ -55,21 +66,19 @@ export function ChannelPage() {
     return () => URL.revokeObjectURL(url);
   }, [file]);
 
-  // Тикаем обратный отсчёт кулдауна.
   useEffect(() => {
     if (cooldownSec <= 0) return;
     const id = window.setInterval(() => setCooldownSec((s) => Math.max(0, s - 1)), 1000);
     return () => window.clearInterval(id);
   }, [cooldownSec]);
 
-  // Живой статус отправки: подписываемся на свой сабмишен по WebSocket.
   const doneId = phase.name === 'done' ? phase.result.id : null;
   useEffect(() => {
     if (!doneId) return;
     const socket = io({ query: { role: 'viewer', submission: doneId } });
     socket.on('submission:status', (e: SubmissionStatusEvent) => {
       setLiveStatus(e.status);
-      if (e.status === 'played') loadBoard(); // мог измениться топ
+      if (e.status === 'played') loadBoard();
     });
     return () => {
       socket.close();
@@ -80,10 +89,7 @@ export function ChannelPage() {
     (f: File | null) => {
       if (!f || channel === 'loading' || !channel) return;
       if (f.size > channel.maxFileSizeBytes) {
-        setPhase({
-          name: 'error',
-          message: t('channel.tooBig', { mb: mb(channel.maxFileSizeBytes) }),
-        });
+        setPhase({ name: 'error', message: t('channel.tooBig', { mb: mb(channel.maxFileSizeBytes) }) });
         return;
       }
       setPhase({ name: 'idle' });
@@ -109,7 +115,6 @@ export function ChannelPage() {
       setPhase({ name: 'done', result });
       setFile(null);
     } catch (err) {
-      // Кулдаун — не ошибка, а ожидание: показываем обратный отсчёт.
       if (err instanceof ApiRequestError && err.code === 'cooldown' && err.retryAfterSec) {
         setCooldownSec(err.retryAfterSec);
         setPhase({ name: 'idle' });
@@ -125,9 +130,7 @@ export function ChannelPage() {
     setFile(null);
   }
 
-  if (channel === 'loading') {
-    return <Shell>{t('common.loading')}</Shell>;
-  }
+  if (channel === 'loading') return <Shell>{t('common.loading')}</Shell>;
   if (!channel) {
     return (
       <Shell>
@@ -137,6 +140,8 @@ export function ChannelPage() {
     );
   }
 
+  const status = liveStatus ?? (phase.name === 'done' ? phase.result.status : null);
+
   return (
     <Shell>
       {/* Шапка канала */}
@@ -144,26 +149,23 @@ export function ChannelPage() {
         <Avatar url={channel.avatarUrl} name={channel.displayName} size={56} />
         <div>
           <h1 className="text-2xl font-bold">{channel.displayName}</h1>
-          <p className="text-sm text-muted">{t('channel.subtitle')}</p>
+          <p className="text-muted">{t('channel.subtitle')}</p>
         </div>
       </div>
 
       {/* Лимиты канала */}
-      <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted">
-        <span className="rounded-full bg-surface-2 px-3 py-1">
-          {t('channel.limitVideo', { dur: formatDuration(channel.maxDurationMs, t) })}
-        </span>
-        <span className="rounded-full bg-surface-2 px-3 py-1">
-          {t('channel.limitAudio', { dur: formatDuration(channel.maxAudioDurationMs, t) })}
-        </span>
-        <span className="rounded-full bg-surface-2 px-3 py-1">
-          {t('channel.limitSize', { mb: mb(channel.maxFileSizeBytes) })}
-        </span>
+      <div className="mt-4 flex flex-wrap gap-2 text-sm text-muted">
+        <Chip icon="image" text={t('channel.limitVideo', { dur: formatDuration(channel.maxDurationMs, t) })} />
+        <Chip icon="volume-2" text={t('channel.limitAudio', { dur: formatDuration(channel.maxAudioDurationMs, t) })} />
+        <Chip icon="save" text={t('channel.limitSize', { mb: mb(channel.maxFileSizeBytes) })} />
       </div>
 
       <div className="mt-6">
         {!channel.accepting ? (
-          <Alert tone="warn">{t('channel.paused')}</Alert>
+          <Alert tone="warn">
+            <Icon name="close" />
+            <span>{t('channel.paused')}</span>
+          </Alert>
         ) : !me?.user ? (
           <Card className="flex flex-col items-center gap-4 py-10 text-center">
             <p className="text-muted">{t('channel.loginToSend')}</p>
@@ -172,17 +174,23 @@ export function ChannelPage() {
             </a>
           </Card>
         ) : cooldownSec > 0 ? (
-          <Alert tone="warn">{t('channel.cooldown', { time: clock(cooldownSec) })}</Alert>
-        ) : phase.name === 'done' ? (
+          <Alert tone="warn">
+            <Icon name="clock" />
+            <span>{t('channel.cooldown', { time: clock(cooldownSec) })}</span>
+          </Alert>
+        ) : phase.name === 'done' && status ? (
           <Card className="flex flex-col items-center gap-4 py-8 text-center">
-            <p className="text-lg font-semibold">{t(`status.${liveStatus ?? phase.result.status}`)}</p>
+            <Icon name={STATUS_META[status].icon} size={44} className={TONE_TEXT[STATUS_META[status].tone]} />
+            <p className={`text-xl ${TONE_TEXT[STATUS_META[status].tone]}`}>{t(`status.${status}`)}</p>
             <Button variant="primary" onClick={reset}>
+              <Icon name="send" size={16} />
               {t('channel.send')}
             </Button>
           </Card>
         ) : phase.name === 'uploading' ? (
           <Card className="flex flex-col gap-3">
-            <p className="text-sm">
+            <p className="flex items-center gap-2">
+              <Icon name={phase.progress === null ? 'loader' : 'upload'} size={18} />
               {phase.progress === null
                 ? t('channel.processing')
                 : t('channel.uploading', { pct: Math.round(phase.progress * 100) })}
@@ -196,7 +204,8 @@ export function ChannelPage() {
               {file.name} · {mb(file.size, 1)} MB
             </p>
             <div className="flex gap-2">
-              <Button variant="primary" className="flex-1" onClick={() => void send()}>
+              <Button variant="primary" className="flex-1 justify-center" onClick={() => void send()}>
+                <Icon name="send" size={16} />
                 {t('channel.send')}
               </Button>
               <Button variant="ghost" onClick={() => setFile(null)}>
@@ -214,17 +223,13 @@ export function ChannelPage() {
               }}
               onDragLeave={() => setDragOver(false)}
               onDrop={onDrop}
-              className={`flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed px-6 py-12 text-center transition-colors ${
-                dragOver
-                  ? 'border-twitch bg-twitch/10'
-                  : 'border-line bg-surface hover:border-twitch-light/60'
+              className={`flex cursor-pointer flex-col items-center gap-3 rounded-none border-[3px] border-dashed px-6 py-12 text-center transition-colors ${
+                dragOver ? 'border-twitch bg-twitch/10' : 'border-line bg-surface hover:border-twitch-light/60'
               }`}
             >
-              <span className="text-4xl">📁</span>
-              <p className="font-medium">{t('channel.dropzone')}</p>
-              <p className="text-xs text-muted">
-                {t('channel.sendingAs', { name: me.user.displayName })}
-              </p>
+              <Icon name="folder-plus" size={44} className="text-twitch-light" />
+              <p className="font-display text-lg">{t('channel.dropzone')}</p>
+              <p className="text-sm text-muted">{t('channel.sendingAs', { name: me.user.displayName })}</p>
               <input
                 ref={inputRef}
                 type="file"
@@ -235,7 +240,10 @@ export function ChannelPage() {
             </div>
             {phase.name === 'error' && (
               <div className="mt-4">
-                <Alert tone="danger">❌ {phase.message}</Alert>
+                <Alert tone="danger">
+                  <Icon name="close" />
+                  <span>{phase.message}</span>
+                </Alert>
               </div>
             )}
           </>
@@ -247,29 +255,45 @@ export function ChannelPage() {
   );
 }
 
+function Chip({ icon, text }: { icon: IconName; text: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-none border-2 border-line bg-surface-2 px-3 py-1">
+      <Icon name={icon} size={15} className="text-muted" />
+      {text}
+    </span>
+  );
+}
+
 function Leaderboard({ board, meId }: { board: LeaderboardEntry[]; meId: string | null }) {
   const { t } = useI18n();
   return (
     <div className="mt-8">
-      <h2 className="mb-3 text-lg font-bold">{t('channel.leaderboard')}</h2>
+      <h2 className="mb-3 flex items-center gap-2 text-lg font-bold">
+        <Icon name="trophy" size={22} className="text-warn" />
+        {t('channel.leaderboard')}
+      </h2>
       {board.length === 0 ? (
-        <p className="text-sm text-muted">{t('channel.leaderboardEmpty')}</p>
+        <p className="text-muted">{t('channel.leaderboardEmpty')}</p>
       ) : (
         <Card>
-          <ol className="flex flex-col gap-1.5 text-sm">
+          <ol className="flex flex-col gap-1.5">
             {board.map((e, i) => {
               const isYou = e.userId === meId;
               return (
-                <li
-                  key={e.userId}
-                  className={`flex items-center gap-2 rounded px-2 py-1 ${
-                    isYou ? 'bg-twitch/15' : ''
-                  }`}
-                >
-                  <span className="w-6 text-center font-bold text-muted">{medal(i)}</span>
+                <li key={e.userId} className={`flex items-center gap-3 px-2 py-1 ${isYou ? 'bg-twitch/15' : ''}`}>
+                  <span
+                    className={`flex h-6 w-6 shrink-0 items-center justify-center border-2 font-display text-sm ${
+                      i < 3 ? 'border-twitch-dark bg-twitch text-white' : 'border-line text-muted'
+                    }`}
+                  >
+                    {i + 1}
+                  </span>
                   <b className={isYou ? 'text-twitch-light' : 'text-text'}>{e.displayName}</b>
-                  {isYou && <span className="text-xs text-twitch-light">({t('channel.you')})</span>}
-                  <span className="ml-auto text-muted">🎬 {e.count}</span>
+                  {isYou && <span className="text-sm text-twitch-light">({t('channel.you')})</span>}
+                  <span className="ml-auto flex items-center gap-1.5 text-muted">
+                    <Icon name="image" size={15} />
+                    {e.count}
+                  </span>
                 </li>
               );
             })}
@@ -280,13 +304,9 @@ function Leaderboard({ board, meId }: { board: LeaderboardEntry[]; meId: string 
   );
 }
 
-function medal(i: number): string {
-  return ['🥇', '🥈', '🥉'][i] ?? String(i + 1);
-}
-
 function FilePreview({ file, url }: { file: File; url: string | null }) {
   if (!url) return null;
-  const cls = 'max-h-72 w-full rounded-lg object-contain bg-black/40';
+  const cls = 'max-h-72 w-full rounded-none object-contain bg-black/40 [image-rendering:auto]';
   if (file.type.startsWith('image/')) return <img src={url} className={cls} />;
   if (file.type.startsWith('video/')) return <video src={url} controls muted className={cls} />;
   if (file.type.startsWith('audio/')) return <audio src={url} controls className="w-full" />;
@@ -306,7 +326,6 @@ function mb(bytes: number, digits = 0): string {
   return (bytes / 1024 / 1024).toFixed(digits);
 }
 
-/** Секунды → «0:42» для обратного отсчёта. */
 function clock(sec: number): string {
   const m = Math.floor(sec / 60);
   const s = sec % 60;

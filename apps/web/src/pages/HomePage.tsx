@@ -2,11 +2,14 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { MeResponse } from '@tmw/shared';
 import { OVERLAY_BASE_URL, createChannel, getMe, logout, rotateOverlayToken } from '../api';
+import { useConfirm } from '../confirm';
+import { Icon } from '../icons';
 import { useI18n } from '../i18n';
 import { Alert, Avatar, Button, Card } from '../ui';
 
 export function HomePage() {
   const { t } = useI18n();
+  const confirm = useConfirm();
   const [me, setMe] = useState<MeResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [fakeLogin, setFakeLogin] = useState('');
@@ -114,6 +117,7 @@ export function HomePage() {
         <Card className="mt-6 flex flex-col items-center gap-4 py-10 text-center">
           <p className="text-muted">{t('home.noChannel')}</p>
           <Button variant="primary" onClick={() => void act(createChannel)}>
+            <Icon name="sparkles" size={16} />
             {t('home.createChannel')}
           </Button>
         </Card>
@@ -123,10 +127,16 @@ export function HomePage() {
             <h2 className="mb-3 text-lg font-bold">{t('home.manage')}</h2>
             <div className="flex flex-wrap gap-2">
               <Link to="/dashboard">
-                <Button variant="primary">{t('home.dashboardBtn')}</Button>
+                <Button variant="primary">
+                  <Icon name="shield" size={16} />
+                  {t('home.dashboardBtn')}
+                </Button>
               </Link>
               <Link to={`/c/${me.user.login}`}>
-                <Button>{t('home.viewerPageBtn')}</Button>
+                <Button>
+                  <Icon name="eye" size={16} />
+                  {t('home.viewerPageBtn')}
+                </Button>
               </Link>
             </div>
             <p className="mb-2 mt-4 text-sm text-muted">{t('home.viewerLinkLabel')}</p>
@@ -135,34 +145,47 @@ export function HomePage() {
                 href={viewerUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="flex-1 break-all rounded-lg bg-surface-2 px-3 py-2 text-sm text-twitch-light hover:underline"
+                className="flex-1 break-all rounded-none border-2 border-line bg-surface-2 px-3 py-2 text-sm text-twitch-light hover:underline"
               >
                 {viewerUrl}
               </a>
               <Button className="shrink-0" onClick={() => copy('viewer', viewerUrl)}>
-                {copiedKey === 'viewer' ? '✅' : '📋'}
+                <Icon name={copiedKey === 'viewer' ? 'check' : 'copy'} size={16} />
               </Button>
             </div>
           </Card>
 
           <Card>
             <h2 className="mb-1 text-lg font-bold">{t('home.overlayTitle')}</h2>
-            <p className="mb-3 text-sm text-muted">{t('home.overlayDesc')}</p>
-            <code className="block break-all rounded-lg bg-surface-2 px-3 py-2 text-xs text-muted">
+            <p className="mb-3 flex items-start gap-2 text-sm text-muted">
+              <Icon name="square-alert" size={16} className="mt-0.5 shrink-0 text-warn" />
+              <span>{t('home.overlayDesc')}</span>
+            </p>
+            <code className="block break-all rounded-none border-2 border-line bg-surface-2 px-3 py-2 text-xs text-muted">
               {overlayUrl}
             </code>
             <div className="mt-3 flex gap-2">
               <Button onClick={() => copy('overlay', overlayUrl!)}>
+                <Icon name={copiedKey === 'overlay' ? 'check' : 'copy'} size={16} />
                 {copiedKey === 'overlay' ? t('home.copied') : t('home.copy')}
               </Button>
               <Button
                 variant="danger"
                 onClick={() => {
-                  if (window.confirm(t('home.rotateConfirm'))) {
-                    void act(rotateOverlayToken);
-                  }
+                  void (async () => {
+                    if (
+                      await confirm({
+                        message: t('home.rotateConfirm'),
+                        confirmLabel: t('home.rotate'),
+                        danger: true,
+                      })
+                    ) {
+                      void act(rotateOverlayToken);
+                    }
+                  })();
                 }}
               >
+                <Icon name="reload" size={16} />
                 {t('home.rotate')}
               </Button>
             </div>

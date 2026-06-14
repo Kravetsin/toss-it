@@ -29,6 +29,9 @@ importers:
 
   apps/overlay:
     dependencies:
+      '@fontsource/pixelify-sans':
+        specifier: ^5.2.7
+        version: 5.2.7
       '@tmw/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -91,9 +94,18 @@ importers:
 
   apps/web:
     dependencies:
+      '@fontsource/pixelify-sans':
+        specifier: ^5.2.7
+        version: 5.2.7
+      '@fontsource/vt323':
+        specifier: ^5.2.7
+        version: 5.2.7
       '@tmw/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      pixelarticons:
+        specifier: ^2.1.2
+        version: 2.1.2(react@19.2.7)
       react:
         specifier: ^19.2.7
         version: 19.2.7
@@ -680,6 +692,12 @@ packages:
 
   '@fastify/static@9.1.3':
     resolution: {integrity: sha512-aXrYtsiryLhRxRNaxNqsn7FUISeb7rB9q4eHUPIot5aeQBLNahnz1m6thzm7JWC1poSGXS9XrX8DvuMivp2hkQ==}
+
+  '@fontsource/pixelify-sans@5.2.7':
+    resolution: {integrity: sha512-F/UuV2M9poAj/BJ5/6u95mOy6ptp8/+dpfnxh4TFzKeAB+vdanAjQ8fLJcS0q+WHYgesRRxPwNFr2Pqm18CVGg==}
+
+  '@fontsource/vt323@5.2.7':
+    resolution: {integrity: sha512-8JTMM23vMhQxin9Cn/ijty8cNwXW4INrln0VAJ2227Rz0CVfkzM3qr3l/CqudZJ6BXCnbCGUTdf2ym3cTNex8A==}
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -1967,6 +1985,12 @@ packages:
     resolution: {integrity: sha512-r34yH/GlQpKZbU1BvFFqOjhISRo1MNx1tWYsYvmj6KIRHSPMT2+yHOEb1SG6NMvRoHRF0a07kCOox/9yakl1vg==}
     hasBin: true
 
+  pixelarticons@2.1.2:
+    resolution: {integrity: sha512-RnACjnR5UKm+ovmLKvdsF6DJOYD9JonXDqWOwtFiCStsJofCbShvsYnt4NCL5qPrmVHrB6h64X/qtNUep8GueQ==}
+    hasBin: true
+    peerDependencies:
+      react: '>=16'
+
   postcss@8.5.15:
     resolution: {integrity: sha512-FfR8sjd4em2T6fb3I2MwAJU7HWVMr9zba+enmQeeWFfCbm+UOC/0X4DS8XtpUTMwWMGbjKYP7xjfNekzyGmB3A==}
     engines: {node: ^10 || ^12 || >=14}
@@ -2718,6 +2742,10 @@ snapshots:
       fastify-plugin: 5.1.0
       fastq: 1.20.1
       glob: 13.0.6
+
+  '@fontsource/pixelify-sans@5.2.7': {}
+
+  '@fontsource/vt323@5.2.7': {}
 
   '@humanfs/core@0.19.2':
     dependencies:
@@ -3896,6 +3924,10 @@ snapshots:
       safe-stable-stringify: 2.5.0
       sonic-boom: 4.2.1
       thread-stream: 4.2.0
+
+  pixelarticons@2.1.2(react@19.2.7):
+    dependencies:
+      react: 19.2.7
 
   postcss@8.5.15:
     dependencies:

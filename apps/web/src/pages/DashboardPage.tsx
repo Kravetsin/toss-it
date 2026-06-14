@@ -25,12 +25,15 @@ import {
   skipCurrent,
   uploadMedia,
 } from '../api';
+import { useConfirm } from '../confirm';
+import { Icon, type IconName } from '../icons';
 import { formatDuration, useI18n } from '../i18n';
 import { initAudioUnlock, playNotify } from '../notify';
 import { Alert, Button, Card } from '../ui';
 
 export function DashboardPage() {
   const { t } = useI18n();
+  const confirm = useConfirm();
   const [me, setMe] = useState<MeResponse | null | 'loading'>('loading');
   const [pending, setPending] = useState<SubmissionSummary[]>([]);
   const [now, setNow] = useState<SubmissionSummary | null>(null);
@@ -120,8 +123,8 @@ export function DashboardPage() {
   }
 
   const bannedIds = new Set(banned.map((b) => b.userId));
-  function banById(userId: string, name: string) {
-    if (window.confirm(t('dash.banConfirm', { name }))) {
+  async function banById(userId: string, name: string) {
+    if (await confirm({ message: t('dash.banConfirm', { name }), confirmLabel: t('dash.ban'), danger: true })) {
       void act(() => banUser(userId), refreshLists);
     }
   }
@@ -156,7 +159,10 @@ export function DashboardPage() {
   return (
     <Shell>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t('dash.title')}</h1>
+        <h1 className="flex items-center gap-2 text-2xl font-bold">
+          <Icon name="shield" size={26} className="text-twitch-light" />
+          {t('dash.title')}
+        </h1>
         <div className="flex items-center gap-4">
           <button
             onClick={() => {
@@ -166,9 +172,9 @@ export function DashboardPage() {
               if (next) playNotify(); // дать услышать и заодно разблокировать аудио
             }}
             title={soundOn ? t('dash.notifyOn') : t('dash.notifyOff')}
-            className="cursor-pointer text-lg"
+            className="cursor-pointer text-muted hover:text-text"
           >
-            {soundOn ? '🔔' : '🔕'}
+            <Icon name={soundOn ? 'bell' : 'bell-off'} size={22} />
           </button>
           <Link to="/" className="text-sm text-muted hover:text-text">
             {t('common.home')}
@@ -198,6 +204,7 @@ export function DashboardPage() {
           </div>
           {now && (
             <Button variant="danger" className="shrink-0" onClick={() => void act(skipCurrent)}>
+              <Icon name="forward" size={16} />
               {t('dash.skip')}
             </Button>
           )}
@@ -210,9 +217,10 @@ export function DashboardPage() {
             type="file"
             accept="image/*,video/mp4,video/webm,audio/*"
             onChange={(e) => setTestFile(e.target.files?.[0] ?? null)}
-            className="text-sm text-muted file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-surface-2 file:px-3 file:py-1.5 file:text-text"
+            className="text-sm text-muted file:mr-3 file:cursor-pointer file:rounded-none file:border-2 file:border-line file:bg-surface-2 file:px-3 file:py-1.5 file:font-display file:text-text"
           />
           <Button type="submit" disabled={!testFile}>
+            <Icon name="send" size={16} />
             {t('dash.testSend')}
           </Button>
         </form>
@@ -229,7 +237,7 @@ export function DashboardPage() {
       <h2 className="mb-3 mt-8 text-lg font-bold">
         {t('dash.modQueue')}{' '}
         {pending.length > 0 && (
-          <span className="ml-1 rounded-full bg-twitch px-2.5 py-0.5 text-sm text-white">
+          <span className="ml-1 border-2 border-twitch-dark bg-twitch px-2 py-0.5 text-sm text-white">
             {pending.length}
           </span>
         )}
@@ -245,23 +253,35 @@ export function DashboardPage() {
             <Preview s={s} />
             <div className="mt-3 flex flex-wrap gap-2">
               <Button variant="primary" onClick={() => void act(() => approveSubmission(s.id, false))}>
+                <Icon name="check" size={16} />
                 {t('dash.approve')}
               </Button>
               <Button onClick={() => void act(() => approveSubmission(s.id, true), refreshLists)}>
+                <Icon name="star" size={16} />
                 {t('dash.approveWhitelist')}
               </Button>
               <Button variant="ghost" onClick={() => void act(() => rejectSubmission(s.id, false))}>
+                <Icon name="close" size={16} />
                 {t('dash.reject')}
               </Button>
               <Button
                 variant="danger"
                 onClick={() => {
-                  const name = s.senderName ?? t('dash.thisSender');
-                  if (window.confirm(t('dash.banConfirm', { name }))) {
-                    void act(() => rejectSubmission(s.id, true), refreshLists);
-                  }
+                  void (async () => {
+                    const name = s.senderName ?? t('dash.thisSender');
+                    if (
+                      await confirm({
+                        message: t('dash.banConfirm', { name }),
+                        confirmLabel: t('dash.ban'),
+                        danger: true,
+                      })
+                    ) {
+                      void act(() => rejectSubmission(s.id, true), refreshLists);
+                    }
+                  })();
                 }}
               >
+                <Icon name="user-x" size={16} />
                 {t('dash.ban')}
               </Button>
             </div>
@@ -271,13 +291,15 @@ export function DashboardPage() {
 
       <div className="mt-8 grid gap-4 md:grid-cols-2">
         <UserList
+          icon="star"
           title={t('dash.whitelist')}
           hint={t('dash.whitelistHint')}
           users={allowed}
           onRemove={(id) => void act(() => removeFromWhitelist(id), refreshLists)}
-          onBan={banById}
+          onBan={(id, name) => void banById(id, name)}
         />
         <UserList
+          icon="user-x"
           title={t('dash.bans')}
           hint={t('dash.bansHint')}
           users={banned}
@@ -291,23 +313,26 @@ export function DashboardPage() {
       ) : (
         <Card>
           <ul className="flex flex-col gap-1.5 text-sm">
-            {history.map((h) => (
-              <li key={h.id} className="flex items-center gap-2 text-muted">
-                <span>{statusIcon(h.status)}</span>
-                <b className="text-text">{h.senderName ?? t('common.anon')}</b>
-                <span>· {h.kind}</span>
-                <span className="ml-auto text-xs">{new Date(h.createdAt).toLocaleString()}</span>
-                {h.senderUserId && !bannedIds.has(h.senderUserId) && (
-                  <button
-                    onClick={() => banById(h.senderUserId!, h.senderName ?? t('dash.thisSender'))}
-                    className="cursor-pointer text-xs text-muted hover:text-danger"
-                    title={t('dash.ban')}
-                  >
-                    🔨
-                  </button>
-                )}
-              </li>
-            ))}
+            {history.map((h) => {
+              const si = STATUS_ICON[h.status];
+              return (
+                <li key={h.id} className="flex items-center gap-2 text-muted">
+                  <Icon name={si.icon} size={15} className={si.cls} />
+                  <b className="text-text">{h.senderName ?? t('common.anon')}</b>
+                  <span>· {h.kind}</span>
+                  <span className="ml-auto text-xs">{new Date(h.createdAt).toLocaleString()}</span>
+                  {h.senderUserId && !bannedIds.has(h.senderUserId) && (
+                    <button
+                      onClick={() => void banById(h.senderUserId!, h.senderName ?? t('dash.thisSender'))}
+                      className="cursor-pointer text-muted hover:text-danger"
+                      title={t('dash.ban')}
+                    >
+                      <Icon name="user-x" size={16} />
+                    </button>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </Card>
       )}
@@ -315,11 +340,13 @@ export function DashboardPage() {
   );
 }
 
-function statusIcon(status: HistoryEntry['status']): string {
-  if (status === 'played') return '▶️';
-  if (status === 'rejected') return '❌';
-  return '⌛';
-}
+const STATUS_ICON: Record<HistoryEntry['status'], { icon: IconName; cls: string }> = {
+  pending: { icon: 'clock', cls: 'text-warn' },
+  approved: { icon: 'check', cls: 'text-ok' },
+  played: { icon: 'play', cls: 'text-ok' },
+  rejected: { icon: 'close', cls: 'text-danger' },
+  expired: { icon: 'clock', cls: 'text-muted' },
+};
 
 function SettingsCard({
   settings,
@@ -344,8 +371,8 @@ function SettingsCard({
       <div className="flex items-center justify-between">
         <h2 className="font-bold">{t('dash.settings')}</h2>
         <label
-          className={`flex cursor-pointer items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold ${
-            settings.accepting ? 'bg-ok/15 text-ok' : 'bg-danger/15 text-danger'
+          className={`flex cursor-pointer items-center gap-2 border-2 px-3 py-1.5 text-sm font-semibold ${
+            settings.accepting ? 'border-ok/40 bg-ok/15 text-ok' : 'border-danger/40 bg-danger/15 text-danger'
           }`}
         >
           <input
@@ -359,6 +386,7 @@ function SettingsCard({
       </div>
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <Slider
+          icon="image"
           label={t('dash.sliderVideo', { n: maxDurS })}
           min={1}
           max={60}
@@ -366,6 +394,7 @@ function SettingsCard({
           onChange={setMaxDurS}
         />
         <Slider
+          icon="volume-2"
           label={t('dash.sliderAudio', { n: maxAudioMin })}
           min={1}
           max={10}
@@ -373,6 +402,7 @@ function SettingsCard({
           onChange={setMaxAudioMin}
         />
         <Slider
+          icon="save"
           label={t('dash.sliderSize', { n: maxSizeMb })}
           min={1}
           max={50}
@@ -380,6 +410,7 @@ function SettingsCard({
           onChange={setMaxSizeMb}
         />
         <Slider
+          icon="volume-3"
           label={t('dash.sliderVolume', { n: volume })}
           min={0}
           max={100}
@@ -437,12 +468,14 @@ function Toggle({
 }
 
 function Slider({
+  icon,
   label,
   min,
   max,
   value,
   onChange,
 }: {
+  icon: IconName;
   label: string;
   min: number;
   max: number;
@@ -451,7 +484,10 @@ function Slider({
 }) {
   return (
     <label className="text-sm text-muted">
-      {label}
+      <span className="flex items-center gap-1.5">
+        <Icon name={icon} size={15} />
+        {label}
+      </span>
       <input
         type="range"
         min={min}
@@ -465,19 +501,21 @@ function Slider({
 }
 
 function Preview({ s }: { s: SubmissionSummary }) {
-  const cls = 'max-h-60 max-w-sm rounded-lg bg-black/40';
+  const cls = 'max-h-60 max-w-sm rounded-none bg-black/40';
   if (s.kind === 'image') return <img src={s.url} className={cls} />;
   if (s.kind === 'video') return <video src={s.url} controls muted className={cls} />;
   return <audio src={s.url} controls />;
 }
 
 function UserList({
+  icon,
   title,
   hint,
   users,
   onRemove,
   onBan,
 }: {
+  icon: IconName;
   title: string;
   hint: string;
   users: ListedUser[];
@@ -487,9 +525,11 @@ function UserList({
   const { t } = useI18n();
   return (
     <Card>
-      <h2 className="font-bold">
-        {title} <span className="text-sm font-normal text-muted">— {hint}</span>
+      <h2 className="flex items-center gap-2 font-bold">
+        <Icon name={icon} size={18} className="text-twitch-light" />
+        {title}
       </h2>
+      <p className="mt-0.5 text-sm text-muted">{hint}</p>
       {users.length === 0 ? (
         <p className="mt-2 text-sm text-muted">{t('common.empty')}</p>
       ) : (
@@ -504,10 +544,10 @@ function UserList({
                 {onBan && (
                   <button
                     onClick={() => onBan(u.userId, u.displayName)}
-                    className="cursor-pointer text-xs text-muted hover:text-danger"
+                    className="cursor-pointer text-muted hover:text-danger"
                     title={t('dash.ban')}
                   >
-                    🔨
+                    <Icon name="user-x" size={16} />
                   </button>
                 )}
                 <button
