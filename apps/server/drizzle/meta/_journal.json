@@ -64,6 +64,13 @@
       "when": 1781447140098,
       "tag": "0008_open_wild_child",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1781450096023,
+      "tag": "0009_pale_cassandra_nova",
+      "breakpoints": true
     }
   ]
 }

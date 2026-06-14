@@ -55,6 +55,13 @@ function show(payload: MediaPlayPayload): void {
   const alert = document.createElement('div');
   alert.className = 'alert enter';
   alert.appendChild(createMediaElement(payload, url));
+  // Подпись к файлу (для текста-онли сам контент уже в карточке).
+  if (payload.text && payload.kind !== 'text') {
+    const cap = document.createElement('div');
+    cap.className = 'caption';
+    cap.textContent = payload.text;
+    alert.appendChild(cap);
+  }
   if (payload.senderName) {
     const banner = document.createElement('div');
     banner.className = 'sender';
@@ -65,8 +72,7 @@ function show(payload: MediaPlayPayload): void {
   stage.appendChild(alert);
 
   if (payload.sound) playChime(payload.volume);
-  // Озвучку имени даём чуть позже, чтобы не наложилась на «динь».
-  if (payload.tts) window.setTimeout(() => speakName(payload.submissionId, payload.volume), 280);
+  scheduleSpeech(payload);
 
   // Жёсткий таймер: что бы файл ни «думал» о своей длительности,
   // с экрана он уйдёт не позже durationMs, выданного сервером.
@@ -75,6 +81,14 @@ function show(payload: MediaPlayPayload): void {
 
 function createMediaElement(payload: MediaPlayPayload, url: string): HTMLElement {
   const volume = Math.min(100, Math.max(0, payload.volume ?? 100)) / 100;
+
+  if (payload.kind === 'text') {
+    // Текст-онли: к /api/media не обращаемся, рисуем карточку-сообщение.
+    const card = document.createElement('div');
+    card.className = 'text-card';
+    card.textContent = payload.text ?? '';
+    return card;
+  }
 
   if (payload.kind === 'image') {
     const img = document.createElement('img');
@@ -185,18 +199,39 @@ function playChime(volume: number): void {
 }
 
 /**
- * Озвучка имени отправителя. Web Speech API в OBS не работает (нет голосов),
- * поэтому проигрываем готовый mp3 от серверного TTS-прокси как обычное аудио.
+ * Озвучка имени и/или текста сообщения по очереди (чтобы не накладывались).
+ * Web Speech API в OBS не работает (нет голосов) — проигрываем mp3 от TTS-прокси.
  */
-function speakName(submissionId: string, volume: number): void {
+function scheduleSpeech(payload: MediaPlayPayload): void {
+  const parts: ('name' | 'message')[] = [];
+  if (payload.tts) parts.push('name');
+  if (payload.ttsText) parts.push('message');
+  if (parts.length === 0) return;
+
+  let i = 0;
+  const next = () => {
+    const part = parts[i++];
+    if (!part) return;
+    speak(payload.submissionId, part, payload.volume, next);
+  };
+  // Тот же небольшой сдвиг, что и раньше, — чтобы не наложиться на «динь».
+  window.setTimeout(next, 280);
+}
+
+function speak(
+  submissionId: string,
+  part: 'name' | 'message',
+  volume: number,
+  onEnd: () => void,
+): void {
   try {
-    const audio = new Audio(`${SERVER_URL}/api/tts/${submissionId}`);
+    const audio = new Audio(`${SERVER_URL}/api/tts/${submissionId}?part=${part}`);
     audio.volume = Math.min(100, Math.max(0, volume)) / 100;
-    void audio.play().catch(() => {
-      /* автоплей мог быть заблокирован вне OBS */
-    });
+    audio.addEventListener('ended', onEnd);
+    audio.addEventListener('error', onEnd);
+    void audio.play().catch(onEnd);
   } catch {
-    /* TTS не критичен */
+    onEnd();
   }
 }
 

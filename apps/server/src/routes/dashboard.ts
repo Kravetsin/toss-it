@@ -55,6 +55,7 @@ function toSettings(ch: ChannelRow): ChannelSettings {
     showSenderName: ch.showSenderName,
     soundAlert: ch.soundAlert,
     ttsName: ch.ttsName,
+    ttsMessage: ch.ttsMessage,
     overlayPosition: ch.overlayPosition,
     overlaySize: ch.overlaySize,
     overlayMargin: ch.overlayMargin,
@@ -116,6 +117,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
           typeof b.showSenderName === 'boolean' ? b.showSenderName : channel.showSenderName,
         soundAlert: typeof b.soundAlert === 'boolean' ? b.soundAlert : channel.soundAlert,
         ttsName: typeof b.ttsName === 'boolean' ? b.ttsName : channel.ttsName,
+        ttsMessage: typeof b.ttsMessage === 'boolean' ? b.ttsMessage : channel.ttsMessage,
         overlayPosition: OVERLAY_POSITIONS.includes(b.overlayPosition as never)
           ? (b.overlayPosition as (typeof OVERLAY_POSITIONS)[number])
           : channel.overlayPosition,

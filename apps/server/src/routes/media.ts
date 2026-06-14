@@ -6,7 +6,7 @@ import { pipeline } from 'node:stream/promises';
 import { and, count, desc, eq, gt } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { fileTypeFromFile } from 'file-type';
-import type { UploadResponse } from '@tmw/shared';
+import { TEXT_MAX_LEN, type MediaKind, type UploadResponse } from '@tmw/shared';
 import { db } from '../db/index';
 import { bans, channels, submissions, users, whitelist, type SubmissionRow } from '../db/schema';
 import { config } from '../config';
@@ -115,76 +115,108 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
       }
     }
 
-    const file = await req.file();
-    if (!file) {
-      return reply.code(400).send({ error: 'Файл не передан (multipart-поле file)' });
-    }
-
     const id = crypto.randomUUID();
     const uploadTmp = path.join(tmpDir, `${id}.upload`);
 
     try {
-      await pipeline(file.file, createWriteStream(uploadTmp));
-      if (file.file.truncated) {
+      // Принимаем необязательный файл + необязательное текстовое поле в одном multipart.
+      let hasFile = false;
+      let truncated = false;
+      let originalName = 'unknown';
+      let text: string | undefined;
+      for await (const part of req.parts()) {
+        if (part.type === 'file') {
+          if (hasFile) {
+            // Лишние файлы игнорируем, но поток обязательно дочитываем, иначе запрос зависнет.
+            part.file.resume();
+            continue;
+          }
+          hasFile = true;
+          originalName = part.filename || 'unknown';
+          await pipeline(part.file, createWriteStream(uploadTmp));
+          truncated = part.file.truncated;
+        } else if (part.fieldname === 'text' && typeof part.value === 'string') {
+          text = part.value;
+        }
+      }
+
+      text = text?.trim().slice(0, TEXT_MAX_LEN) || undefined;
+
+      // Должно быть хоть что-то: файл или текст.
+      if (!hasFile && !text) {
+        return reply.code(400).send({ error: 'Пустая отправка: нужен файл или текст' });
+      }
+      if (hasFile && truncated) {
         return reply.code(413).send({
           error: `Файл больше лимита ${Math.round(config.maxFileSizeBytes / 1024 / 1024)} МБ`,
         });
       }
-      // Глобальный лимит проверяет multipart, лимит канала — по факту.
-      const { size } = await fsp.stat(uploadTmp);
-      if (size > channel.maxFileSizeBytes) {
-        return reply.code(413).send({
-          error: `Файл больше лимита канала ${Math.round(channel.maxFileSizeBytes / 1024 / 1024)} МБ`,
-        });
-      }
 
-      // Тип определяем по magic bytes, расширению и mime из запроса не доверяем.
-      const detected = await fileTypeFromFile(uploadTmp);
-      const kind = detected ? config.allowedMime[detected.mime] : undefined;
-      if (!detected || !kind) {
-        return reply.code(415).send({
-          error: `Неподдерживаемый тип файла${detected ? ` (${detected.mime})` : ''}`,
-        });
-      }
-
-      // Фаза 5: всё перекодируется в предсказуемые форматы (webp/mp4/mp3) —
-      // обрезка, отрезание экзотических кодеков и метаданных одним проходом.
+      let kind: MediaKind;
       let durationMs: number;
-      let outExt: string;
+      let filePath: string | null = null;
       let outMime: string;
 
-      try {
-        if (kind === 'image') {
-          durationMs = Math.min(config.imageDurationMs, channel.maxDurationMs);
-          outExt = 'webp';
-          outMime = 'image/webp';
-          await processImage(uploadTmp, path.join(tmpDir, `${id}.${outExt}`));
-        } else {
-          const probed = await probeDurationMs(uploadTmp);
-          if (probed === null) {
-            return reply.code(422).send({ error: 'Не удалось прочитать медиафайл (битый?)' });
-          }
-          // У аудио свой, более длинный лимит — музыке нужно больше 60 с.
-          const limit = kind === 'audio' ? channel.maxAudioDurationMs : channel.maxDurationMs;
-          durationMs = Math.min(probed, limit);
-          if (kind === 'video') {
-            outExt = 'mp4';
-            outMime = 'video/mp4';
-            await transcodeVideo(uploadTmp, path.join(tmpDir, `${id}.${outExt}`), durationMs);
-          } else {
-            outExt = 'mp3';
-            outMime = 'audio/mpeg';
-            await transcodeAudio(uploadTmp, path.join(tmpDir, `${id}.${outExt}`), durationMs);
-          }
+      if (hasFile) {
+        // Глобальный лимит проверяет multipart, лимит канала — по факту.
+        const { size } = await fsp.stat(uploadTmp);
+        if (size > channel.maxFileSizeBytes) {
+          return reply.code(413).send({
+            error: `Файл больше лимита канала ${Math.round(channel.maxFileSizeBytes / 1024 / 1024)} МБ`,
+          });
         }
-      } catch (err) {
-        req.log.warn({ err, submissionId: id }, 'media processing failed');
-        return reply.code(422).send({ error: 'Не удалось обработать медиафайл' });
-      }
 
-      const finalTmp = path.join(tmpDir, `${id}.${outExt}`);
-      const filePath = `${channel.id}/${id}.${outExt}`;
-      await storage.putFile(filePath, finalTmp);
+        // Тип определяем по magic bytes, расширению и mime из запроса не доверяем.
+        const detected = await fileTypeFromFile(uploadTmp);
+        const detectedKind = detected ? config.allowedMime[detected.mime] : undefined;
+        if (!detected || !detectedKind) {
+          return reply.code(415).send({
+            error: `Неподдерживаемый тип файла${detected ? ` (${detected.mime})` : ''}`,
+          });
+        }
+        kind = detectedKind;
+
+        // Фаза 5: всё перекодируется в предсказуемые форматы (webp/mp4/mp3) —
+        // обрезка, отрезание экзотических кодеков и метаданных одним проходом.
+        let outExt: string;
+        try {
+          if (kind === 'image') {
+            durationMs = Math.min(config.imageDurationMs, channel.maxDurationMs);
+            outExt = 'webp';
+            outMime = 'image/webp';
+            await processImage(uploadTmp, path.join(tmpDir, `${id}.${outExt}`));
+          } else {
+            const probed = await probeDurationMs(uploadTmp);
+            if (probed === null) {
+              return reply.code(422).send({ error: 'Не удалось прочитать медиафайл (битый?)' });
+            }
+            // У аудио свой, более длинный лимит — музыке нужно больше 60 с.
+            const limit = kind === 'audio' ? channel.maxAudioDurationMs : channel.maxDurationMs;
+            durationMs = Math.min(probed, limit);
+            if (kind === 'video') {
+              outExt = 'mp4';
+              outMime = 'video/mp4';
+              await transcodeVideo(uploadTmp, path.join(tmpDir, `${id}.${outExt}`), durationMs);
+            } else {
+              outExt = 'mp3';
+              outMime = 'audio/mpeg';
+              await transcodeAudio(uploadTmp, path.join(tmpDir, `${id}.${outExt}`), durationMs);
+            }
+          }
+        } catch (err) {
+          req.log.warn({ err, submissionId: id }, 'media processing failed');
+          return reply.code(422).send({ error: 'Не удалось обработать медиафайл' });
+        }
+
+        const finalTmp = path.join(tmpDir, `${id}.${outExt}`);
+        filePath = `${channel.id}/${id}.${outExt}`;
+        await storage.putFile(filePath, finalTmp);
+      } else {
+        // Текст-онли: без транскода. Длительность показа — по «времени чтения».
+        kind = 'text';
+        outMime = 'text/plain';
+        durationMs = Math.min(channel.maxDurationMs, Math.max(4000, 4000 + 60 * text!.length));
+      }
 
       // Гибридная модерация: владелец и белый список → сразу на экран, остальные → pending.
       const whitelisted = isOwner
@@ -201,8 +233,9 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
         channelId: channel.id,
         senderUserId: user.id,
         senderName: user.displayName,
-        originalName: file.filename ?? 'unknown',
+        originalName,
         filePath,
+        text: text ?? null,
         mime: outMime,
         kind,
         durationMs,
@@ -240,18 +273,21 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
     return reply.type(sub.mime).sendFile(sub.filePath);
   });
 
-  // Озвучка имени отправителя. Web Speech API в OBS не работает (нет голосов),
-  // поэтому проксируем готовый mp3 от Google Translate TTS (бесплатно, без ключа).
-  // Имя берём из БД по id отправки — клиент не передаёт произвольный текст.
-  app.get<{ Params: { id: string } }>('/api/tts/:id', async (req, reply) => {
+  // Озвучка имени отправителя или текста сообщения. Web Speech API в OBS не работает
+  // (нет голосов), поэтому проксируем готовый mp3 от Google Translate TTS (бесплатно, без ключа).
+  // Текст берём из БД по id отправки — клиент произвольный текст не передаёт.
+  app.get<{ Params: { id: string }; Querystring: { part?: string } }>(
+    '/api/tts/:id',
+    async (req, reply) => {
     const sub = await db
-      .select({ senderName: submissions.senderName })
+      .select({ senderName: submissions.senderName, message: submissions.text })
       .from(submissions)
       .where(eq(submissions.id, req.params.id))
       .get();
-    if (!sub?.senderName) return reply.code(404).send({ error: 'Не найдено' });
+    const source = req.query.part === 'message' ? sub?.message : sub?.senderName;
+    if (!source) return reply.code(404).send({ error: 'Не найдено' });
 
-    const text = sub.senderName.slice(0, 180);
+    const text = source.slice(0, 180);
     // Кириллица → русское произношение, иначе английское (или env-override).
     const lang = config.tts.lang ?? (/[Ѐ-ӿ]/i.test(text) ? 'ru' : 'en');
     const url =

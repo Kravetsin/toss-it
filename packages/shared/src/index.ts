@@ -1,4 +1,7 @@
-export type MediaKind = 'image' | 'video' | 'audio';
+export type MediaKind = 'image' | 'video' | 'audio' | 'text';
+
+/** Максимальная длина текста сообщения/подписи (валидируется и на клиенте, и на сервере). */
+export const TEXT_MAX_LEN = 280;
 
 /** Один из 9 якорей-пресетов для позиционирования медиа в оверлее (в порядке сетки 3×3). */
 export type OverlayPosition =
@@ -52,6 +55,10 @@ export interface MediaPlayPayload {
   tts: boolean;
   /** Отсутствует, если стример выключил показ имени отправителя. */
   senderName?: string;
+  /** Текст: подпись к файлу или тело текста-онли (kind='text'). */
+  text?: string;
+  /** Зачитать текст сообщения голосом (TTS, настройка канала). */
+  ttsText: boolean;
   /** Якорь-позиция медиа в кадре (настройка канала). */
   position: OverlayPosition;
   /** Максимальный размер медиа в % вьюпорта (настройка канала). */
@@ -91,6 +98,8 @@ export interface SubmissionSummary {
   senderName: string | null;
   kind: MediaKind;
   mime: string;
+  /** Текст: подпись к файлу или тело текста-онли. */
+  text: string | null;
   durationMs: number;
   /** epoch ms */
   createdAt: number;
@@ -124,6 +133,8 @@ export interface ChannelSettings {
   soundAlert: boolean;
   /** Зачитывать имя отправителя голосом (TTS). */
   ttsName: boolean;
+  /** Зачитывать текст сообщения голосом (TTS). */
+  ttsMessage: boolean;
   /** Якорь-позиция медиа в кадре оверлея (общая для картинок/видео; музыка наследует, если musicSeparate=false). */
   overlayPosition: OverlayPosition;
   /** Максимальный размер медиа, % вьюпорта (10–100). */

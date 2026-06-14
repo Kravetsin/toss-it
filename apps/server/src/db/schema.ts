@@ -45,6 +45,7 @@ export const channels = sqliteTable('channels', {
   showSenderName: integer('show_sender_name', { mode: 'boolean' }).notNull().default(true),
   soundAlert: integer('sound_alert', { mode: 'boolean' }).notNull().default(false),
   ttsName: integer('tts_name', { mode: 'boolean' }).notNull().default(false),
+  ttsMessage: integer('tts_message', { mode: 'boolean' }).notNull().default(false),
   // Раскладка оверлея: якорь-позиция, размер (% вьюпорта) и отступ от края (% вьюпорта).
   overlayPosition: text('overlay_position').$type<OverlayPosition>().notNull().default('center'),
   overlaySize: integer('overlay_size').notNull().default(80),
@@ -96,8 +97,10 @@ export const submissions = sqliteTable(
     senderName: text('sender_name'),
     /** Оригинальное имя файла — только как метаданные, в путях не используется. */
     originalName: text('original_name').notNull(),
-    /** Путь в хранилище относительно корня медиа. NULL после эфемерного удаления файла. */
+    /** Путь в хранилище относительно корня медиа. NULL после эфемерного удаления файла или для текста-онли. */
     filePath: text('file_path'),
+    /** Текст: подпись к файлу или тело текста-онли (kind='text'). */
+    text: text('text'),
     mime: text('mime').notNull(),
     kind: text('kind').$type<MediaKind>().notNull(),
     durationMs: integer('duration_ms').notNull(),

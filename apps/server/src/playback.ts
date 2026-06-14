@@ -49,6 +49,7 @@ export function toSummary(sub: SubmissionRow): SubmissionSummary {
     senderName: sub.senderName,
     kind: sub.kind,
     mime: sub.mime,
+    text: sub.text,
     durationMs: sub.durationMs,
     createdAt: sub.createdAt.getTime(),
     url: `/api/media/${sub.id}`,
@@ -151,7 +152,9 @@ export class PlaybackManager {
         .from(submissions)
         .where(eq(submissions.id, candidate.id))
         .get();
-      if (!fresh || fresh.status !== 'approved' || !fresh.filePath) continue;
+      // Текст-онли не имеет файла (filePath=null) — для него отсутствие файла нормально.
+      if (!fresh || fresh.status !== 'approved' || (!fresh.filePath && fresh.kind !== 'text'))
+        continue;
       // Пока ходили в БД, другой вызов tryNext мог занять слот.
       if (st.current) {
         st.queue.unshift(candidate);
@@ -181,6 +184,7 @@ export class PlaybackManager {
         showSenderName: channels.showSenderName,
         soundAlert: channels.soundAlert,
         ttsName: channels.ttsName,
+        ttsMessage: channels.ttsMessage,
         overlayPosition: channels.overlayPosition,
         overlaySize: channels.overlaySize,
         overlayMargin: channels.overlayMargin,
@@ -203,6 +207,8 @@ export class PlaybackManager {
       // TTS озвучивает имя — без показа имени оно тоже не имеет смысла.
       tts: (channel?.ttsName ?? false) && showName && sub.senderName !== null,
       senderName: showName ? (sub.senderName ?? undefined) : undefined,
+      text: sub.text ?? undefined,
+      ttsText: (channel?.ttsMessage ?? false) && !!sub.text,
       // У музыки может быть своя раскладка; сервер сам выбирает нужную по типу медиа,
       // поэтому оверлею всё равно — он просто применяет position/size/margin из payload.
       ...resolveLayout(sub.kind, channel),

@@ -69,7 +69,8 @@ export function uploadMedia(login: string, file: File): Promise<UploadResponse> 
  */
 export function uploadMediaWithProgress(
   login: string,
-  file: File,
+  file: File | null,
+  text: string,
   onProgress: (value: number | null) => void,
 ): Promise<UploadResponse> {
   return new Promise((resolve, reject) => {
@@ -98,7 +99,8 @@ export function uploadMediaWithProgress(
     };
 
     const fd = new FormData();
-    fd.append('file', file);
+    if (file) fd.append('file', file);
+    if (text.trim()) fd.append('text', text.trim());
     xhr.send(fd);
   });
 }

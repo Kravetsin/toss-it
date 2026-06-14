@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react';
 import { useParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
-import type {
-  LeaderboardEntry,
-  LiveStatus,
-  MeResponse,
-  PublicChannelInfo,
-  SubmissionStatusEvent,
-  UploadResponse,
+import {
+  TEXT_MAX_LEN,
+  type LeaderboardEntry,
+  type LiveStatus,
+  type MeResponse,
+  type PublicChannelInfo,
+  type SubmissionStatusEvent,
+  type UploadResponse,
 } from '@tmw/shared';
 import { ApiRequestError, getChannel, getLeaderboard, getMe, uploadMediaWithProgress } from '../api';
 import { Icon, type IconName } from '../icons';
@@ -38,6 +39,7 @@ export function ChannelPage() {
   const [channel, setChannel] = useState<PublicChannelInfo | null | 'loading'>('loading');
   const [me, setMe] = useState<MeResponse | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [text, setText] = useState('');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>({ name: 'idle' });
   const [liveStatus, setLiveStatus] = useState<LiveStatus | null>(null);
@@ -105,15 +107,16 @@ export function ChannelPage() {
   }
 
   async function send() {
-    if (!file) return;
+    if (!file && !text.trim()) return;
     setPhase({ name: 'uploading', progress: 0 });
     try {
-      const result = await uploadMediaWithProgress(login, file, (progress) =>
+      const result = await uploadMediaWithProgress(login, file, text, (progress) =>
         setPhase({ name: 'uploading', progress }),
       );
       setLiveStatus(result.status);
       setPhase({ name: 'done', result });
       setFile(null);
+      setText('');
     } catch (err) {
       if (err instanceof ApiRequestError && err.code === 'cooldown' && err.retryAfterSec) {
         setCooldownSec(err.retryAfterSec);
@@ -128,6 +131,7 @@ export function ChannelPage() {
     setPhase({ name: 'idle' });
     setLiveStatus(null);
     setFile(null);
+    setText('');
   }
 
   if (channel === 'loading')
@@ -163,6 +167,7 @@ export function ChannelPage() {
         <Chip icon="image" text={t('channel.limitVideo', { dur: formatDuration(channel.maxDurationMs, t) })} />
         <Chip icon="volume-2" text={t('channel.limitAudio', { dur: formatDuration(channel.maxAudioDurationMs, t) })} />
         <Chip icon="save" text={t('channel.limitSize', { mb: mb(channel.maxFileSizeBytes) })} />
+        <Chip icon="send" text={t('channel.limitText', { n: TEXT_MAX_LEN })} />
       </div>
 
       <div className="mt-6">
@@ -202,56 +207,82 @@ export function ChannelPage() {
             </p>
             <ProgressBar value={phase.progress} />
           </Card>
-        ) : file ? (
-          <Card className="flex flex-col gap-4">
-            <FilePreview file={file} url={previewUrl} />
-            <p className="text-sm text-muted">
-              {file.name} · {mb(file.size, 1)} MB
-            </p>
-            <div className="flex gap-2">
-              <Button variant="primary" className="flex-1 justify-center" onClick={() => void send()}>
-                <Icon name="send" size={16} />
-                {t('channel.send')}
-              </Button>
-              <Button variant="ghost" onClick={() => setFile(null)}>
-                {t('channel.removeFile')}
-              </Button>
-            </div>
-          </Card>
         ) : (
-          <>
-            <div
-              onClick={() => inputRef.current?.click()}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setDragOver(true);
-              }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={onDrop}
-              className={`flex cursor-pointer flex-col items-center gap-3 rounded-none border-[3px] border-dashed px-6 py-12 text-center transition-colors ${
-                dragOver ? 'border-twitch bg-twitch/10' : 'border-line bg-surface hover:border-twitch-light/60'
-              }`}
-            >
-              <Icon name="folder-plus" size={44} className="text-twitch-light" />
-              <p className="font-display text-lg">{t('channel.dropzone')}</p>
-              <p className="text-sm text-muted">{t('channel.sendingAs', { name: me.user.displayName })}</p>
-              <input
-                ref={inputRef}
-                type="file"
-                accept={ACCEPT}
-                className="hidden"
-                onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
-              />
-            </div>
-            {phase.name === 'error' && (
-              <div className="mt-4">
-                <Alert tone="danger">
-                  <Icon name="close" />
-                  <span>{phase.message}</span>
-                </Alert>
+          <div className="flex flex-col gap-4">
+            {file ? (
+              <Card className="flex flex-col gap-3">
+                <FilePreview file={file} url={previewUrl} />
+                <div className="flex items-center justify-between gap-2">
+                  <p className="truncate text-sm text-muted">
+                    {file.name} · {mb(file.size, 1)} MB
+                  </p>
+                  <button
+                    onClick={() => setFile(null)}
+                    className="shrink-0 cursor-pointer text-sm text-muted hover:text-danger"
+                  >
+                    {t('channel.removeFile')}
+                  </button>
+                </div>
+              </Card>
+            ) : (
+              <div
+                onClick={() => inputRef.current?.click()}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOver(true);
+                }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={onDrop}
+                className={`flex cursor-pointer flex-col items-center gap-3 rounded-none border-[3px] border-dashed px-6 py-10 text-center transition-colors ${
+                  dragOver ? 'border-twitch bg-twitch/10' : 'border-line bg-surface hover:border-twitch-light/60'
+                }`}
+              >
+                <Icon name="folder-plus" size={40} className="text-twitch-light" />
+                <p className="font-display text-lg">{t('channel.dropzone')}</p>
+                <input
+                  ref={inputRef}
+                  type="file"
+                  accept={ACCEPT}
+                  className="hidden"
+                  onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
+                />
               </div>
             )}
-          </>
+
+            <div>
+              <textarea
+                value={text}
+                maxLength={TEXT_MAX_LEN}
+                rows={3}
+                onChange={(e) => setText(e.target.value)}
+                placeholder={file ? t('channel.captionPlaceholder') : t('channel.textPlaceholder')}
+                className="w-full resize-none rounded-none border-2 border-line bg-surface px-3 py-2 text-text outline-none focus:border-twitch"
+              />
+              <div className="mt-1 flex justify-between text-xs text-muted">
+                <span>{t('channel.sendingAs', { name: me.user.displayName })}</span>
+                <span>
+                  {text.length}/{TEXT_MAX_LEN}
+                </span>
+              </div>
+            </div>
+
+            <Button
+              variant="primary"
+              className="justify-center"
+              disabled={!file && !text.trim()}
+              onClick={() => void send()}
+            >
+              <Icon name="send" size={16} />
+              {t('channel.send')}
+            </Button>
+
+            {phase.name === 'error' && (
+              <Alert tone="danger">
+                <Icon name="close" />
+                <span>{phase.message}</span>
+              </Alert>
+            )}
+          </div>
         )}
       </div>
 
