@@ -64,6 +64,9 @@ export function HomePage() {
                 {t('common.loginTwitch')}
               </Button>
             </a>
+            <a href="/api/auth/google/login?returnTo=/">
+              <Button className="px-8 py-3 text-base">{t('common.loginGoogle')}</Button>
+            </a>
             <a
               href="/api/auth/login?returnTo=/&switch=1"
               className="text-xs text-muted hover:text-text"

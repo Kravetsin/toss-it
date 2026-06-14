@@ -7,7 +7,8 @@ import { config } from './config';
 
 const SESSION_COOKIE = 'sid';
 
-export interface TwitchUserInfo {
+/** Профиль пользователя от любого OAuth-провайдера (Twitch/Google), нормализованный под нашу модель. */
+export interface OAuthUserInfo {
   id: string;
   login: string;
   displayName: string;
@@ -29,7 +30,7 @@ export function buildAuthorizeUrl(state: string, forceVerify = false): string {
 }
 
 /** Обмен authorization code → access token → данные пользователя из Helix. */
-export async function exchangeCodeForUser(code: string): Promise<TwitchUserInfo> {
+export async function exchangeCodeForUser(code: string): Promise<OAuthUserInfo> {
   const tokenRes = await fetch('https://id.twitch.tv/oauth2/token', {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
@@ -68,7 +69,74 @@ export async function exchangeCodeForUser(code: string): Promise<TwitchUserInfo>
   };
 }
 
-export async function upsertUser(info: TwitchUserInfo): Promise<UserRow> {
+/** Google OAuth 2.0 (OpenID Connect): тот же authorization-code flow, что у Twitch. */
+export function buildGoogleAuthorizeUrl(state: string, forceSelect = false): string {
+  const params = new URLSearchParams({
+    client_id: config.google.clientId,
+    redirect_uri: config.google.redirectUri,
+    response_type: 'code',
+    scope: 'openid email profile',
+    state,
+    access_type: 'online',
+  });
+  // Показать выбор аккаунта (аналог twitch force_verify) — для «сменить аккаунт».
+  if (forceSelect) params.set('prompt', 'select_account');
+  return `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
+}
+
+/** Обмен code → token → профиль из OpenID userinfo. id вида google:<sub>. */
+export async function exchangeGoogleCodeForUser(code: string): Promise<OAuthUserInfo> {
+  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: config.google.clientId,
+      client_secret: config.google.clientSecret,
+      code,
+      grant_type: 'authorization_code',
+      redirect_uri: config.google.redirectUri,
+    }),
+  });
+  if (!tokenRes.ok) {
+    throw new Error(`google token exchange failed: ${tokenRes.status}`);
+  }
+  const { access_token } = (await tokenRes.json()) as { access_token: string };
+
+  const userRes = await fetch('https://openidconnect.googleapis.com/v1/userinfo', {
+    headers: { Authorization: `Bearer ${access_token}` },
+  });
+  if (!userRes.ok) {
+    throw new Error(`google userinfo failed: ${userRes.status}`);
+  }
+  const u = (await userRes.json()) as {
+    sub: string;
+    email?: string;
+    name?: string;
+    picture?: string;
+  };
+  // login (публичный хэндл) генерим из local-part email — email наружу не светим.
+  const base = (u.email?.split('@')[0] ?? '').toLowerCase().replace(/[^a-z0-9_]/g, '');
+  return {
+    id: `google:${u.sub}`,
+    login: base || 'user',
+    displayName: u.name || base || 'user',
+    avatarUrl: u.picture || null,
+  };
+}
+
+/** Подобрать свободный публичный login на базе желаемого (у Google нет ника как у Twitch). */
+export async function ensureUniqueLogin(base: string): Promise<string> {
+  const clean = (base || 'user').toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 20) || 'user';
+  let candidate = clean;
+  for (let i = 0; i < 6; i++) {
+    const taken = await db.select({ id: users.id }).from(users).where(eq(users.login, candidate)).get();
+    if (!taken) return candidate;
+    candidate = `${clean}_${crypto.randomBytes(2).toString('hex')}`;
+  }
+  return `${clean}_${crypto.randomBytes(4).toString('hex')}`;
+}
+
+export async function upsertUser(info: OAuthUserInfo): Promise<UserRow> {
   const now = new Date();
   await db
     .insert(users)
@@ -135,7 +203,7 @@ export async function requireUser(
 ): Promise<UserRow | null> {
   const user = await getSessionUser(req);
   if (!user) {
-    void reply.code(401).send({ error: 'Требуется вход через Twitch' });
+    void reply.code(401).send({ error: 'Требуется вход' });
     return null;
   }
   return user;

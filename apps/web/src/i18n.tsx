@@ -22,6 +22,7 @@ const en: Dict = {
   'common.confirm': 'Confirm',
   'common.cancel': 'Cancel',
   'common.loginTwitch': 'Log in with Twitch',
+  'common.loginGoogle': 'Continue with Google',
 
   'toast.saved': 'Saved',
   'toast.tokenReissued': 'Token reissued',
@@ -169,6 +170,7 @@ const ru: Dict = {
   'common.confirm': 'Подтвердить',
   'common.cancel': 'Отмена',
   'common.loginTwitch': 'Войти через Twitch',
+  'common.loginGoogle': 'Войти через Google',
 
   'toast.saved': 'Сохранено',
   'toast.tokenReissued': 'Токен перевыпущен',

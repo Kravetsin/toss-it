@@ -22,6 +22,13 @@ export const config = {
       process.env.TWITCH_REDIRECT_URI ?? 'http://localhost:3000/api/auth/callback',
   },
 
+  google: {
+    clientId: process.env.GOOGLE_CLIENT_ID ?? '',
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
+    redirectUri:
+      process.env.GOOGLE_REDIRECT_URI ?? 'http://localhost:3000/api/auth/google/callback',
+  },
+
   /**
    * Без ключей Twitch включается фейковая авторизация для локальной разработки:
    * GET /api/auth/login?fake=<login> логинит выдуманного пользователя.

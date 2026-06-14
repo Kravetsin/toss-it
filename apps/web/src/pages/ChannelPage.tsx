@@ -179,9 +179,14 @@ export function ChannelPage() {
         ) : !me?.user ? (
           <Card className="flex flex-col items-center gap-4 py-10 text-center">
             <p className="text-muted">{t('channel.loginToSend')}</p>
-            <a href={`/api/auth/login?returnTo=/c/${encodeURIComponent(login)}`}>
-              <Button variant="primary">{t('common.loginTwitch')}</Button>
-            </a>
+            <div className="flex flex-col items-center gap-2">
+              <a href={`/api/auth/login?returnTo=/c/${encodeURIComponent(login)}`}>
+                <Button variant="primary">{t('common.loginTwitch')}</Button>
+              </a>
+              <a href={`/api/auth/google/login?returnTo=/c/${encodeURIComponent(login)}`}>
+                <Button>{t('common.loginGoogle')}</Button>
+              </a>
+            </div>
           </Card>
         ) : cooldownSec > 0 ? (
           <Alert tone="warn">
