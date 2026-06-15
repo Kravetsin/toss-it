@@ -1,7 +1,7 @@
 # Render Blueprint: при создании сервиса выбери "New > Blueprint" и укажи репозиторий.
 services:
   - type: web
-    name: tossit
+    name: tossit-live
     runtime: docker
     plan: free
     healthCheckPath: /api/ping
