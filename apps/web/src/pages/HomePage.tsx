@@ -13,6 +13,7 @@ import {
 } from '../api';
 import { useConfirm } from '../confirm';
 import { Icon } from '../icons';
+import { ScrollFlow } from '../ScrollFlow';
 import { useI18n } from '../i18n';
 import { useToast } from '../toast';
 import { Avatar, Button, Card, Loader } from '../ui';
@@ -98,7 +99,9 @@ export function HomePage() {
               </Button>
             </a>
           </div>
+          <p className="mt-2 text-sm text-muted">{t('flow.peek')} ↓</p>
         </div>
+        <ScrollFlow />
       </Shell>
     );
   }
