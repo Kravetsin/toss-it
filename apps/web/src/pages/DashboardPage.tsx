@@ -121,9 +121,9 @@ export function DashboardPage() {
 
   // Счётчик в заголовке вкладки — виден, даже когда дашборд в фоне.
   useEffect(() => {
-    document.title = (pending.length > 0 ? `(${pending.length}) ` : '') + 'Twitch Media Widget';
+    document.title = (pending.length > 0 ? `(${pending.length}) ` : '') + 'Tossit';
     return () => {
-      document.title = 'Twitch Media Widget';
+      document.title = 'Tossit';
     };
   }, [pending.length]);
 

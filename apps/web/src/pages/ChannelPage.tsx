@@ -358,7 +358,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   return (
     <main className="mx-auto min-h-screen max-w-xl px-4 py-10">
       {children}
-      <p className="mt-10 text-center text-xs text-muted/60">Twitch Media Widget</p>
+      <p className="mt-10 text-center text-xs text-muted/60">Tossit</p>
     </main>
   );
 }

@@ -5,9 +5,11 @@
 /* Pixel-art тема «Midnight Arcade»: почти-чёрная Twitch-база, фиолетовый —
    единственный герой-акцент, квадратные рамки, жёсткие тени без блюра. */
 @theme {
-  --color-twitch: #9146ff;
-  --color-twitch-light: #a970ff;
-  --color-twitch-dark: #6a24d4;
+  /* Бренд Tossit: циан-тил вместо Twitch-фиолетового. Ярко-циан — акцент,
+     тёмный тил — для сплошных плашек под белый/тёмный текст. */
+  --color-twitch: #22d3ee;
+  --color-twitch-light: #67e8f9;
+  --color-twitch-dark: #0e7490;
   --color-bg: #0c0c0f;
   --color-bg-shadow: #050507;
   --color-surface: #16161a;
@@ -40,7 +42,7 @@
 
   --shadow-pixel: 4px 4px 0 0 #050507;
   --shadow-pixel-sm: 3px 3px 0 0 #050507;
-  --shadow-pixel-accent: 4px 4px 0 0 #6a24d4;
+  --shadow-pixel-accent: 4px 4px 0 0 #0e7490;
   --shadow-pixel-lg: 4px 4px 0 0 #050507, 8px 8px 0 0 rgba(5, 5, 7, 0.6);
 }
 

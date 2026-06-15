@@ -7,7 +7,7 @@ type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
 const press = 'active:translate-x-[3px] active:translate-y-[3px] active:shadow-none';
 
 const buttonVariants: Record<ButtonVariant, string> = {
-  primary: `bg-twitch hover:bg-twitch-light text-white border-twitch-dark shadow-[3px_3px_0_0_var(--color-twitch-dark)] [text-shadow:1px_1px_0_rgba(0,0,0,0.5)] ${press}`,
+  primary: `bg-twitch hover:bg-twitch-light text-[#06323b] border-twitch-dark shadow-[3px_3px_0_0_var(--color-twitch-dark)] [text-shadow:1px_1px_0_rgba(255,255,255,0.3)] ${press}`,
   secondary: `bg-surface-2 hover:bg-line text-text border-line shadow-pixel-sm ${press}`,
   danger: `bg-danger hover:bg-[#ff6675] text-[#1a0508] border-[#c2303d] shadow-pixel-sm ${press}`,
   ghost: 'bg-transparent hover:bg-surface-2 text-muted hover:text-text border-transparent hover:border-line',

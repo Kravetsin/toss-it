@@ -55,7 +55,7 @@ export function HomePage() {
       <Shell>
         <div className="flex flex-col items-center gap-6 py-16 text-center">
           <h1 className="text-4xl font-extrabold">
-            Twitch <span className="text-twitch-light">Media</span> Widget
+            Toss<span className="text-twitch-light">it</span>
           </h1>
           <p className="max-w-md text-muted">{t('home.tagline')}</p>
           <div className="flex flex-col items-center gap-2">

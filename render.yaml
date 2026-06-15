@@ -1,7 +1,7 @@
 # Render Blueprint: при создании сервиса выбери "New > Blueprint" и укажи репозиторий.
 services:
   - type: web
-    name: twitch-media-widget
+    name: tossit
     runtime: docker
     plan: free
     healthCheckPath: /api/ping
@@ -10,13 +10,21 @@ services:
         sync: false
       - key: TWITCH_CLIENT_SECRET
         sync: false
+      # Вход через Google (рядом с Twitch).
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      # https://<тот же домен>/api/auth/google/callback — и добавь его в Google Cloud
+      - key: GOOGLE_REDIRECT_URI
+        sync: false
       - key: COOKIE_SECRET
         generateValue: true
       - key: TURSO_DATABASE_URL
         sync: false
       - key: TURSO_AUTH_TOKEN
         sync: false
-      # Публичный URL сервиса, например https://twitch-media-widget.onrender.com
+      # Публичный URL сервиса, например https://tossit.onrender.com
       - key: PUBLIC_WEB_URL
         sync: false
       # https://<тот же домен>/api/auth/callback — и добавь его в Twitch-консоль
