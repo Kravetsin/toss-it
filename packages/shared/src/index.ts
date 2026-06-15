@@ -259,6 +259,8 @@ export interface ReputationStats {
   whitelistedChannels: number;
   /** На скольких каналах зритель забанен. */
   bannedChannels: number;
+  /** Отправитель — первопроходец (статус founder). */
+  isFounder: boolean;
 }
 
 export interface ApiError {

@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { and, asc, count, desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, isNotNull } from 'drizzle-orm';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import {
   OVERLAY_POSITIONS,
@@ -275,7 +275,24 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
 
       const result: Record<string, ReputationStats> = {};
       for (const id of ids) {
-        result[id] = { accepted: 0, rejected: 0, whitelistedChannels: 0, bannedChannels: 0 };
+        result[id] = {
+          accepted: 0,
+          rejected: 0,
+          whitelistedChannels: 0,
+          bannedChannels: 0,
+          isFounder: false,
+        };
+      }
+
+      // Статус «первопроходец» отправителя.
+      const founders = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(and(inArray(users.id, ids), isNotNull(users.founderSince)))
+        .all();
+      for (const f of founders) {
+        const rep = result[f.id];
+        if (rep) rep.isFounder = true;
       }
 
       // Принято (показано) / отклонено — по всем каналам.

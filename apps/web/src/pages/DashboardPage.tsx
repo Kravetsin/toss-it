@@ -921,19 +921,30 @@ const KIND_ICON: Record<MediaKind, IconName> = {
   text: 'send',
 };
 
-/** Кросс-канальная репутация отправителя: ✓принято · ✗отклонено · WL · BAN (или «новичок»). */
+/** Кросс-канальная репутация отправителя: бейдж founder · ✓принято · ✗отклонено · WL · BAN (или «новичок»). */
 function RepChip({ rep }: { rep?: ReputationStats }) {
   const { t } = useI18n();
   if (!rep) return null;
+  // Бейдж первопроходца — независимо от счётчиков (виден и у новичков).
+  const founder = rep.isFounder ? (
+    <Badge>
+      <Icon name="sparkles" size={11} />
+      {t('badge.founder')}
+    </Badge>
+  ) : null;
   if (rep.accepted === 0 && rep.rejected === 0) {
     return (
-      <span className="w-max border border-twitch/40 bg-twitch/15 px-1.5 text-xs text-twitch-light">
-        {t('dash.repNew')}
+      <span className="flex items-center gap-2">
+        {founder}
+        <span className="w-max border border-twitch/40 bg-twitch/15 px-1.5 text-xs text-twitch-light">
+          {t('dash.repNew')}
+        </span>
       </span>
     );
   }
   return (
     <span className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs text-muted">
+      {founder}
       <span className="flex items-center gap-0.5 text-ok" title={t('dash.repAccepted')}>
         <Icon name="check" size={12} />
         {rep.accepted}
