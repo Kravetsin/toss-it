@@ -65,13 +65,15 @@ export function registerChannelRoutes(app: FastifyInstance): void {
         maxDurationMs: channels.maxDurationMs,
         maxAudioDurationMs: channels.maxAudioDurationMs,
         maxFileSizeBytes: channels.maxFileSizeBytes,
+        founderSince: users.founderSince,
       })
       .from(channels)
       .innerJoin(users, eq(users.id, channels.ownerUserId))
       .where(eq(users.login, req.params.login.toLowerCase()))
       .get();
     if (!row) return reply.code(404).send({ error: 'Канал не найден' });
-    const response: PublicChannelInfo = row;
+    const { founderSince, ...rest } = row;
+    const response: PublicChannelInfo = { ...rest, isFounder: founderSince != null };
     return response;
   });
 

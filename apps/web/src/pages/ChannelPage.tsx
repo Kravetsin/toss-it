@@ -13,7 +13,7 @@ import {
 import { ApiRequestError, getChannel, getLeaderboard, getMe, uploadMediaWithProgress } from '../api';
 import { Icon, type IconName } from '../icons';
 import { formatDuration, useI18n } from '../i18n';
-import { Alert, Avatar, Button, Card, Loader, ProgressBar } from '../ui';
+import { Alert, Avatar, Badge, Button, Card, Loader, ProgressBar } from '../ui';
 
 const ACCEPT = 'image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,audio/*';
 
@@ -157,7 +157,15 @@ export function ChannelPage() {
       <div className="flex items-center gap-4">
         <Avatar url={channel.avatarUrl} name={channel.displayName} size={56} />
         <div>
-          <h1 className="text-2xl font-bold">{channel.displayName}</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-bold">{channel.displayName}</h1>
+            {channel.isFounder && (
+              <Badge>
+                <Icon name="sparkles" size={12} />
+                {t('badge.founder')}
+              </Badge>
+            )}
+          </div>
           <p className="text-muted">{t('channel.subtitle')}</p>
         </div>
       </div>

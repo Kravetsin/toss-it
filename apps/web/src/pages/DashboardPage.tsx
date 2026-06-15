@@ -41,7 +41,7 @@ import { Icon, type IconName } from '../icons';
 import { formatDuration, useI18n } from '../i18n';
 import { initAudioUnlock, playNotify } from '../notify';
 import { useToast } from '../toast';
-import { Button, Card, Loader } from '../ui';
+import { Badge, Button, Card, Loader } from '../ui';
 
 export function DashboardPage() {
   const { t } = useI18n();
@@ -281,8 +281,22 @@ export function DashboardPage() {
         <h1 className="flex items-center gap-2 text-2xl font-bold">
           <Icon name="shield" size={26} className="text-twitch-light" />
           {t('dash.title')}
+          {me.user.isFounder && (
+            <Badge>
+              <Icon name="sparkles" size={12} />
+              {t('badge.founder')}
+            </Badge>
+          )}
         </h1>
         <div className="flex items-center gap-4">
+          <Link to="/promo" className="text-sm text-muted hover:text-text">
+            {t('promo.haveCode')}
+          </Link>
+          {me.user.isAdmin && (
+            <Link to="/admin" className="text-sm text-muted hover:text-text">
+              {t('admin.title')}
+            </Link>
+          )}
           <button
             onClick={() => {
               const next = !soundOn;

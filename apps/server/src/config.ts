@@ -38,6 +38,12 @@ export const config = {
   cookieSecret: process.env.COOKIE_SECRET ?? 'dev-secret-change-me',
   sessionTtlMs: 30 * 24 * 3_600_000,
 
+  /** Кто может выпускать промокоды: список user id (twitch:.../google:...) через запятую. */
+  adminUserIds: (process.env.ADMIN_USER_IDS ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean),
+
   maxFileSizeBytes: 50 * 1024 * 1024,
   /** Максимальная длительность показа; более длинные видео/аудио обрезаются. */
   maxDurationMs: 15_000,

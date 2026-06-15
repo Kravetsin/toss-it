@@ -1,5 +1,6 @@
 import type {
   AccessibleChannel,
+  AdminPromoCode,
   ApiError,
   ChannelSelf,
   ChannelSettings,
@@ -8,6 +9,7 @@ import type {
   ListedUser,
   MeResponse,
   ModInviteInfo,
+  PromoRedeemResult,
   ReputationStats,
   PublicChannelInfo,
   SubmissionSummary,
@@ -234,6 +236,30 @@ export function acceptModInvite(token: string): Promise<{ channelId: string }> {
   return fetch(`/api/mod-invite/${encodeURIComponent(token)}/accept`, { method: 'POST' }).then((r) =>
     json<{ channelId: string }>(r),
   );
+}
+
+// --- Промокоды ---
+
+export function redeemPromo(code: string): Promise<PromoRedeemResult> {
+  return fetch(`/api/promo/${encodeURIComponent(code)}/redeem`, { method: 'POST' }).then((r) =>
+    json<PromoRedeemResult>(r),
+  );
+}
+
+export function listPromoCodes(): Promise<AdminPromoCode[]> {
+  return fetch('/api/admin/promo').then((r) => json<AdminPromoCode[]>(r));
+}
+
+export function createPromoCodes(
+  count: number,
+  note: string,
+  grant = 'founder',
+): Promise<{ codes: string[] }> {
+  return fetch('/api/admin/promo', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ count, note, grant }),
+  }).then((r) => json<{ codes: string[] }>(r));
 }
 
 export function getLeaderboard(login: string): Promise<LeaderboardEntry[]> {

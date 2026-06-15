@@ -57,6 +57,17 @@ export function Alert({ tone, children }: { tone: 'ok' | 'warn' | 'danger'; chil
   );
 }
 
+/** Небольшой бейдж-чип (напр. статус «Первопроходец»). Цвет — брендовый cyan. */
+export function Badge({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 border-2 border-twitch bg-twitch/20 px-2 py-0.5 font-display text-xs uppercase tracking-wide text-twitch-light ${className}`}
+    >
+      {children}
+    </span>
+  );
+}
+
 export function ProgressBar({ value }: { value: number | null }) {
   return (
     <div className="h-3 w-full overflow-hidden rounded-none border-2 border-line bg-surface-2">

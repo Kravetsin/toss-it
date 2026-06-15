@@ -176,6 +176,10 @@ export interface SessionUser {
   login: string;
   displayName: string;
   avatarUrl: string | null;
+  /** Первопроходец — погасил промокод founder. Даёт бейдж и грандфэзеринг. */
+  isFounder: boolean;
+  /** Входит в ADMIN_USER_IDS — может выпускать промокоды. */
+  isAdmin: boolean;
 }
 
 /** Собственный канал залогиненного стримера (overlayToken — секрет, наружу не светить). */
@@ -214,6 +218,26 @@ export interface PublicChannelInfo {
   maxDurationMs: number;
   maxAudioDurationMs: number;
   maxFileSizeBytes: number;
+  /** Владелец канала — первопроходец: показываем бейдж в шапке. */
+  isFounder: boolean;
+}
+
+/** Результат гашения промокода. */
+export interface PromoRedeemResult {
+  ok: true;
+  /** Тип погашенного гранта ('founder' и т.д.) — фронт показывает сообщение по типу. */
+  grant: string;
+}
+
+/** Промокод в списке админки. */
+export interface AdminPromoCode {
+  code: string;
+  grant: string;
+  note: string | null;
+  createdAt: number;
+  /** Логин погасившего, либо null — код ещё не использован. */
+  redeemedByLogin: string | null;
+  redeemedAt: number | null;
 }
 
 /** Один отправитель в таблице лидеров канала. */

@@ -2,10 +2,12 @@ import { eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { db } from '../db/index';
 import { appMeta } from '../db/schema';
+import { registerAdminRoutes } from './admin';
 import { registerAuthRoutes } from './auth';
 import { registerChannelRoutes } from './channels';
 import { registerDashboardRoutes } from './dashboard';
 import { registerMediaRoutes, type MediaRoutesDeps } from './media';
+import { registerPromoRoutes } from './promo';
 
 export function registerRoutes(app: FastifyInstance, deps: MediaRoutesDeps): void {
   /** Лёгкий пинг для аптайм-мониторинга (не трогает БД). */
@@ -25,4 +27,6 @@ export function registerRoutes(app: FastifyInstance, deps: MediaRoutesDeps): voi
   registerChannelRoutes(app);
   registerMediaRoutes(app, deps);
   registerDashboardRoutes(app, { playback: deps.playback, io: deps.io });
+  registerPromoRoutes(app);
+  registerAdminRoutes(app);
 }

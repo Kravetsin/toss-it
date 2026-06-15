@@ -14,6 +14,7 @@ import {
   exchangeCodeForUser,
   exchangeGoogleCodeForUser,
   getSessionUser,
+  isAdmin,
   upsertUser,
 } from '../auth';
 
@@ -162,6 +163,8 @@ export function registerAuthRoutes(app: FastifyInstance): void {
         login: user.login,
         displayName: user.displayName,
         avatarUrl: user.avatarUrl,
+        isFounder: user.founderSince != null,
+        isAdmin: isAdmin(user.id),
       },
       channel: channel ? { id: channel.id, overlayToken: channel.overlayToken } : null,
     };

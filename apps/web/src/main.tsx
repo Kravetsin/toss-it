@@ -9,6 +9,8 @@ import { HomePage } from './pages/HomePage';
 import { ChannelPage } from './pages/ChannelPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { ModInvitePage } from './pages/ModInvitePage';
+import { PromoCodePage } from './pages/PromoCodePage';
+import { AdminPage } from './pages/AdminPage';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -21,6 +23,8 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/c/:login" element={<ChannelPage />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/mod-invite/:token" element={<ModInvitePage />} />
+              <Route path="/promo" element={<PromoCodePage />} />
+              <Route path="/admin" element={<AdminPage />} />
             </Routes>
           </BrowserRouter>
           {/* Виден на всех страницах */}

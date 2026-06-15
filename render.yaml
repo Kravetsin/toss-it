@@ -20,6 +20,10 @@ services:
         sync: false
       - key: COOKIE_SECRET
         generateValue: true
+      # Кто может выпускать промокоды (/admin): id юзеров через запятую,
+      # вида twitch:123... или google:... Свой id: залогинься и открой /api/auth/me.
+      - key: ADMIN_USER_IDS
+        sync: false
       - key: TURSO_DATABASE_URL
         sync: false
       - key: TURSO_AUTH_TOKEN

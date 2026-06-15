@@ -171,6 +171,29 @@ const en: Dict = {
   'dash.removeUser': 'remove',
   'dash.history': 'History',
   'dash.historyEmpty': 'Nothing has been shown yet.',
+
+  // Статус первопроходца / промокоды
+  'badge.founder': 'Founder',
+  'promo.title': 'Activate a promo code',
+  'promo.activate': 'Activate',
+  'promo.enterCode': 'Enter your code',
+  'promo.haveCode': 'Have a promo code?',
+  'promo.success': 'Promo code activated!',
+  'promo.successFounder': 'You’re a founding streamer now!',
+  'promo.toDashboard': 'Go to dashboard',
+  'promo.loginToActivate': 'Log in to activate the code',
+  // Админка
+  'admin.title': 'Admin',
+  'admin.generate': 'Generate codes',
+  'admin.count': 'Count',
+  'admin.note': 'Note',
+  'admin.notePlaceholder': 'e.g. for streamer X',
+  'admin.empty': 'No codes yet.',
+  'admin.unused': 'unused',
+  'admin.redeemedBy': 'redeemed by {login}',
+  'admin.copyCode': 'Copy code',
+  'admin.codeCopied': 'Code copied',
+  'admin.denied': 'This page is for admins only.',
 };
 
 const ru: Dict = {
@@ -324,6 +347,29 @@ const ru: Dict = {
   'dash.removeUser': 'убрать',
   'dash.history': 'История',
   'dash.historyEmpty': 'Пока ничего не показывалось.',
+
+  // Статус первопроходца / промокоды
+  'badge.founder': 'Первопроходец',
+  'promo.title': 'Активировать промокод',
+  'promo.activate': 'Активировать',
+  'promo.enterCode': 'Введите код',
+  'promo.haveCode': 'Есть промокод?',
+  'promo.success': 'Промокод активирован!',
+  'promo.successFounder': 'Ты теперь первопроходец!',
+  'promo.toDashboard': 'В дашборд',
+  'promo.loginToActivate': 'Войди, чтобы активировать код',
+  // Админка
+  'admin.title': 'Админка',
+  'admin.generate': 'Сгенерировать коды',
+  'admin.count': 'Количество',
+  'admin.note': 'Заметка',
+  'admin.notePlaceholder': 'напр. для стримера X',
+  'admin.empty': 'Кодов пока нет.',
+  'admin.unused': 'не использован',
+  'admin.redeemedBy': 'погасил {login}',
+  'admin.copyCode': 'Скопировать код',
+  'admin.codeCopied': 'Код скопирован',
+  'admin.denied': 'Эта страница только для админов.',
 };
 
 const dicts: Record<Lang, Dict> = { en, ru };

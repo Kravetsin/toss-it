@@ -15,6 +15,8 @@ export const users = sqliteTable('users', {
   login: text('login').notNull().unique(),
   displayName: text('display_name').notNull(),
   avatarUrl: text('avatar_url'),
+  /** Время выдачи статуса «первопроходец» (через промокод); null — обычный пользователь. */
+  founderSince: integer('founder_since', { mode: 'timestamp_ms' }),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 });
 
@@ -113,6 +115,23 @@ export const modInvites = sqliteTable('mod_invites', {
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 });
 
+/**
+ * Одноразовые промокоды для статуса «первопроходец». Выпускает админ.
+ * Строку не удаляем при гашении — помечаем redeemedByUserId (аудит «кто/когда»).
+ */
+export const promoCodes = sqliteTable('promo_codes', {
+  code: text('code').primaryKey(),
+  grant: text('grant').notNull().default('founder'),
+  /** Заметка админа («для стримера X») — для себя, наружу не светится. */
+  note: text('note'),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  /** null — бессрочно. */
+  expiresAt: integer('expires_at', { mode: 'timestamp_ms' }),
+  /** Кто погасил; null — код ещё не использован. */
+  redeemedByUserId: text('redeemed_by_user_id').references(() => users.id),
+  redeemedAt: integer('redeemed_at', { mode: 'timestamp_ms' }),
+});
+
 export const submissions = sqliteTable(
   'submissions',
   {
@@ -141,3 +160,4 @@ export type ChannelRow = typeof channels.$inferSelect;
 export type SubmissionRow = typeof submissions.$inferSelect;
 export type ChannelModeratorRow = typeof channelModerators.$inferSelect;
 export type ModInviteRow = typeof modInvites.$inferSelect;
+export type PromoCodeRow = typeof promoCodes.$inferSelect;

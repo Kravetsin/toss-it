@@ -209,6 +209,25 @@ export async function requireUser(
   return user;
 }
 
+/** Входит ли пользователь в список админов (ADMIN_USER_IDS). */
+export function isAdmin(userId: string): boolean {
+  return config.adminUserIds.includes(userId);
+}
+
+/** 401 если не залогинен, 403 если залогинен, но не админ. Для админских ручек. */
+export async function requireAdmin(
+  req: FastifyRequest,
+  reply: FastifyReply,
+): Promise<UserRow | null> {
+  const user = await requireUser(req, reply);
+  if (!user) return null;
+  if (!isAdmin(user.id)) {
+    void reply.code(403).send({ error: 'Недостаточно прав' });
+    return null;
+  }
+  return user;
+}
+
 function readSessionId(req: FastifyRequest): string | null {
   const raw = req.cookies[SESSION_COOKIE];
   if (!raw) return null;
