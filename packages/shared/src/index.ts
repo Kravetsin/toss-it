@@ -189,6 +189,21 @@ export interface MeResponse {
   channel: ChannelSelf | null;
 }
 
+/** Канал, к которому у пользователя есть доступ в дашборде: свой или где он модератор. */
+export interface AccessibleChannel {
+  channelId: string;
+  /** Логин владельца канала (для публичных ссылок и заголовка). */
+  login: string;
+  displayName: string;
+  role: 'owner' | 'moderator';
+}
+
+/** Инфо об инвайте модератора для страницы принятия. */
+export interface ModInviteInfo {
+  channelLogin: string;
+  channelDisplayName: string;
+}
+
 export interface PublicChannelInfo {
   login: string;
   displayName: string;

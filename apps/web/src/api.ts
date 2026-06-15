@@ -1,4 +1,5 @@
 import type {
+  AccessibleChannel,
   ApiError,
   ChannelSelf,
   ChannelSettings,
@@ -6,6 +7,7 @@ import type {
   LeaderboardEntry,
   ListedUser,
   MeResponse,
+  ModInviteInfo,
   ReputationStats,
   PublicChannelInfo,
   SubmissionSummary,
@@ -106,86 +108,132 @@ export function uploadMediaWithProgress(
   });
 }
 
-export function getPending(): Promise<SubmissionSummary[]> {
-  return fetch('/api/dashboard/pending').then((r) => json<SubmissionSummary[]>(r));
+/** Каналы, к которым у пользователя есть доступ (свои + где он модератор). */
+export function getMyChannels(): Promise<AccessibleChannel[]> {
+  return fetch('/api/me/channels').then((r) => json<AccessibleChannel[]>(r));
+}
+
+/** Префикс ручек дашборда конкретного канала. */
+const dash = (channelId: string) => `/api/dashboard/${encodeURIComponent(channelId)}`;
+
+export function getPending(channelId: string): Promise<SubmissionSummary[]> {
+  return fetch(`${dash(channelId)}/pending`).then((r) => json<SubmissionSummary[]>(r));
 }
 
 /** Кросс-канальная репутация набора пользователей (батчем). */
-export function getReputation(userIds: string[]): Promise<Record<string, ReputationStats>> {
-  return fetch('/api/dashboard/reputation', {
+export function getReputation(
+  channelId: string,
+  userIds: string[],
+): Promise<Record<string, ReputationStats>> {
+  return fetch(`${dash(channelId)}/reputation`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ userIds }),
   }).then((r) => json<Record<string, ReputationStats>>(r));
 }
 
-export function approveSubmission(id: string, addToWhitelist: boolean): Promise<unknown> {
-  return fetch(`/api/dashboard/submissions/${id}/approve`, {
+export function approveSubmission(
+  channelId: string,
+  id: string,
+  addToWhitelist: boolean,
+): Promise<unknown> {
+  return fetch(`${dash(channelId)}/submissions/${id}/approve`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ whitelist: addToWhitelist }),
   }).then((r) => json(r));
 }
 
-export function rejectSubmission(id: string, ban: boolean): Promise<unknown> {
-  return fetch(`/api/dashboard/submissions/${id}/reject`, {
+export function rejectSubmission(channelId: string, id: string, ban: boolean): Promise<unknown> {
+  return fetch(`${dash(channelId)}/submissions/${id}/reject`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ ban }),
   }).then((r) => json(r));
 }
 
-export function getWhitelist(): Promise<ListedUser[]> {
-  return fetch('/api/dashboard/whitelist').then((r) => json<ListedUser[]>(r));
+export function getWhitelist(channelId: string): Promise<ListedUser[]> {
+  return fetch(`${dash(channelId)}/whitelist`).then((r) => json<ListedUser[]>(r));
 }
 
-export function removeFromWhitelist(userId: string): Promise<unknown> {
-  return fetch(`/api/dashboard/whitelist/${encodeURIComponent(userId)}`, {
+export function removeFromWhitelist(channelId: string, userId: string): Promise<unknown> {
+  return fetch(`${dash(channelId)}/whitelist/${encodeURIComponent(userId)}`, {
     method: 'DELETE',
   }).then((r) => json(r));
 }
 
-export function getBans(): Promise<ListedUser[]> {
-  return fetch('/api/dashboard/bans').then((r) => json<ListedUser[]>(r));
+export function getBans(channelId: string): Promise<ListedUser[]> {
+  return fetch(`${dash(channelId)}/bans`).then((r) => json<ListedUser[]>(r));
 }
 
 /** Прямой бан зрителя по userId (из истории/белого списка, без привязки к отправке). */
-export function banUser(userId: string): Promise<unknown> {
-  return fetch(`/api/dashboard/bans/${encodeURIComponent(userId)}`, { method: 'POST' }).then((r) =>
-    json(r),
-  );
-}
-
-export function removeBan(userId: string): Promise<unknown> {
-  return fetch(`/api/dashboard/bans/${encodeURIComponent(userId)}`, { method: 'DELETE' }).then(
+export function banUser(channelId: string, userId: string): Promise<unknown> {
+  return fetch(`${dash(channelId)}/bans/${encodeURIComponent(userId)}`, { method: 'POST' }).then(
     (r) => json(r),
   );
 }
 
-export function getNowPlaying(): Promise<{ now: SubmissionSummary | null }> {
-  return fetch('/api/dashboard/now').then((r) => json<{ now: SubmissionSummary | null }>(r));
+export function removeBan(channelId: string, userId: string): Promise<unknown> {
+  return fetch(`${dash(channelId)}/bans/${encodeURIComponent(userId)}`, { method: 'DELETE' }).then(
+    (r) => json(r),
+  );
 }
 
-export function skipCurrent(): Promise<{ skipped: boolean }> {
-  return fetch('/api/dashboard/skip', { method: 'POST' }).then((r) =>
+export function getNowPlaying(channelId: string): Promise<{ now: SubmissionSummary | null }> {
+  return fetch(`${dash(channelId)}/now`).then((r) => json<{ now: SubmissionSummary | null }>(r));
+}
+
+export function skipCurrent(channelId: string): Promise<{ skipped: boolean }> {
+  return fetch(`${dash(channelId)}/skip`, { method: 'POST' }).then((r) =>
     json<{ skipped: boolean }>(r),
   );
 }
 
-export function getSettings(): Promise<ChannelSettings> {
-  return fetch('/api/dashboard/settings').then((r) => json<ChannelSettings>(r));
+export function getSettings(channelId: string): Promise<ChannelSettings> {
+  return fetch(`${dash(channelId)}/settings`).then((r) => json<ChannelSettings>(r));
 }
 
-export function saveSettings(patch: Partial<ChannelSettings>): Promise<ChannelSettings> {
-  return fetch('/api/dashboard/settings', {
+export function saveSettings(
+  channelId: string,
+  patch: Partial<ChannelSettings>,
+): Promise<ChannelSettings> {
+  return fetch(`${dash(channelId)}/settings`, {
     method: 'PUT',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(patch),
   }).then((r) => json<ChannelSettings>(r));
 }
 
-export function getHistory(): Promise<HistoryEntry[]> {
-  return fetch('/api/dashboard/history').then((r) => json<HistoryEntry[]>(r));
+export function getHistory(channelId: string): Promise<HistoryEntry[]> {
+  return fetch(`${dash(channelId)}/history`).then((r) => json<HistoryEntry[]>(r));
+}
+
+// --- Модераторы / инвайты ---
+
+export function getModerators(channelId: string): Promise<ListedUser[]> {
+  return fetch(`${dash(channelId)}/moderators`).then((r) => json<ListedUser[]>(r));
+}
+
+export function createModInvite(channelId: string): Promise<{ token: string }> {
+  return fetch(`${dash(channelId)}/moderators/invite`, { method: 'POST' }).then((r) =>
+    json<{ token: string }>(r),
+  );
+}
+
+export function removeModerator(channelId: string, userId: string): Promise<unknown> {
+  return fetch(`${dash(channelId)}/moderators/${encodeURIComponent(userId)}`, {
+    method: 'DELETE',
+  }).then((r) => json(r));
+}
+
+export function getModInvite(token: string): Promise<ModInviteInfo> {
+  return fetch(`/api/mod-invite/${encodeURIComponent(token)}`).then((r) => json<ModInviteInfo>(r));
+}
+
+export function acceptModInvite(token: string): Promise<{ channelId: string }> {
+  return fetch(`/api/mod-invite/${encodeURIComponent(token)}/accept`, { method: 'POST' }).then((r) =>
+    json<{ channelId: string }>(r),
+  );
 }
 
 export function getLeaderboard(login: string): Promise<LeaderboardEntry[]> {

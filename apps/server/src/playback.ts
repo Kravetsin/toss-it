@@ -1,4 +1,5 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
+import type { FastifyInstance } from 'fastify';
 import type { Server } from 'socket.io';
 import type {
   LiveStatus,
@@ -10,8 +11,9 @@ import type {
   SubmissionSummary,
 } from '@tmw/shared';
 import { db } from './db/index';
-import { channels, submissions, type SubmissionRow } from './db/schema';
+import { channelModerators, channels, submissions, type SubmissionRow } from './db/schema';
 import { config } from './config';
+import { getUserFromCookieHeader } from './auth';
 
 export type RealtimeServer = Server<
   OverlayToServerEvents,
@@ -245,11 +247,12 @@ function resolveLayout(
     : { position: channel.overlayPosition, size: channel.overlaySize, margin: channel.overlayMargin };
 }
 
-export function setupRealtime(io: RealtimeServer): PlaybackManager {
+export function setupRealtime(io: RealtimeServer, app: FastifyInstance): PlaybackManager {
   const playback = new PlaybackManager(io);
 
   io.on('connection', (socket) => {
     void (async () => {
+      try {
       const { role } = socket.handshake.query;
 
       // Зритель следит за судьбой своей отправки. Аутентификация не нужна:
@@ -277,39 +280,83 @@ export function setupRealtime(io: RealtimeServer): PlaybackManager {
         return;
       }
 
-      // И оверлей (OBS Browser Source не умеет OAuth), и дашборд
-      // аутентифицируются секретным токеном канала.
-      const { token } = socket.handshake.query;
-      if (
-        (role !== 'overlay' && role !== 'dashboard') ||
-        typeof token !== 'string' ||
-        token.length === 0
-      ) {
-        socket.disconnect(true);
-        return;
-      }
-      const channel = await db
-        .select({ id: channels.id })
-        .from(channels)
-        .where(eq(channels.overlayToken, token))
-        .get();
-      if (!channel) {
-        socket.disconnect(true);
-        return;
-      }
-
+      // Дашборд: авторизация по сессионной куке (модератору overlayToken не даём).
+      // Членство в канале = владелец ИЛИ строка в channel_moderators.
       if (role === 'dashboard') {
-        void socket.join(dashboardRoomOf(channel.id));
+        const { channelId } = socket.handshake.query;
+        if (typeof channelId !== 'string' || !channelId) {
+          socket.disconnect(true);
+          return;
+        }
+        const user = await getUserFromCookieHeader(
+          socket.handshake.headers.cookie,
+          (v) => app.unsignCookie(v),
+        );
+        if (!user) {
+          socket.disconnect(true);
+          return;
+        }
+        const channel = await db
+          .select({ ownerUserId: channels.ownerUserId })
+          .from(channels)
+          .where(eq(channels.id, channelId))
+          .get();
+        if (!channel) {
+          socket.disconnect(true);
+          return;
+        }
+        if (channel.ownerUserId !== user.id) {
+          const mod = await db
+            .select({ userId: channelModerators.userId })
+            .from(channelModerators)
+            .where(
+              and(
+                eq(channelModerators.channelId, channelId),
+                eq(channelModerators.userId, user.id),
+              ),
+            )
+            .get();
+          if (!mod) {
+            socket.disconnect(true);
+            return;
+          }
+        }
+        void socket.join(dashboardRoomOf(channelId));
         return;
       }
 
-      void socket.join(roomOf(channel.id));
-      socket.on('playback:done', (submissionId) => {
-        if (typeof submissionId === 'string') void playback.onDone(channel.id, submissionId);
-      });
-      void playback.onOverlayConnected(channel.id, (payload) =>
-        socket.emit('media:play', payload),
-      );
+      // Оверлей (OBS Browser Source не умеет OAuth) — секретный токен канала.
+      if (role === 'overlay') {
+        const { token } = socket.handshake.query;
+        if (typeof token !== 'string' || token.length === 0) {
+          socket.disconnect(true);
+          return;
+        }
+        const channel = await db
+          .select({ id: channels.id })
+          .from(channels)
+          .where(eq(channels.overlayToken, token))
+          .get();
+        if (!channel) {
+          socket.disconnect(true);
+          return;
+        }
+        void socket.join(roomOf(channel.id));
+        socket.on('playback:done', (submissionId) => {
+          if (typeof submissionId === 'string') void playback.onDone(channel.id, submissionId);
+        });
+        void playback.onOverlayConnected(channel.id, (payload) =>
+          socket.emit('media:play', payload),
+        );
+        return;
+      }
+
+      // Неизвестная роль.
+      socket.disconnect(true);
+      } catch (err) {
+        app.log.error({ err }, 'socket connection handler failed');
+        socket.disconnect(true);
+      }
     })();
   });
 

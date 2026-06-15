@@ -4,6 +4,7 @@ import { io } from 'socket.io-client';
 import {
   OVERLAY_POSITIONS,
   positionToFlex,
+  type AccessibleChannel,
   type ChannelSettings,
   type HistoryEntry,
   type ListedUser,
@@ -16,9 +17,12 @@ import {
 import {
   approveSubmission,
   banUser,
+  createModInvite,
   getBans,
   getHistory,
   getMe,
+  getModerators,
+  getMyChannels,
   getNowPlaying,
   getPending,
   getReputation,
@@ -27,6 +31,7 @@ import {
   rejectSubmission,
   removeBan,
   removeFromWhitelist,
+  removeModerator,
   saveSettings,
   skipCurrent,
   uploadMedia,
@@ -43,6 +48,15 @@ export function DashboardPage() {
   const confirm = useConfirm();
   const toast = useToast();
   const [me, setMe] = useState<MeResponse | null | 'loading'>('loading');
+  // Каналы, к которым есть доступ (свои + где модератор), и выбранный сейчас.
+  const [channelsList, setChannelsList] = useState<AccessibleChannel[] | 'loading'>('loading');
+  const [currentId, setCurrentId] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('tmw_dash_channel');
+    } catch {
+      return null;
+    }
+  });
   const [pending, setPending] = useState<SubmissionSummary[]>([]);
   const [now, setNow] = useState<SubmissionSummary | null>(null);
   const [settings, setSettings] = useState<ChannelSettings | null>(null);
@@ -71,9 +85,39 @@ export function DashboardPage() {
     }
   };
 
+  // Текущий канал и роль в нём.
+  const list = Array.isArray(channelsList) ? channelsList : [];
+  const current = list.find((c) => c.channelId === currentId) ?? list[0] ?? null;
+  const channelId = current?.channelId ?? null;
+  const isOwner = current?.role === 'owner';
+
   useEffect(() => {
     initAudioUnlock();
   }, []);
+
+  // Пользователь + доступные каналы.
+  useEffect(() => {
+    void getMe()
+      .then(setMe)
+      .catch(() => setMe(null));
+    void getMyChannels()
+      .then((ch) => {
+        setChannelsList(ch);
+        setCurrentId((prev) => (prev && ch.some((c) => c.channelId === prev) ? prev : ch[0]?.channelId ?? null));
+      })
+      .catch(() => setChannelsList([]));
+  }, []);
+
+  // Запоминаем выбранный канал.
+  useEffect(() => {
+    if (channelId) {
+      try {
+        localStorage.setItem('tmw_dash_channel', channelId);
+      } catch {
+        /* приватный режим */
+      }
+    }
+  }, [channelId]);
 
   // Счётчик в заголовке вкладки — виден, даже когда дашборд в фоне.
   useEffect(() => {
@@ -85,39 +129,43 @@ export function DashboardPage() {
 
   // Догружаем репутацию для новых отправителей в очереди (только отсутствующих в кэше).
   useEffect(() => {
+    if (!channelId) return;
     const ids = [...new Set(pending.map((p) => p.senderUserId).filter((x): x is string => !!x))].filter(
       (id) => !(id in reputationRef.current),
     );
     if (ids.length === 0) return;
-    void getReputation(ids)
+    void getReputation(channelId, ids)
       .then((rep) => setReputation((prev) => ({ ...prev, ...rep })))
       .catch(() => {});
-  }, [pending]);
+  }, [pending, channelId]);
 
   const refreshLists = useCallback(() => {
-    void getWhitelist().then(setAllowed).catch(() => {});
-    void getBans().then(setBanned).catch(() => {});
-    void getHistory().then(setHistory).catch(() => {});
-  }, []);
+    if (!channelId) return;
+    void getWhitelist(channelId).then(setAllowed).catch(() => {});
+    void getBans(channelId).then(setBanned).catch(() => {});
+    void getHistory(channelId).then(setHistory).catch(() => {});
+  }, [channelId]);
 
+  // Загрузка данных канала + live-сокет. Перезапускается при смене канала.
   useEffect(() => {
-    void getMe()
-      .then(setMe)
-      .catch(() => setMe(null));
-  }, []);
+    if (!channelId) return;
+    setPending([]);
+    setNow(null);
+    setSettings(null);
+    setAllowed([]);
+    setBanned([]);
+    setReputation({});
 
-  useEffect(() => {
-    if (me === 'loading' || !me?.channel) return;
-
-    void getPending().then(setPending).catch(() => {});
-    void getNowPlaying()
+    void getPending(channelId).then(setPending).catch(() => {});
+    void getNowPlaying(channelId)
       .then((r) => setNow(r.now))
       .catch(() => {});
-    void getSettings().then(setSettings).catch(() => {});
+    // Настройки доступны только владельцу.
+    if (isOwner) void getSettings(channelId).then(setSettings).catch(() => {});
     refreshLists();
 
-    // Live-обновления: тот же секретный токен канала, что и у оверлея.
-    const socket = io({ query: { role: 'dashboard', token: me.channel.overlayToken } });
+    // Live-обновления: авторизация по сессионной куке (модератору overlayToken не нужен).
+    const socket = io({ query: { role: 'dashboard', channelId } });
     socket.on('moderation:new', (s: SubmissionSummary) =>
       setPending((prev) => {
         if (prev.some((p) => p.id === s.id)) return prev;
@@ -131,12 +179,12 @@ export function DashboardPage() {
     socket.on('playback:started', (s: SubmissionSummary) => setNow(s));
     socket.on('playback:ended', () => {
       setNow(null);
-      void getHistory().then(setHistory).catch(() => {});
+      void getHistory(channelId).then(setHistory).catch(() => {});
     });
     return () => {
       socket.close();
     };
-  }, [me, refreshLists]);
+  }, [channelId, isOwner, refreshLists]);
 
   async function act(fn: () => Promise<unknown>, after?: () => void, success?: string) {
     try {
@@ -150,31 +198,32 @@ export function DashboardPage() {
 
   async function sendTest(e: FormEvent) {
     e.preventDefault();
-    if (!testFile || me === 'loading' || !me?.user) return;
-    const login = me.user.login;
-    await act(() => uploadMedia(login, testFile), undefined, t('toast.testSent'));
+    if (!testFile || !current) return;
+    await act(() => uploadMedia(current.login, testFile), undefined, t('toast.testSent'));
     setTestFile(null);
   }
 
   const bannedIds = new Set(banned.map((b) => b.userId));
   async function banById(userId: string, name: string) {
+    if (!channelId) return;
     if (await confirm({ message: t('dash.banConfirm', { name }), confirmLabel: t('dash.ban'), danger: true })) {
-      void act(() => banUser(userId), refreshLists, t('toast.banned'));
+      void act(() => banUser(channelId, userId), refreshLists, t('toast.banned'));
     }
   }
 
   // Действия модерации — общие для вида «Список» и «Разбор».
   const onApprove = (s: SubmissionSummary) =>
-    void act(() => approveSubmission(s.id, false), undefined, t('toast.approved'));
+    channelId && void act(() => approveSubmission(channelId, s.id, false), undefined, t('toast.approved'));
   const onTrust = (s: SubmissionSummary) =>
-    void act(() => approveSubmission(s.id, true), refreshLists, t('toast.approved'));
+    channelId && void act(() => approveSubmission(channelId, s.id, true), refreshLists, t('toast.approved'));
   const onReject = (s: SubmissionSummary) =>
-    void act(() => rejectSubmission(s.id, false), undefined, t('toast.rejected'));
+    channelId && void act(() => rejectSubmission(channelId, s.id, false), undefined, t('toast.rejected'));
   const onBan = (s: SubmissionSummary) => {
     void (async () => {
+      if (!channelId) return;
       const name = s.senderName ?? t('dash.thisSender');
       if (await confirm({ message: t('dash.banConfirm', { name }), confirmLabel: t('dash.ban'), danger: true })) {
-        void act(() => rejectSubmission(s.id, true), refreshLists, t('toast.banned'));
+        void act(() => rejectSubmission(channelId, s.id, true), refreshLists, t('toast.banned'));
       }
     })();
   };
@@ -189,7 +238,7 @@ export function DashboardPage() {
       return copy;
     });
 
-  if (me === 'loading')
+  if (me === 'loading' || channelsList === 'loading')
     return (
       <Shell>
         <Loader label={t('common.loading')} />
@@ -207,7 +256,7 @@ export function DashboardPage() {
       </Shell>
     );
   }
-  if (!me.channel) {
+  if (!current) {
     return (
       <Shell>
         <p className="text-muted">
@@ -247,6 +296,35 @@ export function DashboardPage() {
         </div>
       </div>
 
+      {(list.length > 1 || current.role === 'moderator') && (
+        <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
+          {list.length > 1 ? (
+            <>
+              <span className="text-muted">{t('dash.channel')}:</span>
+              <select
+                value={channelId ?? ''}
+                onChange={(e) => setCurrentId(e.target.value)}
+                className="rounded-none border-2 border-line bg-surface-2 px-2 py-1 text-text outline-none focus:border-twitch"
+              >
+                {list.map((c) => (
+                  <option key={c.channelId} value={c.channelId}>
+                    {c.displayName}
+                    {c.role === 'moderator' ? ` — ${t('dash.roleModerator')}` : ''}
+                  </option>
+                ))}
+              </select>
+            </>
+          ) : (
+            <span className="text-muted">{current.displayName}</span>
+          )}
+          {current.role === 'moderator' && (
+            <span className="border border-twitch/40 bg-twitch/15 px-2 py-0.5 text-xs text-twitch-light">
+              {t('dash.roleModerator')}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Сейчас играет */}
       <Card className="mb-4">
         <div className="flex items-center justify-between gap-4">
@@ -261,17 +339,18 @@ export function DashboardPage() {
               <p className="mt-1 text-sm text-muted">{t('dash.nothingPlaying')}</p>
             )}
           </div>
-          {now && (
+          {now && channelId && (
             <Button
               variant="danger"
               className="shrink-0"
-              onClick={() => void act(skipCurrent, undefined, t('toast.skipped'))}
+              onClick={() => void act(() => skipCurrent(channelId), undefined, t('toast.skipped'))}
             >
               <Icon name="forward" size={16} />
               {t('dash.skip')}
             </Button>
           )}
         </div>
+        {isOwner && (
         <form
           onSubmit={(e) => void sendTest(e)}
           className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-4"
@@ -287,16 +366,19 @@ export function DashboardPage() {
             {t('dash.testSend')}
           </Button>
         </form>
+        )}
       </Card>
 
-      {settings && (
+      {isOwner && settings && channelId && (
         <SettingsCard
           settings={settings}
           onSave={(patch) =>
-            void act(async () => setSettings(await saveSettings(patch)), undefined, t('toast.saved'))
+            void act(async () => setSettings(await saveSettings(channelId, patch)), undefined, t('toast.saved'))
           }
         />
       )}
+
+      {isOwner && channelId && <TeamCard channelId={channelId} act={act} />}
 
       {/* Модерация */}
       <ModerationQueue
@@ -318,7 +400,10 @@ export function DashboardPage() {
           title={t('dash.whitelist')}
           hint={t('dash.whitelistHint')}
           users={allowed}
-          onRemove={(id) => void act(() => removeFromWhitelist(id), refreshLists, t('toast.removed'))}
+          onRemove={(id) =>
+            channelId &&
+            void act(() => removeFromWhitelist(channelId, id), refreshLists, t('toast.removed'))
+          }
           onBan={(id, name) => void banById(id, name)}
         />
         <UserList
@@ -326,7 +411,9 @@ export function DashboardPage() {
           title={t('dash.bans')}
           hint={t('dash.bansHint')}
           users={banned}
-          onRemove={(id) => void act(() => removeBan(id), refreshLists, t('toast.removed'))}
+          onRemove={(id) =>
+            channelId && void act(() => removeBan(channelId, id), refreshLists, t('toast.removed'))
+          }
         />
       </div>
 
@@ -582,6 +669,98 @@ function SettingsCard({
       </div>
         </>
       )}
+    </Card>
+  );
+}
+
+/** Блок «Команда» (owner-only): сгенерировать инвайт-ссылку и управлять модераторами. */
+function TeamCard({
+  channelId,
+  act,
+}: {
+  channelId: string;
+  act: (fn: () => Promise<unknown>, after?: () => void, success?: string) => Promise<void>;
+}) {
+  const { t } = useI18n();
+  const toast = useToast();
+  const [mods, setMods] = useState<ListedUser[]>([]);
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const refresh = useCallback(() => {
+    void getModerators(channelId).then(setMods).catch(() => {});
+  }, [channelId]);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const invite = () =>
+    void (async () => {
+      try {
+        const { token } = await createModInvite(channelId);
+        setInviteUrl(`${window.location.origin}/mod-invite/${token}`);
+        setCopied(false);
+      } catch (e) {
+        toast(e instanceof Error ? e.message : String(e), 'danger');
+      }
+    })();
+
+  const copy = () => {
+    if (!inviteUrl) return;
+    void navigator.clipboard.writeText(inviteUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <Card className="mt-4">
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <h2 className="font-bold">{t('dash.team')}</h2>
+          <p className="text-sm text-muted">{t('dash.teamHint')}</p>
+        </div>
+        <Button variant="primary" className="shrink-0" onClick={invite}>
+          <Icon name="send" size={16} />
+          {t('dash.invite')}
+        </Button>
+      </div>
+      {inviteUrl && (
+        <div className="mt-3">
+          <p className="mb-1 text-sm text-muted">{t('dash.inviteHint')}</p>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 break-all border-2 border-line bg-surface-2 px-3 py-2 text-xs text-twitch-light">
+              {inviteUrl}
+            </code>
+            <Button className="shrink-0" onClick={copy}>
+              <Icon name={copied ? 'check' : 'copy'} size={16} />
+            </Button>
+          </div>
+        </div>
+      )}
+      <div className="mt-4">
+        {mods.length === 0 ? (
+          <p className="text-sm text-muted">{t('dash.noModerators')}</p>
+        ) : (
+          <ul className="flex flex-col gap-1.5 text-sm">
+            {mods.map((m) => (
+              <li key={m.userId} className="flex items-center gap-2 text-muted">
+                <Icon name="shield" size={15} className="text-twitch-light" />
+                <b className="text-text">{m.displayName}</b>
+                <span className="text-xs">{m.login}</span>
+                <button
+                  onClick={() =>
+                    void act(() => removeModerator(channelId, m.userId), refresh, t('toast.removed'))
+                  }
+                  className="ml-auto cursor-pointer hover:text-danger"
+                  title={t('dash.removeUser')}
+                >
+                  <Icon name="close" size={16} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </Card>
   );
 }

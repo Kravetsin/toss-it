@@ -88,6 +88,31 @@ export const bans = sqliteTable(
   (t) => [primaryKey({ columns: [t.channelId, t.userId] })],
 );
 
+/** Модераторы канала: имеют тот же доступ к модерации, что и владелец (но не к настройкам/токену). */
+export const channelModerators = sqliteTable(
+  'channel_moderators',
+  {
+    channelId: text('channel_id')
+      .notNull()
+      .references(() => channels.id),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.channelId, t.userId] })],
+);
+
+/** Одноразовые инвайты в модераторы (TTL ~1ч; удаляются при принятии). */
+export const modInvites = sqliteTable('mod_invites', {
+  token: text('token').primaryKey(),
+  channelId: text('channel_id')
+    .notNull()
+    .references(() => channels.id),
+  expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+});
+
 export const submissions = sqliteTable(
   'submissions',
   {
@@ -114,3 +139,5 @@ export const submissions = sqliteTable(
 export type UserRow = typeof users.$inferSelect;
 export type ChannelRow = typeof channels.$inferSelect;
 export type SubmissionRow = typeof submissions.$inferSelect;
+export type ChannelModeratorRow = typeof channelModerators.$inferSelect;
+export type ModInviteRow = typeof modInvites.$inferSelect;

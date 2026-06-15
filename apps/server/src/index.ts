@@ -74,7 +74,7 @@ if (config.serveStatic) {
 const io: import('./playback').RealtimeServer = new Server(app.server, {
   cors: { origin: true },
 });
-const playback = setupRealtime(io);
+const playback = setupRealtime(io, app);
 await playback.recoverFromDb();
 
 registerRoutes(app, { playback, storage, tmpDir, io });

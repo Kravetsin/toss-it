@@ -215,3 +215,38 @@ function readSessionId(req: FastifyRequest): string | null {
   const unsigned = req.unsignCookie(raw);
   return unsigned.valid ? unsigned.value : null;
 }
+
+/**
+ * Пользователь по сырому заголовку Cookie (для socket.io, где нет FastifyRequest).
+ * `unsignCookie` передаём из инстанса Fastify (`app.unsignCookie`) — тот же секрет.
+ */
+export async function getUserFromCookieHeader(
+  cookieHeader: string | undefined,
+  unsignCookie: (value: string) => { valid: boolean; value: string | null },
+): Promise<UserRow | null> {
+  if (!cookieHeader) return null;
+  let raw: string | undefined;
+  for (const pair of cookieHeader.split(';')) {
+    const eq = pair.indexOf('=');
+    if (eq < 0) continue;
+    if (pair.slice(0, eq).trim() === SESSION_COOKIE) {
+      try {
+        raw = decodeURIComponent(pair.slice(eq + 1).trim());
+      } catch {
+        return null; // битый URL-encoding в куке — считаем «не залогинен»
+      }
+      break;
+    }
+  }
+  if (!raw) return null;
+  const unsigned = unsignCookie(raw);
+  if (!unsigned.valid || !unsigned.value) return null;
+  const row = await db
+    .select({ user: users, expiresAt: sessions.expiresAt })
+    .from(sessions)
+    .innerJoin(users, eq(users.id, sessions.userId))
+    .where(eq(sessions.id, unsigned.value))
+    .get();
+  if (!row || row.expiresAt.getTime() < Date.now()) return null;
+  return row.user;
+}

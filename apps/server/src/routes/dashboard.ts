@@ -1,15 +1,27 @@
+import crypto from 'node:crypto';
 import { and, asc, count, desc, eq, inArray } from 'drizzle-orm';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import {
   OVERLAY_POSITIONS,
+  type AccessibleChannel,
   type ChannelSettings,
   type HistoryEntry,
   type ListedUser,
+  type ModInviteInfo,
   type ReputationStats,
   type SubmissionSummary,
 } from '@tmw/shared';
 import { db } from '../db/index';
-import { bans, channels, submissions, users, whitelist, type ChannelRow } from '../db/schema';
+import {
+  bans,
+  channelModerators,
+  channels,
+  modInvites,
+  submissions,
+  users,
+  whitelist,
+  type ChannelRow,
+} from '../db/schema';
 import { config } from '../config';
 import { requireUser } from '../auth';
 import {
@@ -25,20 +37,47 @@ export interface DashboardRoutesDeps {
   io: RealtimeServer;
 }
 
-/** Все роуты дашборда работают только с собственным каналом залогиненного стримера. */
-async function requireOwnChannel(
+/** Доступ к каналу для модерации: владелец ИЛИ модератор. */
+async function requireChannelAccess(
   req: FastifyRequest,
   reply: FastifyReply,
+  channelId: string,
 ): Promise<ChannelRow | null> {
   const user = await requireUser(req, reply);
   if (!user) return null;
-  const channel = await db
-    .select()
-    .from(channels)
-    .where(eq(channels.ownerUserId, user.id))
-    .get();
+  const channel = await db.select().from(channels).where(eq(channels.id, channelId)).get();
   if (!channel) {
-    void reply.code(404).send({ error: 'Канал не создан' });
+    void reply.code(404).send({ error: 'Канал не найден' });
+    return null;
+  }
+  if (channel.ownerUserId === user.id) return channel;
+  const mod = await db
+    .select({ userId: channelModerators.userId })
+    .from(channelModerators)
+    .where(and(eq(channelModerators.channelId, channelId), eq(channelModerators.userId, user.id)))
+    .get();
+  if (!mod) {
+    void reply.code(403).send({ error: 'Нет доступа к каналу' });
+    return null;
+  }
+  return channel;
+}
+
+/** Только владелец канала (настройки, токен, управление модераторами). */
+async function requireOwnerOf(
+  req: FastifyRequest,
+  reply: FastifyReply,
+  channelId: string,
+): Promise<ChannelRow | null> {
+  const user = await requireUser(req, reply);
+  if (!user) return null;
+  const channel = await db.select().from(channels).where(eq(channels.id, channelId)).get();
+  if (!channel) {
+    void reply.code(404).send({ error: 'Канал не найден' });
+    return null;
+  }
+  if (channel.ownerUserId !== user.id) {
+    void reply.code(403).send({ error: 'Только владелец канала' });
     return null;
   }
   return channel;
@@ -70,32 +109,68 @@ function toSettings(ch: ChannelRow): ChannelSettings {
 export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRoutesDeps): void {
   const { playback, io } = deps;
 
-  /** Что сейчас на экране (для панели «сейчас играет» при загрузке дашборда). */
-  app.get('/api/dashboard/now', async (req, reply) => {
-    const channel = await requireOwnChannel(req, reply);
-    if (!channel) return;
-    const current = playback.getCurrent(channel.id);
-    return { now: current ? toSummary(current) : null };
+  /** Список каналов, к которым у пользователя есть доступ (свои + где он модератор). */
+  app.get('/api/me/channels', async (req, reply): Promise<AccessibleChannel[] | undefined> => {
+    const user = await requireUser(req, reply);
+    if (!user) return;
+    const result: AccessibleChannel[] = [];
+    const own = await db
+      .select({ id: channels.id, login: users.login, displayName: users.displayName })
+      .from(channels)
+      .innerJoin(users, eq(users.id, channels.ownerUserId))
+      .where(eq(channels.ownerUserId, user.id))
+      .get();
+    if (own) {
+      result.push({ channelId: own.id, login: own.login, displayName: own.displayName, role: 'owner' });
+    }
+    const mod = await db
+      .select({ id: channels.id, login: users.login, displayName: users.displayName })
+      .from(channelModerators)
+      .innerJoin(channels, eq(channels.id, channelModerators.channelId))
+      .innerJoin(users, eq(users.id, channels.ownerUserId))
+      .where(eq(channelModerators.userId, user.id))
+      .all();
+    for (const r of mod) {
+      result.push({ channelId: r.id, login: r.login, displayName: r.displayName, role: 'moderator' });
+    }
+    return result;
   });
+
+  /** Что сейчас на экране (для панели «сейчас играет» при загрузке дашборда). */
+  app.get<{ Params: { channelId: string } }>(
+    '/api/dashboard/:channelId/now',
+    async (req, reply) => {
+      const channel = await requireChannelAccess(req, reply, req.params.channelId);
+      if (!channel) return;
+      const current = playback.getCurrent(channel.id);
+      return { now: current ? toSummary(current) : null };
+    },
+  );
 
   /** Скип текущего показа: мгновенно гасит оверлей и двигает очередь. */
-  app.post('/api/dashboard/skip', async (req, reply) => {
-    const channel = await requireOwnChannel(req, reply);
-    if (!channel) return;
-    const skipped = await playback.skip(channel.id);
-    return { skipped };
-  });
+  app.post<{ Params: { channelId: string } }>(
+    '/api/dashboard/:channelId/skip',
+    async (req, reply) => {
+      const channel = await requireChannelAccess(req, reply, req.params.channelId);
+      if (!channel) return;
+      const skipped = await playback.skip(channel.id);
+      return { skipped };
+    },
+  );
 
-  app.get('/api/dashboard/settings', async (req, reply): Promise<ChannelSettings | undefined> => {
-    const channel = await requireOwnChannel(req, reply);
-    if (!channel) return;
-    return toSettings(channel);
-  });
-
-  app.put<{ Body: Partial<ChannelSettings> | null }>(
-    '/api/dashboard/settings',
+  app.get<{ Params: { channelId: string } }>(
+    '/api/dashboard/:channelId/settings',
     async (req, reply): Promise<ChannelSettings | undefined> => {
-      const channel = await requireOwnChannel(req, reply);
+      const channel = await requireOwnerOf(req, reply, req.params.channelId);
+      if (!channel) return;
+      return toSettings(channel);
+    },
+  );
+
+  app.put<{ Params: { channelId: string }; Body: Partial<ChannelSettings> | null }>(
+    '/api/dashboard/:channelId/settings',
+    async (req, reply): Promise<ChannelSettings | undefined> => {
+      const channel = await requireOwnerOf(req, reply, req.params.channelId);
       if (!channel) return;
       const b = req.body ?? {};
 
@@ -150,28 +225,31 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
   );
 
   /** История: всё, что покинуло pending (метаданные; файлы эфемерны и уже удалены). */
-  app.get('/api/dashboard/history', async (req, reply): Promise<HistoryEntry[] | undefined> => {
-    const channel = await requireOwnChannel(req, reply);
-    if (!channel) return;
-    const rows = await db
-      .select()
-      .from(submissions)
-      .where(
-        and(
-          eq(submissions.channelId, channel.id),
-          inArray(submissions.status, ['played', 'rejected', 'expired']),
-        ),
-      )
-      .orderBy(desc(submissions.updatedAt))
-      .limit(50)
-      .all();
-    return rows.map((r) => ({ ...toSummary(r), status: r.status }));
-  });
+  app.get<{ Params: { channelId: string } }>(
+    '/api/dashboard/:channelId/history',
+    async (req, reply): Promise<HistoryEntry[] | undefined> => {
+      const channel = await requireChannelAccess(req, reply, req.params.channelId);
+      if (!channel) return;
+      const rows = await db
+        .select()
+        .from(submissions)
+        .where(
+          and(
+            eq(submissions.channelId, channel.id),
+            inArray(submissions.status, ['played', 'rejected', 'expired']),
+          ),
+        )
+        .orderBy(desc(submissions.updatedAt))
+        .limit(50)
+        .all();
+      return rows.map((r) => ({ ...toSummary(r), status: r.status }));
+    },
+  );
 
-  app.get(
-    '/api/dashboard/pending',
+  app.get<{ Params: { channelId: string } }>(
+    '/api/dashboard/:channelId/pending',
     async (req, reply): Promise<SubmissionSummary[] | undefined> => {
-      const channel = await requireOwnChannel(req, reply);
+      const channel = await requireChannelAccess(req, reply, req.params.channelId);
       if (!channel) return;
       const rows = await db
         .select()
@@ -184,10 +262,10 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
   );
 
   /** Кросс-канальная репутация набора пользователей (агрегаты по всем каналам). */
-  app.post<{ Body: { userIds?: unknown } | null }>(
-    '/api/dashboard/reputation',
+  app.post<{ Params: { channelId: string }; Body: { userIds?: unknown } | null }>(
+    '/api/dashboard/:channelId/reputation',
     async (req, reply): Promise<Record<string, ReputationStats> | undefined> => {
-      const channel = await requireOwnChannel(req, reply);
+      const channel = await requireChannelAccess(req, reply, req.params.channelId);
       if (!channel) return;
       const raw = Array.isArray(req.body?.userIds) ? req.body.userIds : [];
       const ids = [
@@ -247,10 +325,10 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
     },
   );
 
-  app.post<{ Params: { id: string }; Body: { whitelist?: boolean } | null }>(
-    '/api/dashboard/submissions/:id/approve',
+  app.post<{ Params: { channelId: string; id: string }; Body: { whitelist?: boolean } | null }>(
+    '/api/dashboard/:channelId/submissions/:id/approve',
     async (req, reply) => {
-      const channel = await requireOwnChannel(req, reply);
+      const channel = await requireChannelAccess(req, reply, req.params.channelId);
       if (!channel) return;
 
       const sub = await db
@@ -282,10 +360,10 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
     },
   );
 
-  app.post<{ Params: { id: string }; Body: { ban?: boolean } | null }>(
-    '/api/dashboard/submissions/:id/reject',
+  app.post<{ Params: { channelId: string; id: string }; Body: { ban?: boolean } | null }>(
+    '/api/dashboard/:channelId/submissions/:id/reject',
     async (req, reply) => {
-      const channel = await requireOwnChannel(req, reply);
+      const channel = await requireChannelAccess(req, reply, req.params.channelId);
       if (!channel) return;
 
       const sub = await db
@@ -314,23 +392,29 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
 
   /** Прямой бан по userId (например, из истории — для зрителей из белого списка,
    *  чьи отправки не проходят через очередь модерации). */
-  app.post<{ Params: { userId: string } }>('/api/dashboard/bans/:userId', async (req, reply) => {
-    const channel = await requireOwnChannel(req, reply);
-    if (!channel) return;
-    await banUserInChannel(io, channel.id, req.params.userId);
-    return { ok: true };
-  });
-
-  app.get('/api/dashboard/whitelist', async (req, reply): Promise<ListedUser[] | undefined> => {
-    const channel = await requireOwnChannel(req, reply);
-    if (!channel) return;
-    return listUsers(whitelist, channel.id);
-  });
-
-  app.delete<{ Params: { userId: string } }>(
-    '/api/dashboard/whitelist/:userId',
+  app.post<{ Params: { channelId: string; userId: string } }>(
+    '/api/dashboard/:channelId/bans/:userId',
     async (req, reply) => {
-      const channel = await requireOwnChannel(req, reply);
+      const channel = await requireChannelAccess(req, reply, req.params.channelId);
+      if (!channel) return;
+      await banUserInChannel(io, channel.id, req.params.userId);
+      return { ok: true };
+    },
+  );
+
+  app.get<{ Params: { channelId: string } }>(
+    '/api/dashboard/:channelId/whitelist',
+    async (req, reply): Promise<ListedUser[] | undefined> => {
+      const channel = await requireChannelAccess(req, reply, req.params.channelId);
+      if (!channel) return;
+      return listUsers(whitelist, channel.id);
+    },
+  );
+
+  app.delete<{ Params: { channelId: string; userId: string } }>(
+    '/api/dashboard/:channelId/whitelist/:userId',
+    async (req, reply) => {
+      const channel = await requireChannelAccess(req, reply, req.params.channelId);
       if (!channel) return;
       await db
         .delete(whitelist)
@@ -339,20 +423,130 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
     },
   );
 
-  app.get('/api/dashboard/bans', async (req, reply): Promise<ListedUser[] | undefined> => {
-    const channel = await requireOwnChannel(req, reply);
-    if (!channel) return;
-    return listUsers(bans, channel.id);
-  });
+  app.get<{ Params: { channelId: string } }>(
+    '/api/dashboard/:channelId/bans',
+    async (req, reply): Promise<ListedUser[] | undefined> => {
+      const channel = await requireChannelAccess(req, reply, req.params.channelId);
+      if (!channel) return;
+      return listUsers(bans, channel.id);
+    },
+  );
 
-  app.delete<{ Params: { userId: string } }>('/api/dashboard/bans/:userId', async (req, reply) => {
-    const channel = await requireOwnChannel(req, reply);
-    if (!channel) return;
-    await db
-      .delete(bans)
-      .where(and(eq(bans.channelId, channel.id), eq(bans.userId, req.params.userId)));
-    return { ok: true };
-  });
+  app.delete<{ Params: { channelId: string; userId: string } }>(
+    '/api/dashboard/:channelId/bans/:userId',
+    async (req, reply) => {
+      const channel = await requireChannelAccess(req, reply, req.params.channelId);
+      if (!channel) return;
+      await db
+        .delete(bans)
+        .where(and(eq(bans.channelId, channel.id), eq(bans.userId, req.params.userId)));
+      return { ok: true };
+    },
+  );
+
+  // --- Управление командой модераторов (owner-only) ---
+
+  /** Создать одноразовый инвайт-токен (TTL 1ч). Стример сам шлёт ссылку человеку. */
+  app.post<{ Params: { channelId: string } }>(
+    '/api/dashboard/:channelId/moderators/invite',
+    async (req, reply): Promise<{ token: string } | undefined> => {
+      const channel = await requireOwnerOf(req, reply, req.params.channelId);
+      if (!channel) return;
+      const token = crypto.randomBytes(24).toString('hex');
+      const now = new Date();
+      await db.insert(modInvites).values({
+        token,
+        channelId: channel.id,
+        createdAt: now,
+        expiresAt: new Date(now.getTime() + 60 * 60 * 1000),
+      });
+      return { token };
+    },
+  );
+
+  app.get<{ Params: { channelId: string } }>(
+    '/api/dashboard/:channelId/moderators',
+    async (req, reply): Promise<ListedUser[] | undefined> => {
+      const channel = await requireOwnerOf(req, reply, req.params.channelId);
+      if (!channel) return;
+      return listUsers(channelModerators, channel.id);
+    },
+  );
+
+  app.delete<{ Params: { channelId: string; userId: string } }>(
+    '/api/dashboard/:channelId/moderators/:userId',
+    async (req, reply) => {
+      const channel = await requireOwnerOf(req, reply, req.params.channelId);
+      if (!channel) return;
+      await db
+        .delete(channelModerators)
+        .where(
+          and(
+            eq(channelModerators.channelId, channel.id),
+            eq(channelModerators.userId, req.params.userId),
+          ),
+        );
+      return { ok: true };
+    },
+  );
+
+  // --- Приём инвайта (любой залогиненный пользователь) ---
+
+  app.get<{ Params: { token: string } }>(
+    '/api/mod-invite/:token',
+    async (req, reply): Promise<ModInviteInfo | undefined> => {
+      const invite = await db
+        .select()
+        .from(modInvites)
+        .where(eq(modInvites.token, req.params.token))
+        .get();
+      if (!invite || invite.expiresAt.getTime() < Date.now()) {
+        return reply.code(404).send({ error: 'Приглашение недействительно или истекло' });
+      }
+      const ch = await db
+        .select({ login: users.login, displayName: users.displayName })
+        .from(channels)
+        .innerJoin(users, eq(users.id, channels.ownerUserId))
+        .where(eq(channels.id, invite.channelId))
+        .get();
+      if (!ch) return reply.code(404).send({ error: 'Канал не найден' });
+      return { channelLogin: ch.login, channelDisplayName: ch.displayName };
+    },
+  );
+
+  app.post<{ Params: { token: string } }>(
+    '/api/mod-invite/:token/accept',
+    async (req, reply): Promise<{ channelId: string } | undefined> => {
+      const user = await requireUser(req, reply);
+      if (!user) return;
+      const invite = await db
+        .select()
+        .from(modInvites)
+        .where(eq(modInvites.token, req.params.token))
+        .get();
+      if (!invite || invite.expiresAt.getTime() < Date.now()) {
+        return reply.code(404).send({ error: 'Приглашение недействительно или истекло' });
+      }
+      // Атомарный «захват»: кто удалил строку, тот и активирует инвайт (защита от гонки/двойного клика).
+      const claim = await db.delete(modInvites).where(eq(modInvites.token, invite.token));
+      if (claim.rowsAffected === 0) {
+        return reply.code(404).send({ error: 'Приглашение уже использовано' });
+      }
+      const channel = await db
+        .select({ ownerUserId: channels.ownerUserId })
+        .from(channels)
+        .where(eq(channels.id, invite.channelId))
+        .get();
+      // Владельцу становиться модером своего канала бессмысленно — токен уже погашен выше.
+      if (channel && channel.ownerUserId !== user.id) {
+        await db
+          .insert(channelModerators)
+          .values({ channelId: invite.channelId, userId: user.id, createdAt: new Date() })
+          .onConflictDoNothing();
+      }
+      return { channelId: invite.channelId };
+    },
+  );
 }
 
 /** Забанить зрителя в канале: вытеснить из белого списка и снять с модерации его pending. */
@@ -392,7 +586,7 @@ async function banUserInChannel(
 }
 
 async function listUsers(
-  table: typeof whitelist | typeof bans,
+  table: typeof whitelist | typeof bans | typeof channelModerators,
   channelId: string,
 ): Promise<ListedUser[]> {
   const rows = await db

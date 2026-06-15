@@ -71,6 +71,13 @@
       "when": 1781450096023,
       "tag": "0009_pale_cassandra_nova",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1781515305309,
+      "tag": "0010_hesitant_jack_flag",
+      "breakpoints": true
     }
   ]
 }
