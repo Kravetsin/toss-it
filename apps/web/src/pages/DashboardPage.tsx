@@ -247,11 +247,16 @@ export function DashboardPage() {
   if (!me?.user) {
     return (
       <Shell>
-        <Card className="flex flex-col items-center gap-4 py-10">
+        <Card className="flex flex-col items-center gap-4 py-10 text-center">
           <p className="text-muted">{t('dash.loginToView')}</p>
-          <a href="/api/auth/login?returnTo=/dashboard">
-            <Button variant="primary">{t('common.loginTwitch')}</Button>
-          </a>
+          <div className="flex flex-col items-center gap-2">
+            <a href="/api/auth/login?returnTo=/dashboard">
+              <Button variant="primary">{t('common.loginTwitch')}</Button>
+            </a>
+            <a href="/api/auth/google/login?returnTo=/dashboard">
+              <Button>{t('common.loginGoogle')}</Button>
+            </a>
+          </div>
         </Card>
       </Shell>
     );
