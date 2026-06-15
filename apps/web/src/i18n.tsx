@@ -45,10 +45,7 @@ const en: Dict = {
   // Главная
   'home.tagline':
     'Viewers send images, GIFs, videos and sounds straight to your stream — with moderation, a whitelist and limits.',
-  'home.loginOther': 'Log in with a different account',
-  'home.devLogin': 'Dev login without Twitch keys',
-  'home.devPlaceholder': 'pick a login',
-  'home.logInShort': 'Log in',
+  'home.loginOther': 'Switch account',
   'home.logout': 'Log out',
   'home.noChannel': 'No channel yet. Create one — you get a viewer page and an OBS overlay.',
   'home.createChannel': 'Create channel',
@@ -225,10 +222,7 @@ const ru: Dict = {
 
   'home.tagline':
     'Зрители отправляют картинки, гифки, видео и звуки прямо на твой стрим — с модерацией, белым списком и лимитами.',
-  'home.loginOther': 'Войти под другим аккаунтом',
-  'home.devLogin': 'Dev-вход без Twitch-ключей',
-  'home.devPlaceholder': 'придумай логин',
-  'home.logInShort': 'Войти',
+  'home.loginOther': 'Сменить аккаунт',
   'home.logout': 'Выйти',
   'home.noChannel': 'Канала ещё нет. Создай его — получишь страницу для зрителей и оверлей для OBS.',
   'home.createChannel': 'Создать канал',

@@ -81,6 +81,16 @@ const ICONS: Record<string, string[]> = {
     'M15 11h-2V9h2zm0 4h-2v-2h2zm-2 2h-2v-2h2zm0-8h-2V7h2zm-2-2H9V5h2zM9 21H7V3h2zm6-8h2v-2h-2zm-6 4h2v2H9z',
   ],
   'square-alert': ['M4 2h16v2H4zm0 18h16v2H4zM20 4h2v16h-2zM2 4h2v16H2zm9 2h2v8h-2zm0 10h2v2h-2z'],
+  // Брендовые глифы нарисованы пиксельно под наш набор (монохром, тонируются currentColor).
+  twitch: [
+    'M3 0h18v3H3z M0 3h24v3H0z M0 6h6v3H0z M9 6h6v3H9z M18 6h6v3H18z M0 9h6v3H0z M9 9h6v3H9z M18 9h6v3H18z M0 12h24v3H0z M0 15h21v3H0z M0 18h15v3H0z M6 21h6v3H6z',
+  ],
+  google: [
+    'M3 0h18v3H3z M0 3h6v3H0z M18 3h6v3H18z M0 6h6v3H0z M0 9h6v3H0z M12 9h12v3H12z M0 12h6v3H0z M18 12h6v3H18z M0 15h6v3H0z M18 15h6v3H18z M3 18h18v3H3z',
+  ],
+  swap: [
+    'M15 3h3v3H15z M0 6h21v3H0z M15 9h3v3H15z M6 12h3v3H6z M3 15h21v3H3z M6 18h3v3H6z',
+  ],
 };
 
 export type IconName = keyof typeof ICONS;
