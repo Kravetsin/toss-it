@@ -1,7 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { MeResponse } from '@tmw/shared';
-import { OVERLAY_BASE_URL, createChannel, getMe, logout, rotateOverlayToken } from '../api';
+import type { ListedUser, MeResponse } from '@tmw/shared';
+import {
+  OVERLAY_BASE_URL,
+  createChannel,
+  createModInvite,
+  getMe,
+  getModerators,
+  logout,
+  removeModerator,
+  rotateOverlayToken,
+} from '../api';
 import { useConfirm } from '../confirm';
 import { Icon } from '../icons';
 import { useI18n } from '../i18n';
@@ -111,9 +120,19 @@ export function HomePage() {
             <p className="text-xs text-muted">{me.user.login}</p>
           </div>
         </div>
-        <Button variant="ghost" onClick={() => void act(logout)}>
-          {t('home.logout')}
-        </Button>
+        <div className="flex items-center gap-4">
+          <Link to="/promo" className="text-sm text-muted hover:text-text">
+            {t('promo.haveCode')}
+          </Link>
+          {me.user.isAdmin && (
+            <Link to="/admin" className="text-sm text-muted hover:text-text">
+              {t('admin.title')}
+            </Link>
+          )}
+          <Button variant="ghost" onClick={() => void act(logout)}>
+            {t('home.logout')}
+          </Button>
+        </div>
       </div>
 
       {!me.channel ? (
@@ -193,9 +212,106 @@ export function HomePage() {
               </Button>
             </div>
           </Card>
+
+          <TeamCard channelId={me.channel.id} />
         </div>
       )}
     </Shell>
+  );
+}
+
+/** Блок «Команда» (owner-only): сгенерировать инвайт-ссылку и управлять модераторами. */
+function TeamCard({ channelId }: { channelId: string }) {
+  const { t } = useI18n();
+  const toast = useToast();
+  const [mods, setMods] = useState<ListedUser[]>([]);
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const refresh = useCallback(() => {
+    void getModerators(channelId).then(setMods).catch(() => {});
+  }, [channelId]);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const invite = () =>
+    void (async () => {
+      try {
+        const { token } = await createModInvite(channelId);
+        setInviteUrl(`${window.location.origin}/mod-invite/${token}`);
+        setCopied(false);
+      } catch (e) {
+        toast(e instanceof Error ? e.message : String(e), 'danger');
+      }
+    })();
+
+  const copy = () => {
+    if (!inviteUrl) return;
+    void navigator.clipboard.writeText(inviteUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const remove = (userId: string) =>
+    void (async () => {
+      try {
+        await removeModerator(channelId, userId);
+        refresh();
+        toast(t('toast.removed'));
+      } catch (e) {
+        toast(e instanceof Error ? e.message : String(e), 'danger');
+      }
+    })();
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <h2 className="font-bold">{t('dash.team')}</h2>
+          <p className="text-sm text-muted">{t('dash.teamHint')}</p>
+        </div>
+        <Button variant="primary" className="shrink-0" onClick={invite}>
+          <Icon name="send" size={16} />
+          {t('dash.invite')}
+        </Button>
+      </div>
+      {inviteUrl && (
+        <div className="mt-3">
+          <p className="mb-1 text-sm text-muted">{t('dash.inviteHint')}</p>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 break-all border-2 border-line bg-surface-2 px-3 py-2 text-xs text-twitch-light">
+              {inviteUrl}
+            </code>
+            <Button className="shrink-0" onClick={copy}>
+              <Icon name={copied ? 'check' : 'copy'} size={16} />
+            </Button>
+          </div>
+        </div>
+      )}
+      <div className="mt-4">
+        {mods.length === 0 ? (
+          <p className="text-sm text-muted">{t('dash.noModerators')}</p>
+        ) : (
+          <ul className="flex flex-col gap-1.5 text-sm">
+            {mods.map((m) => (
+              <li key={m.userId} className="flex items-center gap-2 text-muted">
+                <Icon name="shield" size={15} className="text-twitch-light" />
+                <b className="text-text">{m.displayName}</b>
+                <span className="text-xs">{m.login}</span>
+                <button
+                  onClick={() => remove(m.userId)}
+                  className="ml-auto cursor-pointer hover:text-danger"
+                  title={t('dash.removeUser')}
+                >
+                  <Icon name="close" size={16} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </Card>
   );
 }
 
