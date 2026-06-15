@@ -349,13 +349,14 @@ const ru: Dict = {
   'dash.historyEmpty': 'Пока ничего не показывалось.',
 
   // Статус первопроходца / промокоды
-  'badge.founder': 'Первопроходец',
+  // Названия статусов-«плюшек» — бренд-термины, не переводим (только англ.).
+  'badge.founder': 'Founder',
   'promo.title': 'Активировать промокод',
   'promo.activate': 'Активировать',
   'promo.enterCode': 'Введите код',
   'promo.haveCode': 'Есть промокод?',
   'promo.success': 'Промокод активирован!',
-  'promo.successFounder': 'Ты теперь первопроходец!',
+  'promo.successFounder': 'Ты теперь Founder!',
   'promo.toDashboard': 'В дашборд',
   'promo.loginToActivate': 'Войди, чтобы активировать код',
   // Админка
