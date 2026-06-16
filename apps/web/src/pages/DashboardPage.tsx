@@ -431,29 +431,39 @@ export function DashboardPage() {
       {history.length === 0 ? (
         <p className="text-sm text-muted">{t('dash.historyEmpty')}</p>
       ) : (
-        <Card>
-          <ul className="flex flex-col gap-1.5 text-sm">
-            {history.map((h) => {
-              const si = STATUS_ICON[h.status];
-              return (
-                <li key={h.id} className="flex items-center gap-2 text-muted">
-                  <Icon name={si.icon} size={15} className={si.cls} />
-                  <b className="text-text">{h.senderName ?? t('common.anon')}</b>
-                  <span>· {h.kind}</span>
-                  <span className="ml-auto text-xs">{new Date(h.createdAt).toLocaleString()}</span>
-                  {h.senderUserId && !bannedIds.has(h.senderUserId) && (
-                    <button
-                      onClick={() => void banById(h.senderUserId!, h.senderName ?? t('dash.thisSender'))}
-                      className="cursor-pointer text-muted hover:text-danger"
-                      title={t('dash.ban')}
-                    >
-                      <Icon name="user-x" size={16} />
-                    </button>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+        <Card className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <tbody>
+              {history.map((h) => {
+                const si = STATUS_ICON[h.status];
+                return (
+                  <tr key={h.id} className="border-t border-line/40 first:border-t-0">
+                    <td className="py-1.5 pr-2 align-middle">
+                      <Icon name={si.icon} size={15} className={si.cls} />
+                    </td>
+                    <td className="py-1.5 pr-3 align-middle">
+                      <b className="text-text">{h.senderName ?? t('common.anon')}</b>
+                    </td>
+                    <td className="py-1.5 pr-3 align-middle text-muted">{h.kind}</td>
+                    <td className="w-full whitespace-nowrap py-1.5 pr-2 text-right align-middle text-xs text-muted">
+                      {new Date(h.createdAt).toLocaleString()}
+                    </td>
+                    <td className="py-1.5 text-right align-middle">
+                      {h.senderUserId && !bannedIds.has(h.senderUserId) && (
+                        <button
+                          onClick={() => void banById(h.senderUserId!, h.senderName ?? t('dash.thisSender'))}
+                          className="cursor-pointer text-muted hover:text-danger"
+                          title={t('dash.ban')}
+                        >
+                          <Icon name="user-x" size={16} />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </Card>
       )}
     </Shell>
@@ -843,22 +853,23 @@ function RepChip({ rep }: { rep?: ReputationStats }) {
     );
   }
   return (
-    <span className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs text-muted">
+    <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
       {founder}
-      <span className="flex items-center gap-0.5 text-ok" title={t('dash.repAccepted')}>
+      <span className="flex items-center gap-1 text-ok" title={t('dash.repAccepted')}>
         <Icon name="check" size={12} />
         {rep.accepted}
       </span>
-      <span className="flex items-center gap-0.5" title={t('dash.repRejected')}>
+      <span className="flex items-center gap-1" title={t('dash.repRejected')}>
         <Icon name="close" size={12} />
         {rep.rejected}
       </span>
-      <span className="flex items-center gap-0.5" title={t('dash.repWhitelisted')}>
+      <span className="h-3 w-px bg-line" aria-hidden="true" />
+      <span className="flex items-center gap-1" title={t('dash.repWhitelisted')}>
         <Icon name="star" size={12} />
         {rep.whitelistedChannels}
       </span>
       <span
-        className={`flex items-center gap-0.5 ${rep.bannedChannels > 0 ? 'text-danger' : ''}`}
+        className={`flex items-center gap-1 ${rep.bannedChannels > 0 ? 'text-danger' : ''}`}
         title={t('dash.repBanned')}
       >
         <Icon name="user-x" size={12} />
@@ -963,38 +974,46 @@ function ModerationQueue({
         <div className="flex flex-col gap-3">
           {pending.map((s) => (
             <Card key={s.id}>
-              <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
-                <span className="flex items-center gap-2">
-                  <Icon name={KIND_ICON[s.kind]} size={15} />
-                  <b className="text-text">{s.senderName ?? t('common.anon')}</b>
+              <div className="flex items-start justify-between gap-3">
+                <span className="flex min-w-0 items-center gap-2 text-sm">
+                  <Icon name={KIND_ICON[s.kind]} size={15} className="shrink-0 text-muted" />
+                  <b className="truncate text-text">{s.senderName ?? t('common.anon')}</b>
                   {s.senderUserId && trustedIds.has(s.senderUserId) && (
-                    <span className="border border-ok/40 bg-ok/15 px-1.5 text-xs text-ok">{t('dash.trusted')}</span>
+                    <span className="shrink-0 border border-ok/40 bg-ok/15 px-1.5 py-0.5 text-xs text-ok">
+                      {t('dash.trusted')}
+                    </span>
                   )}
                 </span>
-                <RepChip rep={s.senderUserId ? reputation[s.senderUserId] : undefined} />
-                <span className="text-xs">
+                <span className="shrink-0 whitespace-nowrap text-xs text-muted">
                   {s.kind === 'youtube' && s.durationMs <= 0
                     ? '∞'
                     : formatDuration(s.durationMs, t)}{' '}
                   · {new Date(s.createdAt).toLocaleTimeString()}
                 </span>
               </div>
-              <Preview s={s} />
-              <div className="mt-3 flex flex-wrap gap-2">
+              {s.senderUserId && reputation[s.senderUserId] && (
+                <div className="mt-1.5">
+                  <RepChip rep={reputation[s.senderUserId]} />
+                </div>
+              )}
+              <div className="mt-3">
+                <Preview s={s} />
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
                 <Button variant="primary" onClick={() => approve(s)}>
                   <Icon name="check" size={16} />
                   {t('dash.approve')}
                 </Button>
                 <Button onClick={() => trust(s)}>
-                  <Icon name="star" size={16} />
+                  <Icon name="star" size={16} className="text-twitch-light" />
                   {t('dash.approveWhitelist')}
                 </Button>
-                <Button variant="ghost" onClick={() => reject(s)}>
+                <Button className="ml-auto" onClick={() => reject(s)}>
                   <Icon name="close" size={16} />
                   {t('dash.reject')}
                 </Button>
-                <Button variant="danger" onClick={() => onBan(s)}>
-                  <Icon name="user-x" size={16} />
+                <Button className="hover:border-danger hover:text-danger" onClick={() => onBan(s)}>
+                  <Icon name="user-x" size={16} className="text-danger" />
                   {t('dash.ban')}
                 </Button>
               </div>
