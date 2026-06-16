@@ -69,6 +69,8 @@ export interface MediaPlayPayload {
   youtubeId?: string;
   /** YouTube: старт-секунда из таймкода ссылки (0 — с начала). */
   youtubeStartSeconds?: number;
+  /** YouTube Music (music.youtube.com): рендерить компактным плеером, а не на весь кадр. */
+  youtubeMusic?: boolean;
 }
 
 /** Статус отправки для живого индикатора у зрителя ('playing' — транзиентный, не в БД). */

@@ -239,9 +239,10 @@ export class PlaybackManager {
       ttsText: (channel?.ttsMessage ?? false) && !!sub.text,
       // У музыки может быть своя раскладка; сервер сам выбирает нужную по типу медиа,
       // поэтому оверлею всё равно — он просто применяет position/size/margin из payload.
-      ...resolveLayout(sub.kind, channel),
+      ...resolveLayout(sub.kind, channel, sub.mime === 'audio/youtube'),
       youtubeId: sub.youtubeId ?? undefined,
       youtubeStartSeconds: sub.youtubeStart,
+      youtubeMusic: sub.mime === 'audio/youtube',
     };
   }
 
@@ -267,9 +268,11 @@ function resolveLayout(
     musicSize: number;
     musicMargin: number;
   } | null | undefined,
+  isMusic = false,
 ): Pick<MediaPlayPayload, 'position' | 'size' | 'margin'> {
   if (!channel) return { position: 'center', size: 80, margin: 0 };
-  const useMusic = kind === 'audio' && channel.musicSeparate;
+  // YouTube Music идёт по музыкальной раскладке наравне с аудиофайлами.
+  const useMusic = (kind === 'audio' || isMusic) && channel.musicSeparate;
   return useMusic
     ? { position: channel.musicPosition, size: channel.musicSize, margin: channel.musicMargin }
     : { position: channel.overlayPosition, size: channel.overlaySize, margin: channel.overlayMargin };

@@ -228,7 +228,8 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
               .send({ error: 'Не удалось открыть видео с YouTube (приватное/удалённое?)' });
           }
           kind = 'youtube';
-          outMime = 'video/youtube';
+          // music.youtube.com → помечаем как музыку (оверлей покажет компактным плеером).
+          outMime = yt.isMusic ? 'audio/youtube' : 'video/youtube';
           youtubeId = yt.videoId;
           youtubeStart = yt.startSeconds;
           // Длительность заранее неизвестна (играем до конца) — оверлей сообщит реальную.

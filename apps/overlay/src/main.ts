@@ -206,9 +206,11 @@ function createYoutubePlayer(payload: MediaPlayPayload): HTMLElement {
   const container = document.createElement('div');
   container.className = 'youtube';
   // Явные размеры 16:9 БЕЗ css aspect-ratio: старые сборки CEF в OBS его не поддерживают,
-  // из-за чего контейнер схлопывается в высоту 0 и плеер не виден. calc(vw) понимают все версии.
-  container.style.width = `${payload.size}vw`;
-  container.style.height = `calc(${payload.size}vw * 9 / 16)`;
+  // из-за чего контейнер схлопывается в высоту 0 и плеер не виден. calc/min понимают все версии.
+  // YouTube Music — компактный плеер (потолок ширины), обычное видео — на заданный размер.
+  const widthExpr = payload.youtubeMusic ? `min(${payload.size}vw, 460px)` : `${payload.size}vw`;
+  container.style.width = widthExpr;
+  container.style.height = `calc(${widthExpr} * 9 / 16)`;
   container.style.maxWidth = '100%';
 
   const mount = document.createElement('div');

@@ -10,6 +10,8 @@ export interface ParsedYoutube {
   startSeconds: number;
   /** Остаток текста без самой ссылки — пойдёт подписью. */
   caption?: string;
+  /** Ссылка с music.youtube.com — показываем компактным музыкальным плеером. */
+  isMusic: boolean;
 }
 
 const VIDEO_ID_RE = /^[A-Za-z0-9_-]{11}$/;
@@ -46,7 +48,7 @@ export function parseYoutube(input: string): ParsedYoutube | null {
   );
   const caption = input.replace(urlMatch[0], ' ').replace(/\s+/g, ' ').trim() || undefined;
 
-  return { videoId, startSeconds, caption };
+  return { videoId, startSeconds, caption, isMusic: host === 'music.youtube.com' };
 }
 
 /** Таймкод "90", "90s", "1m30s", "1h2m3s" → секунды (с потолком 24ч против мусора/переполнения). */
