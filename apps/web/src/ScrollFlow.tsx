@@ -7,8 +7,9 @@ import { useI18n } from './i18n';
  * а «дорожка» этапов проезжает под ним (загрузка → обработка → модерация → на стриме).
  * Объект собирается из облака пикселей и держит форму на каждом этапе.
  *
- * Авто-проигрыш по времени с плавным easing и зацикливанием вперёд-назад (ping-pong) —
- * одинаково на десктопе и мобиле, без привязки к скроллу (поэтому никаких рывков от колеса).
+ * Авто-проигрыш по времени с плавным easing: проход вперёд (загрузка → эфир) с развилкой
+ * у модерации, затем быстрый возврат кучки одной дугой прямо в начало (без отмотки станций).
+ * Одинаково на десктопе и мобиле, без привязки к скроллу (поэтому никаких рывков от колеса).
  * Крутится только пока секция в зоне видимости; при prefers-reduced-motion — статичная полоса.
  */
 
@@ -25,8 +26,11 @@ const PHASES: Array<['h', number] | ['t', number, number]> = [
   ['h', 0], ['t', 0, 1], ['h', 1], ['t', 1, 2], ['h', 2], ['t', 2, 3], ['h', 3], ['t', 3, 4], ['h', 4],
 ];
 const WEIGHTS = [0.7, 1.15, 0.95, 1.15, 0.95, 1.15, 0.95, 1.15, 1.05];
-const SPEED = 1 / 6500; // прогресс p за миллисекунду (полный проход ~6.5с)
-const END_PAUSE = 900; // пауза на крайних точках перед разворотом, мс
+const FWD_DUR = 6500; // длительность прохода вперёд (загрузка → эфир), мс
+const RETURN_DUR = 1000; // быстрый возврат кучки прямо в начало (без станций), мс
+const RETURN_HOP = 64; // высота дуги возврата
+const END_PAUSE = 900; // пауза на результате (в эфире / отклонено) перед возвратом, мс
+const START_PAUSE = 400; // короткая пауза в начале перед новым проходом, мс
 
 // Развилка на станции модерации: исход выбирается раз за проход (forward), держится
 // весь forward+reverse, поэтому frame(p, verdict) остаётся чистой функцией и реверс
@@ -228,16 +232,43 @@ export function ScrollFlow() {
       );
     }
 
-    // Вердикт держим весь forward+reverse; новый исход выбираем в начале каждого
-    // прохода (когда p возвращается к 0). Первый проход — ORDER[0] = APPROVE.
+    // Возврат: кучка не отматывается через станции, а одной быстрой дугой летит из
+    // конечной точки (монитор / щит при отказе) прямо в начало и собирается в кучку.
+    function frameReturn(rp: number) {
+      const e = smooth(rp);
+      const endWorld = verdict === REJECT ? WS[3]! : WS[4]!;
+      const fromShape = verdict === REJECT ? shapes[0]! : shapes[4]!;
+      const to = shapes[0]!;
+      const wsCur = endWorld * (1 - e);
+      const y = BASE_Y - RETURN_HOP * Math.sin(Math.PI * rp);
+      world!.setAttribute('transform', `translate(${(CX - wsCur).toFixed(1)} 0)`);
+      for (let k = 0; k < N; k++) {
+        const a = fromShape[k % fromShape.length]!;
+        const b = to[k % to.length]!;
+        rects[k]!.setAttribute('x', (CX + a[0] + (b[0] - a[0]) * e - 1.35).toFixed(1));
+        rects[k]!.setAttribute('y', (y + a[1] + (b[1] - a[1]) * e - 1.35).toFixed(1));
+      }
+      // На возврате ничего не подсвечиваем, монитор гасим, стампы прячем.
+      nameRefs.current.forEach((el) => el?.setAttribute('fill', '#8b8b96'));
+      tickRefs.current.forEach((el) => el?.setAttribute('fill', '#33333d'));
+      monRef.current?.setAttribute('stroke', '#0e7490');
+      checkRef.current?.setAttribute('opacity', '0');
+      closeRef.current?.setAttribute('opacity', '0');
+      starRef.current?.setAttribute('opacity', '0');
+    }
+
+    // Вердикт держим весь цикл; новый исход выбираем в начале каждого прохода.
+    // Первый проход — ORDER[0] = APPROVE.
     let cycleIdx = 0;
     let verdict = ORDER[0]!;
     frame(0, verdict);
 
-    // Авто-проигрыш по времени, зацикленный вперёд-назад (ping-pong) с паузами на концах.
+    // Авто-проигрыш: проход вперёд (FWD_DUR) → пауза на результате → быстрый возврат
+    // дугой в начало (RETURN_DUR) → короткая пауза → следующий проход.
     let raf = 0;
+    let mode: 'forward' | 'return' = 'forward';
     let p = 0;
-    let dir = 1;
+    let rp = 0;
     let holdUntil = 0;
     let last = 0;
     let running = false;
@@ -246,19 +277,30 @@ export function ScrollFlow() {
       const dt = now - last;
       last = now;
       if (now >= holdUntil) {
-        p += dir * SPEED * dt;
-        if (p >= 1) {
-          p = 1;
-          dir = -1;
-          holdUntil = now + END_PAUSE;
-        } else if (p <= 0) {
-          p = 0;
-          dir = 1;
-          holdUntil = now + END_PAUSE;
-          cycleIdx = (cycleIdx + 1) % ORDER.length;
-          verdict = ORDER[cycleIdx]!;
+        if (mode === 'forward') {
+          p += dt / FWD_DUR;
+          if (p >= 1) {
+            p = 1;
+            frame(1, verdict);
+            mode = 'return';
+            rp = 0;
+            holdUntil = now + END_PAUSE; // даём прочитать исход
+          } else {
+            frame(p, verdict);
+          }
+        } else {
+          rp += dt / RETURN_DUR;
+          if (rp >= 1) {
+            mode = 'forward';
+            p = 0;
+            cycleIdx = (cycleIdx + 1) % ORDER.length;
+            verdict = ORDER[cycleIdx]!;
+            frame(0, verdict);
+            holdUntil = now + START_PAUSE;
+          } else {
+            frameReturn(rp);
+          }
         }
-        frame(p, verdict);
       }
       raf = requestAnimationFrame(loop);
     };
