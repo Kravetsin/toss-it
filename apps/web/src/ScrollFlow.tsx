@@ -28,6 +28,23 @@ const WEIGHTS = [0.7, 1.15, 0.95, 1.15, 0.95, 1.15, 0.95, 1.15, 1.05];
 const SPEED = 1 / 6500; // прогресс p за миллисекунду (полный проход ~6.5с)
 const END_PAUSE = 900; // пауза на крайних точках перед разворотом, мс
 
+// Развилка на станции модерации: исход выбирается раз за проход (forward), держится
+// весь forward+reverse, поэтому frame(p, verdict) остаётся чистой функцией и реверс
+// (ping-pong) проигрывается без рывка. Порядок подобран так, что первый показ гостю —
+// всегда «одобрено», а «отклонено» выпадает раз в 4 прохода.
+const APPROVE = 0;
+const REJECT = 1;
+const TRUST = 2;
+const ORDER = [APPROVE, TRUST, APPROVE, REJECT];
+const TRUST_HOP = 92; // высота дуги, по которой «свой» перелетает ПОВЕРХ щита
+const REJECT_RECOIL = 40; // отскок влево от щита
+const REJECT_DIP = 14; // просадка к дорожке на отскоке
+const REJECT_SCAT = 34; // как сильно пиксели рассыпаются и собираются обратно
+
+/** Трапеция 0→1→0: плавный заход [a,b], плато, плавный выход [c,d]. Для прозрачности стампов. */
+const pulse = (x: number, a: number, b: number, c: number, d: number) =>
+  x < a ? 0 : x < b ? (x - a) / (b - a) : x < c ? 1 : x < d ? 1 - (x - c) / (d - c) : 0;
+
 type Pt = [number, number];
 
 function buildTimeline() {
@@ -76,6 +93,10 @@ export function ScrollFlow() {
   const monRef = useRef<SVGRectElement>(null);
   const nameRefs = useRef<(SVGTextElement | null)[]>([]);
   const tickRefs = useRef<(SVGRectElement | null)[]>([]);
+  // Стампы-вердикты, всплывающие над щитом: ✓ одобрено, ✕ отклонено, ★ свой (без проверки).
+  const checkRef = useRef<SVGGElement>(null);
+  const closeRef = useRef<SVGGElement>(null);
+  const starRef = useRef<SVGGElement>(null);
 
   useEffect(() => {
     if (reduced) return;
@@ -97,6 +118,12 @@ export function ScrollFlow() {
     }
     const shapes: Pt[][] = [cluster, ...STAGE_ICONS.map((name) => sampleShape(ctx, ICONS[name]!.join(' ')))];
     const cum = buildTimeline();
+    // Регион «модерации»: TRUST перелетает 440→900 поверх щита (фазы 5–7);
+    // REJECT отскакивает у щита и не идёт к монитору (фазы 6–8).
+    const tStart = cum[5]!,
+      tEnd = cum[8]!;
+    const rStart = cum[6]!,
+      rEnd = cum[9]!;
 
     const rects: SVGRectElement[] = [];
     const rnd: Pt[] = [];
@@ -111,7 +138,7 @@ export function ScrollFlow() {
       rnd.push([Math.random() * 2 - 1, Math.random() * 2 - 1]);
     }
 
-    function frame(p: number) {
+    function frame(p: number, verdict: number) {
       if (p < 0) p = 0;
       if (p > 1) p = 1;
       let i = 0;
@@ -141,6 +168,36 @@ export function ScrollFlow() {
         scat = 27 * Math.sin(Math.PI * lt);
         active = tt;
       }
+      // Развилка у щита — перезаписываем геометрию по вердикту. Оба ветвления
+      // непрерывны на границах региона, поэтому реверс ping-pong не дёргается.
+      if (verdict === TRUST && p >= tStart && p <= tEnd) {
+        // «Свой» — перелёт ПОВЕРХ щита одной дугой 440→900, в щит не превращается.
+        const q = (p - tStart) / (tEnd - tStart);
+        wsCur = WS[2]! + (WS[4]! - WS[2]!) * smooth(q);
+        hop = TRUST_HOP * Math.sin(Math.PI * q);
+        scat = 0;
+        if (q < 0.25) {
+          from = shapes[2]!; // спиннер → кучка на взлёте
+          to = shapes[0]!;
+          e = smooth(q / 0.25);
+        } else {
+          from = shapes[0]!; // кучка → play на снижении к монитору
+          to = shapes[4]!;
+          e = smooth((q - 0.25) / 0.75);
+        }
+        active = q >= 0.85 ? 4 : 0; // щит не подсвечиваем; монитор зажигаем под конец
+      } else if (verdict === REJECT && p >= rStart) {
+        // Отклонено — отскок у щита, рассыпание и сбор обратно в нейтральную кучку.
+        const r = (p - rStart) / (rEnd - rStart);
+        const b = Math.sin(Math.PI * r);
+        wsCur = WS[3]! - REJECT_RECOIL * b;
+        hop = -REJECT_DIP * b;
+        scat = REJECT_SCAT * b;
+        from = shapes[3]!; // щит → кучка
+        to = shapes[0]!;
+        e = smooth(Math.min(r / 0.5, 1));
+        active = r < 0.25 ? 3 : 0; // коротко горит щит, монитор остаётся тёмным
+      }
       world!.setAttribute('transform', `translate(${(CX - wsCur).toFixed(1)} 0)`);
       const y = BASE_Y - hop;
       for (let k = 0; k < N; k++) {
@@ -156,9 +213,26 @@ export function ScrollFlow() {
       nameRefs.current.forEach((el, idx) => el?.setAttribute('fill', idx === li ? '#67e8f9' : '#8b8b96'));
       tickRefs.current.forEach((el, idx) => el?.setAttribute('fill', idx === li ? '#22d3ee' : '#33333d'));
       monRef.current?.setAttribute('stroke', active === 4 ? '#67e8f9' : '#0e7490');
+      // Стампы-вердикты над щитом (экранные координаты, не едут с миром).
+      const cp6 = (p - cum[6]!) / (cum[7]! - cum[6]!); // прогресс паузы на щите
+      const sq = (p - tStart) / (tEnd - tStart);
+      const sr = (p - rStart) / (rEnd - rStart);
+      checkRef.current?.setAttribute('opacity', String(verdict === APPROVE ? pulse(cp6, 0.15, 0.4, 0.85, 1) : 0));
+      closeRef.current?.setAttribute(
+        'opacity',
+        String(verdict === REJECT && p >= rStart ? pulse(sr, 0.1, 0.3, 0.75, 0.95) : 0),
+      );
+      starRef.current?.setAttribute(
+        'opacity',
+        String(verdict === TRUST && p >= tStart && p <= tEnd ? pulse(sq, 0.3, 0.42, 0.62, 0.74) : 0),
+      );
     }
 
-    frame(0);
+    // Вердикт держим весь forward+reverse; новый исход выбираем в начале каждого
+    // прохода (когда p возвращается к 0). Первый проход — ORDER[0] = APPROVE.
+    let cycleIdx = 0;
+    let verdict = ORDER[0]!;
+    frame(0, verdict);
 
     // Авто-проигрыш по времени, зацикленный вперёд-назад (ping-pong) с паузами на концах.
     let raf = 0;
@@ -181,8 +255,10 @@ export function ScrollFlow() {
           p = 0;
           dir = 1;
           holdUntil = now + END_PAUSE;
+          cycleIdx = (cycleIdx + 1) % ORDER.length;
+          verdict = ORDER[cycleIdx]!;
         }
-        frame(p);
+        frame(p, verdict);
       }
       raf = requestAnimationFrame(loop);
     };
@@ -225,6 +301,14 @@ export function ScrollFlow() {
               <Icon name={name} size={30} className="text-twitch-light" />
               <span className="mt-2 font-display text-sm text-text">{stages[i]!.name}</span>
               <span className="text-xs text-muted">{stages[i]!.cap}</span>
+              {/* Модерация — это развилка: одобрить ✓ / отклонить ✕ / свой без проверки ★. */}
+              {i === 2 && (
+                <span className="mt-1 flex gap-1.5">
+                  <Icon name="check" size={16} className="text-ok" />
+                  <Icon name="close" size={16} className="text-danger" />
+                  <Icon name="star" size={16} className="text-warn" />
+                </span>
+              )}
             </div>
           ))}
         </div>
@@ -248,6 +332,8 @@ export function ScrollFlow() {
         >
           <g ref={worldRef} transform="translate(340 0)">
             <line x1={-60} y1={150} x2={980} y2={150} stroke="#33333d" strokeWidth={2} strokeDasharray="2 5" />
+            {/* Тусклый ориентир fast-lane: «свои» уходят этой дугой поверх щита. */}
+            <path d="M 580 100 Q 660 -28 740 100" fill="none" stroke="#67e8f9" strokeWidth={2} strokeDasharray="3 5" opacity={0.18} />
             {[218, 438, 658].map((x, i) => (
               <rect
                 key={i}
@@ -285,6 +371,22 @@ export function ScrollFlow() {
             ))}
           </g>
           <g ref={partsRef} />
+          {/* Стампы-вердикты в экранных координатах — всплывают над щитом (центр CX, y≈84). */}
+          <g ref={checkRef} opacity={0} fill="#34d399" transform="translate(330.4 74.4) scale(0.8)">
+            {ICONS.check!.map((d, i) => (
+              <path key={i} d={d} />
+            ))}
+          </g>
+          <g ref={closeRef} opacity={0} fill="#f87171" transform="translate(330.4 74.4) scale(0.8)">
+            {ICONS.close!.map((d, i) => (
+              <path key={i} d={d} />
+            ))}
+          </g>
+          <g ref={starRef} opacity={0} fill="#fbbf24" transform="translate(330.4 74.4) scale(0.8)">
+            {ICONS.star!.map((d, i) => (
+              <path key={i} d={d} />
+            ))}
+          </g>
         </svg>
       </div>
     </section>

@@ -7,6 +7,12 @@
       "runtimeArgs": ["--filter", "@tmw/server", "exec", "tsx", "scripts/preview.ts"],
       "autoPort": true,
       "port": 3100
+    },
+    {
+      "name": "web-dev",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@tmw/web", "dev"],
+      "port": 5173
     }
   ]
 }
