@@ -50,6 +50,23 @@ export const config = {
   /** Сколько держать на экране статичные картинки и гифки. */
   imageDurationMs: 8_000,
 
+  /** Обработка медиа: лимиты против спайков памяти (sharp/ffmpeg держат нативную RAM). */
+  media: {
+    /** Сколько тяжёлых задач (декод/транскод) выполнять одновременно. На 512МБ — 1. */
+    concurrency: Number(process.env.MEDIA_CONCURRENCY ?? 1),
+    /**
+     * Бюджет на «развёрнутую» анимацию: ширина×высота×4×кадры (сырой RGBA в памяти).
+     * Сверх него gif/webp обрабатываем как один кадр, а не как анимацию. По умолчанию ~96МБ.
+     */
+    animatedPixelBudgetBytes: Number(process.env.ANIMATED_PIXEL_BUDGET_BYTES ?? 96 * 1024 * 1024),
+    /** Жёсткий потолок пикселей на один кадр (защита от pixel-bomb). ~24 МП. */
+    maxInputPixels: Number(process.env.MAX_INPUT_PIXELS ?? 24_000_000),
+    /** Таймаут ffmpeg-транскода: зависший процесс убиваем, чтобы не держал RAM. */
+    ffmpegTimeoutMs: Number(process.env.FFMPEG_TIMEOUT_MS ?? 120_000),
+    /** Таймаут ffprobe (определение длительности). */
+    ffprobeTimeoutMs: Number(process.env.FFPROBE_TIMEOUT_MS ?? 30_000),
+  },
+
   /** mime по magic bytes (file-type) → вид медиа. Всё остальное отклоняется. */
   allowedMime: {
     'image/jpeg': 'image',

@@ -20,6 +20,10 @@ services:
         sync: false
       - key: COOKIE_SECRET
         generateValue: true
+      # Потолок V8-кучи ниже лимита контейнера, чтобы GC срабатывал до OOM-kill.
+      # На free (512МБ) держи 256-320; при апгрейде до 1-2ГБ подними до 768/1536.
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=320
       # Кто может выпускать промокоды (/admin): id юзеров через запятую,
       # вида twitch:123... или google:... Свой id: залогинься и открой /api/auth/me.
       - key: ADMIN_USER_IDS
