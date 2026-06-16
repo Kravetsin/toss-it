@@ -4,10 +4,10 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react';
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
 
 // Жёсткая offset-тень «проваливается» при нажатии (active) — эффект кнопки автомата.
-const press = 'active:translate-x-[3px] active:translate-y-[3px] active:shadow-none';
+const press = 'active:translate-x-[2px] active:translate-y-[2px] active:shadow-none';
 
 const buttonVariants: Record<ButtonVariant, string> = {
-  primary: `bg-twitch hover:bg-twitch-light text-[#06323b] border-twitch-dark shadow-[3px_3px_0_0_var(--color-twitch-dark)] [text-shadow:1px_1px_0_rgba(255,255,255,0.3)] ${press}`,
+  primary: `bg-twitch hover:bg-twitch-light text-[#06323b] border-twitch-dark shadow-[2px_2px_0_0_var(--color-twitch-dark)] ${press}`,
   secondary: `bg-surface-2 hover:bg-line text-text border-line shadow-pixel-sm ${press}`,
   danger: `bg-danger hover:bg-[#ff6675] text-[#1a0508] border-[#c2303d] shadow-pixel-sm ${press}`,
   ghost: 'bg-transparent hover:bg-surface-2 text-muted hover:text-text border-transparent hover:border-line',
@@ -20,7 +20,7 @@ export function Button({
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant }) {
   return (
     <button
-      className={`inline-flex cursor-pointer items-center gap-2 rounded-none border-2 px-4 py-2 font-display text-sm uppercase tracking-wide transition-[transform,box-shadow,background-color] duration-75 outline-twitch-light focus-visible:outline-2 focus-visible:outline-offset-2 disabled:translate-x-0 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none ${buttonVariants[variant]} ${className}`}
+      className={`inline-flex cursor-pointer items-center gap-2 rounded-none border-2 px-3 py-1.5 font-body text-sm font-semibold uppercase tracking-wide transition-[transform,box-shadow,background-color] duration-75 outline-twitch-light focus-visible:outline-2 focus-visible:outline-offset-2 disabled:translate-x-0 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none ${buttonVariants[variant]} ${className}`}
       {...rest}
     />
   );
@@ -37,7 +37,7 @@ export function Card({
 }) {
   return (
     <section
-      className={`rounded-none border-[3px] border-line bg-surface p-5 ${accent ? 'card-pixel-accent' : 'card-pixel'} ${className}`}
+      className={`rounded-none border-2 border-line bg-surface p-4 ${accent ? 'card-pixel-accent' : 'card-pixel'} ${className}`}
     >
       {children}
     </section>
@@ -51,7 +51,7 @@ export function Alert({ tone, children }: { tone: 'ok' | 'warn' | 'danger'; chil
     danger: 'border-danger text-danger bg-[color-mix(in_srgb,var(--color-danger)_14%,var(--color-surface))]',
   };
   return (
-    <div className={`flex items-center gap-2 rounded-none border-[3px] border-l-[6px] px-4 py-3 ${tones[tone]}`}>
+    <div className={`flex items-center gap-2 rounded-none border-2 border-l-4 px-3 py-2 ${tones[tone]}`}>
       {children}
     </div>
   );
@@ -61,7 +61,7 @@ export function Alert({ tone, children }: { tone: 'ok' | 'warn' | 'danger'; chil
 export function Badge({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 border-2 border-twitch bg-twitch/20 px-2 py-0.5 font-display text-xs uppercase tracking-wide text-twitch-light ${className}`}
+      className={`inline-flex items-center gap-1.5 border border-twitch/50 bg-twitch/15 px-2 py-0.5 font-body text-xs font-semibold uppercase tracking-wide text-twitch-light ${className}`}
     >
       {children}
     </span>
@@ -151,14 +151,14 @@ export function Loader({ label }: { label?: string }) {
 
 export function Avatar({ url, name, size = 48 }: { url: string | null; name: string; size?: number }) {
   // Аватар — единственное исключение из «всё квадратное»: оставляем круг-«монету».
-  const frame = 'rounded-full border-[3px] border-line shadow-pixel-sm [image-rendering:pixelated]';
+  const frame = 'rounded-full border-2 border-line shadow-pixel-sm [image-rendering:pixelated]';
   if (url) {
     return <img src={url} alt={name} style={{ width: size, height: size }} className={frame} />;
   }
   return (
     <div
       style={{ width: size, height: size, fontSize: size * 0.45 }}
-      className={`flex items-center justify-center bg-twitch/30 font-display text-twitch-light ${frame}`}
+      className={`flex items-center justify-center bg-twitch/30 font-body font-semibold text-twitch-light ${frame}`}
     >
       {name.slice(0, 1).toUpperCase()}
     </div>

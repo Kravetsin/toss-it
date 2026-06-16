@@ -275,7 +275,7 @@ export function DashboardPage() {
   return (
     <Shell>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="flex items-center gap-2 text-2xl">
+        <h1 className="flex items-center gap-2">
           <Icon name="shield" size={26} className="text-twitch-light" />
           {t('dash.title')}
           {me.user.isFounder && (
@@ -370,7 +370,7 @@ export function DashboardPage() {
             type="file"
             accept="image/*,video/mp4,video/webm,audio/*"
             onChange={(e) => setTestFile(e.target.files?.[0] ?? null)}
-            className="text-sm text-muted file:mr-3 file:cursor-pointer file:rounded-none file:border-2 file:border-line file:bg-surface-2 file:px-3 file:py-1.5 file:font-display file:text-text"
+            className="text-sm text-muted file:mr-3 file:cursor-pointer file:rounded-none file:border-2 file:border-line file:bg-surface-2 file:px-3 file:py-1.5 file:font-body file:font-semibold file:text-text"
           />
           <Button type="submit" disabled={!testFile}>
             <Icon name="send" size={16} />
@@ -427,7 +427,7 @@ export function DashboardPage() {
         />
       </div>
 
-      <h2 className="mb-3 mt-8 text-lg">{t('dash.history')}</h2>
+      <h2 className="mb-3 mt-8">{t('dash.history')}</h2>
       {history.length === 0 ? (
         <p className="text-sm text-muted">{t('dash.historyEmpty')}</p>
       ) : (
@@ -579,7 +579,7 @@ function SettingsCard({
         />
       </div>
       <div className="mt-6 border-t-2 border-line pt-4">
-        <h3 className="mb-3 font-display text-sm uppercase tracking-wide text-muted">
+        <h3 className="mb-3">
           {t('dash.layout')}
         </h3>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -616,7 +616,7 @@ function SettingsCard({
         </div>
         {musicSeparate && (
           <div className="mt-3 border-l-2 border-twitch/40 pl-4">
-            <h4 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-twitch-light">
+            <h4 className="mb-2 flex items-center gap-1.5 text-twitch-light">
               <Icon name="volume-2" size={15} />
               {t('dash.musicLayout')}
             </h4>
@@ -943,7 +943,7 @@ function ModerationQueue({
   return (
     <>
       <div className="mb-3 mt-8 flex items-center justify-between gap-2">
-        <h2 className="flex items-center gap-2 text-lg">
+        <h2 className="flex items-center gap-2">
           {t('dash.modQueue')}
           {pending.length > 0 && (
             <span className="border-2 border-twitch-dark bg-twitch px-2 py-0.5 text-sm text-white">
@@ -1036,7 +1036,7 @@ function ViewBtn({ active, onClick, label }: { active: boolean; onClick: () => v
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`cursor-pointer px-3 py-1 font-display text-sm uppercase tracking-wide ${
+      className={`cursor-pointer px-3 py-1 font-body text-sm font-semibold uppercase tracking-wide ${
         active ? 'bg-twitch text-white' : 'text-muted hover:text-text'
       }`}
     >

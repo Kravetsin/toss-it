@@ -70,14 +70,14 @@ export function HomePage() {
             height={72}
             className="[image-rendering:pixelated]"
           />
-          <h1 className="text-4xl font-extrabold">
+          <h1>
             Toss<span className="text-twitch-light">it</span>
           </h1>
           <p className="max-w-md text-muted">{t('home.tagline')}</p>
           <div className="flex flex-col items-center gap-2">
             <div className="flex items-center gap-2">
               <a href="/api/auth/login?returnTo=/">
-                <Button variant="primary" className="px-6 py-3 text-xs">
+                <Button variant="primary" className="px-6 py-3">
                   <Icon name="twitch" size={18} />
                   {t('common.loginTwitch')}
                 </Button>
@@ -87,13 +87,13 @@ export function HomePage() {
                 title={t('home.loginOther')}
                 aria-label={t('home.loginOther')}
               >
-                <Button variant="secondary" className="px-3 py-3 text-base">
+                <Button variant="secondary" className="px-3 py-3">
                   <Icon name="swap" size={18} />
                 </Button>
               </a>
             </div>
             <a href="/api/auth/google/login?returnTo=/">
-              <Button variant="primary" className="px-6 py-3 text-xs">
+              <Button variant="primary" className="px-6 py-3">
                 <Icon name="google" size={18} />
                 {t('common.loginGoogle')}
               </Button>
@@ -144,7 +144,7 @@ export function HomePage() {
       ) : (
         <div className="mt-6 flex flex-col gap-4">
           <Card>
-            <h2 className="mb-3 text-lg">{t('home.manage')}</h2>
+            <h2 className="mb-3">{t('home.manage')}</h2>
             <div className="flex flex-wrap gap-2">
               <Link to="/dashboard">
                 <Button variant="primary">
@@ -176,7 +176,7 @@ export function HomePage() {
           </Card>
 
           <Card>
-            <h2 className="mb-1 text-lg">{t('home.overlayTitle')}</h2>
+            <h2 className="mb-1">{t('home.overlayTitle')}</h2>
             <p className="mb-3 flex items-start gap-2 text-sm text-muted">
               <Icon name="square-alert" size={16} className="mt-0.5 shrink-0 text-warn" />
               <span>{t('home.overlayDesc')}</span>

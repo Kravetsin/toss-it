@@ -143,7 +143,7 @@ export function ChannelPage() {
   if (!channel) {
     return (
       <Shell>
-        <h1 className="text-2xl">{t('channel.notFoundTitle')}</h1>
+        <h1>{t('channel.notFoundTitle')}</h1>
         <p className="mt-2 text-muted">{t('channel.notFoundBody', { login })}</p>
       </Shell>
     );
@@ -160,7 +160,7 @@ export function ChannelPage() {
         <Avatar url={channel.avatarUrl} name={channel.displayName} size={56} />
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl">{channel.displayName}</h1>
+            <h1>{channel.displayName}</h1>
             {channel.isFounder && (
               <Badge>
                 <Icon name="sparkles" size={12} />
@@ -248,12 +248,12 @@ export function ChannelPage() {
                 }}
                 onDragLeave={() => setDragOver(false)}
                 onDrop={onDrop}
-                className={`flex cursor-pointer flex-col items-center gap-3 rounded-none border-[3px] border-dashed px-6 py-10 text-center transition-colors ${
+                className={`flex cursor-pointer flex-col items-center gap-3 rounded-none border-2 border-dashed px-5 py-8 text-center transition-colors ${
                   dragOver ? 'border-twitch bg-twitch/10' : 'border-line bg-surface hover:border-twitch-light/60'
                 }`}
               >
                 <Icon name="folder-plus" size={40} className="text-twitch-light" />
-                <p className="font-display text-lg">{t('channel.dropzone')}</p>
+                <p className="font-body text-sm font-semibold uppercase tracking-wide">{t('channel.dropzone')}</p>
                 <input
                   ref={inputRef}
                   type="file"
@@ -332,8 +332,8 @@ function Leaderboard({ board, meId }: { board: LeaderboardEntry[]; meId: string 
   const { t } = useI18n();
   return (
     <div className="mt-8">
-      <h2 className="mb-3 flex items-center gap-2 text-lg">
-        <Icon name="trophy" size={22} className="text-warn" />
+      <h2 className="mb-3 flex items-center gap-2">
+        <Icon name="trophy" size={16} className="text-warn" />
         {t('channel.leaderboard')}
       </h2>
       {board.length === 0 ? (
@@ -346,7 +346,7 @@ function Leaderboard({ board, meId }: { board: LeaderboardEntry[]; meId: string 
               return (
                 <li key={e.userId} className={`flex items-center gap-3 px-2 py-1 ${isYou ? 'bg-twitch/15' : ''}`}>
                   <span
-                    className={`flex h-6 w-6 shrink-0 items-center justify-center border-2 font-display text-sm ${
+                    className={`flex h-6 w-6 shrink-0 items-center justify-center border-2 font-body text-sm font-semibold ${
                       i < 3 ? 'border-twitch-dark bg-twitch text-white' : 'border-line text-muted'
                     }`}
                   >

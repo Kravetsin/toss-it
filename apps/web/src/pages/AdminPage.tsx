@@ -73,7 +73,7 @@ export function AdminPage() {
   return (
     <Shell>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="flex items-center gap-2 text-2xl">
+        <h1 className="flex items-center gap-2">
           <Icon name="sparkles" size={26} className="text-twitch-light" />
           {t('admin.title')}
         </h1>
