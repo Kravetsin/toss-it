@@ -199,3 +199,126 @@ textarea {
 .toast-in {
   animation: toast-in 0.18s steps(3) both;
 }
+
+/* ── Медиа-плееры (video/audio) и рамки изображений ─────────────────────────
+   Единая пиксельная стилистика: жёсткие offset-тени и inset-кромки, без блюра
+   и без неон-свечения (оно зарезервировано за баннером отправителя в оверлее). */
+
+/* Шахматная подложка под прозрачные PNG: тихие 16px-клетки на палитре фона. */
+@utility mat-checker {
+  background-color: var(--color-bg);
+  background-image:
+    linear-gradient(45deg, var(--color-surface) 25%, transparent 25% 75%, var(--color-surface) 75%),
+    linear-gradient(45deg, var(--color-surface) 25%, transparent 25% 75%, var(--color-surface) 75%);
+  background-size: 16px 16px;
+  background-position:
+    0 0,
+    8px 8px;
+  image-rendering: pixelated;
+}
+
+/* Дискретные «пиксельные ячейки» поверх заливки сикбара (опц. текстура):
+   2px-гуттеры цвета фона пробивают заливку — лит-сегменты без лишнего DOM. */
+@utility seek-cells {
+  background-image: repeating-linear-gradient(
+    to right,
+    transparent 0 4px,
+    var(--color-bg) 4px 6px
+  );
+}
+
+/* Нативные thumb/track у range прячем — визуал рисуют слои-divы под прозрачным input. */
+@utility seek-native {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+.seek-native::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 2px;
+  height: 10px;
+  opacity: 0;
+}
+.seek-native::-moz-range-thumb {
+  width: 2px;
+  height: 10px;
+  border: 0;
+  opacity: 0;
+}
+.seek-native::-moz-range-track {
+  background: transparent;
+}
+
+/* Спиннер буферизации: дискретный «щелчковый» поворот (steps), как у остальной системы. */
+@keyframes pixel-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.pixel-spin {
+  animation: pixel-spin 1s steps(8) infinite;
+}
+
+/* Пиксельный эквалайзер аудио-картриджа: бары снапятся по дискретным уровням (steps). */
+.eq {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 24px;
+}
+.eq > i {
+  width: 3px;
+  height: 25%;
+  background: var(--color-twitch);
+  box-shadow: inset -1px 0 0 0 var(--color-twitch-dark);
+  image-rendering: pixelated;
+}
+/* Покой/без звука — тусклые тёмно-тиловые «диоды» без правой кромки. */
+.eq:not([data-on='true']) > i {
+  background: var(--color-twitch-dark);
+  box-shadow: none;
+}
+.eq[data-on='true'] > i {
+  animation: eq-bounce 0.7s steps(4) infinite alternate;
+}
+.eq > i:nth-child(1) {
+  animation-delay: 0s;
+}
+.eq > i:nth-child(2) {
+  animation-delay: -0.13s;
+}
+.eq > i:nth-child(3) {
+  animation-delay: -0.34s;
+}
+.eq > i:nth-child(4) {
+  animation-delay: -0.08s;
+}
+.eq > i:nth-child(5) {
+  animation-delay: -0.22s;
+}
+@keyframes eq-bounce {
+  0% {
+    height: 25%;
+  }
+  25% {
+    height: 60%;
+  }
+  50% {
+    height: 100%;
+  }
+  75% {
+    height: 45%;
+  }
+  100% {
+    height: 80%;
+  }
+}
+/* Системное «уменьшить движение» — гасим анимацию эквалайзера даже без JS-флага. */
+@media (prefers-reduced-motion: reduce) {
+  .eq[data-on='true'] > i {
+    animation: none;
+    height: 40%;
+    background: var(--color-twitch-dark);
+    box-shadow: none;
+  }
+}

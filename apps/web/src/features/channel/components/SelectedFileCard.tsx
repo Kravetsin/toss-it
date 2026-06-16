@@ -1,14 +1,16 @@
 import { useI18n } from '@/i18n';
 import { mb } from '@/lib/format';
 import { Card } from '@/ui';
+import { AudioPlayer, ImageFrame, VideoPlayer } from '@/ui/media';
 
 /** Превью выбранного файла по его типу (image/video/audio). */
 function FilePreview({ file, url }: { file: File; url: string | null }) {
   if (!url) return null;
-  const cls = 'max-h-72 w-full rounded-none object-contain bg-black/40 [image-rendering:auto]';
-  if (file.type.startsWith('image/')) return <img src={url} className={cls} />;
-  if (file.type.startsWith('video/')) return <video src={url} controls muted className={cls} />;
-  if (file.type.startsWith('audio/')) return <audio src={url} controls className="w-full" />;
+  if (file.type.startsWith('image/')) return <ImageFrame src={url} alt={file.name} size="submit" />;
+  if (file.type.startsWith('video/'))
+    return <VideoPlayer src={url} size="submit" label={file.name} />;
+  if (file.type.startsWith('audio/'))
+    return <AudioPlayer src={url} size="submit" label={file.name} />;
   return null;
 }
 

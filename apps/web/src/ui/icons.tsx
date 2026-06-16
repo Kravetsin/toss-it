@@ -77,9 +77,34 @@ export const ICONS: Record<string, string[]> = {
   'volume-3': [
     'M11 22H9v-2H7v-2h2V6H7V4h2V2h2v20Zm8 0h-6v-2h6v2Zm2-2h-2v-2h2v2ZM7 18H5v-2h2v2Zm10 0h-4v-2h4v2Zm6 0h-2V6h2v12ZM5 10H3v4h2v2H1V8h4v2Zm14 6h-2V8h2v8Zm-4-2h-2v-4h2v4ZM7 8H5V6h2v2Zm10 0h-4V6h4v2Zm4-2h-2V4h2v2Zm-2-2h-6V2h6v2Z',
   ],
+  // Низкая громкость — динамик + одна волна (тот же стиль, что volume-2/3).
+  'volume-1': [
+    'M15 22h-2v-2h-2v-2h2V6h-2V4h2V2h2v20Zm-4-4H9v-2h2v2ZM9 8v2H7v4h2v2H5V8h4Zm10 6h-2v-4h2v4Zm-8-6H9V6h2v2Z',
+  ],
+  // Без звука — базовый динамик (как у volume-*) + пиксельный крест справа.
+  'volume-x': [
+    'M17 22h-2v-2h-2v-2h2V6h-2V4h2V2h2v20Zm-4-4h-2v-2h2v2ZM11 8v2H9v4h2v2H7V8h4Zm2 0h-2V6h2v2Z',
+    'M18 9h2v2h-2zm4 0h2v2h-2zm-2 2h2v2h-2zm-2 2h2v2h-2zm4 0h2v2h-2z',
+  ],
+  // Развернуть на весь экран — четыре угловые скобки по углам (как у видеоплееров).
+  fullscreen: [
+    'M4 4h6v2H6v4H4V4z',
+    'M14 4h6v6h-2V6h-4V4z',
+    'M4 14h2v4h4v2H4v-6z',
+    'M18 14h2v6h-6v-2h4v-4z',
+  ],
+  // Свернуть — скобки, стянутые к центру (углы смотрят наружу).
+  'fullscreen-exit': [
+    'M8 4h2v6h-2zM4 8h6v2H4z',
+    'M14 4h2v6h-2zM14 8h6v2h-6z',
+    'M8 14h2v6h-2zM4 14h6v2H4z',
+    'M14 14h2v6h-2zM14 14h6v2h-6z',
+  ],
   play: [
     'M15 11h-2V9h2zm0 4h-2v-2h2zm-2 2h-2v-2h2zm0-8h-2V7h2zm-2-2H9V5h2zM9 21H7V3h2zm6-8h2v-2h-2zm-6 4h2v2H9z',
   ],
+  // Пауза — две вертикальные планки (того же веса, что play).
+  pause: ['M10 4H5v16h5V4zm9 0h-5v16h5V4z'],
   'square-alert': ['M4 2h16v2H4zm0 18h16v2H4zM20 4h2v16h-2zM2 4h2v16H2zm9 2h2v8h-2zm0 10h2v2h-2z'],
   // Брендовые глифы нарисованы пиксельно под наш набор (монохром, тонируются currentColor).
   twitch: [

@@ -28,6 +28,7 @@ export function useQueueHotkeys({
     const onKey = (e: KeyboardEvent) => {
       const el = document.activeElement;
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) return;
+      if (el?.closest('[data-media-player]')) return; // фокус внутри плеера — его клавиши важнее
       if (document.querySelector('[role="dialog"]')) return; // открыт confirm бана
       const cur = pending[0];
       if (!cur) return;
