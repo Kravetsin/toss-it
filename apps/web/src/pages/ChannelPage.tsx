@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import {
   TEXT_MAX_LEN,
@@ -380,6 +380,14 @@ function FilePreview({ file, url }: { file: File; url: string | null }) {
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <main className="mx-auto min-h-screen max-w-xl px-4 py-10">
+      {/* Бренд-ссылка на главную: зритель может уйти к себе — залогиниться и создать свой канал. */}
+      <Link
+        to="/"
+        className="mb-6 inline-flex items-center gap-2 text-muted transition-colors hover:text-text"
+      >
+        <img src="/favicon.svg" alt="Tossit" width={24} height={24} />
+        <span className="font-display text-sm uppercase tracking-wide">Tossit</span>
+      </Link>
       {children}
       <p className="mt-10 text-center text-xs text-muted/60">Tossit</p>
     </main>
