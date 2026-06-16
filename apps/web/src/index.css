@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import '@fontsource/press-start-2p';
 @import '@fontsource/vt323';
 
 /* Pixel-art тема «Midnight Arcade»: почти-чёрная Twitch-база, фиолетовый —
@@ -20,7 +21,7 @@
   --color-warn: #ffca5f;
   --color-danger: #ff4d5e;
 
-  --font-display: 'VT323', monospace;
+  --font-display: 'Press Start 2P', monospace;
   --font-body: 'VT323', monospace;
 
   /* VT323 мелковат — поднимаем всю шкалу text-* на пару пунктов для читаемости. */
