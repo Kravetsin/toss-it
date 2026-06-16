@@ -205,9 +205,10 @@ function createMusicWidget(payload: MediaPlayPayload, url: string, volume: numbe
 function createYoutubePlayer(payload: MediaPlayPayload): HTMLElement {
   const container = document.createElement('div');
   container.className = 'youtube';
-  // Вписываем 16:9 в заданный размер по обеим осям (как fit:inside у остального медиа).
-  container.style.width = `min(${payload.size}vw, ${payload.size}vh * 16 / 9)`;
-  container.style.aspectRatio = '16 / 9';
+  // Явные размеры 16:9 БЕЗ css aspect-ratio: старые сборки CEF в OBS его не поддерживают,
+  // из-за чего контейнер схлопывается в высоту 0 и плеер не виден. calc(vw) понимают все версии.
+  container.style.width = `${payload.size}vw`;
+  container.style.height = `calc(${payload.size}vw * 9 / 16)`;
   container.style.maxWidth = '100%';
 
   const mount = document.createElement('div');
