@@ -1097,47 +1097,52 @@ function ReviewCard({
   const { t } = useI18n();
   return (
     <Card>
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <Icon name={KIND_ICON[cur.kind]} size={18} className="text-twitch-light" />
-            <b className="text-text">{cur.senderName ?? t('common.anon')}</b>
-            {trusted && (
-              <span className="border border-ok/40 bg-ok/15 px-1.5 text-xs text-ok">{t('dash.trusted')}</span>
-            )}
-          </div>
-          <RepChip rep={rep} />
-        </div>
-        <span className="shrink-0 text-xs text-muted">
-          {cur.kind === 'youtube' && cur.durationMs <= 0 ? '∞' : formatDuration(cur.durationMs, t)}
+      <div className="flex items-start justify-between gap-3">
+        <span className="flex min-w-0 items-center gap-2 text-sm">
+          <Icon name={KIND_ICON[cur.kind]} size={15} className="shrink-0 text-muted" />
+          <b className="truncate text-text">{cur.senderName ?? t('common.anon')}</b>
+          {trusted && (
+            <span className="shrink-0 border border-ok/40 bg-ok/15 px-1.5 py-0.5 text-xs text-ok">
+              {t('dash.trusted')}
+            </span>
+          )}
+        </span>
+        <span className="shrink-0 whitespace-nowrap text-xs text-muted">
+          {cur.kind === 'youtube' && cur.durationMs <= 0 ? '∞' : formatDuration(cur.durationMs, t)}{' '}
+          · {new Date(cur.createdAt).toLocaleTimeString()}
         </span>
       </div>
+      {rep && (
+        <div className="mt-1.5">
+          <RepChip rep={rep} />
+        </div>
+      )}
       <div className="mt-3">
         <Preview s={cur} />
       </div>
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className="mt-4 flex flex-wrap items-center gap-2">
         <Button variant="primary" onClick={onApprove}>
           <Icon name="check" size={16} />
           {t('dash.approve')}
           <Kbd k="Space" />
         </Button>
         <Button onClick={onTrust}>
-          <Icon name="star" size={16} />
+          <Icon name="star" size={16} className="text-twitch-light" />
           {t('dash.approveWhitelist')}
           <Kbd k="W" />
-        </Button>
-        <Button variant="ghost" onClick={onReject}>
-          <Icon name="close" size={16} />
-          {t('dash.reject')}
-          <Kbd k="R" />
         </Button>
         <Button onClick={onLater}>
           <Icon name="clock" size={16} />
           {t('dash.later')}
           <Kbd k="↓" />
         </Button>
-        <Button variant="danger" onClick={onBan}>
-          <Icon name="user-x" size={16} />
+        <Button className="ml-auto" onClick={onReject}>
+          <Icon name="close" size={16} />
+          {t('dash.reject')}
+          <Kbd k="R" />
+        </Button>
+        <Button className="hover:border-danger hover:text-danger" onClick={onBan}>
+          <Icon name="user-x" size={16} className="text-danger" />
           {t('dash.ban')}
           <Kbd k="B" />
         </Button>
