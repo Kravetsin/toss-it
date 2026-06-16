@@ -1,4 +1,4 @@
-import '@fontsource/pixelify-sans';
+import '@fontsource/vt323';
 import { io, type Socket } from 'socket.io-client';
 import {
   positionToFlex,

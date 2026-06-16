@@ -9,7 +9,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@fontsource/pixelify-sans": "^5.2.7",
     "@fontsource/vt323": "^5.2.7",
     "@tmw/shared": "workspace:*",
     "pixelarticons": "^2.1.2",

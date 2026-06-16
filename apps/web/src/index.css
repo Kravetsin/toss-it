@@ -1,5 +1,4 @@
 @import 'tailwindcss';
-@import '@fontsource/pixelify-sans';
 @import '@fontsource/vt323';
 
 /* Pixel-art тема «Midnight Arcade»: почти-чёрная Twitch-база, фиолетовый —
@@ -21,7 +20,7 @@
   --color-warn: #ffca5f;
   --color-danger: #ff4d5e;
 
-  --font-display: 'Pixelify Sans', sans-serif;
+  --font-display: 'VT323', monospace;
   --font-body: 'VT323', monospace;
 
   /* VT323 мелковат — поднимаем всю шкалу text-* на пару пунктов для читаемости. */

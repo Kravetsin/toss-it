@@ -1,1 +1,1 @@
-declare module '@fontsource/pixelify-sans';
+declare module '@fontsource/vt323';
