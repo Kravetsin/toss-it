@@ -3,30 +3,30 @@ import { ICONS, Icon, type IconName } from './icons';
 import { useI18n } from './i18n';
 
 /**
- * Скролл-история на странице входа: пиксельный объект стоит по центру,
- * а «дорожка» этапов проезжает под ним. Объект собирается из облака пикселей
- * и держит форму на каждом этапе (загрузка → обработка → модерация → на стриме).
+ * Анимация «как это работает» под кнопками входа: пиксельный объект стоит по центру,
+ * а «дорожка» этапов проезжает под ним (загрузка → обработка → модерация → на стриме).
+ * Объект собирается из облака пикселей и держит форму на каждом этапе.
  *
- * - десктоп: прогресс привязан к скроллу (sticky-секция);
- * - мобайл: авто-проигрыш один раз при появлении (скролл-привязка капризна на тач);
- * - prefers-reduced-motion: статичная полоса из 4 этапов, без движения.
+ * Авто-проигрыш по времени с плавным easing и зацикливанием вперёд-назад (ping-pong) —
+ * одинаково на десктопе и мобиле, без привязки к скроллу (поэтому никаких рывков от колеса).
+ * Крутится только пока секция в зоне видимости; при prefers-reduced-motion — статичная полоса.
  */
 
-// Иконки этапов (берём формы прямо из общего набора — частицы собираются по их пикселям).
 const STAGE_ICONS: IconName[] = ['upload', 'loader', 'shield', 'play'];
 const SVGNS = 'http://www.w3.org/2000/svg';
 
-// Геометрия «мира»: объект всегда в CX, станции стоят в мировых координатах ws.
 const CX = 340;
 const BASE_Y = 128;
-const WS = [0, 220, 440, 660, 900]; // [кучка, загрузка, обработка, модерация, на стриме]
+const WS = [0, 220, 440, 660, 900]; // мировые X станций: [кучка, загрузка, обработка, модерация, на стриме]
 const STATION_X = [220, 440, 660, 900];
 const N = 46;
-// Тайминг: чередование «пауза на этапе» (h) и «перелёт» (t). Паузы дают форме собраться и читаться.
+// Чередование «пауза на этапе» (h) и «перелёт» (t). Паузы дают форме собраться и читаться.
 const PHASES: Array<['h', number] | ['t', number, number]> = [
   ['h', 0], ['t', 0, 1], ['h', 1], ['t', 1, 2], ['h', 2], ['t', 2, 3], ['h', 3], ['t', 3, 4], ['h', 4],
 ];
 const WEIGHTS = [0.7, 1.15, 0.95, 1.15, 0.95, 1.15, 0.95, 1.15, 1.05];
+const SPEED = 1 / 6500; // прогресс p за миллисекунду (полный проход ~6.5с)
+const END_PAUSE = 900; // пауза на крайних точках перед разворотом, мс
 
 type Pt = [number, number];
 
@@ -67,16 +67,12 @@ export function ScrollFlow() {
   const [reduced] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   );
-  const [mobile] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches,
-  );
 
   const stages = [1, 2, 3, 4].map((n) => ({ name: t(`flow.s${n}`), cap: t(`flow.c${n}`) }));
 
   const sectionRef = useRef<HTMLElement>(null);
   const worldRef = useRef<SVGGElement>(null);
   const partsRef = useRef<SVGGElement>(null);
-  const hintRef = useRef<SVGTextElement>(null);
   const monRef = useRef<SVGRectElement>(null);
   const nameRefs = useRef<(SVGTextElement | null)[]>([]);
   const tickRefs = useRef<(SVGRectElement | null)[]>([]);
@@ -88,7 +84,6 @@ export function ScrollFlow() {
     const section = sectionRef.current;
     if (!world || !parts || !section) return;
 
-    // Формы: кучка (спираль-диск) + 4 иконки этапов.
     const cv = document.createElement('canvas');
     cv.width = 24;
     cv.height = 24;
@@ -103,7 +98,6 @@ export function ScrollFlow() {
     const shapes: Pt[][] = [cluster, ...STAGE_ICONS.map((name) => sampleShape(ctx, ICONS[name]!.join(' ')))];
     const cum = buildTimeline();
 
-    // Частицы создаём в JS (чтобы не плодить разметку и не мигать на старте).
     const rects: SVGRectElement[] = [];
     const rnd: Pt[] = [];
     for (let k = 0; k < N; k++) {
@@ -159,7 +153,6 @@ export function ScrollFlow() {
         rects[k]!.setAttribute('y', (y + by + rv[1] * scat - 1.35).toFixed(1));
       }
       const li = active - 1;
-      if (hintRef.current) hintRef.current.style.opacity = active === 0 ? '1' : '0';
       nameRefs.current.forEach((el, idx) => el?.setAttribute('fill', idx === li ? '#67e8f9' : '#8b8b96'));
       tickRefs.current.forEach((el, idx) => el?.setAttribute('fill', idx === li ? '#22d3ee' : '#33333d'));
       monRef.current?.setAttribute('stroke', active === 4 ? '#67e8f9' : '#0e7490');
@@ -167,54 +160,62 @@ export function ScrollFlow() {
 
     frame(0);
 
-    if (mobile) {
-      // Авто-проигрыш один раз при появлении секции (тач: скролл-привязка капризна).
-      let raf = 0;
-      let played = false;
-      const io = new IntersectionObserver(
-        (entries) => {
-          if (!entries[0]!.isIntersecting || played) return;
-          played = true;
-          const DUR = 4600;
-          const t0 = performance.now();
-          const step = (now: number) => {
-            const k = Math.min(1, (now - t0) / DUR);
-            frame(k);
-            if (k < 1) raf = requestAnimationFrame(step);
-          };
-          raf = requestAnimationFrame(step);
-        },
-        { threshold: 0.5 },
-      );
-      io.observe(section);
-      return () => {
-        io.disconnect();
-        cancelAnimationFrame(raf);
-        rects.forEach((r) => r.remove());
-      };
-    }
-
-    // Десктоп: прогресс = насколько прокрутили sticky-секцию. Один rect-read на событие —
-    // дёшево для одного элемента и надёжнее, чем откладывать в rAF (тот спит в фоновых вкладках).
-    const update = () => {
-      const rect = section!.getBoundingClientRect();
-      const distance = section!.offsetHeight - window.innerHeight;
-      frame(distance > 0 ? -rect.top / distance : 0);
+    // Авто-проигрыш по времени, зацикленный вперёд-назад (ping-pong) с паузами на концах.
+    let raf = 0;
+    let p = 0;
+    let dir = 1;
+    let holdUntil = 0;
+    let last = 0;
+    let running = false;
+    const loop = (now: number) => {
+      if (!last) last = now;
+      const dt = now - last;
+      last = now;
+      if (now >= holdUntil) {
+        p += dir * SPEED * dt;
+        if (p >= 1) {
+          p = 1;
+          dir = -1;
+          holdUntil = now + END_PAUSE;
+        } else if (p <= 0) {
+          p = 0;
+          dir = 1;
+          holdUntil = now + END_PAUSE;
+        }
+        frame(p);
+      }
+      raf = requestAnimationFrame(loop);
     };
-    window.addEventListener('scroll', update, { passive: true });
-    window.addEventListener('resize', update);
-    update();
+    const start = () => {
+      if (running) return;
+      running = true;
+      last = 0;
+      raf = requestAnimationFrame(loop);
+    };
+    const stop = () => {
+      running = false;
+      cancelAnimationFrame(raf);
+    };
+    // Крутим только пока секция видна (экономим CPU/батарею).
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]!.isIntersecting) start();
+        else stop();
+      },
+      { threshold: 0.35 },
+    );
+    io.observe(section);
+
     return () => {
-      window.removeEventListener('scroll', update);
-      window.removeEventListener('resize', update);
+      io.disconnect();
+      stop();
       rects.forEach((r) => r.remove());
     };
-  }, [reduced, mobile]);
+  }, [reduced]);
 
   if (reduced) {
-    // Статичная альтернатива без анимации.
     return (
-      <section className="py-12">
+      <section className="py-8">
         <p className="mb-5 text-center font-display text-sm uppercase tracking-wide text-muted">
           {t('flow.title')}
         </p>
@@ -231,85 +232,61 @@ export function ScrollFlow() {
     );
   }
 
-  const Stage = (
-    <div className="mx-auto w-full max-w-2xl px-4">
-      <p className="mb-3 text-center font-display text-sm uppercase tracking-wide text-muted">
-        {t('flow.title')}
-      </p>
-      <svg
-        width="100%"
-        viewBox="0 0 680 210"
-        shapeRendering="crispEdges"
-        role="img"
-        aria-label={t('flow.title')}
-        style={{ imageRendering: 'pixelated' }}
-      >
-        <g ref={worldRef} transform="translate(340 0)">
-          <line x1={-60} y1={150} x2={980} y2={150} stroke="#33333d" strokeWidth={2} strokeDasharray="2 5" />
-          {[218, 438, 658].map((x, i) => (
-            <rect
-              key={i}
-              ref={(el) => {
-                tickRefs.current[i] = el;
-              }}
-              x={x}
-              y={148}
-              width={4}
-              height={4}
-              fill="#33333d"
-            />
-          ))}
-          <rect ref={monRef} x={864} y={104} width={72} height={48} fill="#16161a" stroke="#0e7490" strokeWidth={2} />
-          <rect x={894} y={154} width={12} height={6} fill="#0e7490" />
-          {STATION_X.map((x, i) => (
-            <g key={i}>
-              <text
+  return (
+    <section ref={sectionRef} className="py-8">
+      <div className="mx-auto w-full max-w-2xl px-4">
+        <p className="mb-3 text-center font-display text-sm uppercase tracking-wide text-muted">
+          {t('flow.title')}
+        </p>
+        <svg
+          width="100%"
+          viewBox="0 0 680 210"
+          shapeRendering="crispEdges"
+          role="img"
+          aria-label={t('flow.title')}
+          style={{ imageRendering: 'pixelated' }}
+        >
+          <g ref={worldRef} transform="translate(340 0)">
+            <line x1={-60} y1={150} x2={980} y2={150} stroke="#33333d" strokeWidth={2} strokeDasharray="2 5" />
+            {[218, 438, 658].map((x, i) => (
+              <rect
+                key={i}
                 ref={(el) => {
-                  nameRefs.current[i] = el;
+                  tickRefs.current[i] = el;
                 }}
                 x={x}
-                y={176}
-                textAnchor="middle"
-                fill="#8b8b96"
-                className="font-display"
-                style={{ fontSize: 15 }}
-              >
-                {stages[i]!.name}
-              </text>
-              <text x={x} y={192} textAnchor="middle" fill="#5f5e5a" className="font-display" style={{ fontSize: 12 }}>
-                {stages[i]!.cap}
-              </text>
-            </g>
-          ))}
-        </g>
-        <text
-          ref={hintRef}
-          x={340}
-          y={104}
-          textAnchor="middle"
-          fill="#67e8f9"
-          className="font-display"
-          style={{ fontSize: 16 }}
-        >
-          {t('flow.scrollHint')}
-        </text>
-        <g ref={partsRef} />
-      </svg>
-    </div>
-  );
-
-  if (mobile) {
-    return (
-      <section ref={sectionRef} className="py-12">
-        {Stage}
-      </section>
-    );
-  }
-
-  // Десктоп: высокая секция + залипающая сцена по центру экрана.
-  return (
-    <section ref={sectionRef} style={{ height: '240vh', position: 'relative' }}>
-      <div className="sticky top-0 flex h-screen items-center justify-center">{Stage}</div>
+                y={148}
+                width={4}
+                height={4}
+                fill="#33333d"
+              />
+            ))}
+            <rect ref={monRef} x={864} y={104} width={72} height={48} fill="#16161a" stroke="#0e7490" strokeWidth={2} />
+            <rect x={894} y={154} width={12} height={6} fill="#0e7490" />
+            {STATION_X.map((x, i) => (
+              <g key={i}>
+                <text
+                  ref={(el) => {
+                    nameRefs.current[i] = el;
+                  }}
+                  x={x}
+                  y={176}
+                  textAnchor="middle"
+                  fill="#8b8b96"
+                  className="font-display"
+                  style={{ fontSize: 15 }}
+                >
+                  {stages[i]!.name}
+                </text>
+                <text x={x} y={192} textAnchor="middle" fill="#5f5e5a" className="font-display" style={{ fontSize: 12 }}>
+                  {stages[i]!.cap}
+                </text>
+              </g>
+            ))}
+          </g>
+          <g ref={partsRef} />
+        </svg>
+      </div>
     </section>
   );
 }

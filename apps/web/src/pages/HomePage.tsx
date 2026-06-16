@@ -99,7 +99,6 @@ export function HomePage() {
               </Button>
             </a>
           </div>
-          <p className="mt-2 text-sm text-muted">{t('flow.peek')} ↓</p>
         </div>
         <ScrollFlow />
       </Shell>

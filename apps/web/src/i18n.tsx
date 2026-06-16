@@ -48,8 +48,6 @@ const en: Dict = {
   'home.loginOther': 'Switch account',
   // Скролл-история на входе
   'flow.title': 'How it works',
-  'flow.peek': 'See how it works',
-  'flow.scrollHint': 'scroll ↓',
   'flow.s1': 'upload',
   'flow.s2': 'processing',
   'flow.s3': 'moderation',
@@ -237,8 +235,6 @@ const ru: Dict = {
   'home.loginOther': 'Сменить аккаунт',
   // Скролл-история на входе
   'flow.title': 'Как это работает',
-  'flow.peek': 'Посмотри, как это работает',
-  'flow.scrollHint': 'скролл ↓',
   'flow.s1': 'загрузка',
   'flow.s2': 'обработка',
   'flow.s3': 'модерация',
