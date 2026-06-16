@@ -16,6 +16,7 @@ import {
   transcodeAudio,
   transcodeVideo,
 } from '../media/process';
+import { parseYoutube, validateYoutube } from '../media/youtube';
 import { requireUser } from '../auth';
 import {
   dashboardRoomOf,
@@ -140,7 +141,10 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
         }
       }
 
-      text = text?.trim().slice(0, TEXT_MAX_LEN) || undefined;
+      // Полный текст нужен, чтобы распознать YouTube-ссылку ДО обрезки (иначе длинная
+      // подпись перед ссылкой могла бы её отрезать); подпись же обрезаем до лимита.
+      const fullText = text?.trim() || undefined;
+      text = fullText?.slice(0, TEXT_MAX_LEN) || undefined;
 
       // Должно быть хоть что-то: файл или текст.
       if (!hasFile && !text) {
@@ -156,6 +160,8 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
       let durationMs: number;
       let filePath: string | null = null;
       let outMime: string;
+      let youtubeId: string | null = null;
+      let youtubeStart = 0;
 
       if (hasFile) {
         // Глобальный лимит проверяет multipart, лимит канала — по факту.
@@ -212,12 +218,31 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
         filePath = `${channel.id}/${id}.${outExt}`;
         await storage.putFile(filePath, finalTmp);
       } else {
-        // Текст-онли: без транскода. Длительность показа — по «времени чтения»,
-        // но не дольше 15 с (хватает даже на 280 символов). Если озвучка длиннее —
-        // она доиграет уже без текста на экране.
-        kind = 'text';
-        outMime = 'text/plain';
-        durationMs = Math.min(15_000, Math.max(4000, 4000 + 60 * text!.length));
+        const yt = parseYoutube(fullText!);
+        if (yt) {
+          // YouTube-ссылка: ничего не качаем и не транскодируем — играет встроенный плеер.
+          const meta = await validateYoutube(yt.videoId);
+          if (!meta) {
+            return reply
+              .code(422)
+              .send({ error: 'Не удалось открыть видео с YouTube (приватное/удалённое?)' });
+          }
+          kind = 'youtube';
+          outMime = 'video/youtube';
+          youtubeId = yt.videoId;
+          youtubeStart = yt.startSeconds;
+          // Длительность заранее неизвестна (играем до конца) — оверлей сообщит реальную.
+          durationMs = 0;
+          // Подпись: остаток текста без ссылки, иначе название ролика (обрезаем до лимита).
+          text = (yt.caption ?? (meta.title || undefined))?.slice(0, TEXT_MAX_LEN) || undefined;
+        } else {
+          // Текст-онли: без транскода. Длительность показа — по «времени чтения»,
+          // но не дольше 15 с (хватает даже на 280 символов). Если озвучка длиннее —
+          // она доиграет уже без текста на экране.
+          kind = 'text';
+          outMime = 'text/plain';
+          durationMs = Math.min(15_000, Math.max(4000, 4000 + 60 * text!.length));
+        }
       }
 
       // Гибридная модерация: владелец и белый список → сразу на экран, остальные → pending.
@@ -244,6 +269,8 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
         status: whitelisted ? 'approved' : 'pending',
         createdAt: now,
         updatedAt: now,
+        youtubeId,
+        youtubeStart,
       };
       await db.insert(submissions).values(row);
 

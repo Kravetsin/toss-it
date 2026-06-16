@@ -55,6 +55,7 @@ export function toSummary(sub: SubmissionRow): SubmissionSummary {
     durationMs: sub.durationMs,
     createdAt: sub.createdAt.getTime(),
     url: `/api/media/${sub.id}`,
+    youtubeId: sub.youtubeId,
   };
 }
 
@@ -142,6 +143,28 @@ export class PlaybackManager {
     void this.tryNext(channelId);
   }
 
+  /** Оверлей сообщил реальную длительность текущего ролика (YouTube). Перенастраиваем watchdog. */
+  reportDuration(channelId: string, submissionId: string, durationMs: number): void {
+    const st = this.state(channelId);
+    // Оверлей за overlayToken (полу-доверенный) — клампим значение: мусор/огромное число
+    // иначе зарядило бы watchdog на сутки. Сверх лимита остаётся щадящий watchdog из tryNext.
+    if (
+      st.current?.id !== submissionId ||
+      !Number.isFinite(durationMs) ||
+      durationMs <= 0 ||
+      durationMs > 12 * 60 * 60 * 1000
+    )
+      return;
+    st.current.durationMs = durationMs;
+    if (st.watchdog) clearTimeout(st.watchdog);
+    st.watchdog = setTimeout(
+      () => void this.onDone(channelId, submissionId),
+      durationMs + config.watchdogGraceMs,
+    );
+    // Панель «сейчас играет» получает реальное время вместо нулевого.
+    this.io.to(dashboardRoomOf(channelId)).emit('playback:started', toSummary(st.current));
+  }
+
   private async tryNext(channelId: string): Promise<void> {
     const st = this.state(channelId);
     if (st.current || st.queue.length === 0 || this.overlayCount(channelId) === 0) return;
@@ -154,9 +177,9 @@ export class PlaybackManager {
         .from(submissions)
         .where(eq(submissions.id, candidate.id))
         .get();
-      // Текст-онли не имеет файла (filePath=null) — для него отсутствие файла нормально.
-      if (!fresh || fresh.status !== 'approved' || (!fresh.filePath && fresh.kind !== 'text'))
-        continue;
+      // Текст и YouTube не имеют файла на диске (filePath=null) — для них это норма.
+      const fileless = fresh?.kind === 'text' || fresh?.kind === 'youtube';
+      if (!fresh || fresh.status !== 'approved' || (!fresh.filePath && !fileless)) continue;
       // Пока ходили в БД, другой вызов tryNext мог занять слот.
       if (st.current) {
         st.queue.unshift(candidate);
@@ -167,10 +190,13 @@ export class PlaybackManager {
       this.io.to(roomOf(channelId)).emit('media:play', await this.buildPayload(fresh));
       this.io.to(dashboardRoomOf(channelId)).emit('playback:started', toSummary(fresh));
       emitSubmissionStatus(this.io, fresh.id, 'playing');
-      st.watchdog = setTimeout(
-        () => void this.onDone(channelId, fresh.id),
-        fresh.durationMs + config.watchdogGraceMs,
-      );
+      // YouTube: длительность узнаём только при проигрывании (см. reportDuration),
+      // поэтому до её получения держим щадящий watchdog вместо durationMs (=0).
+      const watchdogMs =
+        fresh.kind === 'youtube'
+          ? config.youtube.loadGraceMs
+          : fresh.durationMs + config.watchdogGraceMs;
+      st.watchdog = setTimeout(() => void this.onDone(channelId, fresh.id), watchdogMs);
       return;
     }
   }
@@ -214,6 +240,8 @@ export class PlaybackManager {
       // У музыки может быть своя раскладка; сервер сам выбирает нужную по типу медиа,
       // поэтому оверлею всё равно — он просто применяет position/size/margin из payload.
       ...resolveLayout(sub.kind, channel),
+      youtubeId: sub.youtubeId ?? undefined,
+      youtubeStartSeconds: sub.youtubeStart,
     };
   }
 
@@ -344,6 +372,11 @@ export function setupRealtime(io: RealtimeServer, app: FastifyInstance): Playbac
         void socket.join(roomOf(channel.id));
         socket.on('playback:done', (submissionId) => {
           if (typeof submissionId === 'string') void playback.onDone(channel.id, submissionId);
+        });
+        socket.on('playback:duration', (submissionId, durationMs) => {
+          if (typeof submissionId === 'string' && typeof durationMs === 'number') {
+            playback.reportDuration(channel.id, submissionId, durationMs);
+          }
         });
         void playback.onOverlayConnected(channel.id, (payload) =>
           socket.emit('media:play', payload),

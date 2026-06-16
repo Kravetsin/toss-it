@@ -7,6 +7,36 @@ import {
   type ServerToOverlayEvents,
 } from '@tmw/shared';
 
+// --- Минимальные типы YouTube IFrame API (без зависимости @types/youtube) ---
+interface YTPlayer {
+  setVolume(volume: number): void;
+  playVideo(): void;
+  getDuration(): number;
+  getIframe(): HTMLIFrameElement;
+  destroy(): void;
+}
+interface YTPlayerOptions {
+  videoId: string;
+  width?: string | number;
+  height?: string | number;
+  playerVars?: Record<string, string | number>;
+  events?: {
+    onReady?: (e: { target: YTPlayer }) => void;
+    onStateChange?: (e: { target: YTPlayer; data: number }) => void;
+    onError?: (e: { data: number }) => void;
+  };
+}
+interface YTNamespace {
+  Player: new (el: HTMLElement, opts: YTPlayerOptions) => YTPlayer;
+  PlayerState: { ENDED: number; PLAYING: number };
+}
+declare global {
+  interface Window {
+    YT?: YTNamespace;
+    onYouTubeIframeAPIReady?: () => void;
+  }
+}
+
 // Pixelarticons glyphs (inline, без зависимости от React-набора в оверлее).
 const GIFT_SVG =
   '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M4 6h16v2H4zM2 8h2v4H2zm2 4h16v2H4zm16-4h2v4h-2zM6 4h2v2H6zm2-2h3v2H8zm3 2h2v2h-2zm2-2h3v2h-3zm3 2h2v2h-2zM4 14h2v6H4zm2 6h12v2H6zm12-6h2v6h-2zm-7-6h2v4h-2zm0 6h2v6h-2z"/></svg>';
@@ -32,6 +62,10 @@ const socket: Socket<ServerToOverlayEvents, OverlayToServerEvents> = io(SERVER_U
 let currentId: string | null = null;
 let hideTimer: number | undefined;
 let finishing = false;
+let ytPlayer: YTPlayer | null = null;
+let ytApiPromise: Promise<void> | null = null;
+let ytReportedSid: string | null = null;
+let exitTimer: number | undefined;
 
 socket.on('connect', () => console.log('[overlay] connected'));
 socket.on('media:play', show);
@@ -77,7 +111,10 @@ function show(payload: MediaPlayPayload): void {
 
   // Жёсткий таймер: что бы файл ни «думал» о своей длительности,
   // с экрана он уйдёт не позже durationMs, выданного сервером.
-  hideTimer = window.setTimeout(finish, payload.durationMs);
+  // Для YouTube durationMs=0 (без лимита) — завершение по событию 'ended' самого плеера.
+  if (payload.durationMs > 0) {
+    hideTimer = window.setTimeout(finish, payload.durationMs);
+  }
 }
 
 function createMediaElement(payload: MediaPlayPayload, url: string): HTMLElement {
@@ -110,6 +147,10 @@ function createMediaElement(payload: MediaPlayPayload, url: string): HTMLElement
       void video.play();
     });
     return video;
+  }
+
+  if (payload.kind === 'youtube') {
+    return createYoutubePlayer(payload);
   }
 
   // Аудио: самого медиа не видно — рисуем плеер с эквалайзером, прогрессом и временем.
@@ -158,6 +199,90 @@ function createMusicWidget(payload: MediaPlayPayload, url: string, volume: numbe
 
   widget.append(progress, time, audio);
   return widget;
+}
+
+/** YouTube: встроенный IFrame-плеер. Играет до конца, длительность сообщаем серверу. */
+function createYoutubePlayer(payload: MediaPlayPayload): HTMLElement {
+  const container = document.createElement('div');
+  container.className = 'youtube';
+  // Вписываем 16:9 в заданный размер по обеим осям (как fit:inside у остального медиа).
+  container.style.width = `min(${payload.size}vw, ${payload.size}vh * 16 / 9)`;
+  container.style.aspectRatio = '16 / 9';
+  container.style.maxWidth = '100%';
+
+  const mount = document.createElement('div');
+  container.appendChild(mount);
+
+  const videoId = payload.youtubeId;
+  const sid = payload.submissionId;
+  if (!videoId) return container;
+
+  void loadYouTubeApi().then(() => {
+    // Пока грузился YT API, показ мог смениться или начать завершаться — не создаём
+    // «осиротевший» плеер, который продолжит играть звук уже после destroyYoutube().
+    if (currentId !== sid || finishing || !window.YT) return;
+    ytPlayer = new window.YT.Player(mount, {
+      videoId,
+      width: '100%',
+      height: '100%',
+      playerVars: {
+        autoplay: 1,
+        controls: 0,
+        rel: 0,
+        playsinline: 1,
+        modestbranding: 1,
+        start: payload.youtubeStartSeconds ?? 0,
+      },
+      events: {
+        onReady: (e) => {
+          if (currentId !== sid || finishing) return;
+          e.target.setVolume(Math.min(100, Math.max(0, payload.volume)));
+          e.target.playVideo();
+          const f = e.target.getIframe();
+          f.style.width = '100%';
+          f.style.height = '100%';
+          reportYoutubeDuration(sid, e.target);
+        },
+        onStateChange: (e) => {
+          // Реагируем только на события текущего показа: старый плеер мог прислать
+          // запоздалый ENDED уже после переключения на следующий ролик.
+          if (currentId !== sid || !window.YT) return;
+          if (e.data === window.YT.PlayerState.ENDED) finish();
+          else if (e.data === window.YT.PlayerState.PLAYING) reportYoutubeDuration(sid, e.target);
+        },
+        onError: () => {
+          // Видео не воспроизводится (ограничение по возрасту/региону, удалено и т.п.) —
+          // не держим пустой кадр до watchdog, сразу завершаем показ.
+          if (currentId === sid) finish();
+        },
+      },
+    });
+  });
+
+  return container;
+}
+
+/** Сообщает серверу реальную длительность ролика — один раз на показ (watchdog + панель «сейчас играет»). */
+function reportYoutubeDuration(submissionId: string, player: YTPlayer): void {
+  if (ytReportedSid === submissionId) return;
+  const ms = Math.round(player.getDuration() * 1000);
+  if (ms > 0) {
+    ytReportedSid = submissionId;
+    socket.emit('playback:duration', submissionId, ms);
+  }
+}
+
+/** Лениво подгружает YouTube IFrame API (один раз на сессию оверлея). */
+function loadYouTubeApi(): Promise<void> {
+  if (window.YT?.Player) return Promise.resolve();
+  if (ytApiPromise) return ytApiPromise;
+  ytApiPromise = new Promise<void>((resolve) => {
+    window.onYouTubeIframeAPIReady = () => resolve();
+    const tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(tag);
+  });
+  return ytApiPromise;
 }
 
 /** Секунды → m:ss. */
@@ -227,9 +352,22 @@ function speak(
   }
 }
 
+/** Останавливает и удаляет YouTube-плеер (чтобы звук гас сразу при завершении/скипе). */
+function destroyYoutube(): void {
+  if (ytPlayer) {
+    try {
+      ytPlayer.destroy();
+    } catch {
+      /* плеер мог не успеть создаться */
+    }
+    ytPlayer = null;
+  }
+}
+
 function finish(): void {
   if (finishing) return;
   finishing = true;
+  destroyYoutube();
   const id = currentId;
   if (hideTimer !== undefined) {
     window.clearTimeout(hideTimer);
@@ -239,7 +377,8 @@ function finish(): void {
   const alert = stage.querySelector('.alert');
   alert?.classList.remove('enter');
   alert?.classList.add('exit');
-  window.setTimeout(() => {
+  exitTimer = window.setTimeout(() => {
+    exitTimer = undefined;
     stage.replaceChildren();
     currentId = null;
     if (id) socket.emit('playback:done', id);
@@ -251,5 +390,12 @@ function clearStage(): void {
     window.clearTimeout(hideTimer);
     hideTimer = undefined;
   }
+  // Гасим висящий таймер ухода: иначе media:play в течение 300мс после finish()
+  // затрёт уже показанный следующий ролик.
+  if (exitTimer !== undefined) {
+    window.clearTimeout(exitTimer);
+    exitTimer = undefined;
+  }
+  destroyYoutube();
   stage.replaceChildren();
 }

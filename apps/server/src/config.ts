@@ -67,6 +67,15 @@ export const config = {
     ffprobeTimeoutMs: Number(process.env.FFPROBE_TIMEOUT_MS ?? 30_000),
   },
 
+  /** YouTube-отправки: ссылка играет встроенным плеером, без лимита длительности (играет до конца). */
+  youtube: {
+    /**
+     * Сколько ждать реальную длительность от плеера, прежде чем watchdog решит,
+     * что оверлей мёртв, и продвинет очередь (мс). Плеер обычно сообщает её за секунды.
+     */
+    loadGraceMs: Number(process.env.YOUTUBE_LOAD_GRACE_MS ?? 60_000),
+  },
+
   /** mime по magic bytes (file-type) → вид медиа. Всё остальное отклоняется. */
   allowedMime: {
     'image/jpeg': 'image',

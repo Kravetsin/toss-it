@@ -151,6 +151,10 @@ export const submissions = sqliteTable(
     status: text('status').$type<SubmissionStatus>().notNull(),
     createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
     updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+    /** YouTube: id видео (kind='youtube'), иначе null. Файла нет — играем встроенным плеером. */
+    youtubeId: text('youtube_id'),
+    /** YouTube: старт-секунда из таймкода ссылки. */
+    youtubeStart: integer('youtube_start').notNull().default(0),
   },
   (t) => [index('idx_submissions_channel_status').on(t.channelId, t.status)],
 );

@@ -1,4 +1,4 @@
-export type MediaKind = 'image' | 'video' | 'audio' | 'text';
+export type MediaKind = 'image' | 'video' | 'audio' | 'text' | 'youtube';
 
 /** Максимальная длина текста сообщения/подписи (валидируется и на клиенте, и на сервере). */
 export const TEXT_MAX_LEN = 280;
@@ -65,6 +65,10 @@ export interface MediaPlayPayload {
   size: number;
   /** Отступ от края кадра в % вьюпорта — для прижатых к краю позиций. */
   margin: number;
+  /** YouTube: id видео (kind='youtube'). Оверлей рендерит встроенный IFrame-плеер. */
+  youtubeId?: string;
+  /** YouTube: старт-секунда из таймкода ссылки (0 — с начала). */
+  youtubeStartSeconds?: number;
 }
 
 /** Статус отправки для живого индикатора у зрителя ('playing' — транзиентный, не в БД). */
@@ -89,6 +93,8 @@ export interface ServerToViewerEvents {
 /** События оверлей → сервер. */
 export interface OverlayToServerEvents {
   'playback:done': (submissionId: string) => void;
+  /** Оверлей узнал реальную длительность ролика (для YouTube — только при проигрывании). */
+  'playback:duration': (submissionId: string, durationMs: number) => void;
 }
 
 /** Краткая карточка отправки для очереди модерации. */
@@ -105,6 +111,8 @@ export interface SubmissionSummary {
   createdAt: number;
   /** Превью: тот же /api/media/<id>. */
   url: string;
+  /** YouTube: id видео для превью (kind='youtube'), иначе null/отсутствует. */
+  youtubeId?: string | null;
 }
 
 /** События сервер → дашборд стримера. */

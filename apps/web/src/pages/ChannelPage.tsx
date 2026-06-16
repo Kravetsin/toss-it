@@ -150,6 +150,8 @@ export function ChannelPage() {
   }
 
   const status = liveStatus ?? (phase.name === 'done' ? phase.result.status : null);
+  // Если в тексте есть YouTube-ссылка и нет файла — покажем превью ролика.
+  const ytId = file ? null : youtubeIdFromText(text);
 
   return (
     <Shell>
@@ -262,6 +264,19 @@ export function ChannelPage() {
               </div>
             )}
 
+            {!file && ytId && (
+              <Card className="flex flex-col items-start gap-2">
+                <img
+                  src={`https://img.youtube.com/vi/${ytId}/hqdefault.jpg`}
+                  className="max-h-60 w-full rounded-none bg-black/40 object-contain"
+                />
+                <p className="flex items-center gap-1.5 text-sm text-muted">
+                  <Icon name="play" size={15} className="text-twitch-light" />
+                  YouTube
+                </p>
+              </Card>
+            )}
+
             <div>
               <textarea
                 value={text}
@@ -369,6 +384,14 @@ function Shell({ children }: { children: React.ReactNode }) {
       <p className="mt-10 text-center text-xs text-muted/60">Tossit</p>
     </main>
   );
+}
+
+/** Достаёт id ролика из YouTube-ссылки в тексте (для клиентского превью). */
+function youtubeIdFromText(text: string): string | null {
+  const m = text.match(
+    /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|embed\/|live\/)|music\.youtube\.com\/watch\?v=)([A-Za-z0-9_-]{11})/i,
+  );
+  return m?.[1] ?? null;
 }
 
 function mb(bytes: number, digits = 0): string {

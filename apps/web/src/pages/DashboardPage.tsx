@@ -340,8 +340,11 @@ export function DashboardPage() {
             <h2 className="font-bold">{t('dash.nowPlaying')}</h2>
             {now ? (
               <p className="mt-1 text-sm text-muted">
-                <b className="text-text">{now.senderName ?? t('common.anon')}</b> · {now.mime} ·{' '}
-                {formatDuration(now.durationMs, t)}
+                <b className="text-text">{now.senderName ?? t('common.anon')}</b> ·{' '}
+                {now.kind === 'youtube' ? 'YouTube' : now.mime} ·{' '}
+                {now.kind === 'youtube' && now.durationMs <= 0
+                  ? '∞'
+                  : formatDuration(now.durationMs, t)}
               </p>
             ) : (
               <p className="mt-1 text-sm text-muted">{t('dash.nothingPlaying')}</p>
@@ -815,6 +818,7 @@ const KIND_ICON: Record<MediaKind, IconName> = {
   video: 'play',
   audio: 'volume-2',
   text: 'send',
+  youtube: 'play',
 };
 
 /** Кросс-канальная репутация отправителя: бейдж founder · ✓принято · ✗отклонено · WL · BAN (или «новичок»). */
@@ -969,7 +973,10 @@ function ModerationQueue({
                 </span>
                 <RepChip rep={s.senderUserId ? reputation[s.senderUserId] : undefined} />
                 <span className="text-xs">
-                  {formatDuration(s.durationMs, t)} · {new Date(s.createdAt).toLocaleTimeString()}
+                  {s.kind === 'youtube' && s.durationMs <= 0
+                    ? '∞'
+                    : formatDuration(s.durationMs, t)}{' '}
+                  · {new Date(s.createdAt).toLocaleTimeString()}
                 </span>
               </div>
               <Preview s={s} />
@@ -1082,7 +1089,9 @@ function ReviewCard({
           </div>
           <RepChip rep={rep} />
         </div>
-        <span className="shrink-0 text-xs text-muted">{formatDuration(cur.durationMs, t)}</span>
+        <span className="shrink-0 text-xs text-muted">
+          {cur.kind === 'youtube' && cur.durationMs <= 0 ? '∞' : formatDuration(cur.durationMs, t)}
+        </span>
       </div>
       <div className="mt-3">
         <Preview s={cur} />
@@ -1139,6 +1148,15 @@ function Preview({ s }: { s: SubmissionSummary }) {
       <img src={s.url} className={cls} />
     ) : s.kind === 'video' ? (
       <video src={s.url} controls muted className={cls} />
+    ) : s.kind === 'youtube' ? (
+      s.youtubeId ? (
+        <iframe
+          src={`https://www.youtube.com/embed/${s.youtubeId}`}
+          className="aspect-video w-full max-w-sm rounded-none"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
+      ) : null
     ) : (
       <audio src={s.url} controls />
     );
