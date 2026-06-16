@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@fontsource/vt323": "^5.2.7",
+    "@fontsource/jetbrains-mono": "^5.2.7",
     "@tmw/shared": "workspace:*",
     "socket.io-client": "^4.8.3"
   },

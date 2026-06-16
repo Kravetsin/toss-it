@@ -334,14 +334,14 @@ export function ScrollFlow() {
   if (reduced) {
     return (
       <section className="py-8">
-        <p className="mb-5 text-center font-display text-sm uppercase tracking-wide text-muted">
+        <p className="mb-5 text-center font-display text-xs uppercase tracking-wide text-muted">
           {t('flow.title')}
         </p>
         <div className="mx-auto flex max-w-2xl flex-wrap items-start justify-center gap-x-6 gap-y-4 px-4">
           {STAGE_ICONS.map((name, i) => (
             <div key={name} className="flex w-28 flex-col items-center text-center">
               <Icon name={name} size={30} className="text-twitch-light" />
-              <span className="mt-2 font-display text-sm text-text">{stages[i]!.name}</span>
+              <span className="mt-2 font-body text-sm text-text">{stages[i]!.name}</span>
               <span className="text-xs text-muted">{stages[i]!.cap}</span>
               {/* Модерация — это развилка: одобрить ✓ / отклонить ✕ / свой без проверки ★. */}
               {i === 2 && (
@@ -361,7 +361,7 @@ export function ScrollFlow() {
   return (
     <section ref={sectionRef} className="py-8">
       <div className="mx-auto w-full max-w-2xl px-4">
-        <p className="mb-3 text-center font-display text-sm uppercase tracking-wide text-muted">
+        <p className="mb-3 text-center font-display text-xs uppercase tracking-wide text-muted">
           {t('flow.title')}
         </p>
         <svg
@@ -401,12 +401,12 @@ export function ScrollFlow() {
                   y={176}
                   textAnchor="middle"
                   fill="#8b8b96"
-                  className="font-display"
-                  style={{ fontSize: 15 }}
+                  className="font-body"
+                  style={{ fontSize: 18 }}
                 >
                   {stages[i]!.name}
                 </text>
-                <text x={x} y={192} textAnchor="middle" fill="#5f5e5a" className="font-display" style={{ fontSize: 12 }}>
+                <text x={x} y={192} textAnchor="middle" fill="#5f5e5a" className="font-body" style={{ fontSize: 14 }}>
                   {stages[i]!.cap}
                 </text>
               </g>

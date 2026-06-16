@@ -1,4 +1,4 @@
-import '@fontsource/vt323';
+import '@fontsource/jetbrains-mono';
 import { io, type Socket } from 'socket.io-client';
 import {
   positionToFlex,

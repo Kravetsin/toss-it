@@ -275,7 +275,7 @@ export function DashboardPage() {
   return (
     <Shell>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="flex items-center gap-2 text-2xl font-bold">
+        <h1 className="flex items-center gap-2 text-2xl">
           <Icon name="shield" size={26} className="text-twitch-light" />
           {t('dash.title')}
           {me.user.isFounder && (
@@ -337,7 +337,7 @@ export function DashboardPage() {
       <Card className="mb-4">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h2 className="font-bold">{t('dash.nowPlaying')}</h2>
+            <h2>{t('dash.nowPlaying')}</h2>
             {now ? (
               <p className="mt-1 text-sm text-muted">
                 <b className="text-text">{now.senderName ?? t('common.anon')}</b> ·{' '}
@@ -427,7 +427,7 @@ export function DashboardPage() {
         />
       </div>
 
-      <h2 className="mb-3 mt-8 text-lg font-bold">{t('dash.history')}</h2>
+      <h2 className="mb-3 mt-8 text-lg">{t('dash.history')}</h2>
       {history.length === 0 ? (
         <p className="text-sm text-muted">{t('dash.historyEmpty')}</p>
       ) : (
@@ -526,7 +526,7 @@ function SettingsCard({
             size={13}
             className={`transition-transform text-muted ${open ? 'rotate-90' : ''}`}
           />
-          <h2 className="font-bold">{t('dash.settings')}</h2>
+          <h2>{t('dash.settings')}</h2>
         </button>
         <label
           className={`flex cursor-pointer items-center gap-2 border-2 px-3 py-1.5 text-sm font-semibold ${
@@ -579,7 +579,7 @@ function SettingsCard({
         />
       </div>
       <div className="mt-6 border-t-2 border-line pt-4">
-        <h3 className="mb-3 font-display text-sm font-bold uppercase tracking-wide text-muted">
+        <h3 className="mb-3 font-display text-sm uppercase tracking-wide text-muted">
           {t('dash.layout')}
         </h3>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -943,7 +943,7 @@ function ModerationQueue({
   return (
     <>
       <div className="mb-3 mt-8 flex items-center justify-between gap-2">
-        <h2 className="flex items-center gap-2 text-lg font-bold">
+        <h2 className="flex items-center gap-2 text-lg">
           {t('dash.modQueue')}
           {pending.length > 0 && (
             <span className="border-2 border-twitch-dark bg-twitch px-2 py-0.5 text-sm text-white">
@@ -1190,7 +1190,7 @@ function UserList({
   const { t } = useI18n();
   return (
     <Card>
-      <h2 className="flex items-center gap-2 font-bold">
+      <h2 className="flex items-center gap-2">
         <Icon name={icon} size={18} className="text-twitch-light" />
         {title}
       </h2>

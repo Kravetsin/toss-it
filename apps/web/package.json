@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@fontsource/press-start-2p": "^5.2.7",
-    "@fontsource/vt323": "^5.2.7",
+    "@fontsource/jetbrains-mono": "^5.2.7",
     "@tmw/shared": "workspace:*",
     "pixelarticons": "^2.1.2",
     "react": "^19.2.7",

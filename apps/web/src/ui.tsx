@@ -158,7 +158,7 @@ export function Avatar({ url, name, size = 48 }: { url: string | null; name: str
   return (
     <div
       style={{ width: size, height: size, fontSize: size * 0.45 }}
-      className={`flex items-center justify-center bg-twitch/30 font-display font-bold text-twitch-light ${frame}`}
+      className={`flex items-center justify-center bg-twitch/30 font-display text-twitch-light ${frame}`}
     >
       {name.slice(0, 1).toUpperCase()}
     </div>

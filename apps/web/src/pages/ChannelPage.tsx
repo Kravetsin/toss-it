@@ -143,7 +143,7 @@ export function ChannelPage() {
   if (!channel) {
     return (
       <Shell>
-        <h1 className="text-2xl font-bold">{t('channel.notFoundTitle')}</h1>
+        <h1 className="text-2xl">{t('channel.notFoundTitle')}</h1>
         <p className="mt-2 text-muted">{t('channel.notFoundBody', { login })}</p>
       </Shell>
     );
@@ -160,7 +160,7 @@ export function ChannelPage() {
         <Avatar url={channel.avatarUrl} name={channel.displayName} size={56} />
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-bold">{channel.displayName}</h1>
+            <h1 className="text-2xl">{channel.displayName}</h1>
             {channel.isFounder && (
               <Badge>
                 <Icon name="sparkles" size={12} />
@@ -332,7 +332,7 @@ function Leaderboard({ board, meId }: { board: LeaderboardEntry[]; meId: string 
   const { t } = useI18n();
   return (
     <div className="mt-8">
-      <h2 className="mb-3 flex items-center gap-2 text-lg font-bold">
+      <h2 className="mb-3 flex items-center gap-2 text-lg">
         <Icon name="trophy" size={22} className="text-warn" />
         {t('channel.leaderboard')}
       </h2>

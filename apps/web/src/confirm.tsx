@@ -65,7 +65,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
             onClick={(e) => e.stopPropagation()}
             className="w-full max-w-sm rounded-xl border border-line bg-surface p-5 shadow-2xl"
           >
-            {opts.title && <h3 className="mb-2 text-lg font-bold">{opts.title}</h3>}
+            {opts.title && <h3 className="mb-2 text-lg">{opts.title}</h3>}
             <p className="text-sm leading-relaxed text-muted">{opts.message}</p>
             <div className="mt-5 flex justify-end gap-2">
               <Button variant="ghost" onClick={() => close(false)}>

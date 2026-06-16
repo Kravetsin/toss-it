@@ -1,1 +1,1 @@
-declare module '@fontsource/vt323';
+declare module '@fontsource/jetbrains-mono';

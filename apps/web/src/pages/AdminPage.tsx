@@ -73,7 +73,7 @@ export function AdminPage() {
   return (
     <Shell>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="flex items-center gap-2 text-2xl font-bold">
+        <h1 className="flex items-center gap-2 text-2xl">
           <Icon name="sparkles" size={26} className="text-twitch-light" />
           {t('admin.title')}
         </h1>
@@ -83,7 +83,7 @@ export function AdminPage() {
       </div>
 
       <Card className="mb-4">
-        <h2 className="font-bold">{t('admin.generate')}</h2>
+        <h2>{t('admin.generate')}</h2>
         <div className="mt-3 flex flex-wrap items-end gap-3">
           <label className="text-sm text-muted">
             <span>{t('admin.count')}</span>

@@ -77,7 +77,7 @@ export function HomePage() {
           <div className="flex flex-col items-center gap-2">
             <div className="flex items-center gap-2">
               <a href="/api/auth/login?returnTo=/">
-                <Button variant="primary" className="px-8 py-3 text-base">
+                <Button variant="primary" className="px-6 py-3 text-xs">
                   <Icon name="twitch" size={18} />
                   {t('common.loginTwitch')}
                 </Button>
@@ -93,7 +93,7 @@ export function HomePage() {
               </a>
             </div>
             <a href="/api/auth/google/login?returnTo=/">
-              <Button variant="primary" className="px-8 py-3 text-base">
+              <Button variant="primary" className="px-6 py-3 text-xs">
                 <Icon name="google" size={18} />
                 {t('common.loginGoogle')}
               </Button>
@@ -144,7 +144,7 @@ export function HomePage() {
       ) : (
         <div className="mt-6 flex flex-col gap-4">
           <Card>
-            <h2 className="mb-3 text-lg font-bold">{t('home.manage')}</h2>
+            <h2 className="mb-3 text-lg">{t('home.manage')}</h2>
             <div className="flex flex-wrap gap-2">
               <Link to="/dashboard">
                 <Button variant="primary">
@@ -176,7 +176,7 @@ export function HomePage() {
           </Card>
 
           <Card>
-            <h2 className="mb-1 text-lg font-bold">{t('home.overlayTitle')}</h2>
+            <h2 className="mb-1 text-lg">{t('home.overlayTitle')}</h2>
             <p className="mb-3 flex items-start gap-2 text-sm text-muted">
               <Icon name="square-alert" size={16} className="mt-0.5 shrink-0 text-warn" />
               <span>{t('home.overlayDesc')}</span>
@@ -266,7 +266,7 @@ function TeamCard({ channelId }: { channelId: string }) {
     <Card>
       <div className="flex items-center justify-between gap-2">
         <div>
-          <h2 className="font-bold">{t('dash.team')}</h2>
+          <h2>{t('dash.team')}</h2>
           <p className="text-sm text-muted">{t('dash.teamHint')}</p>
         </div>
         <Button variant="primary" className="shrink-0" onClick={invite}>
