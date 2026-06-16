@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { clock } from '@/lib/format';
 import { Icon, type IconName } from '@/ui/icons';
 import { MediaFrame, matHeightClass } from './MediaFrame';
@@ -39,8 +39,6 @@ export function VideoPlayer({
   const videoRef = useRef<HTMLVideoElement>(null);
   const m = useMediaElement(videoRef);
   const fs = useFullscreen(frameRef);
-  const [barHidden, setBarHidden] = useState(false);
-  const hideTimer = useRef<number>(0);
 
   // Сбрасываем плеер при смене src (object-URL не трогаем — им владеет вызывающий).
   useEffect(() => {
@@ -59,19 +57,6 @@ export function VideoPlayer({
     wasEnded.current = m.ended;
   }, [m.ended, onEnded]);
 
-  // Автоскрытие бара — только в полноэкранном во время игры; перезапуск по движению мыши.
-  function revealBar() {
-    window.clearTimeout(hideTimer.current);
-    setBarHidden(false);
-    if (fs.isFullscreen && m.playing) {
-      hideTimer.current = window.setTimeout(() => setBarHidden(true), 2200);
-    }
-  }
-  useEffect(() => {
-    revealBar();
-    return () => window.clearTimeout(hideTimer.current);
-  }, [fs.isFullscreen, m.playing]);
-
   const total = m.ready && m.duration ? m.duration : durationHintSec && durationHintSec > 0 ? durationHintSec : 0;
   const known = total > 0;
   const compact = size === 'queue' && !fs.isFullscreen;
@@ -87,9 +72,9 @@ export function VideoPlayer({
 
   const bar = (
     <div
-      className={`flex items-center gap-1.5 border-t-2 border-line bg-surface px-1.5 transition-opacity duration-150 sm:gap-2 sm:px-2 ${
+      className={`flex items-center gap-1.5 border-t-2 border-line bg-surface px-1.5 sm:gap-2 sm:px-2 ${
         fs.isFullscreen ? 'h-10' : 'h-7 sm:h-8'
-      } ${barHidden ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
+      }`}
     >
       <MediaButton
         icon={m.playing ? 'pause' : m.ended ? 'reload' : 'play'}
@@ -183,7 +168,6 @@ export function VideoPlayer({
           m.toggle();
         }
       }}
-      onMouseMove={revealBar}
     >
       <video
         ref={videoRef}
@@ -195,7 +179,7 @@ export function VideoPlayer({
         preload="metadata"
         onClick={() => m.toggle()}
         className={`block max-w-full cursor-pointer object-contain [image-rendering:auto] ${
-          fs.isFullscreen ? 'h-full max-h-full w-full' : matHeightClass(size)
+          fs.isFullscreen ? 'absolute inset-0 h-full w-full' : matHeightClass(size)
         }`}
       />
     </MediaFrame>

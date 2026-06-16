@@ -44,6 +44,8 @@ export function MediaFrame({
       className={`group/frame relative flex flex-col overflow-hidden rounded-none border-2 border-line bg-surface text-text card-pixel ${className}`}
       {...rest}
     >
+      {/* В фуллскрине медиа-область растягивается (flex-1), а само медиа внутри
+          вписывается через object-contain — без обрезки для любого формата. */}
       <div
         className={`relative grid place-items-center ${
           fullscreen
@@ -58,10 +60,12 @@ export function MediaFrame({
           <div className="scanlines pointer-events-none absolute inset-0" aria-hidden />
         )}
         {overlay}
-        <div
-          className="pointer-events-none absolute inset-0 [box-shadow:inset_0_1px_0_0_var(--color-twitch)]"
-          aria-hidden
-        />
+        {!fullscreen && (
+          <div
+            className="pointer-events-none absolute inset-0 [box-shadow:inset_0_1px_0_0_var(--color-twitch)]"
+            aria-hidden
+          />
+        )}
       </div>
       {bar}
     </div>
