@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
-import { Icon, type IconName } from './icons';
+import { Icon, type IconName } from '@/ui/icons';
 
 type Tone = 'ok' | 'warn' | 'danger';
 interface ToastItem {

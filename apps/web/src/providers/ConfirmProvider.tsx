@@ -7,8 +7,8 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { useI18n } from './i18n';
-import { Button } from './ui';
+import { useI18n } from '@/i18n';
+import { Button } from '@/ui';
 
 interface ConfirmOptions {
   title?: string;

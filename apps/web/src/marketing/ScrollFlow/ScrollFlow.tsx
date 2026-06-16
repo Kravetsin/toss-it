@@ -1,6 +1,36 @@
-import { useEffect, useRef, useState } from 'react';
-import { ICONS, Icon, type IconName } from './icons';
-import { useI18n } from './i18n';
+import { useEffect, useRef } from 'react';
+import { ICONS } from '@/ui/icons';
+import { useI18n } from '@/i18n';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { ScrollFlowStatic } from './ScrollFlowStatic';
+import {
+  APPROVE,
+  BASE_Y,
+  CX,
+  END_PAUSE,
+  FWD_DUR,
+  N,
+  ORDER,
+  PHASES,
+  REJECT,
+  REJECT_DIP,
+  REJECT_RECOIL,
+  REJECT_SCAT,
+  RETURN_DUR,
+  RETURN_HOP,
+  START_PAUSE,
+  STAGE_ICONS,
+  STATION_X,
+  SVGNS,
+  TRUST,
+  TRUST_HOP,
+  WS,
+  buildTimeline,
+  pulse,
+  sampleShape,
+  smooth,
+  type Pt,
+} from './engine';
 
 /**
  * Анимация «как это работает» под кнопками входа: пиксельный объект стоит по центру,
@@ -12,82 +42,9 @@ import { useI18n } from './i18n';
  * Одинаково на десктопе и мобиле, без привязки к скроллу (поэтому никаких рывков от колеса).
  * Крутится только пока секция в зоне видимости; при prefers-reduced-motion — статичная полоса.
  */
-
-const STAGE_ICONS: IconName[] = ['upload', 'loader', 'shield', 'play'];
-const SVGNS = 'http://www.w3.org/2000/svg';
-
-const CX = 340;
-const BASE_Y = 128;
-const WS = [0, 220, 440, 660, 900]; // мировые X станций: [кучка, загрузка, обработка, модерация, на стриме]
-const STATION_X = [220, 440, 660, 900];
-const N = 46;
-// Чередование «пауза на этапе» (h) и «перелёт» (t). Паузы дают форме собраться и читаться.
-const PHASES: Array<['h', number] | ['t', number, number]> = [
-  ['h', 0], ['t', 0, 1], ['h', 1], ['t', 1, 2], ['h', 2], ['t', 2, 3], ['h', 3], ['t', 3, 4], ['h', 4],
-];
-const WEIGHTS = [0.7, 1.15, 0.95, 1.15, 0.95, 1.15, 0.95, 1.15, 1.05];
-const FWD_DUR = 6500; // длительность прохода вперёд (загрузка → эфир), мс
-const RETURN_DUR = 1000; // быстрый возврат кучки прямо в начало (без станций), мс
-const RETURN_HOP = 64; // высота дуги возврата
-const END_PAUSE = 900; // пауза на результате (в эфире / отклонено) перед возвратом, мс
-const START_PAUSE = 400; // короткая пауза в начале перед новым проходом, мс
-
-// Развилка на станции модерации: исход выбирается раз за проход (forward), держится
-// весь forward+reverse, поэтому frame(p, verdict) остаётся чистой функцией и реверс
-// (ping-pong) проигрывается без рывка. Порядок подобран так, что первый показ гостю —
-// всегда «одобрено», а «отклонено» выпадает раз в 4 прохода.
-const APPROVE = 0;
-const REJECT = 1;
-const TRUST = 2;
-const ORDER = [APPROVE, TRUST, APPROVE, REJECT];
-const TRUST_HOP = 92; // высота дуги, по которой «свой» перелетает ПОВЕРХ щита
-const REJECT_RECOIL = 40; // отскок влево от щита
-const REJECT_DIP = 14; // просадка к дорожке на отскоке
-const REJECT_SCAT = 34; // как сильно пиксели рассыпаются и собираются обратно
-
-/** Трапеция 0→1→0: плавный заход [a,b], плато, плавный выход [c,d]. Для прозрачности стампов. */
-const pulse = (x: number, a: number, b: number, c: number, d: number) =>
-  x < a ? 0 : x < b ? (x - a) / (b - a) : x < c ? 1 : x < d ? 1 - (x - c) / (d - c) : 0;
-
-type Pt = [number, number];
-
-function buildTimeline() {
-  const total = WEIGHTS.reduce((a, b) => a + b, 0);
-  const cum = [0];
-  let run = 0;
-  for (const w of WEIGHTS) {
-    run += w / total;
-    cum.push(run);
-  }
-  return cum;
-}
-
-/** Пиксельные точки формы — сэмплируем заливку path иконки на офскрин-канвасе. */
-function sampleShape(ctx: CanvasRenderingContext2D, d: string): Pt[] {
-  const path = new Path2D(d);
-  const raw: Pt[] = [];
-  for (let y = 1; y < 24; y += 1.15) {
-    for (let x = 1; x < 24; x += 1.15) {
-      if (ctx.isPointInPath(path, x, y)) raw.push([x, y]);
-    }
-  }
-  const step = Math.max(1, Math.ceil(raw.length / N));
-  const out: Pt[] = [];
-  for (let i = 0; i < raw.length; i += step) {
-    const pt = raw[i]!;
-    out.push([(pt[0] - 12) * 1.65, (pt[1] - 12) * 1.65]);
-  }
-  if (out.length < 6) return [[-6, -6], [6, -6], [-6, 6], [6, 6], [0, 0], [0, -6]];
-  return out;
-}
-
-const smooth = (t: number) => t * t * (3 - 2 * t);
-
 export function ScrollFlow() {
   const { t } = useI18n();
-  const [reduced] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-  );
+  const reduced = useReducedMotion();
 
   const stages = [1, 2, 3, 4].map((n) => ({ name: t(`flow.s${n}`), cap: t(`flow.c${n}`) }));
 
@@ -332,30 +289,7 @@ export function ScrollFlow() {
   }, [reduced]);
 
   if (reduced) {
-    return (
-      <section className="py-8">
-        <p className="mb-5 text-center font-display text-xs uppercase tracking-wide text-muted">
-          {t('flow.title')}
-        </p>
-        <div className="mx-auto flex max-w-2xl flex-wrap items-start justify-center gap-x-6 gap-y-4 px-4">
-          {STAGE_ICONS.map((name, i) => (
-            <div key={name} className="flex w-28 flex-col items-center text-center">
-              <Icon name={name} size={30} className="text-twitch-light" />
-              <span className="mt-2 font-body text-sm text-text">{stages[i]!.name}</span>
-              <span className="text-xs text-muted">{stages[i]!.cap}</span>
-              {/* Модерация — это развилка: одобрить ✓ / отклонить ✕ / свой без проверки ★. */}
-              {i === 2 && (
-                <span className="mt-1 flex gap-1.5">
-                  <Icon name="check" size={16} className="text-ok" />
-                  <Icon name="close" size={16} className="text-danger" />
-                  <Icon name="star" size={16} className="text-warn" />
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-      </section>
-    );
+    return <ScrollFlowStatic stages={stages} />;
   }
 
   return (
