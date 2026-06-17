@@ -17,7 +17,14 @@
   страницы мигрированы на Motion-dark (фан-аут по компонентам + adversarial-проверка). typecheck+lint зелёные;
   активных пиксель-идиом в компонентах не осталось. ОТЛОЖЕНО: cyan-логотип `favicon.svg` и финальный
   акцент/шрифты → Фаза 2 (бренд); `marketing/ScrollFlow` (захардкоженные cyan-частицы, структура) → Фаза 4.
-- Фазы 2–4 — впереди (см. §1). Фаза 2: финальная палитра/шрифты/логотип (смена значений токенов + favicon).
+- **Фаза 2 — ГОТОВО.** Бренд-акцент зафиксирован = мятный `#8df0cc` (`--color-accent`, больше не «провизорный»);
+  шрифты оставлены (Geist Mono + Inter); логотип/`favicon.svg` перерисован в мятный (угловая «T», без пиксель-блоков).
+  **Отличие от Motion — через анимацию, не статику:** `Button` (`primary`/`framed`) получил круговую
+  заливку-ОТ-КУРСОРА (центр круга = точка входа курсора, чистый сброс без «сползания») + авто-инверсию лейбла
+  через `mix-blend-mode: difference` (вместо ручной смены цвета) + клавиатурный фокус через `:focus-visible`
+  (клик мышью заливку не перезапускает). Уголки/штриховка/моно-капс — как в Фазе 0.
+- Фазы 3–4 — впереди. Фаза 3: перекомпоновка лейаута. Фаза 4: глобальный курсор-трекинг, фон/параллакс,
+  переосмысление `ScrollFlow`.
 
 ### Замороженный контракт (конкретика, сверено с motion.dev)
 - **Тема — только тёмная.** Подъём = ТЕМНЕЕ (`bg #0d1111` → `surface #060607` → `surface-2 #030304`);
@@ -261,3 +268,95 @@ pnpm --filter @tmw/web add lucide-react motion
   радиусы двух семей, спеку угловой анимации, интенсивность стекла/теней.
 - Подтвердить: оверлей — отдельный трек (по умолчанию да).
 - Подтвердить судьбу `ScrollFlow` (переосмыслить в F4 vs удалить).
+
+## 7. Под-план Фазы 3 — лейаут (кокпит куратора + sidebar-оболочка)
+
+> Статус: **УТВЕРЖДЁН (2026-06-17). Фундамент (§7.5 шаг 1) — ГОТОВ.** typecheck+lint зелёные;
+> приложение грузится без ошибок; залогиненные маршруты обёрнуты в `AppShell`. Дальше — фан-аут листьев (§7.5 шаг 2).
+>
+> **Сделано в фундаменте:** `ui/Drawer.tsx` (slide-over) · `components/AppShell.tsx` (sidebar lg / мобильный
+> топ-бар, аккаунт-блок + logout, гейт по auth) · `providers/MeProvider.tsx` (+ `useMe` теперь фасад над ним) ·
+> `features/dashboard/components/DashboardTopbar.tsx` · `main.tsx` layout-route (`/`,`/dashboard` → `AppShell`) ·
+> `DashboardPage` перекомпонован в 2-панельный кокпит + Settings/History в `Drawer` · `HomePage` без `PageShell`/
+> `AccountHeader`. Удалены `DashboardHeader.tsx`, `AccountHeader.tsx`. Иконки +`settings/history/log-out/menu`.
+> **Деталь реализации:** `AppShell` живёт в `components/` (не `ui/`), т.к. знает о роутинге+сессии (не чистый примитив).
+>
+> **Осталось (фан-аут листьев):** `MembersPanel` (табы Доверенные/Баны вместо двух `UserList`) · `ReviewOverlay`
+> (R2: вынести `ReviewCard` в полноэкранный оверлей) · причесать `SettingsCard`/`HistoryCard` под drawer (убрать
+> дублирующие заголовки/коллапс) · компакт-`NowPlayingCard` · md icon-rail сайдбара (сейчас: lg-сайдбар + мобильный
+> топ-бар; md-rail отложен) · независимый скролл левой панели (сейчас скролл страницы + sticky правая панель).
+> Косметика/токены не трогаем — Фаза 3 меняет ТОЛЬКО структуру/иерархию экранов. Поведение
+> (сокет-данные, hotkeys, fullscreen-letterbox плееров, логика `ChannelSwitcher`) — не ломаем.
+
+### 7.0 Зафиксированные решения
+1. **Старт — с Dashboard** (ядро предложки), остальное подтянем следом.
+2. **Постоянная sidebar-оболочка** (`AppShell`) вместо per-page заголовков — для залогиненного стримера.
+3. **Dashboard = двухпанельный кокпит**: очередь слева (главная зона), now-playing + контекст справа.
+
+### 7.1 App-shell (постоянный левый сайдбар)
+Новый каркас `AppShell` оборачивает **только стримерские** маршруты; остальные — как есть.
+- **Оборачиваем sidebar:** `/` (Home), `/dashboard`. Реализация — layout-route в `main.tsx`
+  (общий слой, а не копипаст в каждой странице). `PageShell` (центр-колонка `mx-auto max-w-*`)
+  несовместим с полноширинным сайдбаром → внутри shell контент идёт без `mx-auto`-обёртки `PageShell`,
+  ширина контента кап `~max-w-6xl` + боковые отступы.
+- **НЕ оборачиваем (свой фрейм):** `/c/:login` (`ChannelShell`, публичный зритель — бренд-сепарация),
+  `/admin`, `/promo`, `/mod-invite/:token` (утилиты/транзиентные). `_gallery` — dev, без shell.
+- **Состав сайдбара (сверху вниз):** бренд-знак «T» → primary-nav (Home, Dashboard) на базе `IconButton`+лейбл,
+  `data-active` для текущего → spacer → аккаунт-блок снизу (`Avatar` + displayName + founder-badge + Logout).
+  `LanguageSwitcher` остаётся фикс-бейджем снизу-справа (не конфликтует, z-50).
+- **Форм-факторы (респонсив):**
+  - `≥ lg` (1024): полный сайдбар ~240px, sticky, во всю высоту (`Surface glass`/`Card` фон).
+  - `md` (768–1024): схлопнутый icon-rail ~64px (только `IconButton` + tooltip).
+  - `< md`: сайдбар скрыт → слим топ-бар (бренд + кнопка-меню, открывает drawer-навигацию); контент во всю ширину.
+- **Новый примитив `Drawer`** (slide-over справа, `glass-strong` + backdrop, focus-trap, Escape,
+  ветка `prefers-reduced-motion` = fade вместо slide) — переиспользуется для Settings/History/мобильной навигации.
+
+### 7.2 Dashboard — двухпанельный кокпит
+**(A) Sticky-топбар** (рефактор `DashboardHeader` → `DashboardTopbar`, внутри контент-зоны, не в сайдбаре):
+- Слева: имя канала + `ChannelSwitcher` (дропдаун, если каналов > 1 / модератор — логику не трогаем).
+- Справа: sound-toggle (переезжает сюда), триггеры **Settings**-drawer (owner-only) и **History**-drawer,
+  pending-бейдж. Home-ссылка уходит в сайдбар; founder-badge — в аккаунт-блок сайдбара.
+
+**(B) Тело — 2 панели** (`lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-6`):
+- **Левая панель (~58%, главная):** `ModerationQueue` — заголовок + pending-бейдж + тоггл List/Review;
+  в List-режиме стек `SubmissionCard` со скроллом внутри панели (на `lg` независимый скролл, `max-h` = вьюпорт);
+  session-stats снизу. **80% времени куратор здесь.**
+- **Правая панель (~42%, sticky):** `NowPlayingCard` (компактный) + **`MembersPanel`** —
+  табы «Доверенные / Баны» (обёртка над текущим `UserList`, плотный вариант) как живой контекст при модерации.
+
+**(C) Тяжёлое — в drawers (вне потока кокпита):**
+- **Settings** (owner-only, ~600–800px, сейчас «перекрывает очередь») → slide-over `Drawer`, триггер-шестерёнка в топбаре.
+  Внутреннюю вёрстку `SettingsCard` (слайдеры/3×3 grid/preview) не переписываем — переносим в drawer как есть.
+- **History** (референс-таблица, низкий приоритет) → slide-over `Drawer`, триггер в топбаре.
+
+**(D) Review → focus-overlay** (вместо «вида внутри узкой колонки»):
+- `ReviewCard` выносится в полноэкранный оверлей (`ReviewOverlay`) поверх кокпита: крупное превью + действия с
+  hotkey-хинтами + лента «следующие». `useQueueHotkeys` **переиспользуем как есть** (Space/→/R/W/B/↓), действие
+  авто-листает к следующему, Escape — выход в List. Решает «ReviewCard задушён узкой колонкой».
+
+### 7.3 Респонсив-матрица
+| Брейкпоинт | Сайдбар | Кокпит | Drawers |
+|---|---|---|---|
+| `≥ lg` | полный 240px sticky | 2 панели (58/42), правая sticky | slide-over справа |
+| `md` | icon-rail 64px | 1 колонка: очередь → now-playing → members | slide-over справа |
+| `< md` | топ-бар + drawer-меню | 1 колонка, members-секции сворачиваемы | full-screen sheet |
+
+### 7.4 Инвентарь файлов (для фан-аута F3)
+**Новые:** `ui/AppShell.tsx` (+`Sidebar`/`SidebarNavItem`), `ui/Drawer.tsx`, `features/dashboard/components/DashboardTopbar.tsx`,
+`.../DashboardCockpit.tsx` (грид-лейаут), `.../MembersPanel.tsx` (табы над `UserList`), `.../ReviewOverlay.tsx`.
+**Рефактор-обёртки (вёрстку компонентов не переписываем):** `main.tsx` (layout-route), `pages/DashboardPage.tsx`
+(композиция shell+топбар+кокпит), `pages/HomePage.tsx` (в shell), `DashboardHeader`→`DashboardTopbar`,
+`SettingsCard`/`HistoryCard` (хостятся в `Drawer`), `UserList` (плотный вариант), `NowPlayingCard` (компакт).
+**Не трогаем:** `SubmissionCard/Meta/Preview`, `RepChip`, медиа-плееры, все dashboard-хуки (логика).
+
+### 7.5 Модель исполнения (после утверждения)
+1. **Серийный фундамент (заморозить):** `AppShell`+`Sidebar`, `Drawer`, layout-route, `DashboardTopbar`+скелет
+   `DashboardCockpit`. Это общие зависимости — один проход, проверка на `/_gallery` (добавить shell/drawer-демо).
+2. **Фан-аут (по листам):** `MembersPanel`, `ReviewOverlay`, Settings-в-drawer, History-в-drawer, компакт-`NowPlaying`,
+   `HomePage`-в-shell. Один агент = один лист, `isolation: worktree`.
+3. **Верификация:** preview-сервер на `lg`/`md`/`sm`; скриншоты; `typecheck`+`lint` зелёные; критик «отклонения от §2/§7».
+
+### 7.6 Мини-решения (ЗАФИКСИРОВАНЫ 2026-06-17)
+- **R1 = drawers.** Settings (owner-only) и History → slide-over `Drawer` по триггеру в топбаре.
+- **R2 = fullscreen overlay.** Review → `ReviewOverlay` поверх кокпита (hotkeys + авто-листание).
+- **R3 = `max-w-6xl` центр.** Контент в shell кап ≈1152px, центрирован.

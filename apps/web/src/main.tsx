@@ -4,6 +4,8 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import './index.css';
 import { ConfirmProvider } from '@/providers/ConfirmProvider';
 import { ToastProvider } from '@/providers/ToastProvider';
+import { MeProvider } from '@/providers/MeProvider';
+import { AppShell } from '@/components/AppShell';
 import { I18nProvider, LanguageSwitcher } from './i18n';
 import { HomePage } from './pages/HomePage';
 import { ChannelPage } from './pages/ChannelPage';
@@ -18,19 +20,25 @@ createRoot(document.getElementById('root')!).render(
     <I18nProvider>
       <ToastProvider>
         <ConfirmProvider>
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/c/:login" element={<ChannelPage />} />
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/mod-invite/:token" element={<ModInvitePage />} />
-              <Route path="/promo" element={<PromoCodePage />} />
-              <Route path="/admin" element={<AdminPage />} />
-              {import.meta.env.DEV && <Route path="/_gallery" element={<GalleryPage />} />}
-            </Routes>
-          </BrowserRouter>
-          {/* Виден на всех страницах */}
-          <LanguageSwitcher />
+          <MeProvider>
+            <BrowserRouter>
+              <Routes>
+                {/* Стримерские маршруты — в постоянной оболочке (sidebar). */}
+                <Route element={<AppShell />}>
+                  <Route path="/" element={<HomePage />} />
+                  <Route path="/dashboard" element={<DashboardPage />} />
+                </Route>
+                {/* Публичные/утилитарные — свой фрейм, без оболочки. */}
+                <Route path="/c/:login" element={<ChannelPage />} />
+                <Route path="/mod-invite/:token" element={<ModInvitePage />} />
+                <Route path="/promo" element={<PromoCodePage />} />
+                <Route path="/admin" element={<AdminPage />} />
+                {import.meta.env.DEV && <Route path="/_gallery" element={<GalleryPage />} />}
+              </Routes>
+              {/* Виден на всех страницах */}
+              <LanguageSwitcher />
+            </BrowserRouter>
+          </MeProvider>
         </ConfirmProvider>
       </ToastProvider>
     </I18nProvider>

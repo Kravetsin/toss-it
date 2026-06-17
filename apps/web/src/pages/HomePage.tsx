@@ -1,16 +1,20 @@
-import { createChannel, logout, rotateOverlayToken } from '@/lib/api';
+import { createChannel, rotateOverlayToken } from '@/lib/api';
 import { OVERLAY_BASE_URL } from '@/lib/config';
 import { useMe } from '@/hooks/useMe';
 import { useApiAction } from '@/hooks/useApiAction';
 import { useConfirm } from '@/providers/ConfirmProvider';
 import { useI18n } from '@/i18n';
-import { Loader, PageShell } from '@/ui';
+import { Loader } from '@/ui';
 import { LoggedOutHero } from '@/features/home/components/LoggedOutHero';
-import { AccountHeader } from '@/features/home/components/AccountHeader';
 import { NoChannelCard } from '@/features/home/components/NoChannelCard';
 import { ViewerLinkCard } from '@/features/home/components/ViewerLinkCard';
 import { OverlayCard } from '@/features/home/components/OverlayCard';
 import { TeamCard } from '@/features/home/components/TeamCard';
+
+/** Контентная обёртка главной внутри оболочки (AppShell даёт фон/каркас). */
+function Content({ children }: { children: React.ReactNode }) {
+  return <div className="mx-auto max-w-2xl px-4 py-10">{children}</div>;
+}
 
 export function HomePage() {
   const { t } = useI18n();
@@ -20,17 +24,17 @@ export function HomePage() {
 
   if (loading) {
     return (
-      <PageShell maxWidth="2xl">
+      <Content>
         <Loader label={t('common.loading')} />
-      </PageShell>
+      </Content>
     );
   }
 
   if (!me?.user) {
     return (
-      <PageShell maxWidth="2xl">
+      <Content>
         <LoggedOutHero />
-      </PageShell>
+      </Content>
     );
   }
 
@@ -51,9 +55,7 @@ export function HomePage() {
     })();
 
   return (
-    <PageShell maxWidth="2xl">
-      <AccountHeader user={me.user} onLogout={() => void act(logout, { after: refresh })} />
-
+    <Content>
       {!me.channel ? (
         <NoChannelCard
           onCreate={() =>
@@ -61,12 +63,12 @@ export function HomePage() {
           }
         />
       ) : (
-        <div className="mt-6 flex flex-col gap-4">
+        <div className="flex flex-col gap-4">
           <ViewerLinkCard login={me.user.login} viewerUrl={viewerUrl} />
           <OverlayCard overlayUrl={overlayUrl!} onRotate={rotateToken} />
           <TeamCard channelId={me.channel.id} />
         </div>
       )}
-    </PageShell>
+    </Content>
   );
 }

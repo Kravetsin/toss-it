@@ -3,6 +3,7 @@ export * from './Button';
 export * from './CornerFrame';
 export * from './IconButton';
 export * from './Surface';
+export * from './Drawer';
 export * from './Card';
 export * from './Alert';
 export * from './Badge';

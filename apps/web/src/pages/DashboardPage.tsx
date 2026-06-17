@@ -1,12 +1,12 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { removeBan, removeFromWhitelist, saveSettings } from '@/lib/api';
 import { useMe } from '@/hooks/useMe';
 import { useApiAction } from '@/hooks/useApiAction';
 import { useI18n } from '@/i18n';
-import { Card, Loader, PageShell } from '@/ui';
+import { Card, Drawer, Loader } from '@/ui';
 import { AuthButtons } from '@/components/AuthButtons';
-import { DashboardHeader } from '@/features/dashboard/components/DashboardHeader';
-import { ChannelSwitcher } from '@/features/dashboard/components/ChannelSwitcher';
+import { DashboardTopbar } from '@/features/dashboard/components/DashboardTopbar';
 import { NowPlayingCard } from '@/features/dashboard/components/NowPlayingCard';
 import { SettingsCard } from '@/features/dashboard/components/SettingsCard';
 import { ModerationQueue } from '@/features/dashboard/components/ModerationQueue';
@@ -19,6 +19,11 @@ import { useQueueView } from '@/features/dashboard/hooks/useQueueView';
 import { useTabTitleBadge } from '@/features/dashboard/hooks/useTabTitleBadge';
 import { useModerationActions } from '@/features/dashboard/hooks/useModerationActions';
 
+/** Контентная обёртка дашборда внутри оболочки (AppShell даёт фон/каркас). */
+function Content({ children }: { children: React.ReactNode }) {
+  return <div className="mx-auto max-w-6xl px-4 py-6 lg:px-8">{children}</div>;
+}
+
 export function DashboardPage() {
   const { t } = useI18n();
   const act = useApiAction();
@@ -27,6 +32,8 @@ export function DashboardPage() {
   const sound = useSoundNotify();
   const data = useChannelData(channelId, isOwner, sound.soundOnRef);
   const [queueView, setQueueView] = useQueueView();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const actions = useModerationActions({
     channelId,
     current,
@@ -40,25 +47,25 @@ export function DashboardPage() {
 
   if (meLoading || channelsList === 'loading')
     return (
-      <PageShell maxWidth="3xl">
+      <Content>
         <Loader label={t('common.loading')} />
-      </PageShell>
+      </Content>
     );
 
   if (!me?.user) {
     return (
-      <PageShell maxWidth="3xl">
-        <Card className="flex flex-col items-center gap-4 py-10 text-center">
+      <Content>
+        <Card className="mx-auto flex max-w-md flex-col items-center gap-4 py-10 text-center">
           <p className="text-muted">{t('dash.loginToView')}</p>
           <AuthButtons returnTo="/dashboard" />
         </Card>
-      </PageShell>
+      </Content>
     );
   }
 
   if (!current) {
     return (
-      <PageShell maxWidth="3xl">
+      <Content>
         <p className="text-muted">
           {t('dash.createFirstPre')}
           <Link to="/" className="text-accent underline">
@@ -66,82 +73,108 @@ export function DashboardPage() {
           </Link>
           .
         </p>
-      </PageShell>
+      </Content>
     );
   }
 
+  const settingsAvailable = isOwner && !!data.settings && !!channelId;
+
   return (
-    <PageShell maxWidth="3xl">
-      <DashboardHeader
-        isFounder={me.user.isFounder}
+    <Content>
+      <DashboardTopbar
+        list={list}
+        current={current}
+        channelId={channelId}
+        onSelect={setCurrentId}
         soundOn={sound.soundOn}
         onToggleSound={sound.toggle}
+        showSettings={settingsAvailable}
+        onOpenSettings={() => setSettingsOpen(true)}
+        onOpenHistory={() => setHistoryOpen(true)}
       />
 
-      <ChannelSwitcher list={list} current={current} channelId={channelId} onSelect={setCurrentId} />
+      {/* Двухпанельный кокпит: слева очередь (главная зона), справа — контекст. */}
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+        <div className="min-w-0">
+          <ModerationQueue
+            pending={data.pending}
+            allowed={data.allowed}
+            reputation={data.reputation}
+            view={queueView}
+            onView={setQueueView}
+            onApprove={actions.onApprove}
+            onTrust={actions.onTrust}
+            onReject={actions.onReject}
+            onBan={actions.onBan}
+            onLater={actions.onLater}
+          />
+        </div>
 
-      <NowPlayingCard
-        now={data.now}
-        isOwner={isOwner}
-        onSkip={actions.skip}
-        onSendTest={actions.sendTest}
-      />
-
-      {isOwner && data.settings && channelId && (
-        <SettingsCard
-          settings={data.settings}
-          onSave={(patch) =>
-            void act(async () => data.setSettings(await saveSettings(channelId, patch)), {
-              success: t('toast.saved'),
-            })
-          }
-        />
-      )}
-
-      <ModerationQueue
-        pending={data.pending}
-        allowed={data.allowed}
-        reputation={data.reputation}
-        view={queueView}
-        onView={setQueueView}
-        onApprove={actions.onApprove}
-        onTrust={actions.onTrust}
-        onReject={actions.onReject}
-        onBan={actions.onBan}
-        onLater={actions.onLater}
-      />
-
-      <div className="mt-8 grid gap-4 md:grid-cols-2">
-        <UserList
-          icon="star"
-          title={t('dash.whitelist')}
-          hint={t('dash.whitelistHint')}
-          users={data.allowed}
-          onRemove={(id) =>
-            channelId &&
-            void act(() => removeFromWhitelist(channelId, id), {
-              after: data.refreshLists,
-              success: t('toast.removed'),
-            })
-          }
-          onBan={(id, name) => actions.banById(id, name)}
-        />
-        <UserList
-          icon="user-x"
-          title={t('dash.bans')}
-          hint={t('dash.bansHint')}
-          users={data.banned}
-          onRemove={(id) =>
-            channelId &&
-            void act(() => removeBan(channelId, id), {
-              after: data.refreshLists,
-              success: t('toast.removed'),
-            })
-          }
-        />
+        <div className="flex min-w-0 flex-col gap-4 self-start lg:sticky lg:top-20">
+          <NowPlayingCard
+            now={data.now}
+            isOwner={isOwner}
+            onSkip={actions.skip}
+            onSendTest={actions.sendTest}
+          />
+          <UserList
+            icon="star"
+            title={t('dash.whitelist')}
+            hint={t('dash.whitelistHint')}
+            users={data.allowed}
+            onRemove={(id) =>
+              channelId &&
+              void act(() => removeFromWhitelist(channelId, id), {
+                after: data.refreshLists,
+                success: t('toast.removed'),
+              })
+            }
+            onBan={(id, name) => actions.banById(id, name)}
+          />
+          <UserList
+            icon="user-x"
+            title={t('dash.bans')}
+            hint={t('dash.bansHint')}
+            users={data.banned}
+            onRemove={(id) =>
+              channelId &&
+              void act(() => removeBan(channelId, id), {
+                after: data.refreshLists,
+                success: t('toast.removed'),
+              })
+            }
+          />
+        </div>
       </div>
 
-      <HistoryCard history={data.history} bannedIds={bannedIds} onBan={actions.banById} />
-    </PageShell>
+      {settingsAvailable && data.settings && (
+        <Drawer
+          open={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          title={t('dash.settings')}
+          closeLabel={t('common.close')}
+          width="max-w-lg"
+        >
+          <SettingsCard
+            settings={data.settings}
+            onSave={(patch) =>
+              void act(async () => data.setSettings(await saveSettings(channelId!, patch)), {
+                success: t('toast.saved'),
+              })
+            }
+          />
+        </Drawer>
+      )}
+
+      <Drawer
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        title={t('dash.history')}
+        closeLabel={t('common.close')}
+        width="max-w-xl"
+      >
+        <HistoryCard history={data.history} bannedIds={bannedIds} onBan={actions.banById} />
+      </Drawer>
+    </Content>
   );
 }

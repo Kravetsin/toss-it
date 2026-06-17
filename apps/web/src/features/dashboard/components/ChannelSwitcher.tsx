@@ -17,7 +17,7 @@ export function ChannelSwitcher({
   const { t } = useI18n();
   if (!(list.length > 1 || current.role === 'moderator')) return null;
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
+    <div className="flex flex-wrap items-center gap-2 text-sm">
       {list.length > 1 ? (
         <>
           <span className="label-mono text-muted">{t('dash.channel')}</span>

@@ -25,6 +25,12 @@ export const en: Dict = {
   'common.empty': 'Empty.',
   'common.anon': 'anonymous',
   'common.home': '← Home',
+  'common.close': 'Close',
+
+  // Навигация оболочки (Фаза 3)
+  'nav.home': 'Home',
+  'nav.dashboard': 'Dashboard',
+  'nav.menu': 'Menu',
 
   // Длительность
   'dur.sec': '{n}s',
@@ -214,6 +220,12 @@ export const ru: Dict = {
   'common.empty': 'Пусто.',
   'common.anon': 'аноним',
   'common.home': '← на главную',
+  'common.close': 'Закрыть',
+
+  // Навигация оболочки (Фаза 3)
+  'nav.home': 'Главная',
+  'nav.dashboard': 'Дашборд',
+  'nav.menu': 'Меню',
 
   'dur.sec': '{n} с',
   'dur.min': '{n} мин',
