@@ -18,7 +18,7 @@ export function RepChip({ rep }: { rep?: ReputationStats }) {
     return (
       <span className="flex items-center gap-2">
         {founder}
-        <span className="w-max border border-twitch/40 bg-twitch/15 px-1.5 text-xs text-twitch-light">
+        <span className="inline-flex w-max items-center rounded-full border border-accent/30 bg-accent-soft px-2.5 py-0.5 text-xs text-accent">
           {t('dash.repNew')}
         </span>
       </span>
@@ -35,7 +35,7 @@ export function RepChip({ rep }: { rep?: ReputationStats }) {
         <Icon name="close" size={12} />
         {rep.rejected}
       </span>
-      <span className="h-3 w-px bg-line" aria-hidden="true" />
+      <span className="h-3 w-px bg-border" aria-hidden="true" />
       <span className="flex items-center gap-1" title={t('dash.repWhitelisted')}>
         <Icon name="star" size={12} />
         {rep.whitelistedChannels}

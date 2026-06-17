@@ -42,7 +42,7 @@ export function SubmissionCard({
           {t('dash.approve')}
         </Button>
         <Button onClick={onTrust}>
-          <Icon name="star" size={16} className="text-twitch-light" />
+          <Icon name="star" size={16} className="text-accent" />
           {t('dash.approveWhitelist')}
         </Button>
         <Button className="ml-auto" onClick={onReject}>

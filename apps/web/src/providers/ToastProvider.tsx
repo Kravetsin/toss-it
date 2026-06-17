@@ -12,19 +12,10 @@ type ToastFn = (message: string, tone?: Tone) => void;
 
 const ToastContext = createContext<ToastFn | null>(null);
 
-const TONE: Record<Tone, { cls: string; icon: IconName }> = {
-  ok: {
-    cls: 'border-ok text-ok bg-[color-mix(in_srgb,var(--color-ok)_14%,var(--color-surface))]',
-    icon: 'check',
-  },
-  warn: {
-    cls: 'border-warn text-warn bg-[color-mix(in_srgb,var(--color-warn)_14%,var(--color-surface))]',
-    icon: 'square-alert',
-  },
-  danger: {
-    cls: 'border-danger text-danger bg-[color-mix(in_srgb,var(--color-danger)_16%,var(--color-surface))]',
-    icon: 'close',
-  },
+const TONE: Record<Tone, { icon: string; iconName: IconName }> = {
+  ok: { icon: 'text-ok', iconName: 'check' },
+  warn: { icon: 'text-warn', iconName: 'square-alert' },
+  danger: { icon: 'text-danger', iconName: 'close' },
 };
 
 export function ToastProvider({ children }: { children: ReactNode }) {
@@ -44,9 +35,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {items.map((it) => (
           <div
             key={it.id}
-            className={`toast-in flex items-center gap-2 rounded-none border-2 px-3 py-2 font-body text-sm font-semibold shadow-[2px_2px_0_0_var(--color-bg-shadow)] ${TONE[it.tone].cls}`}
+            className="toast-in flex items-center gap-2 rounded-none border border-border bg-surface px-3.5 py-2.5 text-sm font-medium text-text shadow-2"
           >
-            <Icon name={TONE[it.tone].icon} size={16} />
+            <Icon name={TONE[it.tone].iconName} size={16} className={TONE[it.tone].icon} />
             {it.message}
           </div>
         ))}

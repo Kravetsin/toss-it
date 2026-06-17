@@ -12,15 +12,21 @@ export function AccountHeader({ user, onLogout }: { user: SessionUser; onLogout:
         <Avatar url={user.avatarUrl} name={user.displayName} size={44} />
         <div>
           <p className="font-semibold">{user.displayName}</p>
-          <p className="text-xs text-muted">{user.login}</p>
+          <p className="label-mono text-faint">{user.login}</p>
         </div>
       </div>
       <div className="flex items-center gap-4">
-        <Link to="/promo" className="text-sm text-muted hover:text-text">
+        <Link
+          to="/promo"
+          className="label-mono text-muted transition-colors duration-[var(--dur-fast)] ease-out hover:text-text"
+        >
           {t('promo.haveCode')}
         </Link>
         {user.isAdmin && (
-          <Link to="/admin" className="text-sm text-muted hover:text-text">
+          <Link
+            to="/admin"
+            className="label-mono text-muted transition-colors duration-[var(--dur-fast)] ease-out hover:text-text"
+          >
             {t('admin.title')}
           </Link>
         )}

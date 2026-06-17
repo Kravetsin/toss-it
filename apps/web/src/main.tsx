@@ -11,6 +11,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { ModInvitePage } from './pages/ModInvitePage';
 import { PromoCodePage } from './pages/PromoCodePage';
 import { AdminPage } from './pages/AdminPage';
+import { GalleryPage } from './pages/GalleryPage';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -25,6 +26,7 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/mod-invite/:token" element={<ModInvitePage />} />
               <Route path="/promo" element={<PromoCodePage />} />
               <Route path="/admin" element={<AdminPage />} />
+              {import.meta.env.DEV && <Route path="/_gallery" element={<GalleryPage />} />}
             </Routes>
           </BrowserRouter>
           {/* Виден на всех страницах */}

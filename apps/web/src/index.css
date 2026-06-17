@@ -1,59 +1,132 @@
 @import 'tailwindcss';
-@import '@fontsource/press-start-2p';
-@import '@fontsource/jetbrains-mono/400.css';
-@import '@fontsource/jetbrains-mono/600.css';
+@import '@fontsource-variable/geist-mono';
+@import '@fontsource-variable/inter';
 
-/* Pixel-art тема «Midnight Arcade»: почти-чёрная Twitch-база, фиолетовый —
-   единственный герой-акцент, квадратные рамки, жёсткие тени без блюра. */
+/* ─────────────────────────────────────────────────────────────────────────
+   Тема «Motion-dark» (Фаза 0 редизайна, см. apps/web/REDESIGN.md).
+   Тёмная, тонкие границы, мягкие многослойные тени, стекло, диагональная
+   штриховка 119°, фирменные уголки-скобки. Значения акцента и шрифтов —
+   ПРОВИЗОРНЫЕ (живут за токенами, меняются в Фазе 2 без правки компонентов).
+   ───────────────────────────────────────────────────────────────────────── */
 @theme {
-  /* Бренд Tossit: циан-тил вместо Twitch-фиолетового. Ярко-циан — акцент,
-     тёмный тил — для сплошных плашек под белый/тёмный текст. */
-  --color-twitch: #22d3ee;
-  --color-twitch-light: #67e8f9;
-  --color-twitch-dark: #0e7490;
-  --color-bg: #0c0c0f;
-  --color-bg-shadow: #050507;
-  --color-surface: #16161a;
-  --color-surface-2: #202028;
-  --color-line: #33333d;
-  --color-text: #f4f4f6;
-  --color-muted: #9a9aa6;
-  --color-ok: #3ce88b;
-  --color-warn: #ffca5f;
-  --color-danger: #ff4d5e;
+  /* Поверхности: подъём = ТЕМНЕЕ (подпись motion.dev); лифт несут тени, не цвет. */
+  --color-bg: #0d1111;
+  --color-bg-elevated: #11171a;
+  --color-surface: #060607;
+  --color-surface-2: #030304;
 
-  --font-display: 'Press Start 2P', monospace;
-  --font-body: 'JetBrains Mono', monospace;
+  /* Границы — 1px-волоски. */
+  --color-border: #1e2427;
+  --color-border-strong: #2b3338;
 
-  /* Шкала text-* немного увеличена для читаемости основного текста. */
-  --text-xs: 0.75rem;
-  --text-xs--line-height: 1.4;
-  --text-sm: 0.8125rem;
-  --text-sm--line-height: 1.45;
-  --text-base: 0.9375rem;
-  --text-base--line-height: 1.55;
-  --text-lg: 1.0625rem;
-  --text-lg--line-height: 1.45;
-  --text-xl: 1.375rem;
-  --text-xl--line-height: 1.3;
-  --text-2xl: 1.75rem;
-  --text-2xl--line-height: 1.2;
+  /* Текст. */
+  --color-text: #ededec;
+  --color-muted: #7a8180;
+  --color-faint: #525a59;
 
-  --radius-pixel: 0px;
+  /* Акцент — ПРОВИЗОРНЫЙ (мятный --accent-2 motion.dev). */
+  --color-accent: #8df0cc;
+  --color-accent-hover: #a6f4d8;
+  --color-accent-contrast: #06201a;
+  --color-accent-soft: color-mix(in srgb, #8df0cc 14%, transparent);
+  --color-accent-faint: color-mix(in srgb, #8df0cc 6%, transparent);
 
-  --shadow-pixel: 2px 2px 0 0 #050507;
-  --shadow-pixel-sm: 2px 2px 0 0 #050507;
-  --shadow-pixel-accent: 2px 2px 0 0 #0e7490;
-  --shadow-pixel-lg: 3px 3px 0 0 #050507;
+  /* Статусы (provisional; -soft = ~14% подложка). */
+  --color-ok: #34d399;
+  --color-ok-soft: color-mix(in srgb, #34d399 14%, transparent);
+  --color-warn: #ffdb2a;
+  --color-warn-soft: color-mix(in srgb, #ffdb2a 14%, transparent);
+  --color-danger: #fb5b6e;
+  --color-danger-soft: color-mix(in srgb, #fb5b6e 14%, transparent);
+  --color-danger-contrast: #1a0508;
+  --color-info: #a5b4fc;
+  --color-info-soft: color-mix(in srgb, #a5b4fc 14%, transparent);
+
+  /* Стекло. */
+  --color-glass-bg: color-mix(in srgb, #0d1111 80%, transparent);
+  --color-glass-border: color-mix(in srgb, #ededec 14%, transparent);
+
+  /* Тени — мягкие, многослойные, отрицательный spread. */
+  --shadow-1: 0 2px 6px -2px #00000059;
+  --shadow-2:
+    0 10px 20px -8px #00000047,
+    0 4px 8px -4px #0000003d;
+  --shadow-3:
+    0 24px 48px -18px #00000080,
+    0 10px 20px -8px #00000047;
+  --shadow-4:
+    0 30px 60px -24px #0000008c,
+    0 12px 24px -12px #00000059;
+
+  /* Радиусы: угловатое = 0 (rounded-none, встроенный), круглое = full; sm только поля. */
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-full: 999px;
+
+  /* Домашние кривые motion.dev (переопределяют ease-* утилиты Tailwind). */
+  --ease-out: cubic-bezier(0.25, 0, 0, 1);
+  --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.42, 0, 0.58, 1);
+
+  /* Типографика. TASA Orbiter лицензируется отдельно → пока Inter. */
+  --font-mono: 'Geist Mono Variable', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-sans: 'Inter Variable', Inter, system-ui, sans-serif;
+  --font-display: var(--font-sans);
+  --font-body: var(--font-sans);
+
+  /* ── Легаси-алиасы пиксель-эпохи (удалить после миграции; держим, чтобы код
+        компилировался и старые компоненты перекрасились/смягчились автоматически). ── */
+  --color-twitch: var(--color-accent);
+  --color-twitch-light: var(--color-accent-hover);
+  --color-twitch-dark: var(--color-accent-contrast);
+  --color-line: var(--color-border);
+  --shadow-pixel: var(--shadow-1);
+  --shadow-pixel-sm: var(--shadow-1);
+  --shadow-pixel-accent: var(--shadow-2);
+  --shadow-pixel-lg: var(--shadow-2);
+}
+
+/* Чистые дизайн-токены, на которые ссылаемся через var() в утилитах/инлайне
+   (держим в :root, чтобы гарантированно попали в вывод). */
+:root {
+  --dur-fast: 120ms;
+  --dur: 250ms;
+  --dur-slow: 400ms;
+  --spring: linear(
+    0,
+    0.006,
+    0.025,
+    0.101,
+    0.539,
+    0.721,
+    0.849,
+    0.937,
+    0.991,
+    1.006,
+    1.001,
+    0.998,
+    1
+  );
+
+  --hatch-angle: 119deg;
+  --hatch-stroke: 1px;
+  --hatch-period: 5px;
+
+  --tracking-label: 0.18em;
+  --tracking-kicker: 0.1em;
+  --tracking-tight: -0.02em;
+
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, var(--color-accent) 35%, transparent);
+  --shadow-inset-hair: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 18%, transparent);
 }
 
 body {
   background-color: var(--color-bg);
   color: var(--color-text);
-  /* Тело держим чуть крупнее для читаемости (важно для кириллицы). */
-  font-family: var(--font-body);
-  font-size: 0.9375rem;
+  font-family: var(--font-sans);
+  font-size: 15px;
   line-height: 1.55;
+  letter-spacing: var(--tracking-tight);
 }
 
 h1,
@@ -61,48 +134,217 @@ h2,
 h3,
 h4 {
   font-family: var(--font-display);
-  letter-spacing: 0.01em;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
 }
-/* Press Start 2P визуально крупный — фиксированная иерархия по уровню заголовка
-   (размерные text-* классы с заголовков сняты). h3/h4 — тихий лейбл-тир. */
 h1 {
-  font-size: 24px;
-  line-height: 1.15;
+  font-size: 30px;
 }
 h2 {
-  font-size: 16px;
-  line-height: 1.2;
+  font-size: 20px;
 }
 h3,
 h4 {
-  font-size: 12px;
-  line-height: 1.3;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: 13px;
   color: var(--color-muted);
 }
 
 input,
 textarea {
-  caret-color: var(--color-twitch-light);
+  caret-color: var(--color-accent);
 }
 
-/* Card: CRT-фаска (inset-кольцо) + жёсткая offset-тень одним box-shadow. */
-@utility card-pixel {
-  box-shadow: var(--shadow-pixel);
+/* Моно-капс-лейбл с широким трекингом — главная подпись motion.dev. */
+@utility label-mono {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 560;
 }
-/* То же + верхняя акцентная кромка (для одной «главной» карточки на экране). */
+
+/* ── Диагональная штриховка «досье» (119° — фирменный угол, НЕ 45°). ── */
+@utility hatch {
+  background-image: repeating-linear-gradient(
+    var(--hatch-angle),
+    color-mix(in srgb, var(--color-text) 10%, transparent) 0,
+    color-mix(in srgb, var(--color-text) 10%, transparent) var(--hatch-stroke),
+    transparent var(--hatch-stroke),
+    transparent var(--hatch-period)
+  );
+}
+@utility hatch-strong {
+  background-image: repeating-linear-gradient(
+    var(--hatch-angle),
+    color-mix(in srgb, var(--color-text) 20%, transparent) 0,
+    color-mix(in srgb, var(--color-text) 20%, transparent) var(--hatch-stroke),
+    transparent var(--hatch-stroke),
+    transparent var(--hatch-period)
+  );
+}
+@utility hatch-accent {
+  background-image: repeating-linear-gradient(
+    var(--hatch-angle),
+    color-mix(in srgb, var(--color-accent) 28%, transparent) 0,
+    color-mix(in srgb, var(--color-accent) 28%, transparent) var(--hatch-stroke),
+    transparent var(--hatch-stroke),
+    transparent 6px
+  );
+}
+
+/* ── Стекло: один рецепт + непрозрачный фолбэк. ── */
+@utility glass {
+  background: var(--color-glass-bg);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--color-glass-border);
+  box-shadow: var(--shadow-3);
+}
+@utility glass-strong {
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+@utility glass-badge {
+  background: color-mix(in srgb, var(--color-bg) 88%, transparent);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--color-glass-border);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass,
+  .glass-badge {
+    background: var(--color-bg-elevated);
+  }
+}
+
+/* ── Фирменные уголки-скобки. Один ::before из 4 слоёв-градиентов: анимируем
+      inset (не 4 трансформа). ::after — диагональная заливка-«вытирание». ── */
+@utility cornerframe {
+  position: relative;
+  isolation: isolate;
+}
+.cornerframe::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  z-index: 2;
+  pointer-events: none;
+  --cf-arm: 8px;
+  --cf-c: var(--cf-color, var(--color-text));
+  background-repeat: no-repeat;
+  background-position:
+    0 0,
+    0 100%,
+    0 0,
+    100% 0;
+  background-size:
+    100% var(--cf-thick, 1px),
+    100% var(--cf-thick, 1px),
+    var(--cf-thick, 1px) 100%,
+    var(--cf-thick, 1px) 100%;
+  background-image:
+    linear-gradient(
+      to right,
+      var(--cf-c) var(--cf-arm),
+      transparent var(--cf-arm),
+      transparent calc(100% - var(--cf-arm)),
+      var(--cf-c) calc(100% - var(--cf-arm))
+    ),
+    linear-gradient(
+      to right,
+      var(--cf-c) var(--cf-arm),
+      transparent var(--cf-arm),
+      transparent calc(100% - var(--cf-arm)),
+      var(--cf-c) calc(100% - var(--cf-arm))
+    ),
+    linear-gradient(
+      to bottom,
+      var(--cf-c) var(--cf-arm),
+      transparent var(--cf-arm),
+      transparent calc(100% - var(--cf-arm)),
+      var(--cf-c) calc(100% - var(--cf-arm))
+    ),
+    linear-gradient(
+      to bottom,
+      var(--cf-c) var(--cf-arm),
+      transparent var(--cf-arm),
+      transparent calc(100% - var(--cf-arm)),
+      var(--cf-c) calc(100% - var(--cf-arm))
+    );
+  transition: inset var(--dur) var(--ease-out);
+}
+.cornerframe:hover::before,
+.cornerframe:focus-visible::before,
+.cornerframe[data-active='true']::before {
+  inset: -3px;
+}
+.cornerframe:active::before {
+  inset: 3px;
+  transition-duration: var(--dur-fast);
+}
+/* На выключенном элементе уголки не двигаются (защита от форс-ховера/фокуса). */
+.cornerframe:disabled::before,
+.cornerframe:disabled:hover::before,
+.cornerframe:disabled:focus-visible::before {
+  inset: -1px;
+}
+
+/* Парный модификатор-класс: диагональная заливка (plain CSS, не @utility). */
+.cornerframe-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--cf-fill, var(--color-text));
+  clip-path: polygon(-1% 0%, -1% 0%, -100% 100%, -1% 100%);
+  transition: clip-path var(--dur-slow) var(--ease-out);
+}
+.cornerframe-fill:hover::after,
+.cornerframe-fill:focus-visible::after {
+  clip-path: polygon(0% 0%, 200% 0%, 100% 100%, 0% 100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cornerframe::before,
+  .cornerframe-fill::after {
+    transition: none;
+  }
+}
+
+/* Глобальное уважение prefers-reduced-motion: гасим длительности анимаций/переходов
+   во всём приложении — покрывает кнопки, поля, тосты, эквалайзер, спиннеры и любые
+   будущие компоненты (одно правило вместо точечных по каждому). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   ЛЕГАСИ-утилиты пиксель-эпохи. Нужны компонентам, которые ещё не мигрированы
+   (медиа-плееры, лоадер, тосты, ScrollFlow). Будут вычищены пофазно в Фазе 1+.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* Card-тени — теперь мягкие (старые компоненты смягчаются автоматически). */
+@utility card-pixel {
+  box-shadow: var(--shadow-2);
+}
 @utility card-pixel-accent {
   box-shadow:
-    inset 0 2px 0 0 var(--color-twitch),
-    var(--shadow-pixel);
+    inset 0 1px 0 0 var(--color-accent),
+    var(--shadow-2);
 }
-/* Лёгкие скан-линии — только для героя лендинга/фона оверлея, не под текстом. */
 @utility scanlines {
   background-image: repeating-linear-gradient(transparent 0 3px, rgba(255, 255, 255, 0.03) 3px 4px);
 }
 
-@keyframes pixel-loading {
+@keyframes bar-slide {
   0% {
     transform: translateX(-120%);
   }
@@ -111,14 +353,9 @@ textarea {
   }
 }
 .progress-indeterminate {
-  animation: pixel-loading 1s steps(8) infinite;
+  animation: bar-slide 1.2s ease-in-out infinite;
 }
 
-/* Брендовый лоадер — «сплит-флэп» табло. Ряд плиток-кубиков: каждая вертикально
-   переворачивается (rotateX) и открывает свою букву слова. Буквы появляются по
-   очереди, затем так же по очереди закрываются — и цикл повторяется (порядком
-   переворотов рулит JS через data-on). steps(4) на перевороте — механический,
-   дискретный «щелчок», как на настоящем табло. */
 .loader-board {
   display: flex;
   gap: 6px;
@@ -146,16 +383,15 @@ textarea {
   font-size: 1.3rem;
   line-height: 1;
 }
-/* Закрытая грань — пустой «кубик»; открытая — буква акцентным цветом. */
 .loader-tile-front {
   background: var(--color-surface-2);
   box-shadow: inset 0 0 0 1px var(--color-bg);
 }
 .loader-tile-back {
   background: var(--color-surface);
-  color: var(--color-twitch-light);
+  color: var(--color-accent-hover);
   transform: rotateX(180deg);
-  box-shadow: inset 0 2px 0 0 var(--color-twitch-dark);
+  box-shadow: inset 0 2px 0 0 var(--color-accent-contrast);
 }
 .loader-gap {
   width: 12px;
@@ -175,7 +411,6 @@ textarea {
   animation: pixel-blink 1.1s steps(1) infinite;
 }
 
-/* Мерцание пикселей в скролл-истории на входе (ScrollFlow). */
 @keyframes flow-shim {
   0%,
   100% {
@@ -189,7 +424,7 @@ textarea {
 @keyframes toast-in {
   0% {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(8px);
   }
   100% {
     opacity: 1;
@@ -197,14 +432,10 @@ textarea {
   }
 }
 .toast-in {
-  animation: toast-in 0.18s steps(3) both;
+  animation: toast-in var(--dur) var(--ease-out) both;
 }
 
-/* ── Медиа-плееры (video/audio) и рамки изображений ─────────────────────────
-   Единая пиксельная стилистика: жёсткие offset-тени и inset-кромки, без блюра
-   и без неон-свечения (оно зарезервировано за баннером отправителя в оверлее). */
-
-/* Шахматная подложка под прозрачные PNG: тихие 16px-клетки на палитре фона. */
+/* ── Медиа-плееры (используются галереей; реског медиа — отдельная задача Фазы 1). ── */
 @utility mat-checker {
   background-color: var(--color-bg);
   background-image:
@@ -214,11 +445,7 @@ textarea {
   background-position:
     0 0,
     8px 8px;
-  image-rendering: pixelated;
 }
-
-/* Дискретные «пиксельные ячейки» поверх заливки сикбара (опц. текстура):
-   2px-гуттеры цвета фона пробивают заливку — лит-сегменты без лишнего DOM. */
 @utility seek-cells {
   background-image: repeating-linear-gradient(
     to right,
@@ -226,8 +453,6 @@ textarea {
     var(--color-bg) 4px 6px
   );
 }
-
-/* Нативные thumb/track у range прячем — визуал рисуют слои-divы под прозрачным input. */
 @utility seek-native {
   -webkit-appearance: none;
   appearance: none;
@@ -249,7 +474,6 @@ textarea {
   background: transparent;
 }
 
-/* Спиннер буферизации: дискретный «щелчковый» поворот (steps), как у остальной системы. */
 @keyframes pixel-spin {
   to {
     transform: rotate(360deg);
@@ -259,7 +483,6 @@ textarea {
   animation: pixel-spin 1s steps(8) infinite;
 }
 
-/* Пиксельный эквалайзер аудио-картриджа: бары снапятся по дискретным уровням (steps). */
 .eq {
   display: flex;
   align-items: flex-end;
@@ -269,17 +492,15 @@ textarea {
 .eq > i {
   width: 3px;
   height: 25%;
-  background: var(--color-twitch);
-  box-shadow: inset -1px 0 0 0 var(--color-twitch-dark);
-  image-rendering: pixelated;
+  background: var(--color-accent);
+  box-shadow: inset -1px 0 0 0 var(--color-accent-contrast);
 }
-/* Покой/без звука — тусклые тёмно-тиловые «диоды» без правой кромки. */
 .eq:not([data-on='true']) > i {
-  background: var(--color-twitch-dark);
+  background: var(--color-accent-contrast);
   box-shadow: none;
 }
 .eq[data-on='true'] > i {
-  animation: eq-bounce 0.7s steps(4) infinite alternate;
+  animation: eq-bounce 0.7s ease-in-out infinite alternate;
 }
 .eq > i:nth-child(1) {
   animation-delay: 0s;
@@ -313,12 +534,11 @@ textarea {
     height: 80%;
   }
 }
-/* Системное «уменьшить движение» — гасим анимацию эквалайзера даже без JS-флага. */
 @media (prefers-reduced-motion: reduce) {
   .eq[data-on='true'] > i {
     animation: none;
     height: 40%;
-    background: var(--color-twitch-dark);
+    background: var(--color-accent-contrast);
     box-shadow: none;
   }
 }

@@ -8,7 +8,7 @@ export function Leaderboard({ board, meId }: { board: LeaderboardEntry[]; meId: 
   const { t } = useI18n();
   return (
     <div className="mt-8">
-      <h2 className="mb-3 flex items-center gap-2">
+      <h2 className="mb-3 flex items-center gap-2 font-display">
         <Icon name="trophy" size={16} className="text-warn" />
         {t('channel.leaderboard')}
       </h2>
@@ -22,17 +22,19 @@ export function Leaderboard({ board, meId }: { board: LeaderboardEntry[]; meId: 
               return (
                 <li
                   key={e.userId}
-                  className={`flex items-center gap-3 px-2 py-1 ${isYou ? 'bg-twitch/15' : ''}`}
+                  className={`flex items-center gap-3 px-2 py-1 ${isYou ? 'bg-accent-soft' : ''}`}
                 >
                   <span
-                    className={`flex h-6 w-6 shrink-0 items-center justify-center border-2 font-body text-sm font-semibold ${
-                      i < 3 ? 'border-twitch-dark bg-twitch text-white' : 'border-line text-muted'
+                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-sm font-semibold ${
+                      i < 3
+                        ? 'border-accent bg-accent text-accent-contrast'
+                        : 'border-border text-muted'
                     }`}
                   >
                     {i + 1}
                   </span>
-                  <b className={isYou ? 'text-twitch-light' : 'text-text'}>{e.displayName}</b>
-                  {isYou && <span className="text-sm text-twitch-light">({t('channel.you')})</span>}
+                  <b className={isYou ? 'text-accent' : 'text-text'}>{e.displayName}</b>
+                  {isYou && <span className="label-mono text-accent">{t('channel.you')}</span>}
                   <span className="ml-auto flex items-center gap-1.5 text-muted">
                     <Icon name="image" size={15} />
                     {e.count}

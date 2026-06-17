@@ -9,15 +9,9 @@ export function LoggedOutHero() {
   return (
     <>
       <div className="flex flex-col items-center gap-6 py-16 text-center">
-        <img
-          src="/favicon.svg"
-          alt="Tossit"
-          width={72}
-          height={72}
-          className="[image-rendering:pixelated]"
-        />
+        <img src="/favicon.svg" alt="Tossit" width={72} height={72} />
         <h1>
-          Toss<span className="text-twitch-light">it</span>
+          Toss<span className="text-accent-hover">it</span>
         </h1>
         <p className="max-w-md text-muted">{t('home.tagline')}</p>
         <div className="flex flex-col items-center gap-2">

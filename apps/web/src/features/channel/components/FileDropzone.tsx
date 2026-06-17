@@ -25,12 +25,12 @@ export function FileDropzone({ onPick }: { onPick: (file: File | null) => void }
       }}
       onDragLeave={() => setDragOver(false)}
       onDrop={onDrop}
-      className={`flex cursor-pointer flex-col items-center gap-3 rounded-none border-2 border-dashed px-5 py-8 text-center transition-colors ${
-        dragOver ? 'border-twitch bg-twitch/10' : 'border-line bg-surface hover:border-twitch-light/60'
+      className={`flex cursor-pointer flex-col items-center gap-3 rounded-none border border-dashed px-5 py-8 text-center transition-colors ${
+        dragOver ? 'border-accent bg-accent-soft' : 'border-border bg-surface hover:border-accent/60'
       }`}
     >
-      <Icon name="folder-plus" size={40} className="text-twitch-light" />
-      <p className="font-body text-sm font-semibold uppercase tracking-wide">{t('channel.dropzone')}</p>
+      <Icon name="folder-plus" size={40} className="text-accent" />
+      <p className="label-mono text-muted">{t('channel.dropzone')}</p>
       <input
         ref={inputRef}
         type="file"

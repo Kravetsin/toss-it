@@ -31,7 +31,7 @@ export function NowPlayingCard({
     <Card className="mb-4">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h2>{t('dash.nowPlaying')}</h2>
+          <h2 className="label-mono text-muted">{t('dash.nowPlaying')}</h2>
           {now ? (
             <p className="mt-1 text-sm text-muted">
               <b className="text-text">{now.senderName ?? t('common.anon')}</b> ·{' '}
@@ -52,13 +52,13 @@ export function NowPlayingCard({
       {isOwner && (
         <form
           onSubmit={(e) => void submitTest(e)}
-          className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-4"
+          className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-4"
         >
           <input
             type="file"
             accept="image/*,video/mp4,video/webm,audio/*"
             onChange={(e) => setTestFile(e.target.files?.[0] ?? null)}
-            className="text-sm text-muted file:mr-3 file:cursor-pointer file:rounded-none file:border-2 file:border-line file:bg-surface-2 file:px-3 file:py-1.5 file:font-body file:font-semibold file:text-text"
+            className="text-sm text-muted file:mr-3 file:cursor-pointer file:rounded-none file:border file:border-border file:bg-surface-2 file:px-3 file:py-1.5 file:label-mono file:text-text hover:file:border-border-strong"
           />
           <Button type="submit" disabled={!testFile}>
             <Icon name="send" size={16} />

@@ -19,10 +19,10 @@ export interface MediaFrameProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 /**
- * Единая пиксельная рамка для всех медиа: квадратная, 2px-граница, жёсткая
- * offset-тень (единственная тень — у самой рамки), сверху — «мат» с медиа,
- * снизу — опциональный контрол-бар через разделитель. Тонкая циан-кромка
- * сверху медиа-области роднит рамку с акцентными карточками системы.
+ * Единая рамка для всех медиа: угловатая, 1px-граница, мягкая тень (shadow-2 —
+ * единственная тень у самой рамки), сверху — «мат» с медиа, снизу —
+ * опциональный контрол-бар через разделитель. Тонкая акцентная кромка сверху
+ * медиа-области роднит рамку с акцентными карточками системы.
  */
 export function MediaFrame({
   kind,
@@ -41,7 +41,7 @@ export function MediaFrame({
   return (
     <div
       ref={rootRef}
-      className={`group/frame relative flex flex-col overflow-hidden rounded-none border-2 border-line bg-surface text-text card-pixel ${className}`}
+      className={`group/frame relative flex flex-col overflow-hidden rounded-none border border-border bg-surface text-text shadow-2 ${className}`}
       {...rest}
     >
       {/* В фуллскрине медиа-область растягивается (flex-1), а само медиа внутри
@@ -49,7 +49,7 @@ export function MediaFrame({
       <div
         className={`relative grid place-items-center ${
           fullscreen
-            ? 'min-h-0 flex-1 bg-bg-shadow'
+            ? 'min-h-0 flex-1 bg-bg'
             : isTransparent
               ? 'mat-checker'
               : 'bg-black/40'
@@ -62,7 +62,7 @@ export function MediaFrame({
         {overlay}
         {!fullscreen && (
           <div
-            className="pointer-events-none absolute inset-0 [box-shadow:inset_0_1px_0_0_var(--color-twitch)]"
+            className="pointer-events-none absolute inset-0 [box-shadow:inset_0_1px_0_0_var(--color-accent)]"
             aria-hidden
           />
         )}

@@ -73,7 +73,7 @@ export function AudioPlayer({
           else m.toggle();
         }
       }}
-      className={`flex h-11 items-center gap-2 rounded-none border-2 border-twitch-dark bg-surface px-2 text-text [box-shadow:inset_0_2px_0_0_var(--color-twitch),var(--shadow-pixel)] sm:gap-2.5 sm:px-2.5 ${className}`}
+      className={`flex h-11 items-center gap-2 rounded-none border border-border bg-surface px-2 text-text [box-shadow:inset_0_1px_0_0_var(--color-accent),var(--shadow-2)] sm:gap-2.5 sm:px-2.5 ${className}`}
     >
       <audio ref={audioRef} src={src} loop={loop} preload="metadata" hidden aria-hidden="true" />
       <MediaButton

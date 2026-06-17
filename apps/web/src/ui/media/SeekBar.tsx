@@ -73,26 +73,26 @@ export function SeekBar({
 
   return (
     <div
-      className={`relative my-auto h-2.5 flex-1 rounded-none border-2 border-line bg-surface-2 outline-twitch-light [box-shadow:inset_2px_2px_0_0_var(--color-bg)] focus-within:outline-2 focus-within:outline-offset-2 ${
+      className={`relative my-auto h-2.5 flex-1 rounded-none border border-border bg-surface-2 outline-accent focus-within:outline-2 focus-within:outline-offset-2 ${
         disabled ? 'opacity-40' : 'cursor-pointer'
       } group/seek`}
     >
       {indeterminate ? (
-        <div className="progress-indeterminate absolute inset-y-0 left-0 w-1/3 bg-twitch/70" aria-hidden />
+        <div className="progress-indeterminate absolute inset-y-0 left-0 w-1/3 bg-accent/70" aria-hidden />
       ) : (
         <>
           <div
-            className="pointer-events-none absolute inset-y-0 left-0 bg-line"
+            className="pointer-events-none absolute inset-y-0 left-0 bg-border"
             style={{ width: `${bufferedPct}%` }}
             aria-hidden
           />
           <div
-            className={`pointer-events-none absolute inset-y-0 left-0 bg-twitch [box-shadow:inset_-2px_0_0_0_var(--color-twitch-dark)] ${cells ? 'seek-cells' : ''}`}
+            className={`pointer-events-none absolute inset-y-0 left-0 bg-accent ${cells ? 'seek-cells' : ''}`}
             style={{ width: `${playedPct}%` }}
             aria-hidden
           />
           <div
-            className="pointer-events-none absolute top-1/2 h-3.5 w-2 -translate-x-1/2 -translate-y-1/2 rounded-none border-2 border-twitch-dark bg-twitch-light opacity-0 transition-opacity duration-100 group-hover/seek:opacity-100 group-focus-within/seek:opacity-100"
+            className="pointer-events-none absolute top-1/2 h-3.5 w-2 -translate-x-1/2 -translate-y-1/2 rounded-none border border-accent-contrast bg-accent opacity-0 transition-opacity duration-100 group-hover/seek:opacity-100 group-focus-within/seek:opacity-100"
             style={{ left: `${playedPct}%` }}
             aria-hidden
           />

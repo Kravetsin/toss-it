@@ -39,7 +39,7 @@ export function ImageFrame({
           src={src}
           alt={alt}
           onError={() => setError(true)}
-          className={`block w-auto max-w-full object-contain [image-rendering:auto] ${matHeightClass(size)}`}
+          className={`block w-auto max-w-full object-contain ${matHeightClass(size)}`}
         />
       )}
     </MediaFrame>

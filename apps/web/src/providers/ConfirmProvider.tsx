@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import { useI18n } from '@/i18n';
-import { Button } from '@/ui';
+import { Button, Surface } from '@/ui';
 
 interface ConfirmOptions {
   title?: string;
@@ -56,30 +56,33 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
       {children}
       {opts && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-bg/70 p-4 backdrop-blur-sm"
           onClick={() => close(false)}
         >
-          <div
+          <Surface
+            variant="glass-strong"
             role="dialog"
             aria-modal="true"
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-sm rounded-none border-2 border-line bg-surface p-4 card-pixel"
+            className="w-full max-w-sm rounded-none p-5 shadow-4"
           >
-            {opts.title && <h2 className="mb-2">{opts.title}</h2>}
+            {opts.title && (
+              <h2 className="mb-2 text-base font-medium text-text">{opts.title}</h2>
+            )}
             <p className="text-sm leading-relaxed text-muted">{opts.message}</p>
-            <div className="mt-5 flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => close(false)}>
+            <div className="mt-6 flex justify-end gap-2">
+              <Button variant="secondary" onClick={() => close(false)}>
                 {opts.cancelLabel ?? t('common.cancel')}
               </Button>
               <Button
                 autoFocus
-                variant={opts.danger ? 'danger' : 'primary'}
+                variant={opts.danger ? 'danger' : 'accent'}
                 onClick={() => close(true)}
               >
                 {opts.confirmLabel ?? t('common.confirm')}
               </Button>
             </div>
-          </div>
+          </Surface>
         </div>
       )}
     </ConfirmContext.Provider>

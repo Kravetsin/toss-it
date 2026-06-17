@@ -25,7 +25,7 @@ export function ChannelHeader({ channel }: { channel: PublicChannelInfo }) {
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2 text-sm text-muted">
+      <div className="mt-4 flex flex-wrap gap-2">
         <Chip icon="image" text={t('channel.limitVideo', { dur: formatDuration(channel.maxDurationMs, t) })} />
         <Chip icon="volume-2" text={t('channel.limitAudio', { dur: formatDuration(channel.maxAudioDurationMs, t) })} />
         <Chip icon="save" text={t('channel.limitSize', { mb: mb(channel.maxFileSizeBytes) })} />

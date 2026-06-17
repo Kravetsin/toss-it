@@ -27,17 +27,17 @@ export function MediaButton({
 }: MediaButtonProps) {
   const glyph = size === 'submit' ? 18 : 16;
   const tone = primary
-    ? 'text-twitch hover:text-twitch-light hover:bg-surface-2 active:bg-line'
+    ? 'text-accent hover:text-accent-hover hover:bg-surface-2 active:bg-surface-2'
     : pressed
-      ? 'bg-surface-2 text-text hover:bg-line'
-      : 'text-muted hover:text-text hover:bg-surface-2 active:bg-line disabled:hover:bg-transparent disabled:hover:text-muted';
+      ? 'bg-surface-2 text-text hover:bg-surface-2'
+      : 'text-muted hover:text-text hover:bg-surface-2 active:bg-surface-2 disabled:hover:bg-transparent disabled:hover:text-muted';
   return (
     <button
       type="button"
       aria-label={label}
       title={label}
       aria-pressed={pressed || undefined}
-      className={`grid h-7 w-7 shrink-0 cursor-pointer place-items-center rounded-none outline-twitch-light transition-colors duration-75 focus-visible:outline-2 focus-visible:-outline-offset-2 disabled:cursor-not-allowed disabled:opacity-40 sm:h-8 sm:w-8 ${tone} ${className}`}
+      className={`grid h-7 w-7 shrink-0 cursor-pointer place-items-center rounded-none outline-none transition-colors duration-75 focus-visible:[box-shadow:var(--shadow-focus)] disabled:cursor-not-allowed disabled:opacity-40 sm:h-8 sm:w-8 ${tone} ${className}`}
       {...rest}
     >
       <Icon name={icon} size={glyph} />

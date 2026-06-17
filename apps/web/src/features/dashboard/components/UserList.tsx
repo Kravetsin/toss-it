@@ -23,7 +23,7 @@ export function UserList({
   return (
     <Card>
       <h2 className="flex items-center gap-2">
-        <Icon name={icon} size={18} className="text-twitch-light" />
+        <Icon name={icon} size={18} className="text-accent" />
         {title}
       </h2>
       <p className="mt-0.5 text-sm text-muted">{hint}</p>
@@ -37,11 +37,11 @@ export function UserList({
               <span className="text-xs text-muted">
                 {t('dash.since', { date: new Date(u.addedAt).toLocaleDateString() })}
               </span>
-              <span className="ml-auto flex gap-2">
+              <span className="ml-auto flex items-center gap-2">
                 {onBan && (
                   <button
                     onClick={() => onBan(u.userId, u.displayName)}
-                    className="cursor-pointer text-muted hover:text-danger"
+                    className="cursor-pointer text-muted outline-none transition-colors duration-[180ms] ease-out hover:text-danger focus-visible:text-danger"
                     title={t('dash.ban')}
                   >
                     <Icon name="user-x" size={16} />
@@ -49,7 +49,7 @@ export function UserList({
                 )}
                 <button
                   onClick={() => onRemove(u.userId)}
-                  className="cursor-pointer text-xs text-muted hover:text-danger"
+                  className="cursor-pointer label-mono text-muted outline-none transition-colors duration-[180ms] ease-out hover:text-danger focus-visible:text-danger"
                 >
                   {t('dash.removeUser')}
                 </button>

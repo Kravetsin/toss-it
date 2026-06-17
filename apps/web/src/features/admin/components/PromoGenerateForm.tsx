@@ -28,27 +28,27 @@ export function PromoGenerateForm({ onCreated }: { onCreated: () => void }) {
 
   return (
     <Card className="mb-4">
-      <h2>{t('admin.generate')}</h2>
+      <h2 className="label-mono text-muted">{t('admin.generate')}</h2>
       <div className="mt-3 flex flex-wrap items-end gap-3">
-        <label className="text-sm text-muted">
-          <span>{t('admin.count')}</span>
+        <label className="flex flex-col gap-1.5">
+          <span className="label-mono text-faint">{t('admin.count')}</span>
           <Input
             type="number"
             min={1}
             max={20}
             value={count}
             onChange={(e) => setCount(Math.min(20, Math.max(1, Number(e.target.value) || 1)))}
-            className="mt-1 block w-20 bg-surface-2 px-2 py-1"
+            className="block w-20"
           />
         </label>
-        <label className="flex-1 text-sm text-muted">
-          <span>{t('admin.note')}</span>
+        <label className="flex flex-1 flex-col gap-1.5">
+          <span className="label-mono text-faint">{t('admin.note')}</span>
           <Input
             type="text"
             value={note}
             placeholder={t('admin.notePlaceholder')}
             onChange={(e) => setNote(e.target.value)}
-            className="mt-1 block w-full bg-surface-2 px-2 py-1"
+            className="block w-full"
           />
         </label>
         <Button variant="primary" disabled={busy} onClick={() => void generate()}>

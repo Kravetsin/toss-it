@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import type { ReputationStats, SubmissionSummary } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
@@ -8,7 +9,11 @@ import { SubmissionMeta } from './SubmissionMeta';
 import { SubmissionPreview } from './SubmissionPreview';
 
 function Kbd({ k }: { k: string }) {
-  return <span className="ml-1 border border-line px-1 text-xs normal-case text-muted">{k}</span>;
+  return (
+    <span className="ml-1 rounded-sm border border-border bg-surface-2 px-1 text-xs normal-case text-muted">
+      {k}
+    </span>
+  );
 }
 
 /** Фокус-карточка разбора: одна заявка крупно + кнопки с хоткеями + «дальше». */
@@ -54,7 +59,7 @@ export function ReviewCard({
           <Kbd k="Space" />
         </Button>
         <Button onClick={onTrust}>
-          <Icon name="star" size={16} className="text-twitch-light" />
+          <Icon name="star" size={16} className="text-accent" />
           {t('dash.approveWhitelist')}
           <Kbd k="W" />
         </Button>
@@ -68,7 +73,7 @@ export function ReviewCard({
           {t('dash.reject')}
           <Kbd k="R" />
         </Button>
-        <Button className="hover:border-danger hover:text-danger" onClick={onBan}>
+        <Button style={{ '--cf-color': 'var(--color-danger)' } as CSSProperties} onClick={onBan}>
           <Icon name="user-x" size={16} className="text-danger" />
           {t('dash.ban')}
           <Kbd k="B" />
@@ -80,14 +85,14 @@ export function ReviewCard({
           <span
             key={n.id}
             title={n.senderName ?? ''}
-            className="flex h-7 w-7 items-center justify-center border-2 border-line bg-surface-2"
+            className="flex h-7 w-7 items-center justify-center border border-border bg-surface-2"
           >
             <Icon name={KIND_ICON[n.kind]} size={14} />
           </span>
         ))}
         {rest > next.length && <span>+{rest - next.length}</span>}
       </div>
-      <p className="mt-3 text-xs text-muted/70">{t('dash.hotkeyHint')}</p>
+      <p className="mt-3 text-xs text-faint">{t('dash.hotkeyHint')}</p>
     </Card>
   );
 }

@@ -1,6 +1,6 @@
 import { useI18n } from '@/i18n';
 import { mb } from '@/lib/format';
-import { Card } from '@/ui';
+import { Card, IconButton } from '@/ui';
 import { AudioPlayer, ImageFrame, VideoPlayer } from '@/ui/media';
 
 /** Превью выбранного файла по его типу (image/video/audio). */
@@ -32,12 +32,14 @@ export function SelectedFileCard({
         <p className="truncate text-sm text-muted">
           {file.name} · {mb(file.size, 1)} MB
         </p>
-        <button
+        <IconButton
+          name="close"
+          label={t('channel.removeFile')}
+          size="sm"
+          variant="ghost"
           onClick={onRemove}
-          className="shrink-0 cursor-pointer text-sm text-muted hover:text-danger"
-        >
-          {t('channel.removeFile')}
-        </button>
+          className="hover:text-danger"
+        />
       </div>
     </Card>
   );

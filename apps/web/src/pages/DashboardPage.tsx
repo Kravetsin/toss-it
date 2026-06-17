@@ -61,7 +61,7 @@ export function DashboardPage() {
       <PageShell maxWidth="3xl">
         <p className="text-muted">
           {t('dash.createFirstPre')}
-          <Link to="/" className="text-twitch-light underline">
+          <Link to="/" className="text-accent underline">
             {t('dash.createFirstLink')}
           </Link>
           .

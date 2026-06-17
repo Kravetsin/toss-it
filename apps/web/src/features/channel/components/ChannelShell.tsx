@@ -12,10 +12,10 @@ export function ChannelShell({ children }: { children: ReactNode }) {
         className="mb-6 inline-flex items-center gap-2 text-muted transition-colors hover:text-text"
       >
         <img src="/favicon.svg" alt="Tossit" width={24} height={24} />
-        <span className="font-display text-sm uppercase tracking-wide">Tossit</span>
+        <span className="label-mono">Tossit</span>
       </Link>
       {children}
-      <p className="mt-10 text-center text-xs text-muted/60">Tossit</p>
+      <p className="mt-10 text-center label-mono text-faint">Tossit</p>
     </PageShell>
   );
 }

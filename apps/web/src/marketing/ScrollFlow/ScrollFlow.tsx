@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import { ICONS } from '@/ui/icons';
 import { useI18n } from '@/i18n';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { ScrollFlowStatic } from './ScrollFlowStatic';
@@ -31,6 +30,28 @@ import {
   smooth,
   type Pt,
 } from './engine';
+
+// Пиксельные глифы для встроенной SVG-анимации (этапы + стампы-вердикты). Раньше
+// брались из карты ICONS; заинлайнены локально — ScrollFlow переосмыслим в Фазе 4.
+const FLOW_GLYPHS: Record<string, string[]> = {
+  upload: ['M19 21H5v-2h14v2ZM5 19H3v-4h2v4Zm16 0h-2v-4h2v4ZM13 5h2v2h2v2h-4v8h-2V9H7V7h2V5h2V3h2v2Z'],
+  loader: [
+    'M13 22h-2v-6h2v6Zm-6-3H5v-2h2v2Zm12 0h-2v-2h2v2ZM9 17H7v-2h2v2Zm8 0h-2v-2h2v2Zm-9-4H2v-2h6v2Zm14 0h-6v-2h6v2ZM9 9H7V7h2v2Zm8 0h-2V7h2v2Zm-4-1h-2V2h2v6ZM7 7H5V5h2v2Zm12 0h-2V5h2v2Z',
+  ],
+  shield: [
+    'M4 2h16v2H4zM2 4h2v10H2zm18 0h2v10h-2zM4 14h2v2H4zm2 2h2v2H6zm4 4h4v2h-4zm10-6h-2v2h2zm-2 2h-2v2h2zm-2 2h-2v2h2zm-6 0H8v2h2z',
+  ],
+  play: ['M15 11h-2V9h2zm0 4h-2v-2h2zm-2 2h-2v-2h2zm0-8h-2V7h2zm-2-2H9V5h2zM9 21H7V3h2zm6-8h2v-2h-2zm-6 4h2v2H9z'],
+  check: [
+    'M10 18H8v-2h2v2Zm-2-2H6v-2h2v2Zm4-2v2h-2v-2h2Zm-6 0H4v-2h2v2Zm8 0h-2v-2h2v2Zm2-2h-2v-2h2v2Zm2-2h-2V8h2v2Zm2-2h-2V6h2v2Z',
+  ],
+  close: [
+    'M7 19H5V17H7V19ZM19 19H17V17H19V19ZM9 15V17H7V15H9ZM17 17H15V15H17V17ZM11 15H9V13H11V15ZM15 15H13V13H15V15ZM13 13H11V11H13V13ZM11 11H9V9H11V11ZM15 11H13V9H15V11ZM9 9H7V7H9V9ZM17 9H15V7H17V9ZM7 7H5V5H7V7ZM19 7H17V5H19V7Z',
+  ],
+  star: [
+    'M5 20H8V22H3V16H5V20ZM21 22H16V20H19V16H21V22ZM10 20H8V18H10V20ZM16 20H14V18H16V20ZM14 18H10V16H14V18ZM7 16H5V13H7V16ZM19 16H17V13H19V16ZM5 13H3V11H5V13ZM21 13H19V11H21V13ZM9 9H3V11H1V7H9V9ZM23 11H21V9H15V7H23V11ZM11 7H9V3H11V7ZM15 7H13V3H15V7ZM13 3H11V1H13V3Z',
+  ],
+};
 
 /**
  * Анимация «как это работает» под кнопками входа: пиксельный объект стоит по центру,
@@ -77,7 +98,10 @@ export function ScrollFlow() {
       const rad = 13.5 * Math.sqrt((c + 1) / 42);
       cluster.push([Math.cos(ang) * rad, Math.sin(ang) * rad]);
     }
-    const shapes: Pt[][] = [cluster, ...STAGE_ICONS.map((name) => sampleShape(ctx, ICONS[name]!.join(' ')))];
+    const shapes: Pt[][] = [
+      cluster,
+      ...STAGE_ICONS.map((name) => sampleShape(ctx, (FLOW_GLYPHS[name] ?? []).join(' '))),
+    ];
     const cum = buildTimeline();
     // Регион «модерации»: TRUST перелетает 440→900 поверх щита (фазы 5–7);
     // REJECT отскакивает у щита и не идёт к монитору (фазы 6–8).
@@ -349,17 +373,17 @@ export function ScrollFlow() {
           <g ref={partsRef} />
           {/* Стампы-вердикты в экранных координатах — всплывают над щитом (центр CX, y≈84). */}
           <g ref={checkRef} opacity={0} fill="#34d399" transform="translate(330.4 74.4) scale(0.8)">
-            {ICONS.check!.map((d, i) => (
+            {FLOW_GLYPHS.check!.map((d, i) => (
               <path key={i} d={d} />
             ))}
           </g>
           <g ref={closeRef} opacity={0} fill="#f87171" transform="translate(330.4 74.4) scale(0.8)">
-            {ICONS.close!.map((d, i) => (
+            {FLOW_GLYPHS.close!.map((d, i) => (
               <path key={i} d={d} />
             ))}
           </g>
           <g ref={starRef} opacity={0} fill="#fbbf24" transform="translate(330.4 74.4) scale(0.8)">
-            {ICONS.star!.map((d, i) => (
+            {FLOW_GLYPHS.star!.map((d, i) => (
               <path key={i} d={d} />
             ))}
           </g>

@@ -9,9 +9,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@fontsource/press-start-2p": "^5.2.7",
+    "@fontsource-variable/geist-mono": "^5.2.8",
+    "@fontsource-variable/inter": "^5.2.8",
     "@fontsource/jetbrains-mono": "^5.2.7",
+    "@fontsource/press-start-2p": "^5.2.7",
     "@tmw/shared": "workspace:*",
+    "lucide-react": "^1.18.0",
+    "motion": "^12.40.0",
     "pixelarticons": "^2.1.2",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",

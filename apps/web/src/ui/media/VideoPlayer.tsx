@@ -72,7 +72,7 @@ export function VideoPlayer({
 
   const bar = (
     <div
-      className={`flex items-center gap-1.5 border-t-2 border-line bg-surface px-1.5 sm:gap-2 sm:px-2 ${
+      className={`flex items-center gap-1.5 border-t border-border bg-surface px-1.5 sm:gap-2 sm:px-2 ${
         fs.isFullscreen ? 'h-10' : 'h-7 sm:h-8'
       }`}
     >
@@ -127,7 +127,7 @@ export function VideoPlayer({
             type="button"
             aria-label={m.ended ? 'Replay' : 'Play'}
             onClick={onPlateClick}
-            className={`grid place-items-center rounded-none border-2 border-twitch bg-bg/70 text-twitch outline-twitch-light transition-colors duration-100 hover:border-twitch-light hover:bg-bg/85 focus-visible:outline-2 focus-visible:outline-offset-2 ${
+            className={`grid place-items-center border border-accent bg-bg/70 text-accent outline-none transition-colors duration-100 hover:border-accent-hover hover:bg-bg/85 hover:text-accent-hover focus-visible:[box-shadow:var(--shadow-focus)] ${
               fs.isFullscreen ? 'h-20 w-20' : 'h-12 w-12 sm:h-14 sm:w-14'
             }`}
           >
@@ -137,7 +137,7 @@ export function VideoPlayer({
       )}
       {m.waiting && !m.error && (
         <div className="pointer-events-none absolute inset-0 grid place-items-center">
-          <Icon name="loader" size={fs.isFullscreen ? 40 : 28} className="pixel-spin text-twitch-light" />
+          <Icon name="loader" size={fs.isFullscreen ? 40 : 28} className="animate-spin text-accent" />
         </div>
       )}
       {m.error && (

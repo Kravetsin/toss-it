@@ -6,8 +6,9 @@ import { Button, Card } from '@/ui';
 export function NoChannelCard({ onCreate }: { onCreate: () => void }) {
   const { t } = useI18n();
   return (
-    <Card className="mt-6 flex flex-col items-center gap-4 py-10 text-center">
-      <p className="text-muted">{t('home.noChannel')}</p>
+    <Card corners className="mt-6 flex flex-col items-center gap-5 py-12 text-center">
+      <Icon name="sparkles" size={28} className="text-accent" />
+      <p className="max-w-md text-balance text-muted">{t('home.noChannel')}</p>
       <Button variant="primary" onClick={onCreate}>
         <Icon name="sparkles" size={16} />
         {t('home.createChannel')}

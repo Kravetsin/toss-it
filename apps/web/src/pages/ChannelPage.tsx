@@ -49,7 +49,8 @@ export function ChannelPage() {
   if (!channel) {
     return (
       <ChannelShell>
-        <h1>{t('channel.notFoundTitle')}</h1>
+        <span className="label-mono text-danger">404</span>
+        <h1 className="mt-2">{t('channel.notFoundTitle')}</h1>
         <p className="mt-2 text-muted">{t('channel.notFoundBody', { login })}</p>
       </ChannelShell>
     );

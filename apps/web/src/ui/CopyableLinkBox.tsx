@@ -1,5 +1,4 @@
-import { Button } from './Button';
-import { Icon } from './icons';
+import { IconButton } from './IconButton';
 
 /**
  * Бордерная «коробка» со ссылкой/кодом и кнопкой копирования рядом.
@@ -19,19 +18,27 @@ export function CopyableLinkBox({
   size?: 'sm' | 'xs';
 }) {
   const text = size === 'sm' ? 'text-sm' : 'text-xs';
-  const box = `flex-1 break-all rounded-none border-2 border-line bg-surface-2 px-3 py-2 ${text} text-twitch-light`;
+  const box = `flex-1 break-all rounded-[var(--radius-sm)] border border-border bg-surface-2 px-3 py-2 font-mono ${text} text-text transition-colors duration-[180ms] ease-out`;
   return (
     <div className="flex items-center gap-2">
       {href ? (
-        <a href={href} target="_blank" rel="noreferrer" className={`${box} hover:underline`}>
+        <a
+          href={href}
+          target="_blank"
+          rel="noreferrer"
+          className={`${box} hover:border-border-strong hover:text-accent`}
+        >
           {value}
         </a>
       ) : (
         <code className={box}>{value}</code>
       )}
-      <Button className="shrink-0" onClick={onCopy}>
-        <Icon name={copied ? 'check' : 'copy'} size={16} />
-      </Button>
+      <IconButton
+        name={copied ? 'check' : 'copy'}
+        label="Copy"
+        active={copied}
+        onClick={onCopy}
+      />
     </div>
   );
 }

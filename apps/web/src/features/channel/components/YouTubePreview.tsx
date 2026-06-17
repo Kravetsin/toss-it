@@ -7,8 +7,8 @@ export function YouTubePreview({ ytId }: { ytId: string }) {
   return (
     <Card className="flex flex-col items-start gap-2">
       <YouTubeFrame youtubeId={ytId} size="submit" thumbnailOnly className="w-full" />
-      <p className="flex items-center gap-1.5 text-sm text-muted">
-        <Icon name="play" size={15} className="text-twitch-light" />
+      <p className="flex items-center gap-1.5 label-mono text-muted">
+        <Icon name="play" size={15} className="text-accent" />
         YouTube
       </p>
     </Card>

@@ -50,11 +50,13 @@ export function ComposeForm({
           rows={3}
           onChange={(e) => onTextChange(e.target.value)}
           placeholder={file ? t('channel.captionPlaceholder') : t('channel.textPlaceholder')}
-          className="w-full resize-none bg-surface px-3 py-2"
+          className="resize-none"
         />
-        <div className="mt-1 flex justify-between text-xs text-muted">
-          <span>{t('channel.sendingAs', { name: senderName })}</span>
-          <span>
+        <div className="mt-1.5 flex items-center justify-between gap-2">
+          <span className="text-xs text-muted">
+            {t('channel.sendingAs', { name: senderName })}
+          </span>
+          <span className="label-mono text-faint">
             {text.length}/{TEXT_MAX_LEN}
           </span>
         </div>

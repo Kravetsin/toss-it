@@ -6,6 +6,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { Surface } from '@/ui';
 import { dicts, en, type Lang, type Params } from './dictionaries';
 
 export type { Lang } from './dictionaries';
@@ -74,18 +75,26 @@ export function LanguageSwitcher() {
   const { lang, setLang } = useI18n();
   const langs: Lang[] = ['en', 'ru'];
   return (
-    <div className="shadow-pixel-sm fixed bottom-4 right-4 z-50 flex overflow-hidden rounded-none border-2 border-line bg-surface font-display text-xs">
-      {langs.map((l) => (
-        <button
-          key={l}
-          onClick={() => setLang(l)}
-          className={`cursor-pointer px-3 py-1.5 font-semibold transition-colors ${
-            lang === l ? 'bg-twitch text-white' : 'text-muted hover:text-text'
-          }`}
-        >
-          {l.toUpperCase()}
-        </button>
-      ))}
-    </div>
+    <Surface
+      variant="glass-badge"
+      className="fixed bottom-4 right-4 z-50 flex gap-0.5 rounded-full p-1 shadow-2"
+    >
+      {langs.map((l) => {
+        const active = lang === l;
+        return (
+          <button
+            key={l}
+            type="button"
+            onClick={() => setLang(l)}
+            aria-pressed={active}
+            className={`cursor-pointer rounded-full px-3 py-1.5 label-mono outline-none transition-[color,background-color] duration-[180ms] ease-out focus-visible:[box-shadow:var(--shadow-focus)] ${
+              active ? 'bg-accent-soft text-accent' : 'text-muted hover:text-text'
+            }`}
+          >
+            {l.toUpperCase()}
+          </button>
+        );
+      })}
+    </Surface>
   );
 }

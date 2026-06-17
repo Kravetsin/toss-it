@@ -18,7 +18,7 @@ export function PageShell({
   className?: string;
 }) {
   return (
-    <main className={`mx-auto min-h-screen px-4 py-10 ${WIDTHS[maxWidth]} ${className}`}>
+    <main className={`mx-auto min-h-screen bg-bg px-4 py-10 text-text ${WIDTHS[maxWidth]} ${className}`}>
       {children}
     </main>
   );

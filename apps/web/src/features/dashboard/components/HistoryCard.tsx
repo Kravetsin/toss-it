@@ -27,14 +27,14 @@ export function HistoryCard({
               {history.map((h) => {
                 const si = STATUS_ICON[h.status];
                 return (
-                  <tr key={h.id} className="border-t border-line/40 first:border-t-0">
+                  <tr key={h.id} className="border-t border-border first:border-t-0">
                     <td className="py-1.5 pr-2 align-middle">
                       <Icon name={si.icon} size={15} className={si.cls} />
                     </td>
                     <td className="py-1.5 pr-3 align-middle">
                       <b className="text-text">{h.senderName ?? t('common.anon')}</b>
                     </td>
-                    <td className="py-1.5 pr-3 align-middle text-muted">{h.kind}</td>
+                    <td className="py-1.5 pr-3 align-middle label-mono text-faint">{h.kind}</td>
                     <td className="w-full whitespace-nowrap py-1.5 pr-2 text-right align-middle text-xs text-muted">
                       {new Date(h.createdAt).toLocaleString()}
                     </td>

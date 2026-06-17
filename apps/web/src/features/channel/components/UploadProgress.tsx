@@ -7,8 +7,12 @@ export function UploadProgress({ progress }: { progress: number | null }) {
   const { t } = useI18n();
   return (
     <Card className="flex flex-col gap-3">
-      <p className="flex items-center gap-2">
-        <Icon name={progress === null ? 'loader' : 'upload'} size={18} />
+      <p className="flex items-center gap-2 text-text">
+        <Icon
+          name={progress === null ? 'loader' : 'upload'}
+          size={18}
+          className={`text-accent${progress === null ? ' animate-spin' : ''}`}
+        />
         {progress === null
           ? t('channel.processing')
           : t('channel.uploading', { pct: Math.round(progress * 100) })}

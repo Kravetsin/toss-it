@@ -12,7 +12,7 @@ export function SubmissionMeta({ s, trusted }: { s: SubmissionSummary; trusted: 
         <Icon name={KIND_ICON[s.kind]} size={15} className="shrink-0 text-muted" />
         <b className="truncate text-text">{s.senderName ?? t('common.anon')}</b>
         {trusted && (
-          <span className="shrink-0 border border-ok/40 bg-ok/15 px-1.5 py-0.5 text-xs text-ok">
+          <span className="shrink-0 border border-ok/40 bg-ok-soft px-1.5 py-0.5 label-mono text-ok">
             {t('dash.trusted')}
           </span>
         )}

@@ -21,9 +21,9 @@ interface VolumeSliderProps {
 export function VolumeSlider({ volume, muted, onChange, label }: VolumeSliderProps) {
   const pct = muted ? 0 : Math.round(volume * 100);
   return (
-    <div className="relative my-auto h-2 w-14 shrink-0 rounded-none border-2 border-line bg-surface-2 outline-twitch-light [box-shadow:inset_2px_2px_0_0_var(--color-bg)] focus-within:outline-2 focus-within:outline-offset-2">
+    <div className="relative my-auto h-2 w-14 shrink-0 border border-border bg-surface-2 outline-none focus-within:[box-shadow:var(--shadow-focus)]">
       <div
-        className="pointer-events-none absolute inset-y-0 left-0 bg-twitch [box-shadow:inset_-2px_0_0_0_var(--color-twitch-dark)]"
+        className="pointer-events-none absolute inset-y-0 left-0 bg-accent"
         style={{ width: `${pct}%` }}
         aria-hidden
       />

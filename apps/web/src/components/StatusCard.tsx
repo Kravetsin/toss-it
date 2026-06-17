@@ -16,7 +16,7 @@ export function StatusCard({
   gap?: 3 | 4;
   children: ReactNode;
 }) {
-  const color = tone === 'warn' ? 'text-warn' : 'text-twitch-light';
+  const color = tone === 'warn' ? 'text-warn' : 'text-accent';
   const gapCls = gap === 3 ? 'gap-3' : 'gap-4';
   return (
     <Card className={`flex flex-col items-center ${gapCls} py-10 text-center`}>

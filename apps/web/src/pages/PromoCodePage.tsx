@@ -83,7 +83,7 @@ export function PromoCodePage() {
             onChange={(e) => setCode(e.target.value)}
             placeholder={t('promo.enterCode')}
             autoFocus
-            className="bg-surface-2 px-3 py-2 text-center font-display uppercase tracking-wide"
+            className="bg-surface-2 px-3 py-2 text-center font-mono uppercase tracking-wide"
           />
           <Button type="submit" variant="primary" disabled={redeeming || !code.trim()}>
             <Icon name="check" size={16} />

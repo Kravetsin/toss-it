@@ -70,8 +70,10 @@ export function SettingsCard({
           <h2>{t('dash.settings')}</h2>
         </button>
         <label
-          className={`flex cursor-pointer items-center gap-2 border-2 px-3 py-1.5 text-sm font-semibold ${
-            settings.accepting ? 'border-ok/40 bg-ok/15 text-ok' : 'border-danger/40 bg-danger/15 text-danger'
+          className={`flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 label-mono ${
+            settings.accepting
+              ? 'border-ok/30 bg-ok-soft text-ok'
+              : 'border-danger/30 bg-danger-soft text-danger'
           }`}
         >
           <input
@@ -119,7 +121,7 @@ export function SettingsCard({
               onChange={setVolume}
             />
           </div>
-          <div className="mt-6 border-t-2 border-line pt-4">
+          <div className="mt-6 border-t border-border pt-4">
             <h3 className="mb-3">{t('dash.layout')}</h3>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
@@ -150,8 +152,8 @@ export function SettingsCard({
               <Toggle checked={musicSeparate} onChange={setMusicSeparate} label={t('dash.musicSeparate')} />
             </div>
             {musicSeparate && (
-              <div className="mt-3 border-l-2 border-twitch/40 pl-4">
-                <h4 className="mb-2 flex items-center gap-1.5 text-twitch-light">
+              <div className="mt-3 border-l border-accent/40 pl-4">
+                <h4 className="mb-2 flex items-center gap-1.5 text-accent">
                   <Icon name="volume-2" size={15} />
                   {t('dash.musicLayout')}
                 </h4>
@@ -233,7 +235,7 @@ function Toggle({
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="accent-twitch"
+        className="accent-[var(--color-accent)]"
       />
       {label}
     </label>
@@ -267,7 +269,7 @@ function Slider({
         max={max}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="mt-1 w-full accent-twitch"
+        className="mt-1 w-full accent-[var(--color-accent)]"
       />
     </label>
   );
@@ -294,13 +296,13 @@ function PositionGrid({
             aria-pressed={active}
             onClick={() => onChange(p)}
             style={{ justifyContent: justify, alignItems: align }}
-            className={`flex h-9 w-9 cursor-pointer border-2 p-1.5 ${
+            className={`flex h-9 w-9 cursor-pointer border p-1.5 transition-colors ${
               active
-                ? 'border-twitch-dark bg-twitch/30'
-                : 'border-line bg-surface-2 hover:border-twitch-light'
+                ? 'border-accent bg-accent-soft'
+                : 'border-border bg-surface-2 hover:border-accent'
             }`}
           >
-            <span className={`h-2 w-2 ${active ? 'bg-twitch-light' : 'bg-muted'}`} />
+            <span className={`h-2 w-2 rounded-full ${active ? 'bg-accent' : 'bg-muted'}`} />
           </button>
         );
       })}
@@ -326,11 +328,11 @@ function LayoutPreview({
     <div>
       <span className="text-sm text-muted">{t('dash.preview')}</span>
       <div
-        className="scanlines mt-1 flex aspect-[16/9] w-full overflow-hidden border-2 border-line bg-surface-2"
+        className="mt-1 flex aspect-[16/9] w-full overflow-hidden border border-border bg-surface-2"
         style={{ justifyContent: justify, alignItems: align }}
       >
         <div
-          className="flex shrink-0 items-center justify-center border border-twitch-light bg-twitch/60 text-[10px] text-white"
+          className="flex shrink-0 items-center justify-center border border-accent bg-accent-soft text-[10px] text-accent"
           style={{
             // Размер — от всего бокса (как медиа от вьюпорта), не от области внутри отступа.
             width: `${size}%`,

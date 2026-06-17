@@ -1,0 +1,259 @@
+import {
+  Alert,
+  Avatar,
+  Badge,
+  Button,
+  Card,
+  Chip,
+  CornerFrame,
+  Icon,
+  IconButton,
+  Input,
+  Loader,
+  ProgressBar,
+  Surface,
+  Textarea,
+} from '@/ui';
+import type { IconName } from '@/ui/icons';
+
+/**
+ * Dev-витрина дизайн-системы «Motion-dark» (Фаза 0). Показывает примитивы во всех
+ * состояниях — чтобы агенты Фазы 1 сверяли свой реског с эталоном. Только DEV.
+ */
+
+const COLORS: { name: string; cls: string; border?: boolean }[] = [
+  { name: 'bg', cls: 'bg-bg', border: true },
+  { name: 'bg-elevated', cls: 'bg-bg-elevated' },
+  { name: 'surface', cls: 'bg-surface' },
+  { name: 'surface-2', cls: 'bg-surface-2' },
+  { name: 'border', cls: 'bg-border' },
+  { name: 'border-strong', cls: 'bg-border-strong' },
+  { name: 'text', cls: 'bg-text' },
+  { name: 'muted', cls: 'bg-muted' },
+  { name: 'faint', cls: 'bg-faint' },
+  { name: 'accent', cls: 'bg-accent' },
+  { name: 'accent-hover', cls: 'bg-accent-hover' },
+  { name: 'ok', cls: 'bg-ok' },
+  { name: 'warn', cls: 'bg-warn' },
+  { name: 'danger', cls: 'bg-danger' },
+  { name: 'info', cls: 'bg-info' },
+];
+
+const ICONS: IconName[] = [
+  'folder-plus', 'send', 'upload', 'clock', 'check', 'close', 'monitor', 'trophy',
+  'volume-1', 'volume-2', 'volume-3', 'volume-x', 'gift', 'sparkles', 'star', 'image',
+  'loader', 'reload', 'copy', 'user-x', 'forward', 'bell', 'bell-off', 'shield', 'eye',
+  'home', 'save', 'play', 'pause', 'square-alert', 'fullscreen', 'fullscreen-exit',
+  'swap', 'twitch', 'google',
+];
+
+const BTN_VARIANTS = ['primary', 'framed', 'accent', 'secondary', 'ghost', 'danger'] as const;
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="flex flex-col gap-4">
+      <h2 className="label-mono text-muted">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+export function GalleryPage() {
+  return (
+    <div className="mx-auto flex max-w-5xl flex-col gap-12 p-8">
+      <header className="flex flex-col gap-2">
+        <span className="label-mono text-accent">&gt; FOUNDATION · PHASE 0</span>
+        <h1>Motion-dark</h1>
+        <p className="max-w-xl text-muted">
+          Эталон дизайн-системы. Значения акцента и шрифтов провизорные. Наведи курсор на
+          кнопки — уголки «выезжают», диагональная заливка вытирает фон, лейбл инвертируется.
+        </p>
+      </header>
+
+      <Section title="Colors">
+        <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
+          {COLORS.map((c) => (
+            <div key={c.name} className="flex flex-col gap-1.5">
+              <div className={`h-12 w-full rounded-none ${c.cls} ${c.border ? 'border border-border' : ''}`} />
+              <span className="label-mono text-faint">{c.name}</span>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Elevation (shadow-1..4)">
+        <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
+          {(['shadow-1', 'shadow-2', 'shadow-3', 'shadow-4'] as const).map((s) => (
+            <div key={s} className={`grid h-20 place-items-center rounded-none border border-border bg-surface ${s}`}>
+              <span className="label-mono text-muted">{s}</span>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Typography">
+        <div className="flex flex-col gap-3">
+          <span className="label-mono text-accent">&gt; KICKER · 04 · LABEL-MONO</span>
+          <h1>Heading 1 — TASA/Inter</h1>
+          <h2>Heading 2 — display</h2>
+          <h3>Heading 3 / kicker tier</h3>
+          <p className="max-w-2xl">
+            Body — Inter, negative tracking. The quick brown fox jumps over the lazy dog. Тонкая
+            типографика с отрицательным трекингом для основного текста.
+          </p>
+          <p className="text-muted">Muted body text.</p>
+          <p className="text-faint">Faint / disabled text.</p>
+        </div>
+      </Section>
+
+      <Section title="Button — variants × states">
+        <div className="flex flex-col gap-4">
+          {BTN_VARIANTS.map((v) => (
+            <div key={v} className="flex flex-wrap items-center gap-4">
+              <span className="w-20 shrink-0 label-mono text-faint">{v}</span>
+              <Button variant={v} size="sm">Small</Button>
+              <Button variant={v}>
+                <Icon name="send" size={15} />
+                Default
+              </Button>
+              <Button variant={v} size="lg">Large</Button>
+              <Button variant={v} disabled>Disabled</Button>
+            </div>
+          ))}
+          {/* Паттерн загрузки (без отдельного prop): disabled + крутящийся спиннер. */}
+          <div className="flex flex-wrap items-center gap-4">
+            <span className="w-20 shrink-0 label-mono text-faint">loading</span>
+            <Button variant="primary" disabled aria-busy>
+              <Icon name="loader" size={15} className="animate-spin" />
+              Loading
+            </Button>
+            <Button variant="accent" disabled aria-busy>
+              <Icon name="loader" size={15} className="animate-spin" />
+              Saving
+            </Button>
+          </div>
+        </div>
+      </Section>
+
+      <Section title="CornerFrame (standalone)">
+        <div className="flex flex-wrap gap-6">
+          {(['default', 'accent', 'muted'] as const).map((tone) => (
+            <CornerFrame key={tone} tone={tone} className="grid h-20 w-40 place-items-center bg-surface">
+              <span className="label-mono text-muted">{tone}</span>
+            </CornerFrame>
+          ))}
+          <CornerFrame active className="grid h-20 w-40 place-items-center bg-surface">
+            <span className="label-mono text-muted">active</span>
+          </CornerFrame>
+          <CornerFrame fill className="grid h-20 w-40 cursor-pointer place-items-center bg-surface hatch">
+            <span className="relative z-[1] label-mono text-text">hover fill</span>
+          </CornerFrame>
+        </div>
+      </Section>
+
+      <Section title="IconButton (round family)">
+        <div className="flex flex-wrap items-center gap-4">
+          <IconButton name="play" label="Play" size="sm" />
+          <IconButton name="play" label="Play" />
+          <IconButton name="play" label="Play" size="lg" />
+          <IconButton name="bell" label="Notifications" variant="ghost" />
+          <IconButton name="volume-2" label="Mute" active />
+          <IconButton name="save" label="Save" disabled />
+        </div>
+      </Section>
+
+      <Section title="Icons (lucide + brand)">
+        <div className="grid grid-cols-6 gap-4 sm:grid-cols-10">
+          {ICONS.map((n) => (
+            <div key={n} className="flex flex-col items-center gap-1.5" title={n}>
+              <Icon name={n} size={22} className="text-text" />
+              <span className="truncate text-[9px] text-faint">{n}</span>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Card">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Card>
+            <h3 className="mb-1">Plain</h3>
+            <p className="text-sm text-muted">border + shadow-2 + surface.</p>
+          </Card>
+          <Card accent>
+            <h3 className="mb-1">Accent edge</h3>
+            <p className="text-sm text-muted">Верхняя акцентная кромка.</p>
+          </Card>
+          <Card corners>
+            <h3 className="mb-1">Corners</h3>
+            <p className="text-sm text-muted">Декоративные уголки.</p>
+          </Card>
+        </div>
+      </Section>
+
+      <Section title="Inputs">
+        <div className="flex max-w-md flex-col gap-3">
+          <Input placeholder="Text input…" />
+          <Input placeholder="Disabled" disabled />
+          <div>
+            <Input aria-invalid defaultValue="bad@" />
+            <p className="mt-1 label-mono text-danger">Invalid email</p>
+          </div>
+          <Textarea rows={3} placeholder="Textarea…" />
+        </div>
+      </Section>
+
+      <Section title="Feedback & misc (Phase 1)">
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-2">
+            <Alert tone="ok">
+              <Icon name="check" size={16} />
+              Saved successfully
+            </Alert>
+            <Alert tone="warn">
+              <Icon name="square-alert" size={16} />
+              Heads up — check your settings
+            </Alert>
+            <Alert tone="danger">
+              <Icon name="close" size={16} />
+              Something went wrong
+            </Alert>
+          </div>
+          <div className="flex flex-wrap items-center gap-4">
+            <Badge>
+              <Icon name="sparkles" size={12} />
+              Pioneer
+            </Badge>
+            <Chip icon="clock" text="video up to 30s" />
+            <Chip icon="image" text="up to 25 MB" />
+            <Avatar url={null} name="Kravets" />
+            <Avatar url={null} name="Ihor" size={36} />
+          </div>
+          <div className="flex max-w-md flex-col gap-3">
+            <ProgressBar value={0.62} />
+            <ProgressBar value={null} />
+          </div>
+          <div className="grid h-72 place-items-center overflow-hidden border border-border bg-bg">
+            <Loader label="Loading" />
+          </div>
+        </div>
+      </Section>
+
+      <Section title="Glass & hatch">
+        <div className="relative overflow-hidden rounded-none border border-border">
+          <div className="hatch-strong absolute inset-0 bg-surface" />
+          <div className="relative flex flex-wrap items-center gap-4 p-8">
+            <Surface className="rounded-none px-5 py-4">
+              <span className="label-mono text-text">glass panel</span>
+            </Surface>
+            <Surface variant="glass-badge" className="rounded-full px-4 py-1.5">
+              <span className="label-mono text-text">glass badge</span>
+            </Surface>
+            <div className="hatch h-16 w-24 border border-border" title="hatch 10%" />
+            <div className="hatch-strong h-16 w-24 border border-border" title="hatch-strong 20%" />
+            <div className="hatch-accent h-16 w-24 border border-border" title="hatch-accent" />
+          </div>
+        </div>
+      </Section>
+    </div>
+  );
+}

@@ -23,7 +23,7 @@ export function SubmissionPreview({ s }: { s: SubmissionSummary }) {
     <div className="flex flex-col items-start gap-2">
       {media}
       {s.text && (
-        <p className="whitespace-pre-wrap border-l-2 border-twitch/50 bg-surface-2 px-3 py-2 text-sm text-text">
+        <p className="whitespace-pre-wrap border-l border-accent/50 bg-surface-2 px-3 py-2 text-sm text-text">
           {s.text}
         </p>
       )}

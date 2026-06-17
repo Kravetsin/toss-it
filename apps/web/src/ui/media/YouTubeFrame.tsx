@@ -46,7 +46,7 @@ export function YouTubeFrame({
               onClick={() => setActive(true)}
               className="group/yt absolute inset-0 grid place-items-center outline-none"
             >
-              <span className="grid h-12 w-12 place-items-center rounded-none border-2 border-twitch bg-bg/70 text-twitch outline-twitch-light transition-colors duration-100 group-hover/yt:border-twitch-light group-hover/yt:bg-bg/85 group-focus-visible/yt:outline-2 group-focus-visible/yt:outline-offset-2 sm:h-14 sm:w-14">
+              <span className="grid h-12 w-12 place-items-center rounded-none border border-accent bg-bg/70 text-accent transition-[color,background-color,border-color] duration-[180ms] ease-out group-hover/yt:border-accent-hover group-hover/yt:bg-bg/85 group-focus-visible/yt:[box-shadow:var(--shadow-focus)] sm:h-14 sm:w-14">
                 <Icon name="play" size={24} />
               </span>
             </button>

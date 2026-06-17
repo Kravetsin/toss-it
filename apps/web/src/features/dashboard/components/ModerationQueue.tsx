@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { ListedUser, ReputationStats, SubmissionSummary } from '@tmw/shared';
 import { useI18n } from '@/i18n';
+import { Badge } from '@/ui';
 import { useQueueHotkeys } from '../hooks/useQueueHotkeys';
 import { ReviewCard } from './ReviewCard';
 import { SubmissionCard } from './SubmissionCard';
@@ -11,8 +12,8 @@ function ViewBtn({ active, onClick, label }: { active: boolean; onClick: () => v
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`cursor-pointer px-3 py-1 font-body text-sm font-semibold uppercase tracking-wide ${
-        active ? 'bg-twitch text-white' : 'text-muted hover:text-text'
+      className={`cursor-pointer rounded-none px-3 py-1 label-mono transition-colors duration-200 ease-out ${
+        active ? 'bg-accent text-accent-contrast' : 'text-muted hover:text-text'
       }`}
     >
       {label}
@@ -77,13 +78,9 @@ export function ModerationQueue({
       <div className="mb-3 mt-8 flex items-center justify-between gap-2">
         <h2 className="flex items-center gap-2">
           {t('dash.modQueue')}
-          {pending.length > 0 && (
-            <span className="border-2 border-twitch-dark bg-twitch px-2 py-0.5 text-sm text-white">
-              {pending.length}
-            </span>
-          )}
+          {pending.length > 0 && <Badge>{pending.length}</Badge>}
         </h2>
-        <div className="flex gap-1 border-2 border-line bg-surface-2 p-1">
+        <div className="flex gap-1 border border-border bg-surface-2 p-1">
           <ViewBtn active={view === 'list'} onClick={() => onView('list')} label={t('dash.viewList')} />
           <ViewBtn active={view === 'review'} onClick={() => onView('review')} label={t('dash.viewReview')} />
         </div>

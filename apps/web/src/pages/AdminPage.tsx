@@ -40,7 +40,7 @@ export function AdminPage() {
       <PageShell maxWidth="3xl">
         <StatusCard icon="square-alert" iconSize={40} tone="warn" gap={3}>
           <p className="text-muted">{t('admin.denied')}</p>
-          <Link to="/" className="text-twitch-light underline">
+          <Link to="/" className="text-accent underline">
             {t('common.home')}
           </Link>
         </StatusCard>
@@ -52,7 +52,7 @@ export function AdminPage() {
     <PageShell maxWidth="3xl">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="flex items-center gap-2">
-          <Icon name="sparkles" size={26} className="text-twitch-light" />
+          <Icon name="sparkles" size={26} className="text-accent" />
           {t('admin.title')}
         </h1>
         <Link to="/dashboard" className="text-sm text-muted hover:text-text">

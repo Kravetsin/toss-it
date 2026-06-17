@@ -1,5 +1,6 @@
 import type { AccessibleChannel } from '@tmw/shared';
 import { useI18n } from '@/i18n';
+import { Badge } from '@/ui';
 
 /** Переключатель канала (когда их несколько) + чип роли модератора. */
 export function ChannelSwitcher({
@@ -19,11 +20,11 @@ export function ChannelSwitcher({
     <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
       {list.length > 1 ? (
         <>
-          <span className="text-muted">{t('dash.channel')}:</span>
+          <span className="label-mono text-muted">{t('dash.channel')}</span>
           <select
             value={channelId ?? ''}
             onChange={(e) => onSelect(e.target.value)}
-            className="rounded-none border-2 border-line bg-surface-2 px-2 py-1 text-text outline-none focus:border-twitch"
+            className="rounded-[var(--radius-sm)] border border-border bg-surface px-3 py-2 text-sm text-text outline-none transition-[border-color,box-shadow] duration-[180ms] ease-out focus:border-accent focus:[box-shadow:var(--shadow-focus)]"
           >
             {list.map((c) => (
               <option key={c.channelId} value={c.channelId}>
@@ -36,11 +37,7 @@ export function ChannelSwitcher({
       ) : (
         <span className="text-muted">{current.displayName}</span>
       )}
-      {current.role === 'moderator' && (
-        <span className="border border-twitch/40 bg-twitch/15 px-2 py-0.5 text-xs text-twitch-light">
-          {t('dash.roleModerator')}
-        </span>
-      )}
+      {current.role === 'moderator' && <Badge>{t('dash.roleModerator')}</Badge>}
     </div>
   );
 }
