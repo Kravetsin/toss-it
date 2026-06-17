@@ -1,8 +1,11 @@
 import '@fontsource/jetbrains-mono';
 import { io, type Socket } from 'socket.io-client';
 import {
+  OVERLAY_POSITIONS,
   positionToFlex,
+  type MediaKind,
   type MediaPlayPayload,
+  type OverlayPosition,
   type OverlayToServerEvents,
   type ServerToOverlayEvents,
 } from '@tmw/shared';
@@ -46,18 +49,21 @@ const SERVER_URL = import.meta.env.DEV ? 'http://127.0.0.1:3000' : window.locati
 
 const stage = document.getElementById('stage')!;
 
+// DEV-демо: ?demo=1 рисует примеры медиа без сервера/токена (оценка внешнего вида, в т.ч. в OBS).
+const DEMO = import.meta.env.DEV && new URLSearchParams(window.location.search).has('demo');
+
 // Аутентификация секретным токеном канала из URL: /?token=...
 // (OAuth в OBS Browser Source невозможен.)
 const token = new URLSearchParams(window.location.search).get('token');
-if (!token) {
+if (!DEMO && !token) {
   stage.innerHTML =
     '<div style="font: 16px system-ui; color: #f55">Нет токена: добавь ?token=&lt;overlay token&gt; к URL</div>';
   throw new Error('overlay token missing');
 }
 
-const socket: Socket<ServerToOverlayEvents, OverlayToServerEvents> = io(SERVER_URL, {
-  query: { role: 'overlay', token },
-});
+const socket: Socket<ServerToOverlayEvents, OverlayToServerEvents> = DEMO
+  ? demoSocketStub()
+  : io(SERVER_URL, { query: { role: 'overlay', token: token ?? '' } });
 
 let currentId: string | null = null;
 let hideTimer: number | undefined;
@@ -85,7 +91,7 @@ function show(payload: MediaPlayPayload): void {
   stage.style.padding = `${payload.margin}vh ${payload.margin}vw`;
   stage.style.setProperty('--overlay-size', String(payload.size));
 
-  const url = SERVER_URL + payload.url;
+  const url = resolveMediaUrl(payload.url);
   const alert = document.createElement('div');
   alert.className = 'alert enter';
   // Подпись — НАД медиа: так при её исчезновении плеер/медиа не «прыгают».
@@ -402,3 +408,204 @@ function clearStage(): void {
   destroyYoutube();
   stage.replaceChildren();
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// DEV-демо (?demo=1): прогон примеров медиа через настоящий render оверлея,
+// без сервера/токена — чтобы оценивать внешний вид (в т.ч. в OBS Browser Source).
+// Только в dev-сборке. См. apps/web/REDESIGN.md §5.4 (трек оверлея).
+// ─────────────────────────────────────────────────────────────────────────
+
+/** Не добавляем SERVER_URL к абсолютным/data/blob-URL (нужно демо; в общем случае безопасно). */
+function resolveMediaUrl(u: string): string {
+  return /^(data:|https?:|blob:)/i.test(u) ? u : SERVER_URL + u;
+}
+
+/** Заглушка сокета для демо (без сервера): on/emit/close — no-op. */
+function demoSocketStub(): Socket<ServerToOverlayEvents, OverlayToServerEvents> {
+  const noop = function (this: unknown) {
+    return this;
+  };
+  return {
+    on: noop,
+    off: noop,
+    emit: noop,
+    connect: noop,
+    disconnect: noop,
+    close: () => {},
+  } as unknown as Socket<ServerToOverlayEvents, OverlayToServerEvents>;
+}
+
+const SAMPLE_IMG = `data:image/svg+xml,${encodeURIComponent(
+  "<svg xmlns='http://www.w3.org/2000/svg' width='640' height='400'>" +
+    "<defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>" +
+    "<stop offset='0' stop-color='#8df0cc'/><stop offset='1' stop-color='#0d1111'/></linearGradient></defs>" +
+    "<rect width='640' height='400' fill='url(#g)'/>" +
+    "<text x='50%' y='56%' font-family='monospace' font-weight='700' font-size='96' " +
+    "text-anchor='middle' fill='#06201a'>DEMO</text></svg>",
+)}`;
+const SAMPLE_VIDEO = 'https://media.w3.org/2010/05/sintel/trailer.mp4';
+const SAMPLE_YT = 'dQw4w9WgXcQ';
+
+/** Короткий тихий WAV (data-URI) — музыкальный виджет реально играет/двигает прогресс офлайн. */
+function makeSilentWavDataUri(seconds: number): string {
+  const rate = 8000;
+  const samples = Math.floor(rate * seconds);
+  const dataLen = samples * 2;
+  const buf = new ArrayBuffer(44 + dataLen);
+  const dv = new DataView(buf);
+  const ascii = (off: number, s: string) => {
+    for (let i = 0; i < s.length; i++) dv.setUint8(off + i, s.charCodeAt(i));
+  };
+  ascii(0, 'RIFF');
+  dv.setUint32(4, 36 + dataLen, true);
+  ascii(8, 'WAVE');
+  ascii(12, 'fmt ');
+  dv.setUint32(16, 16, true);
+  dv.setUint16(20, 1, true);
+  dv.setUint16(22, 1, true);
+  dv.setUint32(24, rate, true);
+  dv.setUint32(28, rate * 2, true);
+  dv.setUint16(32, 2, true);
+  dv.setUint16(34, 16, true);
+  ascii(36, 'data');
+  dv.setUint32(40, dataLen, true);
+  let bin = '';
+  for (const byte of new Uint8Array(buf)) bin += String.fromCharCode(byte);
+  return `data:audio/wav;base64,${btoa(bin)}`;
+}
+
+// Ленивая генерация WAV — чтобы не считать его в обычном (не-демо) оверлее.
+let _sampleAudio: string | undefined;
+function sampleAudio(): string {
+  if (_sampleAudio === undefined) _sampleAudio = makeSilentWavDataUri(12);
+  return _sampleAudio;
+}
+
+interface DemoState {
+  pos: OverlayPosition;
+  size: number;
+  sender: boolean;
+  caption: boolean;
+  sound: boolean;
+}
+
+function demoPayload(kind: MediaKind, st: DemoState): MediaPlayPayload {
+  const base: MediaPlayPayload = {
+    submissionId: `demo-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    url: '',
+    kind,
+    durationMs: 600_000,
+    volume: 80,
+    sound: st.sound,
+    senderName: st.sender ? 'demo_viewer' : undefined,
+    tts: false,
+    ttsText: false,
+    position: st.pos,
+    size: st.size,
+    margin: 5,
+  };
+  const cap = st.caption ? 'демо-подпись к медиа' : undefined;
+  if (kind === 'text') return { ...base, text: 'Тестовое сообщение ✦ как текст смотрится на стриме?' };
+  if (kind === 'image') return { ...base, url: SAMPLE_IMG, text: cap };
+  if (kind === 'video') return { ...base, url: SAMPLE_VIDEO, text: cap };
+  if (kind === 'youtube') return { ...base, youtubeId: SAMPLE_YT, durationMs: 0, text: cap };
+  return { ...base, url: sampleAudio(), durationMs: 12_000, text: cap };
+}
+
+function mountDemoPanel(): void {
+  const st: DemoState = { pos: 'center', size: 60, sender: true, caption: true, sound: false };
+
+  const style = document.createElement('style');
+  style.textContent = `
+    #demo-panel{position:fixed;left:12px;bottom:12px;z-index:9999;display:flex;flex-direction:column;gap:8px;
+      padding:12px;width:236px;background:#0d1111ee;border:1px solid #8df0cc44;border-radius:8px;
+      font:12px/1.3 ui-monospace,monospace;color:#ededec;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+    #demo-panel b{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7a8180}
+    #demo-panel .row{display:flex;flex-wrap:wrap;gap:4px}
+    #demo-panel button{cursor:pointer;border:1px solid #2b3338;background:#060607;color:#ededec;padding:5px 8px;border-radius:4px;font:inherit}
+    #demo-panel button:hover{border-color:#8df0cc;color:#8df0cc}
+    #demo-panel .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px}
+    #demo-panel .grid button{padding:7px 0}
+    #demo-panel .grid button.on{border-color:#8df0cc;color:#8df0cc;background:#8df0cc22}
+    #demo-panel label{display:flex;align-items:center;gap:5px}
+    #demo-panel input[type=range]{width:100%}
+    #demo-panel .clear{border-color:#fb5b6e55;color:#fb5b6e}`;
+  document.head.appendChild(style);
+
+  const panel = document.createElement('div');
+  panel.id = 'demo-panel';
+
+  const section = (title: string) => {
+    const b = document.createElement('b');
+    b.textContent = title;
+    panel.appendChild(b);
+  };
+  const btn = (label: string, onClick: () => void, cls = '') => {
+    const b = document.createElement('button');
+    b.textContent = label;
+    if (cls) b.className = cls;
+    b.onclick = onClick;
+    return b;
+  };
+
+  section('демо · медиа');
+  const mediaRow = document.createElement('div');
+  mediaRow.className = 'row';
+  (
+    [
+      ['image', 'Картинка'],
+      ['video', 'Видео'],
+      ['text', 'Текст'],
+      ['youtube', 'YouTube'],
+      ['audio', 'Музыка'],
+    ] as [MediaKind, string][]
+  ).forEach(([k, label]) => mediaRow.appendChild(btn(label, () => show(demoPayload(k, st)))));
+  panel.appendChild(mediaRow);
+
+  section('позиция');
+  const grid = document.createElement('div');
+  grid.className = 'grid';
+  const posButtons = OVERLAY_POSITIONS.map((p) => {
+    const b = btn('•', () => {
+      st.pos = p;
+      posButtons.forEach((x) => x.classList.toggle('on', x === b));
+    });
+    if (p === st.pos) b.classList.add('on');
+    grid.appendChild(b);
+    return b;
+  });
+  panel.appendChild(grid);
+
+  section('размер');
+  const size = document.createElement('input');
+  size.type = 'range';
+  size.min = '10';
+  size.max = '100';
+  size.value = String(st.size);
+  size.oninput = () => {
+    st.size = Number(size.value);
+  };
+  panel.appendChild(size);
+
+  const toggles = document.createElement('div');
+  toggles.className = 'row';
+  const toggle = (label: string, key: 'sender' | 'caption' | 'sound') => {
+    const wrap = document.createElement('label');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = st[key];
+    cb.onchange = () => {
+      st[key] = cb.checked;
+    };
+    wrap.append(cb, document.createTextNode(label));
+    return wrap;
+  };
+  toggles.append(toggle('имя', 'sender'), toggle('подпись', 'caption'), toggle('звук', 'sound'));
+  panel.appendChild(toggles);
+
+  panel.appendChild(btn('Убрать с экрана', () => finish(), 'clear'));
+
+  document.body.appendChild(panel);
+}
+
+if (DEMO) mountDemoPanel();

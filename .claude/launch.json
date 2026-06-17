@@ -19,6 +19,12 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@tmw/web", "exec", "vite", "--port", "5199", "--strictPort"],
       "port": 5199
+    },
+    {
+      "name": "overlay-preview",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@tmw/overlay", "exec", "vite", "--port", "5198", "--strictPort"],
+      "port": 5198
     }
   ]
 }

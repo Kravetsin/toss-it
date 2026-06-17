@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import './index.css';
+import { installDevMock } from '@/lib/devMock';
 import { ConfirmProvider } from '@/providers/ConfirmProvider';
 import { ToastProvider } from '@/providers/ToastProvider';
 import { MeProvider } from '@/providers/MeProvider';
@@ -14,6 +15,9 @@ import { ModInvitePage } from './pages/ModInvitePage';
 import { PromoCodePage } from './pages/PromoCodePage';
 import { AdminPage } from './pages/AdminPage';
 import { GalleryPage } from './pages/GalleryPage';
+
+// DEV-мок данных (для оценки залогиненного UI без бэкенда): ?mock=1. No-op в проде.
+installDevMock();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

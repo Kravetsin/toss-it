@@ -4,7 +4,7 @@ import { logout } from '@/lib/api';
 import { useMe } from '@/hooks/useMe';
 import { useApiAction } from '@/hooks/useApiAction';
 import { useI18n } from '@/i18n';
-import { Avatar, Badge, Button, IconButton } from '@/ui';
+import { Avatar, Badge, IconButton } from '@/ui';
 import { Icon, type IconName } from '@/ui/icons';
 
 /** Бренд-знак: угловатый акцентный «T» + вордмарк. */
@@ -68,6 +68,40 @@ function MobileNavIcon({
   );
 }
 
+/** Строка аккаунт-меню: иконка + лейбл, единый hover. Ссылка или действие. */
+function AccountRow({
+  icon,
+  label,
+  to,
+  onClick,
+  danger = false,
+}: {
+  icon: IconName;
+  label: string;
+  to?: string;
+  onClick?: () => void;
+  danger?: boolean;
+}) {
+  const cls = `flex items-center gap-2.5 px-2.5 py-2 text-sm text-muted outline-none transition-colors duration-[var(--dur-fast)] ease-out focus-visible:[box-shadow:var(--shadow-focus)] ${
+    danger ? 'hover:bg-danger-soft hover:text-danger' : 'hover:bg-surface-2 hover:text-text'
+  }`;
+  const inner = (
+    <>
+      <Icon name={icon} size={16} className="shrink-0 opacity-80" />
+      <span className="truncate">{label}</span>
+    </>
+  );
+  return to ? (
+    <Link to={to} className={cls}>
+      {inner}
+    </Link>
+  ) : (
+    <button type="button" onClick={onClick} className={`${cls} w-full cursor-pointer text-left`}>
+      {inner}
+    </button>
+  );
+}
+
 /** Десктопный сайдбар: бренд → навигация → аккаунт-блок снизу. */
 function Sidebar({ user, onLogout }: { user: SessionUser; onLogout: () => void }) {
   const { t } = useI18n();
@@ -85,39 +119,28 @@ function Sidebar({ user, onLogout }: { user: SessionUser; onLogout: () => void }
       <div className="flex-1" />
 
       <div className="border-t border-border p-3">
-        <div className="flex items-center gap-3 px-1 py-2">
-          <Avatar url={user.avatarUrl} name={user.displayName} size={36} />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">{user.displayName}</p>
-            <p className="label-mono truncate text-faint">{user.login}</p>
+        {/* Карточка «ты»: аватар, имя, @логин, статус. */}
+        <div className="flex flex-col gap-2.5 border border-border bg-surface-2 p-3 shadow-1">
+          <div className="flex items-center gap-3">
+            <Avatar url={user.avatarUrl} name={user.displayName} size={40} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-text">{user.displayName}</p>
+              <p className="truncate text-xs text-muted">@{user.login}</p>
+            </div>
           </div>
-        </div>
-        {user.isFounder && (
-          <div className="px-1 pb-2">
+          {user.isFounder && (
             <Badge>
               <Icon name="sparkles" size={12} />
               {t('badge.founder')}
             </Badge>
-          </div>
-        )}
-        <div className="flex flex-col items-start gap-1">
-          <Link
-            to="/promo"
-            className="label-mono px-1 py-1 text-muted transition-colors duration-[var(--dur-fast)] ease-out hover:text-text"
-          >
-            {t('promo.haveCode')}
-          </Link>
-          {user.isAdmin && (
-            <Link
-              to="/admin"
-              className="label-mono px-1 py-1 text-muted transition-colors duration-[var(--dur-fast)] ease-out hover:text-text"
-            >
-              {t('admin.title')}
-            </Link>
           )}
-          <Button variant="ghost" size="sm" onClick={onLogout}>
-            {t('home.logout')}
-          </Button>
+        </div>
+
+        {/* Меню аккаунта: единый ритм, иконки, hover. */}
+        <div className="mt-2 flex flex-col gap-0.5">
+          <AccountRow to="/promo" icon="gift" label={t('promo.haveCode')} />
+          {user.isAdmin && <AccountRow to="/admin" icon="settings" label={t('admin.title')} />}
+          <AccountRow onClick={onLogout} icon="log-out" label={t('home.logout')} danger />
         </div>
       </div>
     </aside>

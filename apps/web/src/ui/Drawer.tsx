@@ -40,7 +40,7 @@ export function Drawer({
   return (
     <div
       aria-hidden={!open}
-      className={`fixed inset-0 z-[60] ${open ? '' : 'pointer-events-none'}`}
+      className={`fixed inset-0 z-[60] overflow-hidden ${open ? '' : 'pointer-events-none'}`}
     >
       <div
         onClick={onClose}
