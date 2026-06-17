@@ -49,8 +49,8 @@ export function Drawer({
         }`}
       />
       <div
-        role="dialog"
-        aria-modal="true"
+        role={open ? 'dialog' : undefined}
+        aria-modal={open ? true : undefined}
         aria-hidden={!open}
         className={`glass glass-strong absolute inset-y-0 right-0 flex w-full ${width} flex-col border-l border-glass-border shadow-4 transition-transform duration-[var(--dur)] ease-out ${
           open ? 'translate-x-0' : 'translate-x-full'

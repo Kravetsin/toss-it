@@ -13,7 +13,6 @@ export function useQueueHotkeys({
   onTrust,
   onReject,
   onBan,
-  onLater,
 }: {
   active: boolean;
   pending: SubmissionSummary[];
@@ -21,7 +20,6 @@ export function useQueueHotkeys({
   onTrust: (s: SubmissionSummary) => void;
   onReject: (s: SubmissionSummary) => void;
   onBan: (s: SubmissionSummary) => void;
-  onLater: (id: string) => void;
 }) {
   useEffect(() => {
     if (!active) return;
@@ -45,9 +43,6 @@ export function useQueueHotkeys({
       } else if (k === 'b') {
         e.preventDefault();
         onBan(cur);
-      } else if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        onLater(cur.id);
       }
     };
     window.addEventListener('keydown', onKey);

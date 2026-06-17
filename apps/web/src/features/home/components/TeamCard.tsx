@@ -63,6 +63,7 @@ export function TeamCard({ channelId }: { channelId: string }) {
           <p className="mb-1 text-sm text-muted">{t('dash.inviteHint')}</p>
           <CopyableLinkBox
             value={inviteUrl}
+            size="sm"
             copied={copiedKey === 'invite'}
             onCopy={() => copy(inviteUrl, 'invite')}
           />

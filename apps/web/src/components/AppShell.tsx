@@ -4,8 +4,9 @@ import { logout } from '@/lib/api';
 import { useMe } from '@/hooks/useMe';
 import { useApiAction } from '@/hooks/useApiAction';
 import { useI18n } from '@/i18n';
-import { Avatar, Badge, IconButton } from '@/ui';
+import { Avatar, IconButton } from '@/ui';
 import { Icon, type IconName } from '@/ui/icons';
+import { PlatformIcon, UserBadges } from '@/components/UserMarks';
 
 /** Бренд-знак: угловатый акцентный «T» + вордмарк. */
 function Brand({ compact = false }: { compact?: boolean }) {
@@ -25,8 +26,9 @@ function NavItem({ to, icon, label }: { to: string; icon: IconName; label: strin
     <NavLink
       to={to}
       end={to === '/'}
+      title={label}
       className={({ isActive }) =>
-        `flex items-center gap-3 px-3 py-2.5 label-mono transition-colors duration-[var(--dur-fast)] ease-out ${
+        `flex items-center justify-center gap-3 px-3 py-2.5 label-mono transition-colors duration-[var(--dur-fast)] ease-out lg:justify-start ${
           isActive
             ? 'bg-accent-soft text-accent'
             : 'text-muted hover:bg-surface-2 hover:text-text'
@@ -34,7 +36,7 @@ function NavItem({ to, icon, label }: { to: string; icon: IconName; label: strin
       }
     >
       <Icon name={icon} size={18} />
-      {label}
+      <span className="hidden lg:inline">{label}</span>
     </NavLink>
   );
 }
@@ -106,42 +108,55 @@ function AccountRow({
 function Sidebar({ user, onLogout }: { user: SessionUser; onLogout: () => void }) {
   const { t } = useI18n();
   return (
-    <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border bg-surface lg:flex">
-      <div className="px-5 py-5">
-        <Brand />
+    <aside className="sticky top-0 hidden h-screen shrink-0 flex-col border-r border-border bg-surface md:flex md:w-16 lg:w-60">
+      <div className="flex justify-center px-3 py-5 lg:justify-start lg:px-5">
+        <Link to="/" aria-label="Tossit" className="flex items-center gap-2">
+          <span className="flex size-7 shrink-0 items-center justify-center bg-accent font-mono text-base font-bold text-accent-contrast">
+            T
+          </span>
+          <span className="hidden label-mono text-text lg:inline">tossit</span>
+        </Link>
       </div>
 
-      <nav className="flex flex-col gap-1 px-3">
+      <nav className="flex flex-col gap-1 px-2 lg:px-3">
         <NavItem to="/" icon="home" label={t('nav.home')} />
         <NavItem to="/dashboard" icon="shield" label={t('nav.dashboard')} />
       </nav>
 
       <div className="flex-1" />
 
-      <div className="border-t border-border p-3">
-        {/* Карточка «ты»: аватар, имя, @логин, статус. */}
+      {/* lg: полная карточка аккаунта + меню. */}
+      <div className="hidden border-t border-border p-3 lg:block">
         <div className="flex flex-col gap-2.5 border border-border bg-surface-2 p-3 shadow-1">
           <div className="flex items-center gap-3">
             <Avatar url={user.avatarUrl} name={user.displayName} size={40} />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-text">{user.displayName}</p>
+              <p className="flex items-center gap-1.5 text-sm font-semibold text-text">
+                <span className="truncate">{user.displayName}</span>
+                <PlatformIcon userId={user.id} size={14} />
+              </p>
               <p className="truncate text-xs text-muted">@{user.login}</p>
             </div>
           </div>
-          {user.isFounder && (
-            <Badge>
-              <Icon name="sparkles" size={12} />
-              {t('badge.founder')}
-            </Badge>
-          )}
+          <UserBadges isFounder={user.isFounder} variant="chips" className="self-start" />
         </div>
-
-        {/* Меню аккаунта: единый ритм, иконки, hover. */}
         <div className="mt-2 flex flex-col gap-0.5">
           <AccountRow to="/promo" icon="gift" label={t('promo.haveCode')} />
           {user.isAdmin && <AccountRow to="/admin" icon="settings" label={t('admin.title')} />}
           <AccountRow onClick={onLogout} icon="log-out" label={t('home.logout')} danger />
         </div>
+      </div>
+
+      {/* md-rail: только аватар + выход. */}
+      <div className="flex flex-col items-center gap-2 border-t border-border p-2 lg:hidden">
+        <Avatar url={user.avatarUrl} name={user.displayName} size={34} />
+        <IconButton
+          name="log-out"
+          label={t('home.logout')}
+          variant="ghost"
+          size="sm"
+          onClick={onLogout}
+        />
       </div>
     </aside>
   );
@@ -151,7 +166,7 @@ function Sidebar({ user, onLogout }: { user: SessionUser; onLogout: () => void }
 function MobileBar({ onLogout }: { onLogout: () => void }) {
   const { t } = useI18n();
   return (
-    <div className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-border bg-bg/85 px-4 py-2.5 backdrop-blur lg:hidden">
+    <div className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-border bg-bg/85 px-4 py-2.5 backdrop-blur md:hidden">
       <Brand />
       <nav className="flex items-center gap-1.5">
         <MobileNavIcon to="/" icon="home" label={t('nav.home')} />
@@ -190,7 +205,7 @@ export function AppShell() {
   return (
     <div className="min-h-screen bg-bg text-text">
       {user && <MobileBar onLogout={onLogout} />}
-      <div className="lg:flex">
+      <div className="md:flex">
         {user && <Sidebar user={user} onLogout={onLogout} />}
         <div className="min-w-0 flex-1">
           <Outlet />

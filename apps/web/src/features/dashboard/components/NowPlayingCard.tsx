@@ -3,9 +3,10 @@ import type { SubmissionSummary } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
 import { Button, Card } from '@/ui';
+import { PlatformIcon } from '@/components/UserMarks';
 import { formatTrackDuration } from '../constants';
 
-/** «Сейчас играет» + кнопка скипа + (для владельца) форма тестовой отправки. */
+/** «Сейчас играет» + скип + (для владельца) сворачиваемая форма тестовой отправки. Компактна для правой панели. */
 export function NowPlayingCard({
   now,
   isOwner,
@@ -19,52 +20,68 @@ export function NowPlayingCard({
 }) {
   const { t } = useI18n();
   const [testFile, setTestFile] = useState<File | null>(null);
+  const [testOpen, setTestOpen] = useState(false);
 
   async function submitTest(e: FormEvent) {
     e.preventDefault();
     if (!testFile) return;
     await onSendTest(testFile);
     setTestFile(null);
+    setTestOpen(false);
   }
 
   return (
-    <Card className="mb-4">
-      <div className="flex items-center justify-between gap-4">
-        <div>
+    <Card>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
           <h2 className="label-mono text-muted">{t('dash.nowPlaying')}</h2>
           {now ? (
-            <p className="mt-1 text-sm text-muted">
-              <b className="text-text">{now.senderName ?? t('common.anon')}</b> ·{' '}
-              {now.kind === 'youtube' ? 'YouTube' : now.mime} ·{' '}
-              {formatTrackDuration(now.kind, now.durationMs, t)}
-            </p>
+            <div className="mt-1 flex items-center gap-1.5 text-sm text-muted">
+              <b className="truncate text-text">{now.senderName ?? t('common.anon')}</b>
+              <PlatformIcon userId={now.senderUserId} size={13} />
+              <span className="truncate">
+                · {now.kind === 'youtube' ? 'YouTube' : now.mime} ·{' '}
+                {formatTrackDuration(now.kind, now.durationMs, t)}
+              </span>
+            </div>
           ) : (
             <p className="mt-1 text-sm text-muted">{t('dash.nothingPlaying')}</p>
           )}
         </div>
         {now && (
-          <Button variant="danger" className="shrink-0" onClick={onSkip}>
+          <Button variant="danger" size="sm" className="shrink-0" onClick={onSkip}>
             <Icon name="forward" size={16} />
             {t('dash.skip')}
           </Button>
         )}
       </div>
+
       {isOwner && (
-        <form
-          onSubmit={(e) => void submitTest(e)}
-          className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-4"
-        >
-          <input
-            type="file"
-            accept="image/*,video/mp4,video/webm,audio/*"
-            onChange={(e) => setTestFile(e.target.files?.[0] ?? null)}
-            className="text-sm text-muted file:mr-3 file:cursor-pointer file:rounded-none file:border file:border-border file:bg-surface-2 file:px-3 file:py-1.5 file:label-mono file:text-text hover:file:border-border-strong"
-          />
-          <Button type="submit" disabled={!testFile}>
-            <Icon name="send" size={16} />
-            {t('dash.testSend')}
-          </Button>
-        </form>
+        <div className="mt-3 border-t border-border pt-3">
+          {testOpen ? (
+            <form onSubmit={(e) => void submitTest(e)} className="flex flex-wrap items-center gap-2">
+              <input
+                type="file"
+                accept="image/*,video/mp4,video/webm,audio/*"
+                onChange={(e) => setTestFile(e.target.files?.[0] ?? null)}
+                className="min-w-0 flex-1 text-sm text-muted file:mr-3 file:cursor-pointer file:rounded-none file:border file:border-border file:bg-surface-2 file:px-3 file:py-2 file:label-mono file:text-text hover:file:border-border-strong"
+              />
+              <Button type="submit" size="sm" disabled={!testFile}>
+                <Icon name="send" size={16} />
+                {t('dash.testSend')}
+              </Button>
+            </form>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setTestOpen(true)}
+              className="flex cursor-pointer items-center gap-1.5 label-mono text-muted outline-none transition-colors duration-[var(--dur-fast)] ease-out hover:text-text focus-visible:text-text"
+            >
+              <Icon name="send" size={14} />
+              {t('dash.testSend')}
+            </button>
+          )}
+        </div>
       )}
     </Card>
   );

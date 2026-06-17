@@ -2,6 +2,7 @@ import type { LeaderboardEntry } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
 import { Card } from '@/ui';
+import { PlatformIcon, UserBadges } from '@/components/UserMarks';
 
 /** Таблица лидеров канала с подсветкой текущего пользователя. */
 export function Leaderboard({ board, meId }: { board: LeaderboardEntry[]; meId: string | null }) {
@@ -34,6 +35,8 @@ export function Leaderboard({ board, meId }: { board: LeaderboardEntry[]; meId: 
                     {i + 1}
                   </span>
                   <b className={isYou ? 'text-accent' : 'text-text'}>{e.displayName}</b>
+                  <PlatformIcon userId={e.userId} size={13} />
+                  <UserBadges isFounder={e.isFounder} variant="icons" />
                   {isYou && <span className="label-mono text-accent">{t('channel.you')}</span>}
                   <span className="ml-auto flex items-center gap-1.5 text-muted">
                     <Icon name="image" size={15} />

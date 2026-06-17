@@ -10,12 +10,11 @@ import { DashboardTopbar } from '@/features/dashboard/components/DashboardTopbar
 import { NowPlayingCard } from '@/features/dashboard/components/NowPlayingCard';
 import { SettingsCard } from '@/features/dashboard/components/SettingsCard';
 import { ModerationQueue } from '@/features/dashboard/components/ModerationQueue';
-import { UserList } from '@/features/dashboard/components/UserList';
+import { MembersPanel } from '@/features/dashboard/components/MembersPanel';
 import { HistoryCard } from '@/features/dashboard/components/HistoryCard';
 import { useChannels } from '@/features/dashboard/hooks/useChannels';
 import { useChannelData } from '@/features/dashboard/hooks/useChannelData';
 import { useSoundNotify } from '@/features/dashboard/hooks/useSoundNotify';
-import { useQueueView } from '@/features/dashboard/hooks/useQueueView';
 import { useTabTitleBadge } from '@/features/dashboard/hooks/useTabTitleBadge';
 import { useModerationActions } from '@/features/dashboard/hooks/useModerationActions';
 
@@ -31,14 +30,12 @@ export function DashboardPage() {
   const { channelsList, list, current, channelId, isOwner, setCurrentId } = useChannels();
   const sound = useSoundNotify();
   const data = useChannelData(channelId, isOwner, sound.soundOnRef);
-  const [queueView, setQueueView] = useQueueView();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const actions = useModerationActions({
     channelId,
     current,
     refreshLists: data.refreshLists,
-    setPending: data.setPending,
   });
 
   useTabTitleBadge(data.pending.length);
@@ -98,15 +95,11 @@ export function DashboardPage() {
         <div className="min-w-0">
           <ModerationQueue
             pending={data.pending}
-            allowed={data.allowed}
             reputation={data.reputation}
-            view={queueView}
-            onView={setQueueView}
             onApprove={actions.onApprove}
             onTrust={actions.onTrust}
             onReject={actions.onReject}
             onBan={actions.onBan}
-            onLater={actions.onLater}
           />
         </div>
 
@@ -117,32 +110,24 @@ export function DashboardPage() {
             onSkip={actions.skip}
             onSendTest={actions.sendTest}
           />
-          <UserList
-            icon="star"
-            title={t('dash.whitelist')}
-            hint={t('dash.whitelistHint')}
-            users={data.allowed}
-            onRemove={(id) =>
+          <MembersPanel
+            allowed={data.allowed}
+            banned={data.banned}
+            onRemoveAllowed={(id) =>
               channelId &&
               void act(() => removeFromWhitelist(channelId, id), {
                 after: data.refreshLists,
                 success: t('toast.removed'),
               })
             }
-            onBan={(id, name) => actions.banById(id, name)}
-          />
-          <UserList
-            icon="user-x"
-            title={t('dash.bans')}
-            hint={t('dash.bansHint')}
-            users={data.banned}
-            onRemove={(id) =>
+            onRemoveBan={(id) =>
               channelId &&
               void act(() => removeBan(channelId, id), {
                 after: data.refreshLists,
                 success: t('toast.removed'),
               })
             }
+            onBanAllowed={(id, name) => actions.banById(id, name)}
           />
         </div>
       </div>

@@ -163,6 +163,8 @@ export interface ChannelSettings {
 
 export interface HistoryEntry extends SubmissionSummary {
   status: SubmissionStatus;
+  /** Отправитель — первопроходец (для значка у ника). */
+  isFounder: boolean;
 }
 
 export interface ListedUser {
@@ -171,6 +173,8 @@ export interface ListedUser {
   displayName: string;
   /** epoch ms */
   addedAt: number;
+  /** Первопроходец — для значка у ника. */
+  isFounder: boolean;
 }
 
 export interface UploadResponse {
@@ -257,6 +261,8 @@ export interface LeaderboardEntry {
   displayName: string;
   /** Сколько медиа этого зрителя реально проигралось на стриме. */
   count: number;
+  /** Первопроходец — для значка у ника. */
+  isFounder: boolean;
 }
 
 /** Кросс-канальная репутация пользователя — агрегаты по всем каналам сразу. */

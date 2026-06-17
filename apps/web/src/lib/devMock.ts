@@ -60,7 +60,7 @@ const IMG = `data:image/svg+xml,${encodeURIComponent(
 
 const MOCK_ME: MeResponse = {
   user: {
-    id: 'u_dev',
+    id: 'twitch:u_dev',
     login: 'kravetsinside',
     displayName: 'Kravets',
     avatarUrl: null,
@@ -109,7 +109,7 @@ const MOCK_PENDING: SubmissionSummary[] = [
   sub({
     id: 's1',
     kind: 'text',
-    senderUserId: 'v1',
+    senderUserId: 'twitch:v1',
     senderName: 'meme_lord',
     text: 'каеф, врубай этого на стрим 🔥🔥🔥',
     createdAt: t - 1 * min,
@@ -118,7 +118,7 @@ const MOCK_PENDING: SubmissionSummary[] = [
     id: 's2',
     kind: 'image',
     mime: 'image/svg+xml',
-    senderUserId: 'v2',
+    senderUserId: 'google:v2',
     senderName: 'pixel_witch',
     text: 'смотри какой котик получился',
     url: IMG,
@@ -129,7 +129,7 @@ const MOCK_PENDING: SubmissionSummary[] = [
     id: 's3',
     kind: 'youtube',
     mime: 'video/youtube',
-    senderUserId: 'v3',
+    senderUserId: 'twitch:v3',
     senderName: 'dj_summer',
     youtubeId: 'dQw4w9WgXcQ',
     text: 'трек на фон, зайдёт',
@@ -147,7 +147,7 @@ const MOCK_PENDING: SubmissionSummary[] = [
   sub({
     id: 's5',
     kind: 'text',
-    senderUserId: 'v5',
+    senderUserId: 'google:v5',
     senderName: 'newbie123',
     text: 'превед :)',
     createdAt: t - 18 * min,
@@ -158,7 +158,7 @@ const MOCK_NOW: SubmissionSummary | null = sub({
   id: 'now1',
   kind: 'image',
   mime: 'image/svg+xml',
-  senderUserId: 'v9',
+  senderUserId: 'twitch:v9',
   senderName: 'streamfan',
   text: 'на удачу',
   url: IMG,
@@ -166,22 +166,29 @@ const MOCK_NOW: SubmissionSummary | null = sub({
   createdAt: t - 30_000,
 });
 
-const user = (id: string, login: string, displayName: string, agoMin: number): ListedUser => ({
+const user = (
+  id: string,
+  login: string,
+  displayName: string,
+  agoMin: number,
+  isFounder = false,
+): ListedUser => ({
   userId: id,
   login,
   displayName,
   addedAt: t - agoMin * min,
+  isFounder,
 });
 
 const MOCK_WHITELIST: ListedUser[] = [
-  user('v2', 'pixel_witch', 'Pixel Witch', 60 * 24 * 3),
-  user('v9', 'streamfan', 'StreamFan', 60 * 24 * 12),
-  user('v12', 'regular_andy', 'Regular Andy', 60 * 24 * 40),
+  user('google:v2', 'pixel_witch', 'Pixel Witch', 60 * 24 * 3, true),
+  user('twitch:v9', 'streamfan', 'StreamFan', 60 * 24 * 12),
+  user('google:v12', 'regular_andy', 'Regular Andy', 60 * 24 * 40),
 ];
 
 const MOCK_BANS: ListedUser[] = [
-  user('b1', 'spammer_99', 'spammer_99', 60 * 24 * 2),
-  user('b2', 'rude_guy', 'rude_guy', 60 * 24 * 9),
+  user('twitch:b1', 'spammer_99', 'spammer_99', 60 * 24 * 2),
+  user('google:b2', 'rude_guy', 'rude_guy', 60 * 24 * 9),
 ];
 
 const hist = (
@@ -191,27 +198,29 @@ const hist = (
   status: HistoryEntry['status'],
   agoMin: number,
   senderUserId: string | null = null,
+  isFounder = false,
 ): HistoryEntry => ({
   ...sub({ id, kind, senderName, senderUserId, createdAt: t - agoMin * min }),
   status,
+  isFounder,
 });
 
 const MOCK_HISTORY: HistoryEntry[] = [
-  hist('h1', 'streamfan', 'image', 'played', 5, 'v9'),
-  hist('h2', 'meme_lord', 'video', 'played', 22, 'v1'),
-  hist('h3', 'spammer_99', 'text', 'rejected', 38, 'b1'),
-  hist('h4', 'dj_summer', 'audio', 'expired', 64, 'v3'),
-  hist('h5', 'pixel_witch', 'image', 'played', 95, 'v2'),
+  hist('h1', 'streamfan', 'image', 'played', 5, 'twitch:v9'),
+  hist('h2', 'meme_lord', 'video', 'played', 22, 'twitch:v1'),
+  hist('h3', 'spammer_99', 'text', 'rejected', 38, 'twitch:b1'),
+  hist('h4', 'dj_summer', 'audio', 'expired', 64, 'twitch:v3'),
+  hist('h5', 'pixel_witch', 'image', 'played', 95, 'google:v2', true),
 ];
 
 const MOCK_REPUTATION: Record<string, ReputationStats> = {
-  v1: { accepted: 14, rejected: 2, whitelistedChannels: 1, bannedChannels: 0, isFounder: false },
-  v2: { accepted: 31, rejected: 0, whitelistedChannels: 4, bannedChannels: 0, isFounder: true },
-  v3: { accepted: 3, rejected: 5, whitelistedChannels: 0, bannedChannels: 1, isFounder: false },
-  v9: { accepted: 58, rejected: 1, whitelistedChannels: 6, bannedChannels: 0, isFounder: false },
+  'twitch:v1': { accepted: 14, rejected: 2, whitelistedChannels: 1, bannedChannels: 0, isFounder: false },
+  'google:v2': { accepted: 31, rejected: 0, whitelistedChannels: 4, bannedChannels: 0, isFounder: true },
+  'twitch:v3': { accepted: 3, rejected: 5, whitelistedChannels: 0, bannedChannels: 1, isFounder: false },
+  'twitch:v9': { accepted: 58, rejected: 1, whitelistedChannels: 6, bannedChannels: 0, isFounder: false },
 };
 
-const MOCK_MODERATORS: ListedUser[] = [user('m1', 'trusty_mod', 'Trusty Mod', 60 * 24 * 20)];
+const MOCK_MODERATORS: ListedUser[] = [user('twitch:m1', 'trusty_mod', 'Trusty Mod', 60 * 24 * 20)];
 
 // ─── Роутер ──────────────────────────────────────────────────────────────
 /** Возвращает мок-тело для известной ручки, иначе undefined (→ реальный fetch). */

@@ -231,8 +231,9 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
       const channel = await requireChannelAccess(req, reply, req.params.channelId);
       if (!channel) return;
       const rows = await db
-        .select()
+        .select({ sub: submissions, founderSince: users.founderSince })
         .from(submissions)
+        .leftJoin(users, eq(users.id, submissions.senderUserId))
         .where(
           and(
             eq(submissions.channelId, channel.id),
@@ -242,7 +243,11 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         .orderBy(desc(submissions.updatedAt))
         .limit(50)
         .all();
-      return rows.map((r) => ({ ...toSummary(r), status: r.status }));
+      return rows.map((r) => ({
+        ...toSummary(r.sub),
+        status: r.sub.status,
+        isFounder: r.founderSince != null,
+      }));
     },
   );
 
@@ -612,10 +617,15 @@ async function listUsers(
       login: users.login,
       displayName: users.displayName,
       addedAt: table.createdAt,
+      founderSince: users.founderSince,
     })
     .from(table)
     .innerJoin(users, eq(users.id, table.userId))
     .where(eq(table.channelId, channelId))
     .all();
-  return rows.map((r) => ({ ...r, addedAt: r.addedAt.getTime() }));
+  return rows.map(({ founderSince, addedAt, ...r }) => ({
+    ...r,
+    addedAt: addedAt.getTime(),
+    isFounder: founderSince != null,
+  }));
 }

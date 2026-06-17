@@ -1,4 +1,3 @@
-import type { Dispatch, SetStateAction } from 'react';
 import type { AccessibleChannel, SubmissionSummary } from '@tmw/shared';
 import {
   approveSubmission,
@@ -12,19 +11,17 @@ import { useConfirm } from '@/providers/ConfirmProvider';
 import { useI18n } from '@/i18n';
 
 /**
- * Действия модерации (одобрить/доверять/отклонить/бан/позже/бан по id/скип/тест) —
- * общие для видов «Список» и «Разбор». Бан спрашивает подтверждение.
+ * Действия модерации (одобрить/доверять/отклонить/бан/бан по id/скип/тест).
+ * Бан спрашивает подтверждение.
  */
 export function useModerationActions({
   channelId,
   current,
   refreshLists,
-  setPending,
 }: {
   channelId: string | null;
   current: AccessibleChannel | null;
   refreshLists: () => void;
-  setPending: Dispatch<SetStateAction<SubmissionSummary[]>>;
 }) {
   const { t } = useI18n();
   const confirm = useConfirm();
@@ -55,16 +52,6 @@ export function useModerationActions({
       }
     })();
   };
-  // «Позже» — только клиентский reorder: текущую заявку в конец очереди.
-  const onLater = (id: string) =>
-    setPending((prev) => {
-      const i = prev.findIndex((p) => p.id === id);
-      if (i < 0) return prev;
-      const copy = prev.slice();
-      const removed = copy.splice(i, 1);
-      copy.push(...removed);
-      return copy;
-    });
   const banById = (userId: string, name: string) => {
     void (async () => {
       if (!channelId) return;
@@ -81,5 +68,5 @@ export function useModerationActions({
     return act(() => uploadMedia(current.login, file), { success: t('toast.testSent') });
   };
 
-  return { onApprove, onTrust, onReject, onBan, onLater, banById, skip, sendTest };
+  return { onApprove, onTrust, onReject, onBan, banById, skip, sendTest };
 }

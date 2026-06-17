@@ -7,7 +7,7 @@ import {
 } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { Icon, type IconName } from '@/ui/icons';
-import { Button, Card } from '@/ui';
+import { Button } from '@/ui';
 
 export function SettingsCard({
   settings,
@@ -33,61 +33,25 @@ export function SettingsCard({
   const [musicSeparate, setMusicSeparate] = useState(settings.musicSeparate);
   const [musicPos, setMusicPos] = useState<OverlayPosition>(settings.musicPosition);
   const [musicMargin, setMusicMargin] = useState(settings.musicMargin);
-  // Карточка настроек большая и заслоняет очередь модерации — по умолчанию свёрнута.
-  // Состояние помним в localStorage, чтобы не сворачивалось при каждом заходе.
-  const [open, setOpen] = useState(() => {
-    try {
-      return localStorage.getItem('tmw_settings_open') === '1';
-    } catch {
-      return false;
-    }
-  });
-  const toggleOpen = () =>
-    setOpen((o) => {
-      const next = !o;
-      try {
-        localStorage.setItem('tmw_settings_open', next ? '1' : '0');
-      } catch {
-        /* приватный режим — не критично */
-      }
-      return next;
-    });
-
   return (
-    <Card>
-      <div className="flex items-center justify-between">
-        <button
-          type="button"
-          onClick={toggleOpen}
-          aria-expanded={open}
-          className="flex cursor-pointer items-center gap-2"
-        >
-          <Icon
-            name="play"
-            size={13}
-            className={`transition-transform text-muted ${open ? 'rotate-90' : ''}`}
-          />
-          <h2>{t('dash.settings')}</h2>
-        </button>
-        <label
-          className={`flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 label-mono ${
-            settings.accepting
-              ? 'border-ok/30 bg-ok-soft text-ok'
-              : 'border-danger/30 bg-danger-soft text-danger'
-          }`}
-        >
-          <input
-            type="checkbox"
-            checked={settings.accepting}
-            onChange={(e) => onSave({ accepting: e.target.checked })}
-            className="accent-current"
-          />
-          {settings.accepting ? t('dash.accepting') : t('dash.acceptingOff')}
-        </label>
-      </div>
-      {open && (
-        <>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+    <div>
+      <label
+        className={`flex w-max cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 label-mono ${
+          settings.accepting
+            ? 'border-ok/30 bg-ok-soft text-ok'
+            : 'border-danger/30 bg-danger-soft text-danger'
+        }`}
+      >
+        <input
+          type="checkbox"
+          checked={settings.accepting}
+          onChange={(e) => onSave({ accepting: e.target.checked })}
+          className="accent-current"
+        />
+        {settings.accepting ? t('dash.accepting') : t('dash.acceptingOff')}
+      </label>
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <Slider
               icon="image"
               label={t('dash.sliderVideo', { n: maxDurS })}
@@ -214,9 +178,7 @@ export function SettingsCard({
               {t('dash.save')}
             </Button>
           </div>
-        </>
-      )}
-    </Card>
+    </div>
   );
 }
 

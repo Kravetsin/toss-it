@@ -92,6 +92,7 @@ export function registerChannelRoutes(app: FastifyInstance): void {
         userId: submissions.senderUserId,
         login: users.login,
         displayName: users.displayName,
+        founderSince: users.founderSince,
         count: count(),
       })
       .from(submissions)
@@ -113,6 +114,7 @@ export function registerChannelRoutes(app: FastifyInstance): void {
       login: r.login,
       displayName: r.displayName,
       count: r.count,
+      isFounder: r.founderSince != null,
     }));
     return response;
   });

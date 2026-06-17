@@ -1,10 +1,10 @@
 import type { HistoryEntry } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
-import { Card } from '@/ui';
+import { PlatformIcon, UserBadges } from '@/components/UserMarks';
 import { STATUS_ICON } from '../constants';
 
-/** История показов: таблица заявок со статусом и кнопкой бана отправителя. */
+/** История показов: таблица заявок со статусом и кнопкой бана отправителя (живёт в drawer). */
 export function HistoryCard({
   history,
   bannedIds,
@@ -15,13 +15,11 @@ export function HistoryCard({
   onBan: (userId: string, name: string) => void;
 }) {
   const { t } = useI18n();
+  if (history.length === 0) {
+    return <p className="text-sm text-muted">{t('dash.historyEmpty')}</p>;
+  }
   return (
-    <>
-      <h2 className="mb-3 mt-8">{t('dash.history')}</h2>
-      {history.length === 0 ? (
-        <p className="text-sm text-muted">{t('dash.historyEmpty')}</p>
-      ) : (
-        <Card className="overflow-x-auto">
+    <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <tbody>
               {history.map((h) => {
@@ -32,7 +30,11 @@ export function HistoryCard({
                       <Icon name={si.icon} size={15} className={si.cls} />
                     </td>
                     <td className="py-1.5 pr-3 align-middle">
-                      <b className="text-text">{h.senderName ?? t('common.anon')}</b>
+                      <span className="flex items-center gap-1.5">
+                        <b className="text-text">{h.senderName ?? t('common.anon')}</b>
+                        <PlatformIcon userId={h.senderUserId} size={13} />
+                        <UserBadges isFounder={h.isFounder} variant="icons" />
+                      </span>
                     </td>
                     <td className="py-1.5 pr-3 align-middle label-mono text-faint">{h.kind}</td>
                     <td className="w-full whitespace-nowrap py-1.5 pr-2 text-right align-middle text-xs text-muted">
@@ -54,8 +56,6 @@ export function HistoryCard({
               })}
             </tbody>
           </table>
-        </Card>
-      )}
-    </>
+    </div>
   );
 }
