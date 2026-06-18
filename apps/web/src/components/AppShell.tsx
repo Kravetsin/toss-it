@@ -4,7 +4,7 @@ import type { SessionUser } from '@tmw/shared';
 import { logout } from '@/lib/api';
 import { useMe } from '@/hooks/useMe';
 import { useApiAction } from '@/hooks/useApiAction';
-import { useI18n } from '@/i18n';
+import { LanguageToggle, useI18n } from '@/i18n';
 import { Avatar, IconButton } from '@/ui';
 import { Icon, type IconName } from '@/ui/icons';
 import { PlatformIcon, UserBadges } from '@/components/UserMarks';
@@ -161,11 +161,13 @@ function Sidebar({ user, onLogout }: { user: SessionUser; onLogout: () => void }
           {user.isAdmin && <AccountRow to="/admin" icon="settings" label={t('admin.title')} />}
           <AccountRow onClick={onLogout} icon="log-out" label={t('home.logout')} danger />
         </div>
+        <LanguageToggle className="mt-2 rounded-full border border-border p-1" />
       </div>
 
-      {/* md-rail: только аватар + выход. */}
+      {/* md-rail: только аватар + язык + выход. */}
       <div className="flex flex-col items-center gap-2 border-t border-border p-2 lg:hidden">
         <Avatar url={user.avatarUrl} name={user.displayName} size={34} />
+        <LanguageToggle className="flex-col rounded-full border border-border p-0.5" />
         <IconButton
           name="log-out"
           label={t('home.logout')}
@@ -187,6 +189,7 @@ function MobileBar({ onLogout }: { onLogout: () => void }) {
       <nav className="flex items-center gap-1.5">
         <MobileNavIcon to="/" icon="home" label={t('nav.home')} />
         <MobileNavIcon to="/dashboard" icon="shield" label={t('nav.dashboard')} />
+        <LanguageToggle className="rounded-full border border-border p-0.5" />
         <IconButton
           name="log-out"
           label={t('home.logout')}

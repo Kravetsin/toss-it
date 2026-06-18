@@ -6,6 +6,8 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { useLocation } from 'react-router-dom';
+import { useMe } from '@/hooks/useMe';
 import { Surface } from '@/ui';
 import { dicts, en, type Lang, type Params } from './dictionaries';
 
@@ -71,14 +73,12 @@ export function formatDuration(ms: number, t: TFn): string {
   return s === 0 ? t('dur.min', { n: m }) : t('dur.minSec', { m, s });
 }
 
-export function LanguageSwitcher() {
+/** Сегментированные кнопки EN/RU — общая начинка плавающего свитчера и инлайн-тоггла. */
+function LangButtons({ className = '' }: { className?: string }) {
   const { lang, setLang } = useI18n();
   const langs: Lang[] = ['en', 'ru'];
   return (
-    <Surface
-      variant="glass-badge"
-      className="fixed bottom-4 right-4 z-50 flex gap-0.5 rounded-full p-1 shadow-2"
-    >
+    <div className={`flex gap-0.5 ${className}`}>
       {langs.map((l) => {
         const active = lang === l;
         return (
@@ -87,7 +87,7 @@ export function LanguageSwitcher() {
             type="button"
             onClick={() => setLang(l)}
             aria-pressed={active}
-            className={`cursor-pointer rounded-full px-3 py-1.5 label-mono outline-none transition-[color,background-color] duration-[180ms] ease-out focus-visible:[box-shadow:var(--shadow-focus)] ${
+            className={`flex-1 cursor-pointer rounded-full px-3 py-1.5 label-mono outline-none transition-[color,background-color] duration-[180ms] ease-out focus-visible:[box-shadow:var(--shadow-focus)] ${
               active ? 'bg-accent-soft text-accent' : 'text-muted hover:text-text'
             }`}
           >
@@ -95,6 +95,29 @@ export function LanguageSwitcher() {
           </button>
         );
       })}
+    </div>
+  );
+}
+
+/**
+ * Плавающий переключатель языка (правый нижний угол) для страниц без сайдбара:
+ * вход/лендинг, страница зрителя, утилитарные экраны. У залогиненного стримера на
+ * маршрутах с сайдбаром (`/`, `/dashboard`) он живёт в сайдбаре (LanguageToggle),
+ * иначе перекрывал бы контент (напр. кнопку Save в настройках).
+ */
+export function LanguageSwitcher() {
+  const { me } = useMe();
+  const { pathname } = useLocation();
+  const sidebarRoute = pathname === '/' || pathname === '/dashboard';
+  if (me?.user && sidebarRoute) return null;
+  return (
+    <Surface variant="glass-badge" className="fixed bottom-4 right-4 z-50 rounded-full p-1 shadow-2">
+      <LangButtons />
     </Surface>
   );
+}
+
+/** Инлайн-переключатель языка для сайдбара/мобильной панели залогиненного стримера. */
+export function LanguageToggle({ className = '' }: { className?: string }) {
+  return <LangButtons className={className} />;
 }
