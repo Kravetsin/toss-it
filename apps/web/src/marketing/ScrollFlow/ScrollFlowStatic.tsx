@@ -13,7 +13,7 @@ export function ScrollFlowStatic({ stages }: { stages: { name: string; cap: stri
       <div className="mx-auto flex max-w-2xl flex-wrap items-start justify-center gap-x-6 gap-y-4 px-4">
         {STAGE_ICONS.map((name, i) => (
           <div key={name} className="flex w-28 flex-col items-center text-center">
-            <Icon name={name} size={30} className="text-twitch-light" />
+            <Icon name={name} size={30} className="text-accent" />
             <span className="mt-2 font-body text-sm text-text">{stages[i]!.name}</span>
             <span className="text-xs text-muted">{stages[i]!.cap}</span>
             {/* Модерация — это развилка: одобрить ✓ / отклонить ✕ / свой без проверки ★. */}

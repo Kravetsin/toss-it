@@ -1,251 +1,109 @@
 import { useEffect, useRef } from 'react';
 import { useI18n } from '@/i18n';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { Icon } from '@/ui/icons';
 import { ScrollFlowStatic } from './ScrollFlowStatic';
 import {
-  APPROVE,
-  BASE_Y,
-  CX,
   END_PAUSE,
+  type Frame,
   FWD_DUR,
-  N,
+  NODE_R,
+  NODE_X,
   ORDER,
-  PHASES,
-  REJECT,
-  REJECT_DIP,
-  REJECT_RECOIL,
-  REJECT_SCAT,
   RETURN_DUR,
-  RETURN_HOP,
-  START_PAUSE,
   STAGE_ICONS,
-  STATION_X,
-  SVGNS,
-  TRUST,
+  START_PAUSE,
+  TRACK_Y,
   TRUST_HOP,
-  WS,
-  buildTimeline,
-  pulse,
-  sampleShape,
-  smooth,
-  type Pt,
+  frameReturn,
+  frameState,
 } from './engine';
 
-// Пиксельные глифы для встроенной SVG-анимации (этапы + стампы-вердикты). Раньше
-// брались из карты ICONS; заинлайнены локально — ScrollFlow переосмыслим в Фазе 4.
-const FLOW_GLYPHS: Record<string, string[]> = {
-  upload: ['M19 21H5v-2h14v2ZM5 19H3v-4h2v4Zm16 0h-2v-4h2v4ZM13 5h2v2h2v2h-4v8h-2V9H7V7h2V5h2V3h2v2Z'],
-  loader: [
-    'M13 22h-2v-6h2v6Zm-6-3H5v-2h2v2Zm12 0h-2v-2h2v2ZM9 17H7v-2h2v2Zm8 0h-2v-2h2v2Zm-9-4H2v-2h6v2Zm14 0h-6v-2h6v2ZM9 9H7V7h2v2Zm8 0h-2V7h2v2Zm-4-1h-2V2h2v6ZM7 7H5V5h2v2Zm12 0h-2V5h2v2Z',
-  ],
-  shield: [
-    'M4 2h16v2H4zM2 4h2v10H2zm18 0h2v10h-2zM4 14h2v2H4zm2 2h2v2H6zm4 4h4v2h-4zm10-6h-2v2h2zm-2 2h-2v2h2zm-2 2h-2v2h2zm-6 0H8v2h2z',
-  ],
-  play: ['M15 11h-2V9h2zm0 4h-2v-2h2zm-2 2h-2v-2h2zm0-8h-2V7h2zm-2-2H9V5h2zM9 21H7V3h2zm6-8h2v-2h-2zm-6 4h2v2H9z'],
-  check: [
-    'M10 18H8v-2h2v2Zm-2-2H6v-2h2v2Zm4-2v2h-2v-2h2Zm-6 0H4v-2h2v2Zm8 0h-2v-2h2v2Zm2-2h-2v-2h2v2Zm2-2h-2V8h2v2Zm2-2h-2V6h2v2Z',
-  ],
-  close: [
-    'M7 19H5V17H7V19ZM19 19H17V17H19V19ZM9 15V17H7V15H9ZM17 17H15V15H17V17ZM11 15H9V13H11V15ZM15 15H13V13H15V15ZM13 13H11V11H13V13ZM11 11H9V9H11V11ZM15 11H13V9H15V11ZM9 9H7V7H9V9ZM17 9H15V7H17V9ZM7 7H5V5H7V7ZM19 7H17V5H19V7Z',
-  ],
-  star: [
-    'M5 20H8V22H3V16H5V20ZM21 22H16V20H19V16H21V22ZM10 20H8V18H10V20ZM16 20H14V18H16V20ZM14 18H10V16H14V18ZM7 16H5V13H7V16ZM19 16H17V13H19V16ZM5 13H3V11H5V13ZM21 13H19V11H21V13ZM9 9H3V11H1V7H9V9ZM23 11H21V9H15V7H23V11ZM11 7H9V3H11V7ZM15 7H13V3H15V7ZM13 3H11V1H13V3Z',
-  ],
+// Цвета — строки CSS-переменных (резолвятся и в темах, и при смене акцента). Никаких хардкод-hex.
+const C = {
+  accent: 'var(--color-accent)',
+  accentHover: 'var(--color-accent-hover)',
+  accentSoft: 'var(--color-accent-soft)',
+  border: 'var(--color-border)',
+  muted: 'var(--color-muted)',
+  faint: 'var(--color-faint)',
+  nodeFill: 'var(--color-bg-elevated)',
+  ok: 'var(--color-ok)',
+  danger: 'var(--color-danger)',
+  warn: 'var(--color-warn)',
 };
 
+// Геометрия связей: линия идёт между краями соседних узлов.
+const SEG = [0, 1, 2].map((k) => ({ sx: NODE_X[k]! + NODE_R, ex: NODE_X[k + 1]! - NODE_R }));
+
 /**
- * Анимация «как это работает» под кнопками входа: пиксельный объект стоит по центру,
- * а «дорожка» этапов проезжает под ним (загрузка → обработка → модерация → на стриме).
- * Объект собирается из облака пикселей и держит форму на каждом этапе.
+ * Анимация «как это работает» под кнопками входа: «токен» отправки едет по треку через
+ * 4 узла-этапа (загрузка → обработка → модерация → на стриме). На модерации — развилка:
+ * одобрено (✓, едет дальше), отклонено (✕, рассеивается), свой (★, перелёт поверх щита).
  *
- * Авто-проигрыш по времени с плавным easing: проход вперёд (загрузка → эфир) с развилкой
- * у модерации, затем быстрый возврат кучки одной дугой прямо в начало (без отмотки станций).
- * Одинаково на десктопе и мобиле, без привязки к скроллу (поэтому никаких рывков от колеса).
- * Крутится только пока секция в зоне видимости; при prefers-reduced-motion — статичная полоса.
+ * Авто-проигрыш по времени с easing: проход вперёд → пауза на исходе → быстрый возврат
+ * токена дугой в начало → следующий проход (исход берётся из ORDER). Связи заливаются мятным
+ * по мере прохода, узлы подсвечиваются. Крутится только пока секция видна (IntersectionObserver);
+ * при prefers-reduced-motion — статичная полоса этапов (ScrollFlowStatic).
  */
 export function ScrollFlow() {
   const { t } = useI18n();
   const reduced = useReducedMotion();
-
   const stages = [1, 2, 3, 4].map((n) => ({ name: t(`flow.s${n}`), cap: t(`flow.c${n}`) }));
 
   const sectionRef = useRef<HTMLElement>(null);
-  const worldRef = useRef<SVGGElement>(null);
-  const partsRef = useRef<SVGGElement>(null);
-  const monRef = useRef<SVGRectElement>(null);
+  const tokenRef = useRef<SVGGElement>(null);
+  const circleRefs = useRef<(SVGCircleElement | null)[]>([]);
+  const iconRefs = useRef<(SVGGElement | null)[]>([]);
   const nameRefs = useRef<(SVGTextElement | null)[]>([]);
-  const tickRefs = useRef<(SVGRectElement | null)[]>([]);
-  // Стампы-вердикты, всплывающие над щитом: ✓ одобрено, ✕ отклонено, ★ свой (без проверки).
+  const segRefs = useRef<(SVGLineElement | null)[]>([]);
+  const streamRingRef = useRef<SVGCircleElement>(null);
   const checkRef = useRef<SVGGElement>(null);
   const closeRef = useRef<SVGGElement>(null);
   const starRef = useRef<SVGGElement>(null);
 
   useEffect(() => {
     if (reduced) return;
-    const world = worldRef.current;
-    const parts = partsRef.current;
     const section = sectionRef.current;
-    if (!world || !parts || !section) return;
+    if (!section) return;
 
-    const cv = document.createElement('canvas');
-    cv.width = 24;
-    cv.height = 24;
-    const ctx = cv.getContext('2d');
-    if (!ctx) return;
-    const cluster: Pt[] = [];
-    for (let c = 0; c < 42; c++) {
-      const ang = c * 2.39996;
-      const rad = 13.5 * Math.sqrt((c + 1) / 42);
-      cluster.push([Math.cos(ang) * rad, Math.sin(ang) * rad]);
-    }
-    const shapes: Pt[][] = [
-      cluster,
-      ...STAGE_ICONS.map((name) => sampleShape(ctx, (FLOW_GLYPHS[name] ?? []).join(' '))),
-    ];
-    const cum = buildTimeline();
-    // Регион «модерации»: TRUST перелетает 440→900 поверх щита (фазы 5–7);
-    // REJECT отскакивает у щита и не идёт к монитору (фазы 6–8).
-    const tStart = cum[5]!,
-      tEnd = cum[8]!;
-    const rStart = cum[6]!,
-      rEnd = cum[9]!;
-
-    const rects: SVGRectElement[] = [];
-    const rnd: Pt[] = [];
-    for (let k = 0; k < N; k++) {
-      const r = document.createElementNS(SVGNS, 'rect');
-      r.setAttribute('width', '2.7');
-      r.setAttribute('height', '2.7');
-      r.setAttribute('fill', k % 4 === 0 ? '#22d3ee' : '#67e8f9');
-      r.style.animation = `flow-shim ${(0.9 + (k % 6) * 0.11).toFixed(2)}s ease-in-out infinite`;
-      parts.appendChild(r);
-      rects.push(r);
-      rnd.push([Math.random() * 2 - 1, Math.random() * 2 - 1]);
-    }
-
-    function frame(p: number, verdict: number) {
-      if (p < 0) p = 0;
-      if (p > 1) p = 1;
-      let i = 0;
-      for (; i < PHASES.length; i++) if (p < cum[i + 1]!) break;
-      if (i >= PHASES.length) i = PHASES.length - 1;
-      let lt = (p - cum[i]!) / (cum[i + 1]! - cum[i]!);
-      if (lt < 0) lt = 0;
-      if (lt > 1) lt = 1;
-      const ph = PHASES[i]!;
-      let from: Pt[], to: Pt[], e: number, wsCur: number, hop: number, scat: number, active: number;
-      if (ph[0] === 'h') {
-        const s = ph[1];
-        from = to = shapes[s]!;
-        e = 0;
-        wsCur = WS[s]!;
-        hop = 0;
-        scat = 0;
-        active = s;
-      } else {
-        const f = ph[1];
-        const tt = ph[2];
-        from = shapes[f]!;
-        to = shapes[tt]!;
-        e = smooth(lt);
-        wsCur = WS[f]! + (WS[tt]! - WS[f]!) * e;
-        hop = 46 * Math.sin(Math.PI * lt);
-        scat = 27 * Math.sin(Math.PI * lt);
-        active = tt;
+    const apply = (f: Frame) => {
+      const tk = tokenRef.current;
+      if (tk) {
+        tk.setAttribute('transform', `translate(${f.x.toFixed(1)} ${f.y.toFixed(1)}) scale(${f.sc.toFixed(3)})`);
+        tk.setAttribute('opacity', f.op.toFixed(2));
       }
-      // Развилка у щита — перезаписываем геометрию по вердикту. Оба ветвления
-      // непрерывны на границах региона, поэтому реверс ping-pong не дёргается.
-      if (verdict === TRUST && p >= tStart && p <= tEnd) {
-        // «Свой» — перелёт ПОВЕРХ щита одной дугой 440→900, в щит не превращается.
-        const q = (p - tStart) / (tEnd - tStart);
-        wsCur = WS[2]! + (WS[4]! - WS[2]!) * smooth(q);
-        hop = TRUST_HOP * Math.sin(Math.PI * q);
-        scat = 0;
-        if (q < 0.25) {
-          from = shapes[2]!; // спиннер → кучка на взлёте
-          to = shapes[0]!;
-          e = smooth(q / 0.25);
-        } else {
-          from = shapes[0]!; // кучка → play на снижении к монитору
-          to = shapes[4]!;
-          e = smooth((q - 0.25) / 0.75);
+      for (let i = 0; i < 4; i++) {
+        const lit = f.lit[i];
+        const c = circleRefs.current[i];
+        if (c) {
+          c.style.stroke = lit ? C.accent : C.border;
+          c.style.fill = lit ? C.accentSoft : C.nodeFill;
         }
-        active = q >= 0.85 ? 4 : 0; // щит не подсвечиваем; монитор зажигаем под конец
-      } else if (verdict === REJECT && p >= rStart) {
-        // Отклонено — отскок у щита, рассыпание и сбор обратно в нейтральную кучку.
-        const r = (p - rStart) / (rEnd - rStart);
-        const b = Math.sin(Math.PI * r);
-        wsCur = WS[3]! - REJECT_RECOIL * b;
-        hop = -REJECT_DIP * b;
-        scat = REJECT_SCAT * b;
-        from = shapes[3]!; // щит → кучка
-        to = shapes[0]!;
-        e = smooth(Math.min(r / 0.5, 1));
-        active = r < 0.25 ? 3 : 0; // коротко горит щит, монитор остаётся тёмным
+        const g = iconRefs.current[i];
+        if (g) g.style.color = lit ? C.accent : C.muted;
+        const nm = nameRefs.current[i];
+        if (nm) nm.style.fill = lit ? C.accentHover : C.muted;
       }
-      world!.setAttribute('transform', `translate(${(CX - wsCur).toFixed(1)} 0)`);
-      const y = BASE_Y - hop;
-      for (let k = 0; k < N; k++) {
-        const a = from[k % from.length]!;
-        const b = to[k % to.length]!;
-        const bx = a[0] + (b[0] - a[0]) * e;
-        const by = a[1] + (b[1] - a[1]) * e;
-        const rv = rnd[k]!;
-        rects[k]!.setAttribute('x', (CX + bx + rv[0] * scat - 1.35).toFixed(1));
-        rects[k]!.setAttribute('y', (y + by + rv[1] * scat - 1.35).toFixed(1));
+      for (let k = 0; k < 3; k++) {
+        const ov = segRefs.current[k];
+        const g = SEG[k]!;
+        if (ov) ov.setAttribute('x2', (g.sx + f.seg[k]! * (g.ex - g.sx)).toFixed(1));
       }
-      const li = active - 1;
-      nameRefs.current.forEach((el, idx) => el?.setAttribute('fill', idx === li ? '#67e8f9' : '#8b8b96'));
-      tickRefs.current.forEach((el, idx) => el?.setAttribute('fill', idx === li ? '#22d3ee' : '#33333d'));
-      monRef.current?.setAttribute('stroke', active === 4 ? '#67e8f9' : '#0e7490');
-      // Стампы-вердикты над щитом (экранные координаты, не едут с миром).
-      const cp6 = (p - cum[6]!) / (cum[7]! - cum[6]!); // прогресс паузы на щите
-      const sq = (p - tStart) / (tEnd - tStart);
-      const sr = (p - rStart) / (rEnd - rStart);
-      checkRef.current?.setAttribute('opacity', String(verdict === APPROVE ? pulse(cp6, 0.15, 0.4, 0.85, 1) : 0));
-      closeRef.current?.setAttribute(
-        'opacity',
-        String(verdict === REJECT && p >= rStart ? pulse(sr, 0.1, 0.3, 0.75, 0.95) : 0),
-      );
-      starRef.current?.setAttribute(
-        'opacity',
-        String(verdict === TRUST && p >= tStart && p <= tEnd ? pulse(sq, 0.3, 0.42, 0.62, 0.74) : 0),
-      );
-    }
+      checkRef.current?.setAttribute('opacity', f.stampApprove.toFixed(2));
+      closeRef.current?.setAttribute('opacity', f.stampReject.toFixed(2));
+      starRef.current?.setAttribute('opacity', f.stampTrust.toFixed(2));
+      const sr = streamRingRef.current;
+      if (sr) {
+        sr.setAttribute('r', (NODE_R + f.live * 16).toFixed(1));
+        sr.setAttribute('opacity', (f.live > 0 ? 0.5 * (1 - f.live) : 0).toFixed(2));
+      }
+    };
 
-    // Возврат: кучка не отматывается через станции, а одной быстрой дугой летит из
-    // конечной точки (монитор / щит при отказе) прямо в начало и собирается в кучку.
-    function frameReturn(rp: number) {
-      const e = smooth(rp);
-      const endWorld = verdict === REJECT ? WS[3]! : WS[4]!;
-      const fromShape = verdict === REJECT ? shapes[0]! : shapes[4]!;
-      const to = shapes[0]!;
-      const wsCur = endWorld * (1 - e);
-      const y = BASE_Y - RETURN_HOP * Math.sin(Math.PI * rp);
-      world!.setAttribute('transform', `translate(${(CX - wsCur).toFixed(1)} 0)`);
-      for (let k = 0; k < N; k++) {
-        const a = fromShape[k % fromShape.length]!;
-        const b = to[k % to.length]!;
-        rects[k]!.setAttribute('x', (CX + a[0] + (b[0] - a[0]) * e - 1.35).toFixed(1));
-        rects[k]!.setAttribute('y', (y + a[1] + (b[1] - a[1]) * e - 1.35).toFixed(1));
-      }
-      // На возврате ничего не подсвечиваем, монитор гасим, стампы прячем.
-      nameRefs.current.forEach((el) => el?.setAttribute('fill', '#8b8b96'));
-      tickRefs.current.forEach((el) => el?.setAttribute('fill', '#33333d'));
-      monRef.current?.setAttribute('stroke', '#0e7490');
-      checkRef.current?.setAttribute('opacity', '0');
-      closeRef.current?.setAttribute('opacity', '0');
-      starRef.current?.setAttribute('opacity', '0');
-    }
-
-    // Вердикт держим весь цикл; новый исход выбираем в начале каждого прохода.
-    // Первый проход — ORDER[0] = APPROVE.
     let cycleIdx = 0;
     let verdict = ORDER[0]!;
-    frame(0, verdict);
+    apply(frameState(0, verdict));
 
-    // Авто-проигрыш: проход вперёд (FWD_DUR) → пауза на результате → быстрый возврат
-    // дугой в начало (RETURN_DUR) → короткая пауза → следующий проход.
     let raf = 0;
     let mode: 'forward' | 'return' = 'forward';
     let p = 0;
@@ -253,6 +111,7 @@ export function ScrollFlow() {
     let holdUntil = 0;
     let last = 0;
     let running = false;
+
     const loop = (now: number) => {
       if (!last) last = now;
       const dt = now - last;
@@ -261,13 +120,12 @@ export function ScrollFlow() {
         if (mode === 'forward') {
           p += dt / FWD_DUR;
           if (p >= 1) {
-            p = 1;
-            frame(1, verdict);
+            apply(frameState(1, verdict));
             mode = 'return';
             rp = 0;
-            holdUntil = now + END_PAUSE; // даём прочитать исход
+            holdUntil = now + END_PAUSE;
           } else {
-            frame(p, verdict);
+            apply(frameState(p, verdict));
           }
         } else {
           rp += dt / RETURN_DUR;
@@ -276,10 +134,10 @@ export function ScrollFlow() {
             p = 0;
             cycleIdx = (cycleIdx + 1) % ORDER.length;
             verdict = ORDER[cycleIdx]!;
-            frame(0, verdict);
+            apply(frameState(0, verdict));
             holdUntil = now + START_PAUSE;
           } else {
-            frameReturn(rp);
+            apply(frameReturn(rp, verdict));
           }
         }
       }
@@ -295,7 +153,8 @@ export function ScrollFlow() {
       running = false;
       cancelAnimationFrame(raf);
     };
-    // Крутим только пока секция видна (экономим CPU/батарею).
+    // Запускаем сразу; IntersectionObserver лишь ПРИОСТАНАВЛИВАЕТ, когда секция уехала из вида
+    // (экономим CPU/батарею). Гейт не «на старт», чтобы анимация не зависела от срабатывания IO.
     const io = new IntersectionObserver(
       (entries) => {
         if (entries[0]!.isIntersecting) start();
@@ -304,11 +163,11 @@ export function ScrollFlow() {
       { threshold: 0.35 },
     );
     io.observe(section);
+    start();
 
     return () => {
       io.disconnect();
       stop();
-      rects.forEach((r) => r.remove());
     };
   }, [reduced]);
 
@@ -319,73 +178,120 @@ export function ScrollFlow() {
   return (
     <section ref={sectionRef} className="py-8">
       <div className="mx-auto w-full max-w-2xl px-4">
-        <p className="mb-3 text-center font-display text-xs uppercase tracking-wide text-muted">
-          {t('flow.title')}
-        </p>
-        <svg
-          width="100%"
-          viewBox="0 0 680 210"
-          shapeRendering="crispEdges"
-          role="img"
-          aria-label={t('flow.title')}
-          style={{ imageRendering: 'pixelated' }}
-        >
-          <g ref={worldRef} transform="translate(340 0)">
-            <line x1={-60} y1={150} x2={980} y2={150} stroke="#33333d" strokeWidth={2} strokeDasharray="2 5" />
-            {/* Тусклый ориентир fast-lane: «свои» уходят этой дугой поверх щита. */}
-            <path d="M 580 100 Q 660 -28 740 100" fill="none" stroke="#67e8f9" strokeWidth={2} strokeDasharray="3 5" opacity={0.18} />
-            {[218, 438, 658].map((x, i) => (
-              <rect
-                key={i}
+        <p className="mb-5 text-center label-mono text-muted">{t('flow.title')}</p>
+        <svg width="100%" viewBox="0 0 680 150" role="img" aria-label={t('flow.title')}>
+          {/* Базовые связи между узлами. */}
+          {SEG.map((g, k) => (
+            <line
+              key={`b${k}`}
+              x1={g.sx}
+              y1={TRACK_Y}
+              x2={g.ex}
+              y2={TRACK_Y}
+              style={{ stroke: C.border }}
+              strokeWidth={2}
+              strokeLinecap="round"
+            />
+          ))}
+          {/* Тусклый ориентир fast-lane: «свои» уходят этой дугой поверх щита. */}
+          <path
+            d={`M ${NODE_X[1]} ${TRACK_Y} Q ${NODE_X[2]} ${TRACK_Y - TRUST_HOP} ${NODE_X[3]} ${TRACK_Y}`}
+            fill="none"
+            style={{ stroke: C.accent }}
+            strokeWidth={1.5}
+            strokeDasharray="3 6"
+            opacity={0.14}
+          />
+          {/* Заливка связей мятным по мере прохода токена. */}
+          {SEG.map((g, k) => (
+            <line
+              key={`f${k}`}
+              ref={(el) => {
+                segRefs.current[k] = el;
+              }}
+              x1={g.sx}
+              y1={TRACK_Y}
+              x2={g.sx}
+              y2={TRACK_Y}
+              style={{ stroke: C.accent }}
+              strokeWidth={2}
+              strokeLinecap="round"
+            />
+          ))}
+          {/* Узлы-этапы: круг + Lucide-иконка + подписи. */}
+          {STAGE_ICONS.map((name, i) => (
+            <g key={i}>
+              <circle
                 ref={(el) => {
-                  tickRefs.current[i] = el;
+                  circleRefs.current[i] = el;
                 }}
-                x={x}
-                y={148}
-                width={4}
-                height={4}
-                fill="#33333d"
+                cx={NODE_X[i]}
+                cy={TRACK_Y}
+                r={NODE_R}
+                style={{ fill: C.nodeFill, stroke: C.border }}
+                strokeWidth={1.5}
               />
-            ))}
-            <rect ref={monRef} x={864} y={104} width={72} height={48} fill="#16161a" stroke="#0e7490" strokeWidth={2} />
-            <rect x={894} y={154} width={12} height={6} fill="#0e7490" />
-            {STATION_X.map((x, i) => (
-              <g key={i}>
-                <text
-                  ref={(el) => {
-                    nameRefs.current[i] = el;
-                  }}
-                  x={x}
-                  y={176}
-                  textAnchor="middle"
-                  fill="#8b8b96"
-                  className="font-body"
-                  style={{ fontSize: 18 }}
-                >
-                  {stages[i]!.name}
-                </text>
-                <text x={x} y={192} textAnchor="middle" fill="#5f5e5a" className="font-body" style={{ fontSize: 14 }}>
-                  {stages[i]!.cap}
-                </text>
+              <g
+                ref={(el) => {
+                  iconRefs.current[i] = el;
+                }}
+                transform={`translate(${NODE_X[i]! - 9} ${TRACK_Y - 9})`}
+                style={{ color: C.muted }}
+              >
+                <Icon name={name} size={18} />
               </g>
-            ))}
+              <text
+                ref={(el) => {
+                  nameRefs.current[i] = el;
+                }}
+                x={NODE_X[i]}
+                y={118}
+                textAnchor="middle"
+                style={{
+                  fill: C.muted,
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 11,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {stages[i]!.name}
+              </text>
+              <text
+                x={NODE_X[i]}
+                y={134}
+                textAnchor="middle"
+                style={{ fill: C.faint, fontFamily: 'var(--font-sans)', fontSize: 11 }}
+              >
+                {stages[i]!.cap}
+              </text>
+            </g>
+          ))}
+          {/* Расходящееся кольцо при попадании «на стрим». */}
+          <circle
+            ref={streamRingRef}
+            cx={NODE_X[3]}
+            cy={TRACK_Y}
+            r={NODE_R}
+            fill="none"
+            style={{ stroke: C.accent }}
+            strokeWidth={1.5}
+            opacity={0}
+          />
+          {/* Токен отправки: мятный диск с гало. */}
+          <g ref={tokenRef} transform={`translate(${NODE_X[0]} ${TRACK_Y})`}>
+            <circle r={9} fill="none" style={{ stroke: C.accent }} strokeWidth={1} opacity={0.4} />
+            <circle r={4.5} style={{ fill: C.accent }} />
           </g>
-          <g ref={partsRef} />
-          {/* Стампы-вердикты в экранных координатах — всплывают над щитом (центр CX, y≈84). */}
-          <g ref={checkRef} opacity={0} fill="#34d399" transform="translate(330.4 74.4) scale(0.8)">
-            {FLOW_GLYPHS.check!.map((d, i) => (
-              <path key={i} d={d} />
-            ))}
+          {/* Стампы-вердикты над узлом модерации. */}
+          <g ref={checkRef} opacity={0} transform={`translate(${NODE_X[2]! - 9} 22)`} style={{ color: C.ok }}>
+            <Icon name="check" size={18} />
           </g>
-          <g ref={closeRef} opacity={0} fill="#f87171" transform="translate(330.4 74.4) scale(0.8)">
-            {FLOW_GLYPHS.close!.map((d, i) => (
-              <path key={i} d={d} />
-            ))}
+          <g ref={closeRef} opacity={0} transform={`translate(${NODE_X[2]! - 9} 22)`} style={{ color: C.danger }}>
+            <Icon name="close" size={18} />
           </g>
-          <g ref={starRef} opacity={0} fill="#fbbf24" transform="translate(330.4 74.4) scale(0.8)">
-            {FLOW_GLYPHS.star!.map((d, i) => (
-              <path key={i} d={d} />
-            ))}
+          <g ref={starRef} opacity={0} transform={`translate(${NODE_X[2]! - 9} 22)`} style={{ color: C.warn }}>
+            <Icon name="star" size={18} />
           </g>
         </svg>
       </div>
