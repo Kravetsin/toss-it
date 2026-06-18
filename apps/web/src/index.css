@@ -435,6 +435,38 @@ textarea {
   animation: toast-in var(--dur) var(--ease-out) both;
 }
 
+/* Вердикт карточки (Фаза 4): аппрув — мятная вспышка; реджект — красно-циановый глитч-фликер. */
+@keyframes fx-flash-ok {
+  from {
+    opacity: 0.5;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@keyframes fx-flash-bad {
+  0% {
+    opacity: 0.6;
+    background-color: var(--color-danger);
+  }
+  20% {
+    background-color: #56d6f5;
+  }
+  40% {
+    background-color: var(--color-danger);
+  }
+  60% {
+    background-color: #56d6f5;
+  }
+  80% {
+    background-color: var(--color-danger);
+  }
+  100% {
+    opacity: 0;
+    background-color: var(--color-danger);
+  }
+}
+
 /* ── Медиа-плееры (используются галереей; реског медиа — отдельная задача Фазы 1). ── */
 @utility mat-checker {
   background-color: var(--color-bg);

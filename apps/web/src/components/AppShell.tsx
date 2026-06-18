@@ -7,6 +7,7 @@ import { useI18n } from '@/i18n';
 import { Avatar, IconButton } from '@/ui';
 import { Icon, type IconName } from '@/ui/icons';
 import { PlatformIcon, UserBadges } from '@/components/UserMarks';
+import { BackgroundStars } from '@/components/BackgroundStars';
 
 /** Бренд-знак: угловатый акцентный «T» + вордмарк. */
 function Brand({ compact = false }: { compact?: boolean }) {
@@ -203,12 +204,15 @@ export function AppShell() {
     });
 
   return (
-    <div className="min-h-screen bg-bg text-text">
-      {user && <MobileBar onLogout={onLogout} />}
-      <div className="md:flex">
-        {user && <Sidebar user={user} onLogout={onLogout} />}
-        <div className="min-w-0 flex-1">
-          <Outlet />
+    <div className="relative min-h-screen bg-bg text-text">
+      <BackgroundStars />
+      <div className="relative z-10">
+        {user && <MobileBar onLogout={onLogout} />}
+        <div className="md:flex">
+          {user && <Sidebar user={user} onLogout={onLogout} />}
+          <div className="min-w-0 flex-1">
+            <Outlet />
+          </div>
         </div>
       </div>
     </div>

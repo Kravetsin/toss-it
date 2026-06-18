@@ -9,6 +9,8 @@ import {
 } from 'motion/react';
 import type { ReputationStats, SubmissionSummary } from '@tmw/shared';
 import { useI18n } from '@/i18n';
+import { useFidgetEnabled } from '@/hooks/useFidgetEnabled';
+import { disintegrate } from '@/lib/burst';
 import { Icon } from '@/ui/icons';
 import { IconButton } from '@/ui';
 import { PlatformIcon, UserBadges } from '@/components/UserMarks';
@@ -43,22 +45,34 @@ export function SubmissionCard({
 }) {
   const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
+  const [fx, setFx] = useState<'approve' | 'reject' | null>(null);
+  const fidget = useFidgetEnabled();
+  const outerRef = useRef<HTMLDivElement>(null);
   // Был ли драг в этом жесте — чтобы лёгкое подтягивание не раскрывало карточку (только чистый тап).
   const draggedRef = useRef(false);
   const reduce = useReducedMotion();
   const x = useMotionValue(0);
+  const cardOpacity = useMotionValue(1);
   const approveOpacity = useTransform(x, [10, SWIPE_DISTANCE], [0, 1]);
   const rejectOpacity = useTransform(x, [-SWIPE_DISTANCE, -10], [1, 0]);
 
-  // Свайп долетает за край и вызывает действие; родитель убирает строку из списка (visible)
-  // — она размонтируется уже за кадром, без «прыжка» обратно.
+  // Свайп → «вердикт»: карточка распадается (частицы на оверлее) и гаснет на месте + вспышка/глитч.
   const commit = (dir: 1 | -1, action: () => void) => {
+    const kind = dir === 1 ? 'approve' : 'reject';
+    if (fidget) {
+      const r = outerRef.current?.getBoundingClientRect();
+      if (r) disintegrate(r, kind, dir);
+    }
     if (reduce) {
       action();
       return;
     }
-    const w = typeof window !== 'undefined' ? window.innerWidth : 800;
-    animate(x, dir * w, { duration: 0.28, ease: [0.25, 0, 0, 1], onComplete: action });
+    setFx(kind);
+    animate(cardOpacity, 0, {
+      duration: kind === 'approve' ? 0.34 : 0.3,
+      ease: [0.4, 0, 0.2, 1],
+      onComplete: action,
+    });
   };
 
   const onDragEnd = (_e: PointerEvent | MouseEvent | TouchEvent, info: PanInfo) => {
@@ -70,7 +84,7 @@ export function SubmissionCard({
   };
 
   return (
-    <div className="relative select-none overflow-hidden border border-border">
+    <div ref={outerRef} className="relative select-none overflow-hidden border border-border">
       {/* Подложки-подсказки свайпа (видны, когда карта уезжает). */}
       <motion.div
         style={{ opacity: approveOpacity }}
@@ -89,7 +103,8 @@ export function SubmissionCard({
 
       <motion.div
         drag="x"
-        style={{ x, touchAction: 'pan-y' }}
+        dragMomentum={false}
+        style={{ x, opacity: cardOpacity, touchAction: 'pan-y' }}
         onPointerDownCapture={() => {
           draggedRef.current = false;
         }}
@@ -160,6 +175,16 @@ export function SubmissionCard({
           </div>
         )}
       </motion.div>
+
+      {/* Вспышка вердикта поверх карточки: мятная (аппрув) / красно-циановый глитч (реджект). */}
+      {fx && (
+        <div
+          className={`pointer-events-none absolute inset-0 z-20 ${fx === 'approve' ? 'bg-accent' : ''}`}
+          style={{
+            animation: `${fx === 'approve' ? 'fx-flash-ok' : 'fx-flash-bad'} 0.34s linear forwards`,
+          }}
+        />
+      )}
     </div>
   );
 }

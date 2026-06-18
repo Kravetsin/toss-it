@@ -3,7 +3,6 @@ import type { ReputationStats, SubmissionSummary } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { Badge } from '@/ui';
 import { useQueueHotkeys } from '../hooks/useQueueHotkeys';
-import { IdleQueue } from './IdleQueue';
 import { SubmissionCard } from './SubmissionCard';
 
 /** Очередь модерации: единый список со свайпом (→ одобрить, ← отклонить) и разворотом строки. */
@@ -76,7 +75,7 @@ export function ModerationQueue({
       </div>
 
       {visible.length === 0 ? (
-        <IdleQueue />
+        <p className="py-10 text-center text-sm text-muted">{t('dash.modEmpty')}</p>
       ) : (
         <div className="flex flex-col gap-2">
           {visible.map((s) => (
