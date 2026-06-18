@@ -38,6 +38,43 @@ export function positionToFlex(pos: OverlayPosition): { justify: string; align: 
   return { justify, align };
 }
 
+/**
+ * Платформы соц-ссылок в публичном профиле канала. Порядок = порядок в селекте UI.
+ * 'link' — произвольная ссылка (generic-иконка) для всего, чего нет в списке.
+ */
+export type SocialPlatform =
+  | 'twitch'
+  | 'youtube'
+  | 'x'
+  | 'instagram'
+  | 'tiktok'
+  | 'discord'
+  | 'telegram'
+  | 'link';
+
+export const SOCIAL_PLATFORMS: SocialPlatform[] = [
+  'twitch',
+  'youtube',
+  'x',
+  'instagram',
+  'tiktok',
+  'discord',
+  'telegram',
+  'link',
+];
+
+/** Ссылка на ресурс стримера, показывается в шапке страницы зрителя. */
+export interface ChannelLink {
+  platform: SocialPlatform;
+  /** Абсолютный http(s)-URL; валидируется на сервере. */
+  url: string;
+}
+
+/** Лимиты редактируемого профиля канала (валидируются и на клиенте, и на сервере). */
+export const CHANNEL_DESCRIPTION_MAX_LEN = 200;
+export const CHANNEL_LINKS_MAX = 8;
+export const CHANNEL_LINK_URL_MAX_LEN = 300;
+
 export type SubmissionStatus = 'pending' | 'approved' | 'rejected' | 'played' | 'expired';
 
 export interface MediaPlayPayload {
@@ -159,6 +196,10 @@ export interface ChannelSettings {
   musicSize: number;
   /** Отступ музыкального плеера от края, % вьюпорта (если musicSeparate). */
   musicMargin: number;
+  /** Описание канала на странице зрителя; null/'' — показываем дефолтный подзаголовок. */
+  description: string | null;
+  /** Соц-ссылки в шапке страницы зрителя (порядок сохраняется). */
+  links: ChannelLink[];
 }
 
 export interface HistoryEntry extends SubmissionSummary {
@@ -234,6 +275,10 @@ export interface PublicChannelInfo {
   maxFileSizeBytes: number;
   /** Владелец канала — первопроходец: показываем бейдж в шапке. */
   isFounder: boolean;
+  /** Описание от стримера; null — зритель видит дефолтный подзаголовок. */
+  description: string | null;
+  /** Соц-ссылки стримера для шапки. */
+  links: ChannelLink[];
 }
 
 /** Результат гашения промокода. */

@@ -92,6 +92,12 @@ const MOCK_SETTINGS: ChannelSettings = {
   musicPosition: 'top-right',
   musicSize: 30,
   musicMargin: 5,
+  description: 'Шли мемы — лучшее окажется на стриме 🎬',
+  links: [
+    { platform: 'twitch', url: 'https://twitch.tv/kravetsinside' },
+    { platform: 'telegram', url: 'https://t.me/kravetsinside' },
+    { platform: 'youtube', url: 'https://youtube.com/@kravetsinside' },
+  ],
 };
 
 const sub = (s: Partial<SubmissionSummary> & Pick<SubmissionSummary, 'id' | 'kind'>): SubmissionSummary => ({

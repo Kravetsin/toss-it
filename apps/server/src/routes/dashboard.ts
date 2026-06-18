@@ -2,8 +2,13 @@ import crypto from 'node:crypto';
 import { and, asc, count, desc, eq, inArray, isNotNull } from 'drizzle-orm';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import {
+  CHANNEL_DESCRIPTION_MAX_LEN,
+  CHANNEL_LINKS_MAX,
+  CHANNEL_LINK_URL_MAX_LEN,
   OVERLAY_POSITIONS,
+  SOCIAL_PLATFORMS,
   type AccessibleChannel,
+  type ChannelLink,
   type ChannelSettings,
   type HistoryEntry,
   type ListedUser,
@@ -85,6 +90,36 @@ async function requireOwnerOf(
 
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 
+/** Нормализует описание: trim + обрезка по лимиту; пустое → null. */
+function sanitizeDescription(input: unknown): string | null {
+  if (typeof input !== 'string') return null;
+  const trimmed = input.trim().slice(0, CHANNEL_DESCRIPTION_MAX_LEN);
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+/** Отбрасывает мусор: платформа из белого списка, URL — абсолютный http(s). Кап по количеству. */
+function sanitizeLinks(input: unknown): ChannelLink[] {
+  if (!Array.isArray(input)) return [];
+  const out: ChannelLink[] = [];
+  for (const raw of input) {
+    if (out.length >= CHANNEL_LINKS_MAX) break;
+    if (!raw || typeof raw !== 'object') continue;
+    const { platform, url } = raw as { platform?: unknown; url?: unknown };
+    if (typeof platform !== 'string' || !SOCIAL_PLATFORMS.includes(platform as never)) continue;
+    if (typeof url !== 'string') continue;
+    const trimmed = url.trim().slice(0, CHANNEL_LINK_URL_MAX_LEN);
+    let parsed: URL;
+    try {
+      parsed = new URL(trimmed);
+    } catch {
+      continue;
+    }
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') continue;
+    out.push({ platform: platform as ChannelLink['platform'], url: trimmed });
+  }
+  return out;
+}
+
 function toSettings(ch: ChannelRow): ChannelSettings {
   return {
     maxDurationMs: ch.maxDurationMs,
@@ -103,6 +138,8 @@ function toSettings(ch: ChannelRow): ChannelSettings {
     musicPosition: ch.musicPosition,
     musicSize: ch.musicSize,
     musicMargin: ch.musicMargin,
+    description: ch.description,
+    links: ch.links,
   };
 }
 
@@ -218,6 +255,9 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
           typeof b.musicMargin === 'number'
             ? clamp(Math.round(b.musicMargin), 0, 25)
             : channel.musicMargin,
+        description:
+          'description' in b ? sanitizeDescription(b.description) : channel.description,
+        links: 'links' in b ? sanitizeLinks(b.links) : channel.links,
       };
       await db.update(channels).set(patch).where(eq(channels.id, channel.id));
       return toSettings({ ...channel, ...patch });

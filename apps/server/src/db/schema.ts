@@ -1,5 +1,6 @@
+import { sql } from 'drizzle-orm';
 import { sqliteTable, text, integer, index, primaryKey } from 'drizzle-orm/sqlite-core';
-import type { MediaKind, OverlayPosition, SubmissionStatus } from '@tmw/shared';
+import type { ChannelLink, MediaKind, OverlayPosition, SubmissionStatus } from '@tmw/shared';
 
 /**
  * Служебная таблица «ключ-значение»: health-check и прочая мелочь.
@@ -57,6 +58,12 @@ export const channels = sqliteTable('channels', {
   musicPosition: text('music_position').$type<OverlayPosition>().notNull().default('center'),
   musicSize: integer('music_size').notNull().default(80),
   musicMargin: integer('music_margin').notNull().default(0),
+  // Публичный профиль (правится в дашборде, показывается зрителю в шапке).
+  description: text('description'),
+  links: text('links', { mode: 'json' })
+    .$type<ChannelLink[]>()
+    .notNull()
+    .default(sql`'[]'`),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 });
 
