@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReputationStats, SubmissionSummary } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { Badge } from '@/ui';
 import { useQueueHotkeys } from '../hooks/useQueueHotkeys';
+import { IdleQueue } from './IdleQueue';
 import { SubmissionCard } from './SubmissionCard';
 
 /** Очередь модерации: единый список со свайпом (→ одобрить, ← отклонить) и разворотом строки. */
@@ -23,24 +24,41 @@ export function ModerationQueue({
 }) {
   const { t } = useI18n();
   const [stats, setStats] = useState({ approved: 0, rejected: 0 });
+  // Оптимистично убранные (после действия), чтобы очередь пустела сразу, не дожидаясь сокета.
+  const [dismissed, setDismissed] = useState<Set<string>>(() => new Set());
+
+  // Чистим dismissed от заявок, которых уже нет в pending (реально удалены по сокету/обновлению).
+  useEffect(() => {
+    setDismissed((prev) => {
+      if (prev.size === 0) return prev;
+      const next = new Set([...prev].filter((id) => pending.some((p) => p.id === id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [pending]);
+
+  const visible = pending.filter((p) => !dismissed.has(p.id));
+  const drop = (id: string) => setDismissed((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
 
   const approve = (s: SubmissionSummary) => {
     onApprove(s);
     setStats((p) => ({ ...p, approved: p.approved + 1 }));
+    drop(s.id);
   };
   const trust = (s: SubmissionSummary) => {
     onTrust(s);
     setStats((p) => ({ ...p, approved: p.approved + 1 }));
+    drop(s.id);
   };
   const reject = (s: SubmissionSummary) => {
     onReject(s);
     setStats((p) => ({ ...p, rejected: p.rejected + 1 }));
+    drop(s.id);
   };
 
-  // Хоткеи действуют на голову очереди (Space/W/R/B); жесты — на конкретную строку.
+  // Хоткеи действуют на голову видимой очереди (Space/W/R/B); жесты — на конкретную строку.
   useQueueHotkeys({
-    active: pending.length > 0,
-    pending,
+    active: visible.length > 0,
+    pending: visible,
     onApprove: approve,
     onTrust: trust,
     onReject: reject,
@@ -52,16 +70,16 @@ export function ModerationQueue({
       <div className="mb-3">
         <h2 className="flex items-center gap-2">
           {t('dash.modQueue')}
-          {pending.length > 0 && <Badge>{pending.length}</Badge>}
+          {visible.length > 0 && <Badge>{visible.length}</Badge>}
         </h2>
-        {pending.length > 0 && <p className="mt-1 text-xs text-faint">{t('dash.swipeHint')}</p>}
+        {visible.length > 0 && <p className="mt-1 text-xs text-faint">{t('dash.swipeHint')}</p>}
       </div>
 
-      {pending.length === 0 ? (
-        <p className="text-sm text-muted">{t('dash.modEmpty')}</p>
+      {visible.length === 0 ? (
+        <IdleQueue />
       ) : (
         <div className="flex flex-col gap-2">
-          {pending.map((s) => (
+          {visible.map((s) => (
             <SubmissionCard
               key={s.id}
               s={s}

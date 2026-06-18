@@ -240,7 +240,8 @@ function route(pathname: string): unknown | undefined {
   if (m) {
     switch (m[1]) {
       case 'pending':
-        return MOCK_PENDING;
+        // ?empty — посмотреть фиджет пустой очереди (dev).
+        return new URLSearchParams(window.location.search).has('empty') ? [] : MOCK_PENDING;
       case 'now':
         return { now: MOCK_NOW };
       case 'settings':

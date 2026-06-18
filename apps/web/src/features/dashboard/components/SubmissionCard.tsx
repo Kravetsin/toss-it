@@ -43,7 +43,6 @@ export function SubmissionCard({
 }) {
   const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
-  const [gone, setGone] = useState(false);
   // Был ли драг в этом жесте — чтобы лёгкое подтягивание не раскрывало карточку (только чистый тап).
   const draggedRef = useRef(false);
   const reduce = useReducedMotion();
@@ -51,24 +50,15 @@ export function SubmissionCard({
   const approveOpacity = useTransform(x, [10, SWIPE_DISTANCE], [0, 1]);
   const rejectOpacity = useTransform(x, [-SWIPE_DISTANCE, -10], [1, 0]);
 
-  // После свайпа скрываем строку (gone), а НЕ возвращаем на место: иначе в реальном
-  // приложении карта «прыгнет» обратно и исчезнет позже, когда придёт удаление по сокету.
-  // (Удаление по сокету затем размонтирует компонент; в моке строка просто скрыта.)
-  const dismiss = (action: () => void) => {
-    action();
-    setGone(true);
-  };
+  // Свайп долетает за край и вызывает действие; родитель убирает строку из списка (visible)
+  // — она размонтируется уже за кадром, без «прыжка» обратно.
   const commit = (dir: 1 | -1, action: () => void) => {
     if (reduce) {
-      dismiss(action);
+      action();
       return;
     }
     const w = typeof window !== 'undefined' ? window.innerWidth : 800;
-    animate(x, dir * w, {
-      duration: 0.28,
-      ease: [0.25, 0, 0, 1],
-      onComplete: () => dismiss(action),
-    });
+    animate(x, dir * w, { duration: 0.28, ease: [0.25, 0, 0, 1], onComplete: action });
   };
 
   const onDragEnd = (_e: PointerEvent | MouseEvent | TouchEvent, info: PanInfo) => {
@@ -78,8 +68,6 @@ export function SubmissionCard({
     else if (reduce) x.set(0);
     else animate(x, 0, HOME_SPRING);
   };
-
-  if (gone) return null;
 
   return (
     <div className="relative select-none overflow-hidden border border-border">
