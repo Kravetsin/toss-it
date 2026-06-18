@@ -1,4 +1,5 @@
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useFillEffect } from '@/ui/useFillEffect';
 import type { SessionUser } from '@tmw/shared';
 import { logout } from '@/lib/api';
 import { useMe } from '@/hooks/useMe';
@@ -23,21 +24,27 @@ function Brand({ compact = false }: { compact?: boolean }) {
 
 /** Пункт боковой навигации (десктоп). */
 function NavItem({ to, icon, label }: { to: string; icon: IconName; label: string }) {
+  const { fillRef, handlers } = useFillEffect();
   return (
     <NavLink
       to={to}
       end={to === '/'}
       title={label}
       className={({ isActive }) =>
-        `flex items-center justify-center gap-3 px-3 py-2.5 label-mono transition-colors duration-[var(--dur-fast)] ease-out lg:justify-start ${
-          isActive
-            ? 'bg-accent-soft text-accent'
-            : 'text-muted hover:bg-surface-2 hover:text-text'
+        `relative flex items-center justify-center gap-3 overflow-hidden px-3 py-2.5 label-mono transition-colors duration-[var(--dur-fast)] ease-out lg:justify-start ${
+          isActive ? 'bg-accent-soft text-accent' : 'text-muted hover:text-text'
         }`
       }
+      {...handlers}
     >
-      <Icon name={icon} size={18} />
-      <span className="hidden lg:inline">{label}</span>
+      <span
+        ref={fillRef}
+        aria-hidden
+        className="pointer-events-none absolute inset-0 z-0"
+        style={{ backgroundColor: 'rgba(255,255,255,0.08)', clipPath: 'circle(0% at 50% 50%)' }}
+      />
+      <Icon name={icon} size={18} className="relative z-[1]" />
+      <span className="relative z-[1] hidden lg:inline">{label}</span>
     </NavLink>
   );
 }
@@ -52,6 +59,7 @@ function MobileNavIcon({
   icon: IconName;
   label: string;
 }) {
+  const { fillRef, handlers } = useFillEffect();
   return (
     <NavLink
       to={to}
@@ -59,14 +67,21 @@ function MobileNavIcon({
       aria-label={label}
       title={label}
       className={({ isActive }) =>
-        `inline-flex size-9 items-center justify-center rounded-full border transition-colors duration-[var(--dur-fast)] ease-out ${
+        `relative inline-flex size-9 items-center justify-center overflow-hidden rounded-full border transition-colors duration-[var(--dur-fast)] ease-out ${
           isActive
             ? 'border-transparent bg-accent-soft text-accent'
             : 'border-border text-muted hover:text-text'
         }`
       }
+      {...handlers}
     >
-      <Icon name={icon} size={18} />
+      <span
+        ref={fillRef}
+        aria-hidden
+        className="pointer-events-none absolute inset-0 z-0 rounded-full"
+        style={{ backgroundColor: 'rgba(255,255,255,0.08)', clipPath: 'circle(0% at 50% 50%)' }}
+      />
+      <Icon name={icon} size={18} className="relative z-[1]" />
     </NavLink>
   );
 }

@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useFillEffect } from '@/ui/useFillEffect';
 import {
   animate,
   motion,
@@ -44,6 +45,7 @@ export function SubmissionCard({
   onBan: () => void;
 }) {
   const { t } = useI18n();
+  const { fillRef, handlers: fillHandlers } = useFillEffect();
   const [expanded, setExpanded] = useState(false);
   const [fx, setFx] = useState<'approve' | 'reject' | null>(null);
   const fidget = useFidgetEnabled();
@@ -112,8 +114,15 @@ export function SubmissionCard({
           draggedRef.current = true;
         }}
         onDragEnd={onDragEnd}
+        {...fillHandlers}
         className="relative cursor-grab bg-surface active:cursor-grabbing"
       >
+        <span
+          ref={fillRef}
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-0"
+          style={{ backgroundColor: 'rgba(255,255,255,0.05)', clipPath: 'circle(0% at 50% 50%)' }}
+        />
         {/* Свёрнутая строка — раскрывается только чистым тапом (драг не раскрывает). */}
         <button
           type="button"
@@ -122,7 +131,7 @@ export function SubmissionCard({
             setExpanded((e) => !e);
           }}
           aria-expanded={expanded}
-          className="flex w-full items-center gap-3 p-3 text-left outline-none focus-visible:[box-shadow:inset_var(--shadow-focus)]"
+          className="relative z-[1] flex w-full items-center gap-3 p-3 text-left outline-none focus-visible:[box-shadow:inset_var(--shadow-focus)]"
         >
           <SubmissionThumb s={s} />
           <span className="min-w-0 flex-1">
@@ -148,7 +157,7 @@ export function SubmissionCard({
 
         {/* Развёрнуто: полное превью + все действия (Trust/Later/Ban здесь). */}
         {expanded && (
-          <div className="border-t border-border p-3">
+          <div className="relative z-[1] border-t border-border p-3">
             {rep && (
               <div className="mb-2">
                 <RepChip rep={rep} />

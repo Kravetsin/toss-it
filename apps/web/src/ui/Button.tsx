@@ -1,4 +1,5 @@
-import { useRef, type ButtonHTMLAttributes, type CSSProperties, type PointerEvent } from 'react';
+import { type ButtonHTMLAttributes, type CSSProperties } from 'react';
+import { useFillEffect } from '@/ui/useFillEffect';
 
 type ButtonVariant = 'primary' | 'framed' | 'accent' | 'secondary' | 'ghost' | 'danger';
 type ButtonSize = 'sm' | 'md' | 'lg';
@@ -13,29 +14,31 @@ interface VariantSpec {
   /** классы на самой кнопке */
   cls: string;
   corners: boolean;
-  /** круговая заливка-от-курсора + авто-инверсия лейбла (для вариантов с уголками на прозрачном фоне) */
-  fill: boolean;
+  /**
+   * Цвет заливки круговой анимации.
+   * undefined → `bg-text` + `mix-blend-mode: difference` на лейбле (инверсия; для прозрачных фонов).
+   * string  → кастомный цвет без blend (для непрозрачных фонов и тихих вариантов).
+   */
+  fillColor?: string;
   /** цвет уголков (--cf-color) */
   cf?: string;
-  /** цвет лейбла (для НЕ-fill вариантов; у fill лейбл инвертируется blend-режимом) */
+  /** цвет лейбла */
   label?: string;
 }
 
 const VARIANTS: Record<ButtonVariant, VariantSpec> = {
-  // Тёмная штриховка + уголки + круговая заливка-от-курсора (геро-CTA).
-  primary: { cls: 'hatch-strong bg-transparent', corners: true, fill: true },
+  // Штриховка + уголки + круговая заливка с инверсией лейбла (геро-CTA).
+  primary: { cls: 'hatch-strong bg-transparent', corners: true },
   // То же, но штриховка слабее (10%).
-  framed: { cls: 'hatch bg-transparent', corners: true, fill: true },
-  // Сплошной акцентный CTA (непрозрачный фон → только уголки, без заливки).
-  accent: { cls: 'bg-accent', corners: true, fill: false, cf: 'var(--color-accent)', label: 'text-accent-contrast' },
-  danger: { cls: 'bg-danger', corners: true, fill: false, cf: 'var(--color-danger)', label: 'text-danger-contrast' },
+  framed: { cls: 'hatch bg-transparent', corners: true },
+  // Сплошной акцент: шимер rgba поверх фона (без инверсии).
+  accent: { cls: 'bg-accent', corners: true, fillColor: 'rgba(255,255,255,0.25)', cf: 'var(--color-accent)', label: 'text-accent-contrast' },
+  danger: { cls: 'bg-danger', corners: true, fillColor: 'rgba(255,255,255,0.25)', cf: 'var(--color-danger)', label: 'text-danger-contrast' },
   // Тихая обводка с уголками.
-  secondary: { cls: 'bg-transparent', corners: true, fill: false, cf: 'var(--color-muted)', label: 'text-text' },
-  // Только текст.
-  ghost: { cls: 'bg-transparent hover:opacity-80', corners: false, fill: false, label: 'text-muted' },
+  secondary: { cls: 'bg-transparent', corners: true, fillColor: 'rgba(255,255,255,0.10)', cf: 'var(--color-muted)', label: 'text-text' },
+  // Только текст — лёгкий шимер вместо opacity-hover.
+  ghost: { cls: 'bg-transparent', corners: false, fillColor: 'rgba(255,255,255,0.07)', label: 'text-muted' },
 };
-
-const FILL_EASE = 'clip-path .55s cubic-bezier(.25, 0, 0, 1)';
 
 export function Button({
   variant = 'secondary',
@@ -46,50 +49,10 @@ export function Button({
   ...rest
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant; size?: ButtonSize }) {
   const v = VARIANTS[variant];
-  const fillRef = useRef<HTMLSpanElement>(null);
+  const { fillRef, handlers: fillHandlers } = useFillEffect();
 
   const style: CSSProperties = { ...restStyle };
   if (v.cf) (style as Record<string, string>)['--cf-color'] = v.cf;
-
-  // Круговая заливка из точки курсора. Чистый сброс (transition:none → reflow → рост) гарантирует
-  // старт всегда из реальной точки входа, без «сползания» от старой позиции.
-  function grow(x: number, y: number) {
-    const el = fillRef.current;
-    if (!el) return;
-    el.style.transition = 'none';
-    el.style.clipPath = `circle(0% at ${x}% ${y}%)`;
-    void el.offsetWidth;
-    el.style.transition = FILL_EASE;
-    el.style.clipPath = `circle(150% at ${x}% ${y}%)`;
-  }
-  function shrink(x: number, y: number) {
-    const el = fillRef.current;
-    if (!el) return;
-    el.style.transition = FILL_EASE;
-    el.style.clipPath = `circle(0% at ${x}% ${y}%)`;
-  }
-  function pct(e: PointerEvent<HTMLButtonElement>) {
-    const r = e.currentTarget.getBoundingClientRect();
-    return { x: ((e.clientX - r.left) / r.width) * 100, y: ((e.clientY - r.top) / r.height) * 100 };
-  }
-
-  const fillHandlers = v.fill
-    ? {
-        onPointerEnter: (e: PointerEvent<HTMLButtonElement>) => {
-          const { x, y } = pct(e);
-          grow(x, y);
-        },
-        onPointerLeave: (e: PointerEvent<HTMLButtonElement>) => {
-          const { x, y } = pct(e);
-          shrink(x, y);
-        },
-        // Заливку на фокусе запускаем только при клавиатурном фокусе (Tab), не на клике мышью.
-        onFocus: (e: React.FocusEvent<HTMLButtonElement>) => {
-          if (e.currentTarget.matches(':focus-visible')) grow(0, 50);
-        },
-        onBlur: () => shrink(0, 50),
-      }
-    : {};
 
   return (
     <button
@@ -98,17 +61,18 @@ export function Button({
       {...rest}
       {...fillHandlers}
     >
-      {v.fill && (
-        <span
-          ref={fillRef}
-          aria-hidden
-          className="pointer-events-none absolute inset-0 z-0 bg-text"
-          style={{ clipPath: 'circle(0% at 50% 50%)' }}
-        />
-      )}
       <span
-        className={`relative z-[1] inline-flex items-center gap-2 ${v.fill ? '' : (v.label ?? '')}`}
-        style={v.fill ? { color: '#fff', mixBlendMode: 'difference' } : undefined}
+        ref={fillRef}
+        aria-hidden
+        className={`pointer-events-none absolute inset-0 z-0 ${v.fillColor ? '' : 'bg-text'}`}
+        style={{
+          clipPath: 'circle(0% at 50% 50%)',
+          ...(v.fillColor ? { backgroundColor: v.fillColor } : {}),
+        }}
+      />
+      <span
+        className={`relative z-[1] inline-flex items-center gap-2 ${v.label ?? ''}`}
+        style={!v.fillColor ? { color: '#fff', mixBlendMode: 'difference' } : undefined}
       >
         {children}
       </span>
