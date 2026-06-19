@@ -1,7 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { useFidgetEnabled } from '@/hooks/useFidgetEnabled';
 
-type Kind = 'amb' | 'comet' | 'spark' | 'launch' | 'keep';
+type Kind = 'amb' | 'comet' | 'spark' | 'launch' | 'keep' | 'cosmos';
+
+/** Потолок «космических» звёзд канала (зажигаются на месте — дёшево; всё равно ограничим). */
+const MAX_COSMOS_STARS = 700;
+/** Потолок всех сущностей канваса (звёзды + кометы + искры). */
+const ENT_CAP = 900;
 
 /**
  * Императивный мост к живому канвасу звёзд (один инстанс на странице зрителя).
@@ -13,6 +18,8 @@ interface StarsApi {
   launchKeepsake: (point: { x: number; y: number }) => void;
   /** Разовый «вдох»: фоновые звёзды на миг устремляются вверх. */
   inhale: () => void;
+  /** Расставить count звёзд по небу (прозрачными) и зажечь каждую в случайный момент. */
+  populateCosmos: (count: number) => void;
 }
 let starsApi: StarsApi | null = null;
 
@@ -23,6 +30,10 @@ export function launchKeepsake(point: { x: number; y: number }): void {
 /** Пик «на стриме»: фон делает один «вдох». */
 export function inhaleStars(): void {
   starsApi?.inhale();
+}
+/** При заходе/перезагрузке: расставить звёзды по небу (по числу показанных на стриме постов канала). */
+export function populateCosmos(count: number): void {
+  starsApi?.populateCosmos(count);
 }
 
 interface Ent {
@@ -46,6 +57,8 @@ interface Ent {
   trail: { x: number; y: number }[];
   // spark (искра взрыва)
   life: number;
+  // cosmos: задержка до зажигания в секундах (случайная — чтобы звёзды не вспыхнули разом)
+  delay?: number;
 }
 
 const SKIP =
@@ -69,6 +82,11 @@ export function BackgroundStars() {
 
     const accent =
       getComputedStyle(document.documentElement).getPropertyValue('--color-accent').trim() || '#8df0cc';
+    // accent в RGB — для бленда к белому при зажигании «космических» звёзд.
+    const ah = accent.replace('#', '');
+    const aR = parseInt(ah.slice(0, 2), 16) || 141;
+    const aG = parseInt(ah.slice(2, 4), 16) || 240;
+    const aB = parseInt(ah.slice(4, 6), 16) || 204;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     let W = 0;
     let H = 0;
@@ -175,7 +193,7 @@ export function BackgroundStars() {
       const target = e.target;
       if (target instanceof Element && target.closest(SKIP)) return;
       ents.push(mkComet(e.clientX, e.clientY));
-      if (ents.length > 400) ents.splice(0, ents.length - 400);
+      if (ents.length > ENT_CAP) ents.splice(0, ents.length - ENT_CAP);
     };
 
     const frame = (now: number) => {
@@ -200,6 +218,42 @@ export function BackgroundStars() {
           dot(e.x, e.y, e.r, e.baseA * (0.55 + 0.45 * Math.sin(now * 0.001 * e.tw + e.ph)));
         } else if (e.kind === 'keep') {
           dot(e.x, e.y, e.r, 0.6 + 0.4 * Math.sin(now * 0.001 * e.tw + e.ph));
+        } else if (e.kind === 'cosmos') {
+          if (e.delay && e.delay > 0) {
+            e.delay -= dt;
+            continue; // ещё прозрачная — не рисуем (никакого резкого появления)
+          }
+          // Одна непрерывная формула (без стыка режимов): плавное проявление из прозрачного +
+          // одиночная белая вспышка, плавно затухающая в спокойное мятное мерцание.
+          if (e.t < 5) e.t += dt;
+          const tt = e.t;
+          const appear = Math.min(1, tt / 0.7); // прозрачный → видимый (тёмно-мятный → мятный)
+          const twk = 0.66 + 0.34 * Math.sin(now * 0.001 * e.tw + e.ph); // спокойное мерцание
+          const fd = tt - 1.1;
+          const flash = appear * Math.exp(-(fd * fd) / 0.4); // белая вспышка, плавно гаснет
+          const wt = flash * 0.9; // подмешивание белого (пик на вспышке → 0)
+          const alpha = Math.min(1, e.baseA * appear * (twk + flash * 0.8));
+          // мягкое свечение — радиальный градиент, только пока есть вспышка
+          if (flash > 0.05) {
+            const gr = e.r * (3 + flash * 5);
+            const g = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, gr);
+            g.addColorStop(0, `rgba(${aR},${aG},${aB},${(flash * 0.5).toFixed(3)})`);
+            g.addColorStop(1, `rgba(${aR},${aG},${aB},0)`);
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(e.x, e.y, gr, 0, 6.2832);
+            ctx.fill();
+          }
+          // ядро (мятное → белое на вспышке)
+          ctx.globalAlpha = alpha;
+          ctx.beginPath();
+          ctx.arc(e.x, e.y, e.r, 0, 6.2832);
+          ctx.fillStyle =
+            wt > 0.01
+              ? `rgb(${(aR + (255 - aR) * wt) | 0},${(aG + (255 - aG) * wt) | 0},${(aB + (255 - aB) * wt) | 0})`
+              : accent;
+          ctx.fill();
         } else if (e.kind === 'launch') {
           e.t += dt / e.dur;
           if (e.t >= 1) {
@@ -301,10 +355,36 @@ export function BackgroundStars() {
           trail: [],
           life: 1,
         });
-        if (ents.length > 400) ents.splice(0, ents.length - 400);
+        if (ents.length > ENT_CAP) ents.splice(0, ents.length - ENT_CAP);
       },
       inhale: () => {
         surge = 140;
+      },
+      populateCosmos: (count) => {
+        const n = Math.min(Math.max(0, Math.floor(count)), MAX_COSMOS_STARS);
+        for (let i = 0; i < n; i++) {
+          ents.push({
+            kind: 'cosmos',
+            x: Math.random() * W,
+            y: Math.random() * H,
+            vx: 0,
+            vy: 0,
+            r: 0.8 + Math.random() * 1.3,
+            baseA: 0.45 + Math.random() * 0.35, // яркость в установившемся мерцании
+            tw: 0.4 + Math.random() * 0.7,
+            ph: Math.random() * 6.28,
+            sx: 0,
+            sy: 0,
+            tx: 0,
+            ty: 0,
+            t: 0, // прогресс зажигания 0..1, дальше — мерцание
+            dur: 1.6 + Math.random() * 1.2, // длительность зажигания
+            trail: [],
+            life: 1,
+            delay: Math.random() * 4, // случайный момент старта — не вспыхивают разом
+          });
+        }
+        if (ents.length > ENT_CAP) ents.splice(0, ents.length - ENT_CAP);
       },
     };
 

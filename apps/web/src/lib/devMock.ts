@@ -13,8 +13,10 @@ import type {
   AccessibleChannel,
   ChannelSettings,
   HistoryEntry,
+  LeaderboardEntry,
   ListedUser,
   MeResponse,
+  PublicChannelInfo,
   ReputationStats,
   SubmissionSummary,
 } from '@tmw/shared';
@@ -228,6 +230,31 @@ const MOCK_REPUTATION: Record<string, ReputationStats> = {
 
 const MOCK_MODERATORS: ListedUser[] = [user('twitch:m1', 'trusty_mod', 'Trusty Mod', 60 * 24 * 20)];
 
+/** Публичная инфа канала зрителя (мок). login берём из URL. */
+function mockPublicChannel(login: string): PublicChannelInfo {
+  return {
+    login,
+    displayName: login,
+    avatarUrl: null,
+    accepting: true,
+    maxDurationMs: MOCK_SETTINGS.maxDurationMs,
+    maxAudioDurationMs: MOCK_SETTINGS.maxAudioDurationMs,
+    maxFileSizeBytes: MOCK_SETTINGS.maxFileSizeBytes,
+    isFounder: true,
+    description: MOCK_SETTINGS.description,
+    links: MOCK_SETTINGS.links,
+  };
+}
+
+/** Лидерборд канала (мок). Текущий dev-юзер (twitch:u_dev) с count=12 — для проверки залпа звёзд. */
+const MOCK_LEADERBOARD: LeaderboardEntry[] = [
+  { userId: 'twitch:other1', login: 'darkblane', displayName: 'DarkBlane_', count: 12, isFounder: false },
+  { userId: 'twitch:u_dev', login: 'kravetsinside', displayName: 'Kravets', count: 12, isFounder: true },
+  { userId: 'twitch:other2', login: 'kravetsin', displayName: 'Kravetsin', count: 6, isFounder: false },
+  { userId: 'google:other3', login: 'slava', displayName: 'Слава Anfani', count: 5, isFounder: false },
+  { userId: 'google:other4', login: 'darina', displayName: 'Дмитриева Дарина', count: 2, isFounder: false },
+];
+
 // ─── Роутер ──────────────────────────────────────────────────────────────
 /** Возвращает мок-тело для известной ручки, иначе undefined (→ реальный fetch). */
 function route(pathname: string): unknown | undefined {
@@ -241,6 +268,10 @@ function route(pathname: string): unknown | undefined {
     return {};
   }
   if (pathname === '/api/me/channels') return MOCK_CHANNELS;
+
+  // Публичная страница зрителя: канал + лидерборд (аплоад идёт через XHR — мок его не трогает).
+  const cm = pathname.match(/^\/api\/c\/([^/]+)(?:\/(leaderboard))?$/);
+  if (cm) return cm[2] === 'leaderboard' ? MOCK_LEADERBOARD : mockPublicChannel(cm[1]!);
 
   const m = pathname.match(/^\/api\/dashboard\/[^/]+\/(.+)$/);
   if (m) {

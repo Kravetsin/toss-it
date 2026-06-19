@@ -7,6 +7,7 @@ import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
 import { Alert, Card, Loader } from '@/ui';
 import { AuthButtons } from '@/components/AuthButtons';
+import { populateCosmos } from '@/components/BackgroundStars';
 import { ChannelShell } from '@/features/channel/components/ChannelShell';
 import { ChannelHeader } from '@/features/channel/components/ChannelHeader';
 import { ComposeForm } from '@/features/channel/components/ComposeForm';
@@ -33,6 +34,26 @@ export function ChannelPage() {
       .catch(() => setChannel(null));
     loadBoard();
   }, [login, loadBoard]);
+
+  // При заходе/перезагрузке: расставляем по небу звёзды по СУММЕ показанных на стриме постов ВСЕХ
+  // контрибьюторов (общий «космос канала» — стимул слать достойное, а не спам). Звёзды появляются
+  // прозрачными и плавно зажигаются каждая в случайный момент. Один раз на маунт — независимо от
+  // обновлений борда после поста (чтобы не задваивать с сессионной звездой показа).
+  useEffect(() => {
+    let cancelled = false;
+    let timer = 0;
+    void getLeaderboard(login)
+      .then((b) => {
+        if (cancelled) return;
+        const total = b.reduce((sum, e) => sum + e.count, 0);
+        if (total > 0) timer = window.setTimeout(() => populateCosmos(total), 500);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [login]);
 
   const loadedChannel = channel !== 'loading' ? channel : null;
   const sub = useMediaSubmission(loadedChannel, login, loadBoard);
