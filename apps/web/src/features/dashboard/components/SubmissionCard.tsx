@@ -137,6 +137,7 @@ export function SubmissionCard({
           <span className="min-w-0 flex-1">
             <span className="flex items-center gap-1.5">
               <b className="truncate text-sm text-text">{s.senderName ?? t('common.anon')}</b>
+              <RepChip rep={rep} />
               <PlatformIcon userId={s.senderUserId} size={13} />
               <UserBadges isFounder={rep?.isFounder} variant="icons" />
               <span className="ml-auto shrink-0 whitespace-nowrap text-xs text-muted">
@@ -158,11 +159,6 @@ export function SubmissionCard({
         {/* Развёрнуто: полное превью + все действия (Trust/Later/Ban здесь). */}
         {expanded && (
           <div className="relative z-[1] border-t border-border p-3">
-            {rep && (
-              <div className="mb-2">
-                <RepChip rep={rep} />
-              </div>
-            )}
             <SubmissionPreview s={s} />
             {/* Одобрить/отклонить — свайпом. Здесь только редкие действия, иконками. */}
             <div className="mt-3 flex items-center justify-end gap-2">

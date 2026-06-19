@@ -3,16 +3,22 @@ import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
 import { Card } from '@/ui';
 import { PlatformIcon, UserBadges } from '@/components/UserMarks';
+import { StarMark } from '@/components/StarMark';
+import { CosmosLegend } from '@/features/channel/components/CosmosLegend';
 
 /** Таблица лидеров канала с подсветкой текущего пользователя. */
 export function Leaderboard({ board, meId }: { board: LeaderboardEntry[]; meId: string | null }) {
   const { t } = useI18n();
+  const totalShown = board.reduce((sum, e) => sum + e.count, 0);
   return (
     <div className="mt-8">
-      <h2 className="mb-3 flex items-center gap-2 font-display">
-        <Icon name="trophy" size={16} className="text-warn" />
-        {t('channel.leaderboard')}
-      </h2>
+      <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <h2 className="flex items-center gap-2 font-display">
+          <Icon name="trophy" size={16} className="text-warn" />
+          {t('channel.leaderboard')}
+        </h2>
+        <CosmosLegend count={totalShown} className="ml-auto" />
+      </div>
       {board.length === 0 ? (
         <p className="text-muted">{t('channel.leaderboardEmpty')}</p>
       ) : (
@@ -39,7 +45,7 @@ export function Leaderboard({ board, meId }: { board: LeaderboardEntry[]; meId: 
                   <UserBadges isFounder={e.isFounder} variant="icons" />
                   {isYou && <span className="label-mono text-accent">{t('channel.you')}</span>}
                   <span className="ml-auto flex items-center gap-1.5 text-muted">
-                    <Icon name="image" size={15} />
+                    <StarMark size={13} className="text-accent" />
                     {e.count}
                   </span>
                 </li>
