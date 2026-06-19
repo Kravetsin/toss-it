@@ -1,5 +1,6 @@
 import { TEXT_MAX_LEN } from '@tmw/shared';
 import { useI18n } from '@/i18n';
+import { clock } from '@/lib/format';
 import { youtubeIdFromText } from '@/lib/youtube';
 import { Icon } from '@/ui/icons';
 import { Alert, Button, Textarea } from '@/ui';
@@ -14,6 +15,7 @@ export function ComposeForm({
   text,
   senderName,
   errorMessage,
+  cooldownSec = 0,
   onPickFile,
   onRemoveFile,
   onTextChange,
@@ -24,12 +26,15 @@ export function ComposeForm({
   text: string;
   senderName: string;
   errorMessage: string | null;
+  /** >0 — кулдаун: кнопка показывает остаток и заблокирована, но форма доступна для ввода. */
+  cooldownSec?: number;
   onPickFile: (file: File | null) => void;
   onRemoveFile: () => void;
   onTextChange: (value: string) => void;
   onSend: () => void;
 }) {
   const { t } = useI18n();
+  const cooling = cooldownSec > 0;
   // Если в тексте есть YouTube-ссылка и нет файла — покажем превью ролика.
   const ytId = file ? null : youtubeIdFromText(text);
 
@@ -65,11 +70,11 @@ export function ComposeForm({
       <Button
         variant="primary"
         className="justify-center"
-        disabled={!file && !text.trim()}
+        disabled={cooling || (!file && !text.trim())}
         onClick={onSend}
       >
-        <Icon name="send" size={16} />
-        {t('channel.send')}
+        <Icon name={cooling ? 'clock' : 'send'} size={16} />
+        {cooling ? t('channel.cooldown', { time: clock(cooldownSec) }) : t('channel.send')}
       </Button>
 
       {errorMessage && (

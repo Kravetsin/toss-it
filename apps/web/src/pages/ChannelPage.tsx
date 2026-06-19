@@ -4,7 +4,6 @@ import type { LeaderboardEntry, PublicChannelInfo } from '@tmw/shared';
 import { getChannel, getLeaderboard } from '@/lib/api';
 import { useMe } from '@/hooks/useMe';
 import { useI18n } from '@/i18n';
-import { clock } from '@/lib/format';
 import { Icon } from '@/ui/icons';
 import { Alert, Card, Loader } from '@/ui';
 import { AuthButtons } from '@/components/AuthButtons';
@@ -12,8 +11,7 @@ import { ChannelShell } from '@/features/channel/components/ChannelShell';
 import { ChannelHeader } from '@/features/channel/components/ChannelHeader';
 import { ComposeForm } from '@/features/channel/components/ComposeForm';
 import { Leaderboard } from '@/features/channel/components/Leaderboard';
-import { SubmissionResult } from '@/features/channel/components/SubmissionResult';
-import { UploadProgress } from '@/features/channel/components/UploadProgress';
+import { Vessel } from '@/features/channel/components/Vessel/Vessel';
 import { useMediaSubmission } from '@/features/channel/hooks/useMediaSubmission';
 
 export function ChannelPage() {
@@ -71,27 +69,21 @@ export function ChannelPage() {
             <p className="text-muted">{t('channel.loginToSend')}</p>
             <AuthButtons returnTo={`/c/${login}`} />
           </Card>
-        ) : sub.cooldownSec > 0 ? (
-          <Alert tone="warn">
-            <Icon name="clock" />
-            <span>{t('channel.cooldown', { time: clock(sub.cooldownSec) })}</span>
-          </Alert>
-        ) : sub.phase.name === 'done' && sub.status ? (
-          <SubmissionResult status={sub.status} onReset={sub.reset} />
-        ) : sub.phase.name === 'uploading' ? (
-          <UploadProgress progress={sub.phase.progress} />
         ) : (
-          <ComposeForm
-            file={sub.file}
-            previewUrl={sub.previewUrl}
-            text={sub.text}
-            senderName={me.user.displayName}
-            errorMessage={sub.phase.name === 'error' ? sub.phase.message : null}
-            onPickFile={sub.pickFile}
-            onRemoveFile={sub.removeFile}
-            onTextChange={sub.setText}
-            onSend={() => void sub.send()}
-          />
+          <Vessel phase={sub.phase} status={sub.status} cooldownSec={sub.cooldownSec}>
+            <ComposeForm
+              file={sub.file}
+              previewUrl={sub.previewUrl}
+              text={sub.text}
+              senderName={me.user.displayName}
+              errorMessage={sub.phase.name === 'error' ? sub.phase.message : null}
+              cooldownSec={sub.cooldownSec}
+              onPickFile={sub.pickFile}
+              onRemoveFile={sub.removeFile}
+              onTextChange={sub.setText}
+              onSend={() => void sub.send()}
+            />
+          </Vessel>
         )}
       </div>
 

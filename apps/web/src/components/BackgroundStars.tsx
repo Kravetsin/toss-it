@@ -1,7 +1,29 @@
 import { useEffect, useRef } from 'react';
 import { useFidgetEnabled } from '@/hooks/useFidgetEnabled';
 
-type Kind = 'amb' | 'comet' | 'spark';
+type Kind = 'amb' | 'comet' | 'spark' | 'launch' | 'keep';
+
+/**
+ * Императивный мост к живому канвасу звёзд (один инстанс на странице зрителя).
+ * Заполняется, пока эффект смонтирован И фиджеты включены; иначе вызовы — no-op
+ * (это и есть reduced-motion/слабое-устройство фолбэк: без кометы и «вдоха»).
+ */
+interface StarsApi {
+  /** Пустить комету из точки (клиентские координаты) вверх в небо; на месте остаётся постоянная звезда. */
+  launchKeepsake: (point: { x: number; y: number }) => void;
+  /** Разовый «вдох»: фоновые звёзды на миг устремляются вверх. */
+  inhale: () => void;
+}
+let starsApi: StarsApi | null = null;
+
+/** Пик «на стриме»: пост улетает кометой в небо и оставляет звезду в созвездии канала. */
+export function launchKeepsake(point: { x: number; y: number }): void {
+  starsApi?.launchKeepsake(point);
+}
+/** Пик «на стриме»: фон делает один «вдох». */
+export function inhaleStars(): void {
+  starsApi?.inhale();
+}
 
 interface Ent {
   kind: Kind;
@@ -53,6 +75,8 @@ export function BackgroundStars() {
     const ents: Ent[] = [];
     let raf = 0;
     let last = performance.now();
+    // Разовый импульс «вдоха» (см. inhale): затухает каждый кадр.
+    let surge = 0;
 
     const mkAmbient = (x: number, y: number): Ent => ({
       kind: 'amb',
@@ -157,17 +181,63 @@ export function BackgroundStars() {
     const frame = (now: number) => {
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
+      surge *= 0.9;
+      if (surge < 0.5) surge = 0;
       ctx.clearRect(0, 0, W, H);
       for (let i = ents.length - 1; i >= 0; i--) {
         const e = ents[i]!;
         if (e.kind === 'amb') {
           e.x += e.vx * dt;
-          e.y += e.vy * dt;
+          // surge — мгновенный «вдох» вверх; затухает, звёзды возвращаются к падению.
+          e.y += (e.vy - surge) * dt;
           if (e.y > H + 4) {
             e.y = -4;
             e.x = Math.random() * W;
+          } else if (e.y < -8) {
+            e.y = H + 4;
+            e.x = Math.random() * W;
           }
           dot(e.x, e.y, e.r, e.baseA * (0.55 + 0.45 * Math.sin(now * 0.001 * e.tw + e.ph)));
+        } else if (e.kind === 'keep') {
+          dot(e.x, e.y, e.r, 0.6 + 0.4 * Math.sin(now * 0.001 * e.tw + e.ph));
+        } else if (e.kind === 'launch') {
+          e.t += dt / e.dur;
+          if (e.t >= 1) {
+            // Прилетела: оставляем постоянную звезду + россыпь искр на месте.
+            ents.push({
+              kind: 'keep',
+              x: e.tx,
+              y: e.ty,
+              vx: 0,
+              vy: 0,
+              r: 1.7,
+              baseA: 1,
+              tw: 0.5 + Math.random() * 0.6,
+              ph: Math.random() * 6.28,
+              sx: 0,
+              sy: 0,
+              tx: 0,
+              ty: 0,
+              t: 0,
+              dur: 0,
+              trail: [],
+              life: 1,
+            });
+            explode(e.tx, e.ty);
+            ents.splice(i, 1);
+            continue;
+          }
+          const tt = 1 - (1 - e.t) * (1 - e.t); // ease-out: стартует резко, тормозит у неба
+          e.x = e.sx + (e.tx - e.sx) * tt;
+          e.y = e.sy + (e.ty - e.sy) * tt;
+          e.trail.push({ x: e.x, y: e.y });
+          if (e.trail.length > 14) e.trail.shift();
+          for (let j = 0; j < e.trail.length; j++) {
+            const p = e.trail[j]!;
+            const f = j / e.trail.length;
+            dot(p.x, p.y, e.r * f * 0.9 + 0.3, f * 0.7);
+          }
+          dot(e.x, e.y, e.r + 0.6, 1);
         } else if (e.kind === 'comet') {
           e.t += dt / e.dur;
           if (e.t >= 1) {
@@ -208,10 +278,41 @@ export function BackgroundStars() {
     window.addEventListener('pointerdown', onDown);
     raf = requestAnimationFrame(frame);
 
+    starsApi = {
+      launchKeepsake: (point) => {
+        const tx = 30 + Math.random() * Math.max(40, W - 60);
+        const ty = 24 + Math.random() * 50;
+        ents.push({
+          kind: 'launch',
+          x: point.x,
+          y: point.y,
+          vx: 0,
+          vy: 0,
+          r: 2.2,
+          baseA: 1,
+          tw: 0,
+          ph: 0,
+          sx: point.x,
+          sy: point.y,
+          tx,
+          ty,
+          t: 0,
+          dur: 0.9,
+          trail: [],
+          life: 1,
+        });
+        if (ents.length > 400) ents.splice(0, ents.length - 400);
+      },
+      inhale: () => {
+        surge = 140;
+      },
+    };
+
     return () => {
       cancelAnimationFrame(raf);
       ro.disconnect();
       window.removeEventListener('pointerdown', onDown);
+      starsApi = null;
     };
   }, [enabled]);
 

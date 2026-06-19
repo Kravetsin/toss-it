@@ -78,6 +78,8 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
           status: 'pending',
           durationMs: 0,
           queuePosition: 0,
+          // Кулдаун как у обычного зрителя — ответ неотличим от настоящей отправки.
+          cooldownSec: Math.round(config.moderation.viewerCooldownMs / 1000),
         };
         return reply.code(201).send(fake);
       }
@@ -282,7 +284,14 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
         io.to(dashboardRoomOf(channel.id)).emit('moderation:new', toSummary(row));
       }
 
-      const response: UploadResponse = { id, status: row.status, durationMs, queuePosition };
+      const response: UploadResponse = {
+        id,
+        status: row.status,
+        durationMs,
+        queuePosition,
+        // Владелец шлёт без кулдауна (тестовая отправка) → 0; зрителю — окно канала.
+        cooldownSec: isOwner ? 0 : Math.round(config.moderation.viewerCooldownMs / 1000),
+      };
       return reply.code(201).send(response);
     } finally {
       await fsp.rm(uploadTmp, { force: true });

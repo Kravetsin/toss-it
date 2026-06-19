@@ -129,6 +129,30 @@ body {
   letter-spacing: var(--tracking-tight);
 }
 
+/* ── Тонкие тёмные скроллбары. ── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted);
+}
+
 h1,
 h2,
 h3,
@@ -433,6 +457,40 @@ textarea {
 }
 .toast-in {
   animation: toast-in var(--dur) var(--ease-out) both;
+}
+
+/* Жидкая рамка статуса/таймера (Vessel, Фаза 4). --st = цвет статуса (ставит компонент):
+   рамка светится цветом статуса; на пике «на стриме» свечение дышит; бегущий блик
+   циркулирует по периметру (ощущение текущей воды). Слив уровня — в SVG-клипе. */
+@keyframes vessel-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 26px -14px var(--st, var(--color-accent));
+  }
+  50% {
+    box-shadow: 0 0 52px -6px var(--st, var(--color-accent));
+  }
+}
+.vessel-frame {
+  border-color: var(--st, var(--color-accent));
+  box-shadow: 0 0 28px -12px var(--st, var(--color-accent));
+}
+.vessel-frame-pulse {
+  animation: vessel-glow 1.6s ease-in-out infinite;
+}
+@keyframes vessel-flow {
+  to {
+    stroke-dashoffset: -134;
+  }
+}
+.vessel-flow {
+  animation: vessel-flow 3s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .vessel-frame-pulse,
+  .vessel-flow {
+    animation: none;
+  }
 }
 
 /* Вердикт карточки (Фаза 4): аппрув — мятная вспышка; реджект — красно-циановый глитч-фликер. */

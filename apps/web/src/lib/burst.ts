@@ -15,8 +15,20 @@ interface P {
   ttl: number;
 }
 
-const MINT = '#8df0cc';
+// Бренд-цвета читаем из токенов темы (как BackgroundStars), литералы — фолбэк.
+// Тёмные красные — оттенки осколков, не токены, остаются как есть.
+let MINT = '#8df0cc';
 const REDS = ['#fb5b6e', '#c23a4a', '#7e2533'];
+let colorsResolved = false;
+
+function resolveColors() {
+  if (colorsResolved || typeof window === 'undefined') return;
+  colorsResolved = true;
+  const cs = getComputedStyle(document.documentElement);
+  MINT = cs.getPropertyValue('--color-accent').trim() || MINT;
+  const danger = cs.getPropertyValue('--color-danger').trim();
+  if (danger) REDS[0] = danger;
+}
 
 const parts: P[] = [];
 let canvas: HTMLCanvasElement | null = null;
@@ -34,6 +46,7 @@ function size() {
 
 function ensure() {
   if (canvas) return;
+  resolveColors();
   canvas = document.createElement('canvas');
   canvas.setAttribute('aria-hidden', 'true');
   canvas.style.cssText =

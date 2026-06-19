@@ -52,6 +52,9 @@ export function useMediaSubmission(
       );
       setLiveStatus(result.status);
       setPhase({ name: 'done', result });
+      // Проактивный кулдаун: запускаем таймер сразу после приёма отправки, а не ошибкой
+      // при повторной попытке. 0 (владелец канала) — таймер не запускается.
+      if (result.cooldownSec > 0) setCooldownSec(result.cooldownSec);
       setFile(null);
       setText('');
     } catch (err) {

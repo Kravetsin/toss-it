@@ -90,8 +90,22 @@ export function DashboardPage() {
         onOpenHistory={() => setHistoryOpen(true)}
       />
 
-      {/* Двухпанельный кокпит: слева очередь (главная зона), справа — контекст. */}
+      {/* Раскладка: mobile/планшет = NowPlaying → очередь → участники;
+          desktop (lg+) = двухколоночная сетка (очередь слева, NowPlaying+участники справа sticky).
+          NowPlaying рендерится дважды: мобильная копия (lg:hidden, не занимает grid-ячейку)
+          и десктопная (hidden lg:block внутри правой колонки). */}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+        {/* NowPlaying — только мобильный, над очередью */}
+        <div className="lg:hidden">
+          <NowPlayingCard
+            now={data.now}
+            isOwner={isOwner}
+            onSkip={actions.skip}
+            onSendTest={actions.sendTest}
+          />
+        </div>
+
+        {/* Очередь — левая колонка на десктопе */}
         <div className="min-w-0">
           <ModerationQueue
             pending={data.pending}
@@ -103,13 +117,16 @@ export function DashboardPage() {
           />
         </div>
 
+        {/* Правая колонка: NowPlaying (десктоп) + участники; sticky */}
         <div className="flex min-w-0 flex-col gap-4 self-start lg:sticky lg:top-20">
-          <NowPlayingCard
-            now={data.now}
-            isOwner={isOwner}
-            onSkip={actions.skip}
-            onSendTest={actions.sendTest}
-          />
+          <div className="hidden lg:block">
+            <NowPlayingCard
+              now={data.now}
+              isOwner={isOwner}
+              onSkip={actions.skip}
+              onSendTest={actions.sendTest}
+            />
+          </div>
           <MembersPanel
             allowed={data.allowed}
             banned={data.banned}

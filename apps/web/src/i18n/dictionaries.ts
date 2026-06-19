@@ -82,6 +82,7 @@ export const en: Dict = {
   'channel.send': 'Send to stream',
   'channel.removeFile': 'Remove',
   'channel.processing': 'The server is processing your file (trimming and transcoding)…',
+  'channel.processingShort': 'Processing',
   'channel.uploading': 'Uploading: {pct}%',
   'channel.cooldown': 'You can send again in {time}',
 
@@ -202,6 +203,12 @@ export const en: Dict = {
   'admin.copyCode': 'Copy code',
   'admin.codeCopied': 'Code copied',
   'admin.denied': 'This page is for admins only.',
+  // Обратная связь
+  'feedback.button': 'Feedback & suggestions',
+  'feedback.title': 'Contact us',
+  'feedback.body': 'Have a feature idea or found a bug? Reach out — we read everything.',
+  'feedback.discord': 'Discord community',
+  'feedback.telegram': 'Telegram channel',
 };
 
 export const ru: Dict = {
@@ -280,6 +287,7 @@ export const ru: Dict = {
   'channel.send': 'Отправить на стрим',
   'channel.removeFile': 'Убрать',
   'channel.processing': 'Сервер обрабатывает файл (обрезка и перекодирование)…',
+  'channel.processingShort': 'Обработка',
   'channel.uploading': 'Загрузка: {pct}%',
   'channel.cooldown': 'Отправить снова можно через {time}',
 
@@ -398,6 +406,12 @@ export const ru: Dict = {
   'admin.copyCode': 'Скопировать код',
   'admin.codeCopied': 'Код скопирован',
   'admin.denied': 'Эта страница только для админов.',
+  // Обратная связь
+  'feedback.button': 'Обратная связь',
+  'feedback.title': 'Связаться с нами',
+  'feedback.body': 'Есть идея для фичи или нашёл баг? Пиши — читаем всё.',
+  'feedback.discord': 'Discord-сообщество',
+  'feedback.telegram': 'Telegram-канал',
 };
 
 export const dicts: Record<Lang, Dict> = { en, ru };

@@ -1,3 +1,5 @@
+import { useEffect, useRef, useState } from 'react';
+import type { LiveStatus, UploadResponse } from '@tmw/shared';
 import {
   Alert,
   Avatar,
@@ -15,6 +17,9 @@ import {
   Textarea,
 } from '@/ui';
 import type { IconName } from '@/ui/icons';
+import { ComposeForm } from '@/features/channel/components/ComposeForm';
+import { Vessel } from '@/features/channel/components/Vessel/Vessel';
+import type { Phase } from '@/features/channel/hooks/useMediaSubmission';
 
 /**
  * Dev-витрина дизайн-системы «Motion-dark» (Фаза 0). Показывает примитивы во всех
@@ -58,6 +63,114 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+const DEMO_RESULT: UploadResponse = {
+  id: 'demo',
+  status: 'pending',
+  durationMs: 0,
+  queuePosition: 1,
+  cooldownSec: 60,
+};
+
+/** Dev-стенд «Сосуда»: чипы прыгают по фазам, «проиграть» гонит весь happy-path. */
+function VesselDemo() {
+  const [phase, setPhase] = useState<Phase>({ name: 'idle' });
+  const [status, setStatus] = useState<LiveStatus | null>(null);
+  const [cooldownSec, setCooldownSec] = useState(0);
+  const [text, setText] = useState('врубай этого на стрим 🔥');
+  const tok = useRef(0);
+
+  useEffect(() => {
+    if (cooldownSec <= 0) return;
+    const id = window.setInterval(() => setCooldownSec((s) => Math.max(0, s - 1)), 1000);
+    return () => window.clearInterval(id);
+  }, [cooldownSec]);
+
+  const reset = () => {
+    tok.current++;
+    setStatus(null);
+    setCooldownSec(0);
+    setPhase({ name: 'idle' });
+  };
+  const go = (p: Phase, st: LiveStatus | null = null, cd = 0) => {
+    tok.current++;
+    setPhase(p);
+    setStatus(st);
+    setCooldownSec(cd);
+  };
+  const play = () => {
+    const my = ++tok.current;
+    const at = (ms: number, fn: () => void) =>
+      window.setTimeout(() => {
+        if (my === tok.current) fn();
+      }, ms);
+    setStatus(null);
+    setCooldownSec(0);
+    setPhase({ name: 'uploading', progress: 0 });
+    at(150, () => setPhase({ name: 'uploading', progress: 0.35 }));
+    at(700, () => setPhase({ name: 'uploading', progress: 0.7 }));
+    at(1300, () => setPhase({ name: 'uploading', progress: 1 }));
+    at(1750, () => setPhase({ name: 'uploading', progress: null }));
+    at(4200, () => {
+      setPhase({ name: 'done', result: DEMO_RESULT });
+      setStatus('pending');
+    });
+    at(5600, () => setStatus('approved'));
+    at(7000, () => setStatus('playing'));
+    at(9800, () => setStatus('played'));
+    at(11300, () => {
+      setStatus(null);
+      setPhase({ name: 'idle' });
+      setCooldownSec(8);
+    });
+  };
+
+  const chip = (label: string, fn: () => void) => (
+    <button
+      onClick={fn}
+      className="rounded-none border border-border px-3 py-1.5 label-mono text-muted transition-colors hover:text-text"
+    >
+      {label}
+    </button>
+  );
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap gap-2">
+        <Button variant="primary" size="sm" onClick={play}>
+          <Icon name="play" size={14} />
+          проиграть
+        </Button>
+        {chip('сброс', reset)}
+        {chip('загрузка', () => go({ name: 'uploading', progress: 0.45 }))}
+        {chip('обработка', () => go({ name: 'uploading', progress: null }))}
+        {chip('модерация', () => go({ name: 'done', result: DEMO_RESULT }, 'pending'))}
+        {chip('очередь', () => go({ name: 'done', result: DEMO_RESULT }, 'approved'))}
+        {chip('на стриме', () => go({ name: 'done', result: DEMO_RESULT }, 'playing'))}
+        {chip('показано', () => go({ name: 'done', result: DEMO_RESULT }, 'played'))}
+        {chip('отклонено', () => go({ name: 'done', result: DEMO_RESULT }, 'rejected'))}
+        {chip('истекло', () => go({ name: 'done', result: DEMO_RESULT }, 'expired'))}
+        {chip('кулдаун 30с', () => go({ name: 'idle' }, null, 30))}
+      </div>
+      <div className="max-w-md">
+        <Vessel phase={phase} status={status} cooldownSec={cooldownSec}>
+          <ComposeForm
+            file={null}
+            previewUrl={null}
+            text={text}
+            senderName="Kravets"
+            errorMessage={null}
+            cooldownSec={cooldownSec}
+            onPickFile={() => {}}
+            onRemoveFile={() => {}}
+            onTextChange={setText}
+            onSend={play}
+          />
+        </Vessel>
+      </div>
+    </div>
+  );
+}
+
 export function GalleryPage() {
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-12 p-8">
@@ -69,6 +182,10 @@ export function GalleryPage() {
           кнопки — уголки «выезжают», диагональная заливка вытирает фон, лейбл инвертируется.
         </p>
       </header>
+
+      <Section title="Vessel — отправка зрителя (Phase 4)">
+        <VesselDemo />
+      </Section>
 
       <Section title="Colors">
         <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
