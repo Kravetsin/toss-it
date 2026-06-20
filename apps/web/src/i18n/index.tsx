@@ -107,13 +107,13 @@ function LangButtons({ className = '' }: { className?: string }) {
 /**
  * Плавающий переключатель языка (правый нижний угол) для страниц без сайдбара:
  * вход/лендинг, страница зрителя, утилитарные экраны. У залогиненного стримера на
- * маршрутах с сайдбаром (`/`, `/dashboard`) он живёт в сайдбаре (LanguageToggle),
- * иначе перекрывал бы контент (напр. кнопку Save в настройках).
+ * маршрутах с сайдбаром (`/` и любые `/dashboard*`, включая настройки) он живёт в
+ * сайдбаре (LanguageToggle) — плавающий прячем, чтобы не дублировать и не перекрывать контент.
  */
 export function LanguageSwitcher() {
   const { me } = useMe();
   const { pathname } = useLocation();
-  const sidebarRoute = pathname === '/' || pathname === '/dashboard';
+  const sidebarRoute = pathname === '/' || pathname.startsWith('/dashboard');
   if (me?.user && sidebarRoute) return null;
   return (
     <Surface variant="glass-badge" className="fixed bottom-4 right-4 z-50 rounded-full p-1 shadow-2">
