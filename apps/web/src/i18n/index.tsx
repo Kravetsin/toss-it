@@ -27,7 +27,12 @@ const I18nContext = createContext<I18nValue | null>(null);
 
 function detectInitial(): Lang {
   const saved = localStorage.getItem(STORAGE_KEY);
-  return saved === 'ru' ? 'ru' : 'en'; // английский по умолчанию
+  if (saved === 'ru' || saved === 'uk' || saved === 'en') return saved;
+  // Первый визит: подстраиваемся под язык браузера (uk/ru), иначе английский.
+  const nav = (navigator.language || '').toLowerCase();
+  if (nav.startsWith('uk')) return 'uk';
+  if (nav.startsWith('ru')) return 'ru';
+  return 'en';
 }
 
 function interpolate(template: string, params?: Params): string {
@@ -76,7 +81,7 @@ export function formatDuration(ms: number, t: TFn): string {
 /** Сегментированные кнопки EN/RU — общая начинка плавающего свитчера и инлайн-тоггла. */
 function LangButtons({ className = '' }: { className?: string }) {
   const { lang, setLang } = useI18n();
-  const langs: Lang[] = ['en', 'ru'];
+  const langs: Lang[] = ['en', 'ru', 'uk'];
   return (
     <div className={`flex gap-0.5 ${className}`}>
       {langs.map((l) => {
@@ -125,11 +130,13 @@ export function LanguageToggle({ className = '' }: { className?: string }) {
 /** Компактная кнопка EN↔RU для узких панелей (md-рейл, мобильная шапка). */
 export function LanguageToggleCycle({ className = '' }: { className?: string }) {
   const { lang, setLang } = useI18n();
+  const order: Lang[] = ['en', 'ru', 'uk'];
+  const next = order[(order.indexOf(lang) + 1) % order.length]!;
   return (
     <button
       type="button"
-      onClick={() => setLang(lang === 'en' ? 'ru' : 'en')}
-      aria-label={lang === 'en' ? 'Switch to Russian' : 'Switch to English'}
+      onClick={() => setLang(next)}
+      aria-label={`Switch language → ${next.toUpperCase()}`}
       className={`inline-flex size-8 cursor-pointer items-center justify-center rounded-full border border-transparent text-muted label-mono outline-none transition-[color,background-color,border-color] duration-[180ms] ease-out hover:border-border-strong hover:text-text focus-visible:[box-shadow:var(--shadow-focus)] ${className}`}
     >
       {lang.toUpperCase()}

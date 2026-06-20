@@ -11,6 +11,7 @@ import { I18nProvider, LanguageSwitcher } from './i18n';
 import { HomePage } from './pages/HomePage';
 import { ChannelPage } from './pages/ChannelPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { SettingsPage } from './pages/SettingsPage';
 import { ModInvitePage } from './pages/ModInvitePage';
 import { PromoCodePage } from './pages/PromoCodePage';
 import { AdminPage } from './pages/AdminPage';
@@ -31,6 +32,8 @@ createRoot(document.getElementById('root')!).render(
                 <Route element={<AppShell />}>
                   <Route path="/" element={<HomePage />} />
                   <Route path="/dashboard" element={<DashboardPage />} />
+                  <Route path="/dashboard/settings" element={<SettingsPage />} />
+                  <Route path="/dashboard/settings/:section" element={<SettingsPage />} />
                 </Route>
                 {/* Публичные/утилитарные — свой фрейм, без оболочки. */}
                 <Route path="/c/:login" element={<ChannelPage />} />

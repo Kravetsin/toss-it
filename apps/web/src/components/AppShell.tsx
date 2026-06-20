@@ -29,6 +29,7 @@ function NavItem({
   icon,
   label,
   collapsed = false,
+  end,
   onClick,
 }: {
   to: string;
@@ -36,13 +37,15 @@ function NavItem({
   label: string;
   /** Скрыть лейбл (сайдбар свёрнут или мобильный иконочный рейл). */
   collapsed?: boolean;
+  /** Точное совпадение пути (по умолчанию — только для корня '/'). */
+  end?: boolean;
   onClick?: () => void;
 }) {
   const { fillRef, handlers } = useFillEffect();
   return (
     <NavLink
       to={to}
-      end={to === '/'}
+      end={end ?? to === '/'}
       title={label}
       onClick={onClick}
       className={({ isActive }) =>
@@ -74,12 +77,22 @@ function NavItem({
 }
 
 /** Круглый icon-NavLink для мобильной панели. */
-function MobileNavIcon({ to, icon, label }: { to: string; icon: IconName; label: string }) {
+function MobileNavIcon({
+  to,
+  icon,
+  label,
+  end,
+}: {
+  to: string;
+  icon: IconName;
+  label: string;
+  end?: boolean;
+}) {
   const { fillRef, handlers } = useFillEffect();
   return (
     <NavLink
       to={to}
-      end={to === '/'}
+      end={end ?? to === '/'}
       aria-label={label}
       title={label}
       className={({ isActive }) =>
@@ -294,7 +307,13 @@ function Sidebar({
       {/* Навигация */}
       <nav className="flex flex-col gap-1 px-2">
         <NavItem to="/" icon="home" label={t('nav.home')} collapsed={collapsed} />
-        <NavItem to="/dashboard" icon="shield" label={t('nav.dashboard')} collapsed={collapsed} />
+        <NavItem to="/dashboard" icon="shield" label={t('nav.dashboard')} collapsed={collapsed} end />
+        <NavItem
+          to="/dashboard/settings"
+          icon="settings"
+          label={t('nav.settings')}
+          collapsed={collapsed}
+        />
       </nav>
 
       <div className="flex-1" />
@@ -384,7 +403,13 @@ function MobileSidebar({
 
         <nav className="flex flex-col gap-1 px-3">
           <NavItem to="/" icon="home" label={t('nav.home')} onClick={onClose} />
-          <NavItem to="/dashboard" icon="shield" label={t('nav.dashboard')} onClick={onClose} />
+          <NavItem to="/dashboard" icon="shield" label={t('nav.dashboard')} onClick={onClose} end />
+          <NavItem
+            to="/dashboard/settings"
+            icon="settings"
+            label={t('nav.settings')}
+            onClick={onClose}
+          />
         </nav>
 
         <div className="flex-1" />
@@ -408,7 +433,8 @@ function MobileBar({ onMenu }: { onMenu: () => void }) {
       <Brand />
       <nav className="flex items-center gap-1.5">
         <MobileNavIcon to="/" icon="home" label={t('nav.home')} />
-        <MobileNavIcon to="/dashboard" icon="shield" label={t('nav.dashboard')} />
+        <MobileNavIcon to="/dashboard" icon="shield" label={t('nav.dashboard')} end />
+        <MobileNavIcon to="/dashboard/settings" icon="settings" label={t('nav.settings')} />
         <IconButton name="menu" label={t('nav.menu')} variant="ghost" size="sm" onClick={onMenu} />
       </nav>
     </div>

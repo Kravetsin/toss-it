@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { removeBan, removeFromWhitelist, saveSettings, sendTestDonation } from '@/lib/api';
+import { removeBan, removeFromWhitelist, saveSettings } from '@/lib/api';
 import { useMe } from '@/hooks/useMe';
 import { useApiAction } from '@/hooks/useApiAction';
 import { useI18n } from '@/i18n';
@@ -8,8 +8,6 @@ import { Card, Drawer, Loader } from '@/ui';
 import { AuthButtons } from '@/components/AuthButtons';
 import { DashboardTopbar } from '@/features/dashboard/components/DashboardTopbar';
 import { NowPlayingCard } from '@/features/dashboard/components/NowPlayingCard';
-import { SettingsCard } from '@/features/dashboard/components/SettingsCard';
-import { IntegrationsCard } from '@/features/dashboard/components/IntegrationsCard';
 import { ModerationQueue } from '@/features/dashboard/components/ModerationQueue';
 import { MembersPanel } from '@/features/dashboard/components/MembersPanel';
 import { HistoryCard } from '@/features/dashboard/components/HistoryCard';
@@ -31,7 +29,6 @@ export function DashboardPage() {
   const { channelsList, list, current, channelId, isOwner, setCurrentId } = useChannels();
   const sound = useSoundNotify();
   const data = useChannelData(channelId, isOwner, sound.soundOnRef);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const actions = useModerationActions({
     channelId,
@@ -75,7 +72,7 @@ export function DashboardPage() {
     );
   }
 
-  const settingsAvailable = isOwner && !!data.settings && !!channelId;
+  const accepting = isOwner && data.settings ? data.settings.accepting : null;
 
   return (
     <Content>
@@ -86,8 +83,12 @@ export function DashboardPage() {
         onSelect={setCurrentId}
         soundOn={sound.soundOn}
         onToggleSound={sound.toggle}
-        showSettings={settingsAvailable}
-        onOpenSettings={() => setSettingsOpen(true)}
+        accepting={accepting}
+        onToggleAccepting={(v) =>
+          void act(async () => data.setSettings(await saveSettings(channelId!, { accepting: v })), {
+            success: t('toast.saved'),
+          })
+        }
         onOpenHistory={() => setHistoryOpen(true)}
       />
 
@@ -149,35 +150,6 @@ export function DashboardPage() {
           />
         </div>
       </div>
-
-      {settingsAvailable && data.settings && (
-        <Drawer
-          open={settingsOpen}
-          onClose={() => setSettingsOpen(false)}
-          title={t('dash.settings')}
-          closeLabel={t('common.close')}
-          width="max-w-lg"
-        >
-          <div className="flex flex-col gap-4">
-            <SettingsCard
-              settings={data.settings}
-              onSave={(patch) =>
-                void act(async () => data.setSettings(await saveSettings(channelId!, patch)), {
-                  success: t('toast.saved'),
-                })
-              }
-            />
-            <IntegrationsCard
-              channelId={channelId!}
-              onTestDonation={() =>
-                void act(() => sendTestDonation(channelId!), {
-                  success: t('toast.donationSent'),
-                })
-              }
-            />
-          </div>
-        </Drawer>
-      )}
 
       <Drawer
         open={historyOpen}

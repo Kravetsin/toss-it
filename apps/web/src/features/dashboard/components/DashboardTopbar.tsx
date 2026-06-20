@@ -5,9 +5,9 @@ import { IconButton } from '@/ui';
 import { ChannelSwitcher } from './ChannelSwitcher';
 
 /**
- * Sticky-топбар кокпита (Фаза 3). Слева — заголовок + переключатель канала;
- * справа — звук и триггеры выезжающих панелей настроек/истории. На < lg не
- * липкий (его место занимает мобильная панель оболочки). См. REDESIGN.md §7.2.
+ * Sticky-топбар кокпита. Слева — заголовок + переключатель канала; справа — «стоп-кран»
+ * приёма (accepting, owner-only — оперативное действие, держим под рукой), звук и история.
+ * Настройки переехали в раздел сайдбара «Настройки». См. REDESIGN.md §7.2.
  */
 export function DashboardTopbar({
   list,
@@ -16,8 +16,8 @@ export function DashboardTopbar({
   onSelect,
   soundOn,
   onToggleSound,
-  showSettings,
-  onOpenSettings,
+  accepting,
+  onToggleAccepting,
   onOpenHistory,
 }: {
   list: AccessibleChannel[];
@@ -26,8 +26,9 @@ export function DashboardTopbar({
   onSelect: (id: string) => void;
   soundOn: boolean;
   onToggleSound: () => void;
-  showSettings: boolean;
-  onOpenSettings: () => void;
+  /** null — скрыть тоггл (не владелец / настройки не загружены). */
+  accepting: boolean | null;
+  onToggleAccepting: (v: boolean) => void;
   onOpenHistory: () => void;
 }) {
   const { t } = useI18n();
@@ -41,6 +42,23 @@ export function DashboardTopbar({
         <ChannelSwitcher list={list} current={current} channelId={channelId} onSelect={onSelect} />
       </div>
       <div className="flex items-center gap-2">
+        {accepting != null && (
+          <label
+            className={`flex w-max cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 label-mono ${
+              accepting
+                ? 'border-ok/30 bg-ok-soft text-ok'
+                : 'border-danger/30 bg-danger-soft text-danger'
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={accepting}
+              onChange={(e) => onToggleAccepting(e.target.checked)}
+              className="accent-current"
+            />
+            {accepting ? t('dash.accepting') : t('dash.acceptingOff')}
+          </label>
+        )}
         <IconButton
           name={soundOn ? 'bell' : 'bell-off'}
           label={soundOn ? t('dash.notifyOn') : t('dash.notifyOff')}
@@ -48,20 +66,7 @@ export function DashboardTopbar({
           active={soundOn}
           onClick={onToggleSound}
         />
-        {showSettings && (
-          <IconButton
-            name="settings"
-            label={t('dash.settings')}
-            variant="ghost"
-            onClick={onOpenSettings}
-          />
-        )}
-        <IconButton
-          name="history"
-          label={t('dash.history')}
-          variant="ghost"
-          onClick={onOpenHistory}
-        />
+        <IconButton name="history" label={t('dash.history')} variant="ghost" onClick={onOpenHistory} />
       </div>
     </div>
   );

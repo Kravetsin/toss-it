@@ -208,7 +208,7 @@
 - channel: `ChannelShell`, `ChannelHeader`, `Leaderboard`, `SubmissionResult`, `UploadProgress`,
   `FileDropzone`, `SelectedFileCard`, `ComposeForm`, `YouTubePreview`.
 - dashboard: `RepChip`, `SubmissionPreview`, `SubmissionMeta`, `SubmissionCard`, `ReviewCard`,
-  `ModerationQueue`, `UserList`, `HistoryCard`, `SettingsCard`, `NowPlayingCard`, `DashboardHeader`,
+  `ModerationQueue`, `UserList`, `HistoryCard`, `OverlaySettings`/`ChannelPageSettings`/`IntegrationsCard`, `NowPlayingCard`, `DashboardHeader`,
   `ChannelSwitcher` (+ `constants.ts` если там стилевые мапы иконок).
 - admin: `PromoCodeList`, `PromoGenerateForm`.
 - *Хуки в features/* — логика, не трогаем (кроме `useQueueHotkeys` — без стиля).
@@ -328,8 +328,9 @@ pnpm --filter @tmw/web add lucide-react motion
   табы «Доверенные / Баны» (обёртка над текущим `UserList`, плотный вариант) как живой контекст при модерации.
 
 **(C) Тяжёлое — в drawers (вне потока кокпита):**
-- **Settings** (owner-only, ~600–800px, сейчас «перекрывает очередь») → slide-over `Drawer`, триггер-шестерёнка в топбаре.
-  Внутреннюю вёрстку `SettingsCard` (слайдеры/3×3 grid/preview) не переписываем — переносим в drawer как есть.
+- **Settings** (owner-only) → отдельный раздел сайдбара `/dashboard/settings` со вкладками Оверлей / Страница канала /
+  Интеграции (`OverlaySettings` + `ChannelPageSettings` + `IntegrationsCard`, данные через `useSettingsData`). Тоггл приёма
+  (`accepting`) вынесен в топбар дашборда. (Историческая заметка: ранее планировался slide-over `Drawer` с единым `SettingsCard`.)
 - **History** (референс-таблица, низкий приоритет) → slide-over `Drawer`, триггер в топбаре.
 
 **(D) Review → focus-overlay** (вместо «вида внутри узкой колонки»):
