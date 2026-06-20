@@ -28,6 +28,7 @@ export const en: Dict = {
   'common.anon': 'anonymous',
   'common.home': '← Home',
   'common.close': 'Close',
+  'wallet.stardust': 'Stardust',
 
   // Навигация оболочки (Фаза 3)
   'nav.home': 'Home',
@@ -248,6 +249,7 @@ export const ru: Dict = {
   'common.anon': 'аноним',
   'common.home': '← на главную',
   'common.close': 'Закрыть',
+  'wallet.stardust': 'Звёздная пыль',
 
   // Навигация оболочки (Фаза 3)
   'nav.home': 'Главная',
@@ -463,6 +465,7 @@ export const uk: Dict = {
   'common.anon': 'анонім',
   'common.home': '← на головну',
   'common.close': 'Закрити',
+  'wallet.stardust': 'Зоряний пил',
 
   'nav.home': 'Головна',
   'nav.dashboard': 'Дашборд',

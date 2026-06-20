@@ -165,6 +165,7 @@ export function registerAuthRoutes(app: FastifyInstance): void {
         avatarUrl: user.avatarUrl,
         isFounder: user.founderSince != null,
         isAdmin: isAdmin(user.id),
+        stardust: user.stardust,
       },
       channel: channel ? { id: channel.id, overlayToken: channel.overlayToken } : null,
     };

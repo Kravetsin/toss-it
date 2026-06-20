@@ -68,6 +68,7 @@ const MOCK_ME: MeResponse = {
     avatarUrl: null,
     isFounder: true,
     isAdmin: true,
+    stardust: 250,
   },
   channel: { id: 'ch_dev', overlayToken: 'dev-overlay-token-7f3a91' },
 };

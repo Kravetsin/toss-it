@@ -18,6 +18,8 @@ export const users = sqliteTable('users', {
   avatarUrl: text('avatar_url'),
   /** Время выдачи статуса «первопроходец» (через промокод); null — обычный пользователь. */
   founderSince: integer('founder_since', { mode: 'timestamp_ms' }),
+  /** Звёздная пыль — глобальная косметическая валюта (зарабатывается активностью). */
+  stardust: integer('stardust').notNull().default(0),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 });
 

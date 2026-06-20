@@ -256,6 +256,8 @@ export interface UploadResponse {
    * сразу после отправки, а не ошибкой при повторной попытке.
    */
   cooldownSec: number;
+  /** Новый баланс звёздной пыли отправителя после начисления за эту отправку. */
+  stardustBalance: number;
 }
 
 export interface SessionUser {
@@ -267,6 +269,8 @@ export interface SessionUser {
   isFounder: boolean;
   /** Входит в ADMIN_USER_IDS — может выпускать промокоды. */
   isAdmin: boolean;
+  /** Звёздная пыль — глобальный косметический кошелёк пользователя. */
+  stardust: number;
 }
 
 /** Собственный канал залогиненного стримера (overlayToken — секрет, наружу не светить). */

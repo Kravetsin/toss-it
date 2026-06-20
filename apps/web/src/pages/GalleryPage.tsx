@@ -69,6 +69,7 @@ const DEMO_RESULT: UploadResponse = {
   durationMs: 0,
   queuePosition: 1,
   cooldownSec: 60,
+  stardustBalance: 0,
 };
 
 /** Dev-стенд «Сосуда»: чипы прыгают по фазам, «проиграть» гонит весь happy-path. */

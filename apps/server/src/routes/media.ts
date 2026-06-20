@@ -3,7 +3,7 @@ import fsp from 'node:fs/promises';
 import path from 'node:path';
 import { createWriteStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
-import { and, count, desc, eq, gt } from 'drizzle-orm';
+import { and, count, desc, eq, gt, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { fileTypeFromFile } from 'file-type';
 import { TEXT_MAX_LEN, type MediaKind, type UploadResponse } from '@tmw/shared';
@@ -31,6 +31,14 @@ export interface MediaRoutesDeps {
   storage: Storage;
   tmpDir: string;
   io: RealtimeServer;
+}
+
+/** Начислить звёздную пыль пользователю (атомарный инкремент). */
+async function addStardust(userId: string, n: number): Promise<void> {
+  await db
+    .update(users)
+    .set({ stardust: sql`${users.stardust} + ${n}` })
+    .where(eq(users.id, userId));
 }
 
 export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps): void {
@@ -80,6 +88,8 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
           queuePosition: 0,
           // Кулдаун как у обычного зрителя — ответ неотличим от настоящей отправки.
           cooldownSec: Math.round(config.moderation.viewerCooldownMs / 1000),
+          // Бан не начисляет пыль — возвращаем текущий баланс (ответ неотличим от настоящего).
+          stardustBalance: user.stardust,
         };
         return reply.code(201).send(fake);
       }
@@ -277,6 +287,15 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
       };
       await db.insert(submissions).values(row);
 
+      // Звёздная пыль: +1 отправителю и +1 владельцу за входящую отправку (даже неопубликованную).
+      // За свои же тест-отправки владельцу НЕ начисляем (анти-селф-фарм).
+      let stardustBalance = user.stardust;
+      if (!isOwner) {
+        await addStardust(user.id, 1);
+        await addStardust(channel.ownerUserId, 1);
+        stardustBalance = user.stardust + 1;
+      }
+
       let queuePosition = 0;
       if (row.status === 'approved') {
         queuePosition = playback.enqueue(row);
@@ -291,6 +310,7 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
         queuePosition,
         // Владелец шлёт без кулдауна (тестовая отправка) → 0; зрителю — окно канала.
         cooldownSec: isOwner ? 0 : Math.round(config.moderation.viewerCooldownMs / 1000),
+        stardustBalance,
       };
       return reply.code(201).send(response);
     } finally {

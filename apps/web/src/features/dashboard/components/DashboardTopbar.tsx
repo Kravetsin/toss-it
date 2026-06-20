@@ -2,6 +2,7 @@ import type { AccessibleChannel } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
 import { IconButton } from '@/ui';
+import { StardustWallet } from '@/components/StardustWallet';
 import { ChannelSwitcher } from './ChannelSwitcher';
 
 /**
@@ -42,6 +43,7 @@ export function DashboardTopbar({
         <ChannelSwitcher list={list} current={current} channelId={channelId} onSelect={onSelect} />
       </div>
       <div className="flex items-center gap-2">
+        <StardustWallet />
         {accepting != null && (
           <label
             className={`flex w-max cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 label-mono ${
