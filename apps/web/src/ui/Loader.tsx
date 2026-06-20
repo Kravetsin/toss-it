@@ -1,9 +1,6 @@
 import { Icon } from '@/ui/icons';
 
-// Лоадер в стиле Motion-dark: по центру крутится тонкая иконка-спиннер,
-// под ней — локализованная подпись моно-капсом. Подпись берём из `label`
-// (убираем хвостовое многоточие/пробелы). Без пиксельной механики —
-// вращение через `animate-spin`, которое само гасится под prefers-reduced-motion.
+// Strips trailing ellipsis/spaces from label. Respects prefers-reduced-motion via animate-spin.
 export function Loader({ label }: { label?: string }) {
   const word = (label ?? 'Loading').replace(/[.…\s]+$/u, '');
 

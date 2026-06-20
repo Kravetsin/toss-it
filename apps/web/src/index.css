@@ -2,36 +2,29 @@
 @import '@fontsource-variable/geist-mono';
 @import '@fontsource-variable/inter';
 
-/* ─────────────────────────────────────────────────────────────────────────
-   Тема «Motion-dark» (Фаза 0 редизайна, см. apps/web/REDESIGN.md).
-   Тёмная, тонкие границы, мягкие многослойные тени, стекло, диагональная
-   штриховка 119°, фирменные уголки-скобки. Значения акцента и шрифтов —
-   ПРОВИЗОРНЫЕ (живут за токенами, меняются в Фазе 2 без правки компонентов).
-   ───────────────────────────────────────────────────────────────────────── */
+/* "Motion-dark" theme (see apps/web/REDESIGN.md). Accent/font values are
+   provisional, kept behind tokens so components need no edits when they change. */
 @theme {
-  /* Поверхности: подъём = ТЕМНЕЕ (подпись motion.dev); лифт несут тени, не цвет. */
+  /* Surfaces: higher elevation = DARKER; lift comes from shadows, not color. */
   --color-bg: #0d1111;
   --color-bg-elevated: #11171a;
   --color-surface: #060607;
   --color-surface-2: #030304;
 
-  /* Границы — 1px-волоски. */
   --color-border: #1e2427;
   --color-border-strong: #2b3338;
 
-  /* Текст. */
   --color-text: #ededec;
   --color-muted: #7a8180;
   --color-faint: #525a59;
 
-  /* Акцент бренда Tossit — мятный (Фаза 2: зафиксирован). */
   --color-accent: #8df0cc;
   --color-accent-hover: #a6f4d8;
   --color-accent-contrast: #06201a;
   --color-accent-soft: color-mix(in srgb, #8df0cc 14%, transparent);
   --color-accent-faint: color-mix(in srgb, #8df0cc 6%, transparent);
 
-  /* Статусы (provisional; -soft = ~14% подложка). */
+  /* Status colors; -soft = ~14% tint backing. */
   --color-ok: #34d399;
   --color-ok-soft: color-mix(in srgb, #34d399 14%, transparent);
   --color-warn: #ffdb2a;
@@ -42,40 +35,33 @@
   --color-info: #a5b4fc;
   --color-info-soft: color-mix(in srgb, #a5b4fc 14%, transparent);
 
-  /* Стекло. */
   --color-glass-bg: color-mix(in srgb, #0d1111 80%, transparent);
   --color-glass-border: color-mix(in srgb, #ededec 14%, transparent);
 
-  /* Тени — мягкие, многослойные, отрицательный spread. */
+  /* Soft multi-layer shadows with negative spread. */
   --shadow-1: 0 2px 6px -2px #00000059;
-  --shadow-2:
-    0 10px 20px -8px #00000047,
-    0 4px 8px -4px #0000003d;
-  --shadow-3:
-    0 24px 48px -18px #00000080,
-    0 10px 20px -8px #00000047;
-  --shadow-4:
-    0 30px 60px -24px #0000008c,
-    0 12px 24px -12px #00000059;
+  --shadow-2: 0 10px 20px -8px #00000047, 0 4px 8px -4px #0000003d;
+  --shadow-3: 0 24px 48px -18px #00000080, 0 10px 20px -8px #00000047;
+  --shadow-4: 0 30px 60px -24px #0000008c, 0 12px 24px -12px #00000059;
 
-  /* Радиусы: угловатое = 0 (rounded-none, встроенный), круглое = full; sm только поля. */
+  /* Angular = 0 (built-in rounded-none), round = full; sm for fields only. */
   --radius-sm: 3px;
   --radius-md: 4px;
   --radius-full: 999px;
 
-  /* Домашние кривые motion.dev (переопределяют ease-* утилиты Tailwind). */
+  /* House easing curves; override Tailwind's ease-* utilities. */
   --ease-out: cubic-bezier(0.25, 0, 0, 1);
   --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out: cubic-bezier(0.42, 0, 0.58, 1);
 
-  /* Типографика. TASA Orbiter лицензируется отдельно → пока Inter. */
+  /* TASA Orbiter is licensed separately, so use Inter for now. */
   --font-mono: 'Geist Mono Variable', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --font-sans: 'Inter Variable', Inter, system-ui, sans-serif;
   --font-display: var(--font-sans);
   --font-body: var(--font-sans);
 
-  /* ── Легаси-алиасы пиксель-эпохи (удалить после миграции; держим, чтобы код
-        компилировался и старые компоненты перекрасились/смягчились автоматически). ── */
+  /* Legacy pixel-era aliases; remove after migration. Kept so old components
+     compile and recolor/soften automatically. */
   --color-twitch: var(--color-accent);
   --color-twitch-light: var(--color-accent-hover);
   --color-twitch-dark: var(--color-accent-contrast);
@@ -86,8 +72,8 @@
   --shadow-pixel-lg: var(--shadow-2);
 }
 
-/* Чистые дизайн-токены, на которые ссылаемся через var() в утилитах/инлайне
-   (держим в :root, чтобы гарантированно попали в вывод). */
+/* Design tokens referenced via var() in utilities/inline; kept in :root to
+   guarantee they reach the output. */
 :root {
   --dur-fast: 120ms;
   --dur: 250ms;
@@ -129,7 +115,6 @@ body {
   letter-spacing: var(--tracking-tight);
 }
 
-/* ── Тонкие тёмные скроллбары. ── */
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--color-border-strong) transparent;
@@ -178,7 +163,6 @@ textarea {
   caret-color: var(--color-accent);
 }
 
-/* Моно-капс-лейбл с широким трекингом — главная подпись motion.dev. */
 @utility label-mono {
   font-family: var(--font-mono);
   text-transform: uppercase;
@@ -188,7 +172,7 @@ textarea {
   font-weight: 560;
 }
 
-/* ── Диагональная штриховка «досье» (119° — фирменный угол, НЕ 45°). ── */
+/* Diagonal hatch at 119deg (brand angle, intentionally not 45deg). */
 @utility hatch {
   background-image: repeating-linear-gradient(
     var(--hatch-angle),
@@ -217,7 +201,6 @@ textarea {
   );
 }
 
-/* ── Стекло: один рецепт + непрозрачный фолбэк. ── */
 @utility glass {
   background: var(--color-glass-bg);
   -webkit-backdrop-filter: blur(8px);
@@ -242,8 +225,8 @@ textarea {
   }
 }
 
-/* ── Фирменные уголки-скобки. Один ::before из 4 слоёв-градиентов: анимируем
-      inset (не 4 трансформа). ::after — диагональная заливка-«вытирание». ── */
+/* Brand corner brackets. One ::before of 4 gradient layers; animate inset
+   (not 4 transforms). ::after is a diagonal wipe fill. */
 @utility cornerframe {
   position: relative;
   isolation: isolate;
@@ -307,14 +290,14 @@ textarea {
   inset: 3px;
   transition-duration: var(--dur-fast);
 }
-/* На выключенном элементе уголки не двигаются (защита от форс-ховера/фокуса). */
+/* Disabled elements keep corners static (guard against forced hover/focus). */
 .cornerframe:disabled::before,
 .cornerframe:disabled:hover::before,
 .cornerframe:disabled:focus-visible::before {
   inset: -1px;
 }
 
-/* Парный модификатор-класс: диагональная заливка (plain CSS, не @utility). */
+/* Paired modifier class: diagonal fill (plain CSS, not @utility). */
 .cornerframe-fill::after {
   content: '';
   position: absolute;
@@ -336,9 +319,8 @@ textarea {
   }
 }
 
-/* Глобальное уважение prefers-reduced-motion: гасим длительности анимаций/переходов
-   во всём приложении — покрывает кнопки, поля, тосты, эквалайзер, спиннеры и любые
-   будущие компоненты (одно правило вместо точечных по каждому). */
+/* Global prefers-reduced-motion: one rule kills all animation/transition
+   durations app-wide instead of per-component overrides. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -350,12 +332,8 @@ textarea {
   }
 }
 
-/* ════════════════════════════════════════════════════════════════════════
-   ЛЕГАСИ-утилиты пиксель-эпохи. Нужны компонентам, которые ещё не мигрированы
-   (медиа-плееры, лоадер, тосты, ScrollFlow). Будут вычищены пофазно в Фазе 1+.
-   ════════════════════════════════════════════════════════════════════════ */
-
-/* Card-тени — теперь мягкие (старые компоненты смягчаются автоматически). */
+/* Legacy pixel-era utilities still used by un-migrated components
+   (media players, loader, toasts, ScrollFlow). */
 @utility card-pixel {
   box-shadow: var(--shadow-2);
 }
@@ -459,9 +437,8 @@ textarea {
   animation: toast-in var(--dur) var(--ease-out) both;
 }
 
-/* Жидкая рамка статуса/таймера (Vessel, Фаза 4). --st = цвет статуса (ставит компонент):
-   рамка светится цветом статуса; на пике «на стриме» свечение дышит; бегущий блик
-   циркулирует по периметру (ощущение текущей воды). Слив уровня — в SVG-клипе. */
+/* Vessel status/timer frame. --st = status color set by the component; glow
+   breathes while live, running highlight circulates the perimeter. */
 @keyframes vessel-glow {
   0%,
   100% {
@@ -493,7 +470,7 @@ textarea {
   }
 }
 
-/* Вердикт карточки (Фаза 4): аппрув — мятная вспышка; реджект — красно-циановый глитч-фликер. */
+/* Card verdict: approve = mint flash; reject = red/cyan glitch flicker. */
 @keyframes fx-flash-ok {
   from {
     opacity: 0.5;
@@ -525,7 +502,6 @@ textarea {
   }
 }
 
-/* ── Медиа-плееры (используются галереей; реског медиа — отдельная задача Фазы 1). ── */
 @utility mat-checker {
   background-color: var(--color-bg);
   background-image:
@@ -537,11 +513,7 @@ textarea {
     8px 8px;
 }
 @utility seek-cells {
-  background-image: repeating-linear-gradient(
-    to right,
-    transparent 0 4px,
-    var(--color-bg) 4px 6px
-  );
+  background-image: repeating-linear-gradient(to right, transparent 0 4px, var(--color-bg) 4px 6px);
 }
 @utility seek-native {
   -webkit-appearance: none;

@@ -21,7 +21,7 @@ import {
 const STATE_COOKIE = 'oauth_state';
 const FAKE_LOGIN_RE = /^[a-z0-9_]{2,25}$/i;
 
-/** returnTo всегда относительный путь — защита от open redirect. */
+/** returnTo must be a relative path — open-redirect guard. */
 function safeReturnTo(value: unknown): string {
   return typeof value === 'string' && value.startsWith('/') && !value.startsWith('//')
     ? value
@@ -33,7 +33,7 @@ export function registerAuthRoutes(app: FastifyInstance): void {
     '/api/auth/login',
     async (req, reply) => {
       const returnTo = safeReturnTo(req.query.returnTo);
-      // ?switch=1 → принудительно показать экран Twitch для смены аккаунта.
+      // ?switch=1 forces the Twitch screen so the user can switch accounts.
       const forceVerify = req.query.switch !== undefined;
 
       if (req.query.fake !== undefined) {
@@ -136,7 +136,7 @@ export function registerAuthRoutes(app: FastifyInstance): void {
       }
 
       const info = await exchangeGoogleCodeForUser(req.query.code);
-      // Публичный login стабилен: у существующего пользователя не меняем, новому — подбираем свободный.
+      // Public login is stable: keep existing user's login, pick a free one for new users.
       const existing = await db
         .select({ login: users.login })
         .from(users)
@@ -152,11 +152,7 @@ export function registerAuthRoutes(app: FastifyInstance): void {
   app.get('/api/auth/me', async (req): Promise<MeResponse> => {
     const user = await getSessionUser(req);
     if (!user) return { user: null, channel: null };
-    const channel = await db
-      .select()
-      .from(channels)
-      .where(eq(channels.ownerUserId, user.id))
-      .get();
+    const channel = await db.select().from(channels).where(eq(channels.ownerUserId, user.id)).get();
     return {
       user: {
         id: user.id,

@@ -25,9 +25,8 @@ const SWIPE_VELOCITY = 600;
 const HOME_SPRING = { type: 'spring', stiffness: 600, damping: 42 } as const;
 
 /**
- * Строка очереди: единая высота, мини-тумба + текст; тап разворачивает (полное превью + кнопки).
- * Горизонтальный свайп → одобрить, ← отклонить (drag="x" пропускает вертикальный скролл — touch-action: pan-y).
- * Reduced-motion: без полёта карты, действие срабатывает сразу.
+ * Queue item: tap expands to full preview + actions. Swipe right to approve, left to reject (drag="x" with pan-y touch-action preserves vertical scroll).
+ * Reduced-motion: commits action immediately without animation.
  */
 export function SubmissionCard({
   s,
@@ -50,7 +49,7 @@ export function SubmissionCard({
   const [fx, setFx] = useState<'approve' | 'reject' | null>(null);
   const fidget = useFidgetEnabled();
   const outerRef = useRef<HTMLDivElement>(null);
-  // Был ли драг в этом жесте — чтобы лёгкое подтягивание не раскрывало карточку (только чистый тап).
+  // Track drag to distinguish from tap: prevent expansion on slight drag (tap only).
   const draggedRef = useRef(false);
   const reduce = useReducedMotion();
   const x = useMotionValue(0);
@@ -58,7 +57,7 @@ export function SubmissionCard({
   const approveOpacity = useTransform(x, [10, SWIPE_DISTANCE], [0, 1]);
   const rejectOpacity = useTransform(x, [-SWIPE_DISTANCE, -10], [1, 0]);
 
-  // Свайп → «вердикт»: карточка распадается (частицы на оверлее) и гаснет на месте + вспышка/глитч.
+  // On swipe commit: disintegrate particles (overlay), fade card, then trigger action. Reduced-motion skips animation.
   const commit = (dir: 1 | -1, action: () => void) => {
     const kind = dir === 1 ? 'approve' : 'reject';
     if (fidget) {
@@ -87,7 +86,6 @@ export function SubmissionCard({
 
   return (
     <div ref={outerRef} className="relative select-none overflow-hidden border border-border">
-      {/* Подложки-подсказки свайпа (видны, когда карта уезжает). */}
       <motion.div
         style={{ opacity: approveOpacity }}
         className="pointer-events-none absolute inset-0 flex items-center gap-2 bg-ok-soft px-4 label-mono text-ok"
@@ -123,7 +121,6 @@ export function SubmissionCard({
           className="pointer-events-none absolute inset-0 z-0"
           style={{ backgroundColor: 'rgba(255,255,255,0.05)', clipPath: 'circle(0% at 50% 50%)' }}
         />
-        {/* Свёрнутая строка — раскрывается только чистым тапом (драг не раскрывает). */}
         <button
           type="button"
           onClick={() => {
@@ -156,11 +153,9 @@ export function SubmissionCard({
           />
         </button>
 
-        {/* Развёрнуто: полное превью + все действия (Trust/Later/Ban здесь). */}
         {expanded && (
           <div className="relative z-[1] border-t border-border p-3">
             <SubmissionPreview s={s} />
-            {/* Одобрить/отклонить — свайпом. Здесь только редкие действия, иконками. */}
             <div className="mt-3 flex items-center justify-end gap-2">
               <IconButton
                 name="star"
@@ -181,7 +176,6 @@ export function SubmissionCard({
         )}
       </motion.div>
 
-      {/* Вспышка вердикта поверх карточки: мятная (аппрув) / красно-циановый глитч (реджект). */}
       {fx && (
         <div
           className={`pointer-events-none absolute inset-0 z-20 ${fx === 'approve' ? 'bg-accent' : ''}`}

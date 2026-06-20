@@ -2,11 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { ChannelSettings } from '@tmw/shared';
 import { getSettings, saveSettings } from '@/lib/api';
 
-/**
- * Загрузка/сохранение настроек канала для отдельных страниц настроек (вне DashboardPage).
- * channelId/isOwner берём из useChannels() (глобальный consumer-хук). Состояние локальное
- * для страницы — дублирования с useChannelData нет, т.к. это разные маршруты.
- */
+/** Load/save channel settings for standalone settings pages. Local state; no duplication with useChannelData. */
 export function useSettingsData(channelId: string | null, isOwner: boolean) {
   const [settings, setSettings] = useState<ChannelSettings | null>(null);
   const [loading, setLoading] = useState(true);

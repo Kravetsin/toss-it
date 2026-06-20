@@ -6,7 +6,7 @@ export function getModInvite(token: string): Promise<ModInviteInfo> {
 }
 
 export function acceptModInvite(token: string): Promise<{ channelId: string }> {
-  return fetch(`/api/mod-invite/${encodeURIComponent(token)}/accept`, { method: 'POST' }).then((r) =>
-    json<{ channelId: string }>(r),
+  return fetch(`/api/mod-invite/${encodeURIComponent(token)}/accept`, { method: 'POST' }).then(
+    (r) => json<{ channelId: string }>(r),
   );
 }

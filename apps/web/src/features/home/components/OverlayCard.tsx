@@ -3,8 +3,14 @@ import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
 import { Button, Card, CopyableLinkBox } from '@/ui';
 
-/** Карточка оверлея для OBS: URL с секретным токеном (маскируется), копирование и перевыпуск. */
-export function OverlayCard({ overlayUrl, onRotate }: { overlayUrl: string; onRotate: () => void }) {
+/** OBS overlay card: URL holds a secret token (masked); supports copy and rotation. */
+export function OverlayCard({
+  overlayUrl,
+  onRotate,
+}: {
+  overlayUrl: string;
+  onRotate: () => void;
+}) {
   const { t } = useI18n();
   const { copiedKey, copy } = useClipboard();
   return (

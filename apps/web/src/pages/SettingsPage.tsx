@@ -17,7 +17,7 @@ function Content({ children }: { children: ReactNode }) {
 type Section = 'overlay' | 'channel' | 'integrations';
 const SECTIONS: Section[] = ['overlay', 'channel', 'integrations'];
 
-/** Страница настроек канала с табами: Оверлей / Страница канала / Интеграции (owner-only). */
+/** Channel settings page with tabs: Overlay / Channel / Integrations (owner-only). */
 export function SettingsPage() {
   const { t } = useI18n();
   const act = useApiAction();

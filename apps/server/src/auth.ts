@@ -7,7 +7,7 @@ import { config } from './config';
 
 const SESSION_COOKIE = 'sid';
 
-/** Профиль пользователя от любого OAuth-провайдера (Twitch/Google), нормализованный под нашу модель. */
+/** Normalized user profile from any OAuth provider (Twitch/Google). */
 export interface OAuthUserInfo {
   id: string;
   login: string;
@@ -20,16 +20,16 @@ export function buildAuthorizeUrl(state: string, forceVerify = false): string {
     client_id: config.twitch.clientId,
     redirect_uri: config.twitch.redirectUri,
     response_type: 'code',
-    scope: '', // нам нужна только личность пользователя
+    scope: '', // identity only
     state,
   });
-  // force_verify заставляет Twitch показать экран авторизации даже при живой
-  // сессии — иначе он молча релогинит в тот же аккаунт. Нужно для «сменить аккаунт».
+  // force_verify shows the auth screen even with a live session; otherwise
+  // Twitch silently re-logs the same account. Needed for "switch account".
   if (forceVerify) params.set('force_verify', 'true');
   return `https://id.twitch.tv/oauth2/authorize?${params}`;
 }
 
-/** Обмен authorization code → access token → данные пользователя из Helix. */
+/** Exchange authorization code -> access token -> Helix user data. */
 export async function exchangeCodeForUser(code: string): Promise<OAuthUserInfo> {
   const tokenRes = await fetch('https://id.twitch.tv/oauth2/token', {
     method: 'POST',
@@ -69,7 +69,7 @@ export async function exchangeCodeForUser(code: string): Promise<OAuthUserInfo> 
   };
 }
 
-/** Google OAuth 2.0 (OpenID Connect): тот же authorization-code flow, что у Twitch. */
+/** Google OAuth 2.0 (OpenID Connect): same authorization-code flow as Twitch. */
 export function buildGoogleAuthorizeUrl(state: string, forceSelect = false): string {
   const params = new URLSearchParams({
     client_id: config.google.clientId,
@@ -79,12 +79,12 @@ export function buildGoogleAuthorizeUrl(state: string, forceSelect = false): str
     state,
     access_type: 'online',
   });
-  // Показать выбор аккаунта (аналог twitch force_verify) — для «сменить аккаунт».
+  // Show account picker (analogous to Twitch force_verify) for "switch account".
   if (forceSelect) params.set('prompt', 'select_account');
   return `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
 }
 
-/** Обмен code → token → профиль из OpenID userinfo. id вида google:<sub>. */
+/** Exchange code -> token -> OpenID userinfo profile. id is google:<sub>. */
 export async function exchangeGoogleCodeForUser(code: string): Promise<OAuthUserInfo> {
   const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
@@ -114,7 +114,7 @@ export async function exchangeGoogleCodeForUser(code: string): Promise<OAuthUser
     name?: string;
     picture?: string;
   };
-  // login (публичный хэндл) генерим из local-part email — email наружу не светим.
+  // Derive public login from email local-part; never expose the email itself.
   const base = (u.email?.split('@')[0] ?? '').toLowerCase().replace(/[^a-z0-9_]/g, '');
   return {
     id: `google:${u.sub}`,
@@ -124,12 +124,20 @@ export async function exchangeGoogleCodeForUser(code: string): Promise<OAuthUser
   };
 }
 
-/** Подобрать свободный публичный login на базе желаемого (у Google нет ника как у Twitch). */
+/** Find a free public login from a desired base (Google has no Twitch-like handle). */
 export async function ensureUniqueLogin(base: string): Promise<string> {
-  const clean = (base || 'user').toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 20) || 'user';
+  const clean =
+    (base || 'user')
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, '')
+      .slice(0, 20) || 'user';
   let candidate = clean;
   for (let i = 0; i < 6; i++) {
-    const taken = await db.select({ id: users.id }).from(users).where(eq(users.login, candidate)).get();
+    const taken = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.login, candidate))
+      .get();
     if (!taken) return candidate;
     candidate = `${clean}_${crypto.randomBytes(2).toString('hex')}`;
   }
@@ -164,7 +172,7 @@ export async function createSession(reply: FastifyReply, userId: string): Promis
     createdAt: now,
     expiresAt: new Date(now.getTime() + config.sessionTtlMs),
   });
-  // Заодно подчищаем протухшие сессии — дешёвая замена отдельной джобе.
+  // Opportunistically purge expired sessions; cheap substitute for a cron job.
   await db.delete(sessions).where(lt(sessions.expiresAt, now));
 
   reply.setCookie(SESSION_COOKIE, id, {
@@ -196,7 +204,7 @@ export async function getSessionUser(req: FastifyRequest): Promise<UserRow | nul
   return row.user;
 }
 
-/** 401, если не залогинен. Для роутов, где пользователь обязателен. */
+/** 401 if not logged in. For routes that require a user. */
 export async function requireUser(
   req: FastifyRequest,
   reply: FastifyReply,
@@ -209,12 +217,12 @@ export async function requireUser(
   return user;
 }
 
-/** Входит ли пользователь в список админов (ADMIN_USER_IDS). */
+/** Whether the user is in the admin list (ADMIN_USER_IDS). */
 export function isAdmin(userId: string): boolean {
   return config.adminUserIds.includes(userId);
 }
 
-/** 401 если не залогинен, 403 если залогинен, но не админ. Для админских ручек. */
+/** 401 if not logged in, 403 if logged in but not admin. For admin routes. */
 export async function requireAdmin(
   req: FastifyRequest,
   reply: FastifyReply,
@@ -236,8 +244,8 @@ function readSessionId(req: FastifyRequest): string | null {
 }
 
 /**
- * Пользователь по сырому заголовку Cookie (для socket.io, где нет FastifyRequest).
- * `unsignCookie` передаём из инстанса Fastify (`app.unsignCookie`) — тот же секрет.
+ * Resolve user from a raw Cookie header (for socket.io, which has no FastifyRequest).
+ * Pass `unsignCookie` from the Fastify instance (`app.unsignCookie`) for the same secret.
  */
 export async function getUserFromCookieHeader(
   cookieHeader: string | undefined,
@@ -252,7 +260,7 @@ export async function getUserFromCookieHeader(
       try {
         raw = decodeURIComponent(pair.slice(eq + 1).trim());
       } catch {
-        return null; // битый URL-encoding в куке — считаем «не залогинен»
+        return null; // malformed URL-encoding in cookie -> treat as not logged in
       }
       break;
     }

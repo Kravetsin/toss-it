@@ -17,7 +17,6 @@ import { useSoundNotify } from '@/features/dashboard/hooks/useSoundNotify';
 import { useTabTitleBadge } from '@/features/dashboard/hooks/useTabTitleBadge';
 import { useModerationActions } from '@/features/dashboard/hooks/useModerationActions';
 
-/** Контентная обёртка дашборда внутри оболочки (AppShell даёт фон/каркас). */
 function Content({ children }: { children: React.ReactNode }) {
   return <div className="mx-auto max-w-6xl px-4 py-6 lg:px-8">{children}</div>;
 }
@@ -92,12 +91,9 @@ export function DashboardPage() {
         onOpenHistory={() => setHistoryOpen(true)}
       />
 
-      {/* Раскладка: mobile/планшет = NowPlaying → очередь → участники;
-          desktop (lg+) = двухколоночная сетка (очередь слева, NowPlaying+участники справа sticky).
-          NowPlaying рендерится дважды: мобильная копия (lg:hidden, не занимает grid-ячейку)
-          и десктопная (hidden lg:block внутри правой колонки). */}
+      {/* Mobile: single-column (NowPlaying → queue → members). Desktop (lg+): two-column grid.
+          NowPlaying rendered twice for responsive display (mobile lg:hidden, desktop hidden lg:block). */}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
-        {/* NowPlaying — только мобильный, над очередью */}
         <div className="lg:hidden">
           <NowPlayingCard
             now={data.now}
@@ -107,7 +103,6 @@ export function DashboardPage() {
           />
         </div>
 
-        {/* Очередь — левая колонка на десктопе */}
         <div className="min-w-0">
           <ModerationQueue
             pending={data.pending}
@@ -119,7 +114,6 @@ export function DashboardPage() {
           />
         </div>
 
-        {/* Правая колонка: NowPlaying (десктоп) + участники; sticky */}
         <div className="flex min-w-0 flex-col gap-4 self-start lg:sticky lg:top-20">
           <div className="hidden lg:block">
             <NowPlayingCard

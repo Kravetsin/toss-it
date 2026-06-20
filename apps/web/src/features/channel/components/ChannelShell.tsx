@@ -4,13 +4,12 @@ import { PageShell } from '@/ui';
 import { BackgroundStars } from '@/components/BackgroundStars';
 import { StardustWallet } from '@/components/StardustWallet';
 
-/** Каркас страницы зрителя: бренд-ссылка на главную + футер + фоновые звёзды. */
+/** Viewer page layout with home link, footer, and background stars. */
 export function ChannelShell({ children }: { children: ReactNode }) {
   return (
     <PageShell maxWidth="xl">
       <BackgroundStars />
       <div className="relative z-10">
-        {/* Бренд-ссылка на главную + кошелёк звёздной пыли зрителя. */}
         <div className="mb-6 flex items-center justify-between gap-2">
           <Link
             to="/"

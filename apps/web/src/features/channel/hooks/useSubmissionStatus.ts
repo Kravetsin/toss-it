@@ -3,8 +3,7 @@ import type { LiveStatus, SubmissionStatusEvent } from '@tmw/shared';
 import { connectSocket } from '@/lib/socket';
 
 /**
- * Живой статус отправки зрителя по socket.io: подписывается, когда есть submissionId.
- * Колбэк читается через ref — смена его идентичности не переподключает сокет.
+ * Live submission status over socket.io. Callback stored in ref to avoid reconnect on identity change.
  */
 export function useSubmissionStatus(
   submissionId: string | null,

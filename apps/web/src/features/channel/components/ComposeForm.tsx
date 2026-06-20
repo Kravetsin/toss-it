@@ -8,7 +8,6 @@ import { FileDropzone } from './FileDropzone';
 import { SelectedFileCard } from './SelectedFileCard';
 import { YouTubePreview } from './YouTubePreview';
 
-/** Форма отправки: файл (или дропзона) + YouTube-превью + текст + кнопка + ошибка. */
 export function ComposeForm({
   file,
   previewUrl,
@@ -26,7 +25,7 @@ export function ComposeForm({
   text: string;
   senderName: string;
   errorMessage: string | null;
-  /** >0 — кулдаун: кнопка показывает остаток и заблокирована, но форма доступна для ввода. */
+  /** Cooldown in seconds: >0 disables send button, but input form remains accessible. */
   cooldownSec?: number;
   onPickFile: (file: File | null) => void;
   onRemoveFile: () => void;
@@ -35,7 +34,7 @@ export function ComposeForm({
 }) {
   const { t } = useI18n();
   const cooling = cooldownSec > 0;
-  // Если в тексте есть YouTube-ссылка и нет файла — покажем превью ролика.
+  // Show YouTube preview only if text contains URL and no file is selected.
   const ytId = file ? null : youtubeIdFromText(text);
 
   return (
@@ -58,9 +57,7 @@ export function ComposeForm({
           className="resize-none"
         />
         <div className="mt-1.5 flex items-center justify-between gap-2">
-          <span className="text-xs text-muted">
-            {t('channel.sendingAs', { name: senderName })}
-          </span>
+          <span className="text-xs text-muted">{t('channel.sendingAs', { name: senderName })}</span>
           <span className="label-mono text-faint">
             {text.length}/{TEXT_MAX_LEN}
           </span>

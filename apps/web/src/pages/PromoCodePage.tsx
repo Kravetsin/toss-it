@@ -8,14 +8,13 @@ import { Button, Input, Loader, PageShell } from '@/ui';
 import { AuthButtons } from '@/components/AuthButtons';
 import { StatusCard } from '@/components/StatusCard';
 
-/** Активация промокода вручную: /promo */
 export function PromoCodePage() {
   const { t } = useI18n();
   const toast = useToast();
   const { me, loading } = useMe();
   const [code, setCode] = useState('');
   const [redeeming, setRedeeming] = useState(false);
-  // null — ещё не гасили; иначе тип погашенного гранта (для сообщения об успехе).
+  // null while not yet redeemed; otherwise the grant type for success messaging.
   const [grant, setGrant] = useState<string | null>(null);
 
   async function activate(e: FormEvent) {
@@ -40,7 +39,6 @@ export function PromoCodePage() {
     );
   }
 
-  // Успех: сообщение зависит от типа гранта (для founder — особое).
   if (grant) {
     return (
       <PageShell>
@@ -56,7 +54,7 @@ export function PromoCodePage() {
     );
   }
 
-  // Не залогинен — предлагаем войти (после входа вернёмся на /promo).
+  // Redirect back to /promo after login via returnTo.
   if (!me?.user) {
     return (
       <PageShell>

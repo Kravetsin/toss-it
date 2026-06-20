@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { IconButton } from './IconButton';
 
-/** Маскирует секрет после первого '=' (токен в URL), оставляя контекст ссылки. */
+/** Masks the secret after the first '=' (URL token), keeping link context visible. */
 function maskSecret(v: string): string {
   const i = v.indexOf('=');
   const dots = '•'.repeat(12);
@@ -9,9 +9,8 @@ function maskSecret(v: string): string {
 }
 
 /**
- * Бордерная «коробка» со ссылкой/кодом и кнопкой копирования рядом.
- * href → рендерим ссылкой (target=_blank), иначе <code>.
- * secret → значение замаскировано до нажатия «глаза» (копирование копирует реальное).
+ * Box with a link/code and a copy button. href renders an <a>, else <code>.
+ * secret masks the value until revealed; copy always uses the real value.
  */
 export function CopyableLinkBox({
   value,

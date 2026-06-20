@@ -17,7 +17,7 @@ import { PromoCodePage } from './pages/PromoCodePage';
 import { AdminPage } from './pages/AdminPage';
 import { GalleryPage } from './pages/GalleryPage';
 
-// DEV-мок данных (для оценки залогиненного UI без бэкенда): ?mock=1. No-op в проде.
+// Dev mock via ?mock=1 — test logged-in UI without backend.
 installDevMock();
 
 createRoot(document.getElementById('root')!).render(
@@ -28,21 +28,20 @@ createRoot(document.getElementById('root')!).render(
           <MeProvider>
             <BrowserRouter>
               <Routes>
-                {/* Стримерские маршруты — в постоянной оболочке (sidebar). */}
+                {/* Streamer routes inside persistent AppShell (sidebar). */}
                 <Route element={<AppShell />}>
                   <Route path="/" element={<HomePage />} />
                   <Route path="/dashboard" element={<DashboardPage />} />
                   <Route path="/dashboard/settings" element={<SettingsPage />} />
                   <Route path="/dashboard/settings/:section" element={<SettingsPage />} />
                 </Route>
-                {/* Публичные/утилитарные — свой фрейм, без оболочки. */}
+                {/* Public routes: no AppShell. */}
                 <Route path="/c/:login" element={<ChannelPage />} />
                 <Route path="/mod-invite/:token" element={<ModInvitePage />} />
                 <Route path="/promo" element={<PromoCodePage />} />
                 <Route path="/admin" element={<AdminPage />} />
                 {import.meta.env.DEV && <Route path="/_gallery" element={<GalleryPage />} />}
               </Routes>
-              {/* Виден на всех страницах */}
               <LanguageSwitcher />
             </BrowserRouter>
           </MeProvider>

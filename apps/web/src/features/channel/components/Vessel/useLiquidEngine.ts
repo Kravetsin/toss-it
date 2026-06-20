@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useRef, type MutableRefObject, type RefObject } from 'react';
 import { lighten, rgbStr, type Rgb } from './tokens';
 
-/** Цель, к которой движок плавно подтягивает поверхность (Vessel мутирует её при смене фазы). */
+/** Target the engine animates towards (Vessel mutates it on phase change). */
 export interface LiquidTarget {
   level: number;
   color: Rgb;
   amp: number;
   turb: boolean;
-  /** Размер карточки в px (из ResizeObserver) — система координат viewBox. */
+  /** Card dimensions in px (from ResizeObserver, in viewBox coords). */
   W: number;
   H: number;
-  /** Разовый «вздох» поверхности (пик «на стриме»). */
+  /** One-shot surface kick (peak animation on activity). */
   kick: boolean;
 }
 
@@ -34,15 +34,8 @@ interface Bubble {
   r: number;
 }
 
-/**
- * Поверхность жидкости как rAF-движок: верхняя кромка = сумма 2–3 синусов
- * (y = level + Σ aᵢ·sin(x·kᵢ + t·ωᵢ)), замкнутая в путь до дна. Пишет атрибуты
- * напрямую в SVG (без ре-рендера React). Уровень/цвет/амплитуда лерпятся к target.
- *
- * Энергосбережение: цикл ЗАСЫПАЕТ, когда всё пришло к цели и движения нет (amp≈0 —
- * это idle/покой), и просыпается через возвращаемый wake() при смене цели. Пока волна
- * активна (загрузка/статус/кулдаун) — анимируется как задумано. Гейт — снаружи (enabled).
- */
+/** Surface as rAF engine: top edge is sum of 2–3 sine waves (y = level + Σ aᵢ·sin(x·kᵢ + t·ωᵢ)).
+ * Direct SVG attribute writes; level/color/amp interpolate to target. Sleeps when idle (amp≈0), wakes via returned wake() on target change. */
 export function useLiquidEngine(
   els: LiquidEls,
   target: MutableRefObject<LiquidTarget>,
@@ -112,16 +105,17 @@ export function useLiquidEngine(
           tg.kick = false;
         }
         const base = H * (1 - level) + heave;
-        // Фиксированное число сегментов: x точно попадает в 0 и W (без float-дрейфа),
-        // иначе верхняя кромка не дотягивала до правого края и замыкание уходило
-        // диагональю в угол — отсюда «дыра» справа.
+        // Fixed segment count ensures x endpoints at 0 and W (no float drift);
+        // avoids edge gap on right where path would cut diagonally to corner.
         const N = Math.max(12, Math.round(W / 14));
         let d = '';
         let m = '';
         for (let i = 0; i <= N; i++) {
           const x = (i / N) * W;
           let y =
-            base + amp * Math.sin(x * 0.022 + t * 1.7) + amp * 0.6 * Math.sin(x * 0.013 - t * 1.05 + 1.3);
+            base +
+            amp * Math.sin(x * 0.022 + t * 1.7) +
+            amp * 0.6 * Math.sin(x * 0.013 - t * 1.05 + 1.3);
           if (dispScale > 1.5) y += amp * 0.4 * Math.sin(x * 0.04 + t * 2.4);
           const seg = `${i === 0 ? 'M' : ' L'}${x.toFixed(1)},${y.toFixed(1)}`;
           d += seg;
@@ -151,7 +145,10 @@ export function useLiquidEngine(
         e.disp.current?.setAttribute('scale', dispScale.toFixed(2));
         if (dispScale > 0.5 && e.turbEl.current) {
           const bf = 0.012 + 0.006 * Math.sin(t * 0.4);
-          e.turbEl.current.setAttribute('baseFrequency', `${bf.toFixed(4)} ${(bf * 1.6).toFixed(4)}`);
+          e.turbEl.current.setAttribute(
+            'baseFrequency',
+            `${bf.toFixed(4)} ${(bf * 1.6).toFixed(4)}`,
+          );
         }
 
         for (const b of bubbles) {
@@ -178,7 +175,7 @@ export function useLiquidEngine(
         }
       }
 
-      // Засыпаем, когда движение исчерпано (idle/покой) — просыпаемся через wake().
+      // Sleep when motion exhausted; wake() restarts on target change.
       if (settled()) {
         running = false;
         return;

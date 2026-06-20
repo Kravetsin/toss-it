@@ -10,7 +10,7 @@ import { Button, Loader, PageShell } from '@/ui';
 import { AuthButtons } from '@/components/AuthButtons';
 import { StatusCard } from '@/components/StatusCard';
 
-/** Страница принятия инвайта в модераторы: /mod-invite/:token */
+/** Mod invite acceptance page: /mod-invite/:token */
 export function ModInvitePage() {
   const { t } = useI18n();
   const toast = useToast();
@@ -34,7 +34,7 @@ export function ModInvitePage() {
       try {
         localStorage.setItem('tmw_dash_channel', channelId);
       } catch {
-        /* приватный режим */
+        // Ignore: private browsing or quota exceeded.
       }
       window.location.href = '/dashboard';
     } catch (e) {

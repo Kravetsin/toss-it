@@ -1,9 +1,6 @@
 import { useState } from 'react';
 
-/**
- * Уважение системной настройки «уменьшить движение». Считывается однократно
- * (без подписки на изменения) — для одноразового выбора анимация/статика.
- */
+/** Read once at mount; no media-query subscription (one-shot animate/static choice). */
 export function useReducedMotion(): boolean {
   const [reduced] = useState(
     () =>

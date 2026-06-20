@@ -11,7 +11,6 @@ function newOverlayToken(): string {
 }
 
 export function registerChannelRoutes(app: FastifyInstance): void {
-  /** Завести свой канал (один на пользователя). */
   app.post('/api/channels', async (req, reply) => {
     const user = await requireUser(req, reply);
     if (!user) return;
@@ -36,16 +35,12 @@ export function registerChannelRoutes(app: FastifyInstance): void {
     return reply.code(201).send(response);
   });
 
-  /** Перевыпустить токен оверлея (старый OBS-URL перестаёт работать). */
+  /** Rotates overlay token; invalidates the old OBS URL. */
   app.post('/api/channels/rotate-token', async (req, reply) => {
     const user = await requireUser(req, reply);
     if (!user) return;
 
-    const channel = await db
-      .select()
-      .from(channels)
-      .where(eq(channels.ownerUserId, user.id))
-      .get();
+    const channel = await db.select().from(channels).where(eq(channels.ownerUserId, user.id)).get();
     if (!channel) return reply.code(404).send({ error: 'Канал не создан' });
 
     const overlayToken = newOverlayToken();
@@ -54,7 +49,6 @@ export function registerChannelRoutes(app: FastifyInstance): void {
     return response;
   });
 
-  /** Публичная информация о канале для страницы зрителя. */
   app.get<{ Params: { login: string } }>('/api/c/:login', async (req, reply) => {
     const row = await db
       .select({
@@ -79,7 +73,6 @@ export function registerChannelRoutes(app: FastifyInstance): void {
     return response;
   });
 
-  /** Таблица лидеров канала: кто больше всех мемов протолкнул на стрим. */
   app.get<{ Params: { login: string } }>('/api/c/:login/leaderboard', async (req, reply) => {
     const channel = await db
       .select({ id: channels.id })

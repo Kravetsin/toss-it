@@ -34,7 +34,6 @@ export const en: Dict = {
   'wallet.earnPost': '1 post = +1',
   'wallet.earnDonate': '1 ₴ donated = +1',
 
-  // Навигация оболочки (Фаза 3)
   'nav.home': 'Home',
   'nav.dashboard': 'Dashboard',
   'nav.menu': 'Menu',
@@ -46,16 +45,13 @@ export const en: Dict = {
   'settings.ownerOnly': 'Settings are available to the channel owner.',
   'settings.loadError': "Couldn't load settings.",
 
-  // Длительность
   'dur.sec': '{n}s',
   'dur.min': '{n} min',
   'dur.minSec': '{m} min {s}s',
 
-  // Главная
   'home.tagline':
     'Viewers send images, GIFs, videos and sounds straight to your stream — with moderation, a whitelist and limits.',
   'home.loginOther': 'Switch account',
-  // Скролл-история на входе
   'flow.title': 'How it works',
   'flow.s1': 'upload',
   'flow.s2': 'processing',
@@ -78,7 +74,6 @@ export const en: Dict = {
   'home.rotate': 'Reissue token',
   'home.rotateConfirm': 'The old URL in OBS will stop working. Reissue?',
 
-  // Страница зрителя
   'channel.notFoundTitle': 'Channel not found',
   'channel.notFoundBody': 'Channel {login} does not exist.',
   'channel.subtitle': 'Send media — it appears on stream',
@@ -100,7 +95,6 @@ export const en: Dict = {
   'channel.uploading': 'Uploading: {pct}%',
   'channel.cooldown': 'You can send again in {time}',
 
-  // Живой статус отправки
   'status.pending': 'Waiting for moderation',
   'status.approved': 'Approved — waiting in the queue',
   'status.playing': 'Now on stream!',
@@ -108,14 +102,12 @@ export const en: Dict = {
   'status.rejected': 'Rejected by the streamer',
   'status.expired': 'Expired — was not shown in time',
 
-  // Лидерборд
   'channel.leaderboard': 'Top contributors',
   'channel.leaderboardEmpty': 'No memes on stream yet — be the first!',
   'channel.you': 'you',
   'channel.cosmosLegend': '{n} shown on stream',
   'channel.cosmosLegendHint': 'Every star in the sky is a submission shown on stream',
 
-  // Дашборд
   'dash.title': 'Dashboard',
   'dash.notifyOn': 'Sound on new submission: ON',
   'dash.notifyOff': 'Sound on new submission: OFF',
@@ -125,13 +117,15 @@ export const en: Dict = {
   'dash.nowPlaying': 'Now playing',
   'dash.nothingPlaying': 'Nothing playing',
   'dash.skip': 'Skip',
-  'dash.testSend': 'Test submission',  'dash.integrations': 'Integrations',
+  'dash.testSend': 'Test submission',
+  'dash.integrations': 'Integrations',
   'dash.integrationsDonatelloDesc': 'Donations from your service trigger a burst on the overlay.',
   'dash.testDonation': 'Test donation',
   'dash.donatelloConnect': 'Connect Donatello',
   'dash.donatelloDisconnect': 'Disconnect',
   'dash.donatelloReady': 'Ready — donations trigger the effect',
-  'dash.donatelloSteps': 'In Donatello open Callbacks: turn it on, method POST, paste the URL and Key below.',
+  'dash.donatelloSteps':
+    'In Donatello open Callbacks: turn it on, method POST, paste the URL and Key below.',
   'dash.donatelloUrlLabel': 'Callback URL',
   'dash.donatelloKeyLabel': 'API Key (X-Key)',
   'dash.accepting': 'Accepting',
@@ -154,7 +148,8 @@ export const en: Dict = {
   'dash.showSender': 'show sender name in the overlay',
   'dash.soundAlert': 'play a sound when media appears',
   'dash.tts': 'read the sender’s name aloud (TTS)',
-  'dash.ttsMessage': 'read the message text aloud (TTS)',  'dash.description': 'Description',
+  'dash.ttsMessage': 'read the message text aloud (TTS)',
+  'dash.description': 'Description',
   'dash.descriptionPlaceholder': 'Tell viewers what to send…',
   'dash.links': 'Social links',
   'dash.linkPlatform': 'Platform',
@@ -200,7 +195,7 @@ export const en: Dict = {
   'dash.history': 'History',
   'dash.historyEmpty': 'Nothing has been shown yet.',
 
-  // Статус первопроходца / промокоды
+  // Status names are brand terms — English only, not translated.
   'badge.founder': 'Founder',
   'promo.title': 'Activate a promo code',
   'promo.activate': 'Activate',
@@ -210,7 +205,6 @@ export const en: Dict = {
   'promo.successFounder': 'You’re a founding streamer now!',
   'promo.toDashboard': 'Go to dashboard',
   'promo.loginToActivate': 'Log in to activate the code',
-  // Админка
   'admin.title': 'Admin',
   'admin.generate': 'Generate codes',
   'admin.count': 'Count',
@@ -222,7 +216,6 @@ export const en: Dict = {
   'admin.copyCode': 'Copy code',
   'admin.codeCopied': 'Code copied',
   'admin.denied': 'This page is for admins only.',
-  // Обратная связь
   'feedback.button': 'Feedback & suggestions',
   'feedback.title': 'Contact us',
   'feedback.body': 'Have a feature idea or found a bug? Reach out — we read everything.',
@@ -261,7 +254,6 @@ export const ru: Dict = {
   'wallet.earnPost': '1 пост = +1',
   'wallet.earnDonate': '1 ₴ доната = +1',
 
-  // Навигация оболочки (Фаза 3)
   'nav.home': 'Главная',
   'nav.dashboard': 'Дашборд',
   'nav.menu': 'Меню',
@@ -280,7 +272,6 @@ export const ru: Dict = {
   'home.tagline':
     'Зрители отправляют картинки, гифки, видео и звуки прямо на твой стрим — с модерацией, белым списком и лимитами.',
   'home.loginOther': 'Сменить аккаунт',
-  // Скролл-история на входе
   'flow.title': 'Как это работает',
   'flow.s1': 'загрузка',
   'flow.s2': 'обработка',
@@ -291,7 +282,8 @@ export const ru: Dict = {
   'flow.c3': 'стример одобряет',
   'flow.c4': 'играет в оверлее',
   'home.logout': 'Выйти',
-  'home.noChannel': 'Канала ещё нет. Создай его — получишь страницу для зрителей и оверлей для OBS.',
+  'home.noChannel':
+    'Канала ещё нет. Создай его — получишь страницу для зрителей и оверлей для OBS.',
   'home.createChannel': 'Создать канал',
   'home.manage': 'Управление',
   'home.dashboardBtn': 'Дашборд модерации',
@@ -346,7 +338,8 @@ export const ru: Dict = {
   'dash.nowPlaying': 'Сейчас играет',
   'dash.nothingPlaying': 'Ничего не играет',
   'dash.skip': 'Скип',
-  'dash.testSend': 'Тестовая отправка',  'dash.integrations': 'Интеграции',
+  'dash.testSend': 'Тестовая отправка',
+  'dash.integrations': 'Интеграции',
   'dash.integrationsDonatelloDesc': 'Донаты с твоего сервиса запускают всплеск на оверлее.',
   'dash.testDonation': 'Тест-донат',
   'dash.donatelloConnect': 'Подключить Donatello',
@@ -375,7 +368,8 @@ export const ru: Dict = {
   'dash.showSender': 'показывать имя отправителя в оверлее',
   'dash.soundAlert': 'звук при появлении медиа',
   'dash.tts': 'озвучивать имя отправителя (TTS)',
-  'dash.ttsMessage': 'озвучивать текст сообщения (TTS)',  'dash.description': 'Описание',
+  'dash.ttsMessage': 'озвучивать текст сообщения (TTS)',
+  'dash.description': 'Описание',
   'dash.descriptionPlaceholder': 'Расскажи зрителям, что отправлять…',
   'dash.links': 'Соц-ссылки',
   'dash.linkPlatform': 'Платформа',
@@ -421,8 +415,7 @@ export const ru: Dict = {
   'dash.history': 'История',
   'dash.historyEmpty': 'Пока ничего не показывалось.',
 
-  // Статус первопроходца / промокоды
-  // Названия статусов-«плюшек» — бренд-термины, не переводим (только англ.).
+  // Status names are brand terms — English only, not translated.
   'badge.founder': 'Founder',
   'promo.title': 'Активировать промокод',
   'promo.activate': 'Активировать',
@@ -432,7 +425,6 @@ export const ru: Dict = {
   'promo.successFounder': 'Ты теперь Founder!',
   'promo.toDashboard': 'В дашборд',
   'promo.loginToActivate': 'Войди, чтобы активировать код',
-  // Админка
   'admin.title': 'Админка',
   'admin.generate': 'Сгенерировать коды',
   'admin.count': 'Количество',
@@ -444,7 +436,6 @@ export const ru: Dict = {
   'admin.copyCode': 'Скопировать код',
   'admin.codeCopied': 'Код скопирован',
   'admin.denied': 'Эта страница только для админов.',
-  // Обратная связь
   'feedback.button': 'Обратная связь',
   'feedback.title': 'Связаться с нами',
   'feedback.body': 'Есть идея для фичи или нашёл баг? Пиши — читаем всё.',
@@ -511,7 +502,8 @@ export const uk: Dict = {
   'flow.c3': 'стрімер схвалює',
   'flow.c4': 'грає в оверлеї',
   'home.logout': 'Вийти',
-  'home.noChannel': 'Каналу ще немає. Створи його — отримаєш сторінку для глядачів і оверлей для OBS.',
+  'home.noChannel':
+    'Каналу ще немає. Створи його — отримаєш сторінку для глядачів і оверлей для OBS.',
   'home.createChannel': 'Створити канал',
   'home.manage': 'Керування',
   'home.dashboardBtn': 'Дашборд модерації',
@@ -573,7 +565,8 @@ export const uk: Dict = {
   'dash.donatelloConnect': 'Підключити Donatello',
   'dash.donatelloDisconnect': 'Відключити',
   'dash.donatelloReady': 'Готово — донати запускають ефект',
-  'dash.donatelloSteps': 'У Donatello відкрий Колбеки: увімкни, метод POST, встав URL і ключ нижче.',
+  'dash.donatelloSteps':
+    'У Donatello відкрий Колбеки: увімкни, метод POST, встав URL і ключ нижче.',
   'dash.donatelloUrlLabel': 'URL колбека',
   'dash.donatelloKeyLabel': 'Ключ (X-Key)',
   'dash.accepting': 'Прийом увімкнено',
@@ -643,7 +636,7 @@ export const uk: Dict = {
   'dash.history': 'Історія',
   'dash.historyEmpty': 'Поки нічого не показувалося.',
 
-  // Бренд-терміни статусів не перекладаємо (тільки англ.).
+  // Status names are brand terms — English only, not translated.
   'badge.founder': 'Founder',
   'promo.title': 'Активувати промокод',
   'promo.activate': 'Активувати',

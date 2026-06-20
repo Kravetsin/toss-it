@@ -11,9 +11,8 @@ export interface MeValue {
 const MeContext = createContext<MeValue | null>(null);
 
 /**
- * Единый источник правды о текущей сессии. И оболочка (AppShell), и страницы
- * читают одного и того же пользователя — без дублирующих getMe и рассинхрона
- * после logout. См. apps/web/REDESIGN.md §7.
+ * Single source of truth for the session: AppShell and pages share one user,
+ * avoiding duplicate getMe calls and post-logout desync. See apps/web/REDESIGN.md §7.
  */
 export function MeProvider({ children }: { children: ReactNode }) {
   const [me, setMe] = useState<MeResponse | null>(null);

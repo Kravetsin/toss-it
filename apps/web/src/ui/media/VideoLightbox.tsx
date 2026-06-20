@@ -10,7 +10,7 @@ export interface VideoLightboxProps {
   open: boolean;
   onClose: () => void;
   label?: string;
-  /** Подсказка длительности с сервера (сек) — для таймкодов до загрузки метаданных. */
+  /** Server-provided duration hint (sec) for timecodes before metadata loads. */
   durationHintSec?: number;
 }
 
@@ -24,11 +24,9 @@ interface View {
 }
 
 /**
- * Лайтбокс-плеер видео (Telegram-стиль): открывается по клику, сразу играет СО ЗВУКОМ (клик —
- * пользовательский жест; при отказе политики автоплея — без звука + аффорданс «включить звук»).
- * Зум колесом увеличивает САМО видео (как картинку — растёт в размерах, клип по краям экрана),
- * при увеличении его можно таскать. Контролы — отдельной плашкой, прижатой к НИЗУ вьюпорта.
- * Клик по видео = play/pause, клик по тёмному фону / Esc / ✕ = закрыть с паузой.
+ * Video lightbox player (Telegram-style): unmuted autoplay on click; if policy denies sound,
+ * falls back to muted + unmute affordance. Wheel-zoom magnifies video (not viewport); panning on zoom.
+ * Video-click toggles play, backdrop/Esc/X closes and pauses.
  */
 export function VideoLightbox({ src, open, onClose, label, durationHintSec }: VideoLightboxProps) {
   const frameRef = useRef<HTMLDivElement>(null);
@@ -39,15 +37,23 @@ export function VideoLightbox({ src, open, onClose, label, durationHintSec }: Vi
   const [needsUnmute, setNeedsUnmute] = useState(false);
   const [view, setView] = useState<View>({ scale: 1, tx: 0, ty: 0 });
   const [dragging, setDragging] = useState(false);
-  const drag = useRef({ active: false, sx: 0, sy: 0, btx: 0, bty: 0, moved: false, onVideo: false });
+  const drag = useRef({
+    active: false,
+    sx: 0,
+    sy: 0,
+    btx: 0,
+    bty: 0,
+    moved: false,
+    onVideo: false,
+  });
 
-  // Контролы прячем только в фуллскрине во время игры (иначе плашка внизу всегда видна).
+  // Controls only hide in fullscreen during playback; otherwise always visible.
   const active = fs.isFullscreen && m.playing && !menuOpen && !m.scrubbing;
   const { visible, show } = useAutoHideControls(active);
   const ariaLabel = label ?? 'Video';
   const zoomed = view.scale > 1;
 
-  // Автоплей при открытии. rAF-ожидание: видео монтируется порталом на кадр позже смены `open`.
+  // Autoplay on open; rAF-delay needed because portal mounts video one frame after `open` changes.
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
@@ -75,7 +81,6 @@ export function VideoLightbox({ src, open, onClose, label, durationHintSec }: Vi
     };
   }, [open, m.el]);
 
-  // Фокусируем контейнер при открытии — чтобы клавиатура работала сразу.
   useEffect(() => {
     if (!open) return;
     let raf = 0;
@@ -87,7 +92,7 @@ export function VideoLightbox({ src, open, onClose, label, durationHintSec }: Vi
     return () => cancelAnimationFrame(raf);
   }, [open]);
 
-  // Пауза при закрытии (звук обрывается сразу, ещё до конца fade-out) + выход из PiP.
+  // Pause on close (audio cuts immediately before fade-out completes) and exit PiP.
   useEffect(() => {
     if (open) return;
     const el = m.el.current;
@@ -97,17 +102,18 @@ export function VideoLightbox({ src, open, onClose, label, durationHintSec }: Vi
     }
   }, [open, m.el]);
 
-  // Ограничиваем сдвиг краями увеличенного видео в пределах экрана.
-  const clampPan = useCallback((x: number, y: number, s: number) => {
-    const vid = m.el.current;
-    if (!vid) return { x, y };
-    const maxX = Math.max(0, (vid.offsetWidth * s - window.innerWidth) / 2);
-    const maxY = Math.max(0, (vid.offsetHeight * s - window.innerHeight) / 2);
-    return { x: Math.min(maxX, Math.max(-maxX, x)), y: Math.min(maxY, Math.max(-maxY, y)) };
-  }, [m.el]);
+  const clampPan = useCallback(
+    (x: number, y: number, s: number) => {
+      const vid = m.el.current;
+      if (!vid) return { x, y };
+      const maxX = Math.max(0, (vid.offsetWidth * s - window.innerWidth) / 2);
+      const maxY = Math.max(0, (vid.offsetHeight * s - window.innerHeight) / 2);
+      return { x: Math.min(maxX, Math.max(-maxX, x)), y: Math.min(maxY, Math.max(-maxY, y)) };
+    },
+    [m.el],
+  );
 
-  // Перетаскивание/клик: тащим увеличенное видео (pan); чистый клик без движения — play/pause
-  // (по видео) или закрытие (по тёмному фону вокруг).
+  // Drag: pan zoomed video. Tap (no motion): play/pause on video, close on backdrop.
   useEffect(() => {
     if (!dragging) return;
     const onMove = (e: MouseEvent) => {
@@ -150,7 +156,7 @@ export function VideoLightbox({ src, open, onClose, label, durationHintSec }: Vi
     setDragging(true);
   }
 
-  // Зум колесом к точке курсора (body заблокирован — preventDefault не нужен).
+  // Zoom to cursor; body locked, so preventDefault unnecessary.
   function onWheel(e: React.WheelEvent) {
     const vid = m.el.current;
     if (!vid) return;
@@ -169,7 +175,7 @@ export function VideoLightbox({ src, open, onClose, label, durationHintSec }: Vi
   function onKeyDown(e: React.KeyboardEvent) {
     if (!open) return;
     const tag = (e.target as HTMLElement).tagName;
-    if (tag === 'INPUT') return; // SeekBar/громкость сами обрабатывают стрелки
+    if (tag === 'INPUT') return; // SeekBar/volume handle arrows themselves
     const k = e.key;
     if (k === ' ' || k === 'k') {
       if (tag === 'BUTTON') return;
@@ -201,10 +207,22 @@ export function VideoLightbox({ src, open, onClose, label, durationHintSec }: Vi
   }
 
   const showPlate = !m.error && !m.waiting && !m.playing && (m.current === 0 || m.ended);
-  const cursor = dragging ? 'grabbing' : zoomed ? 'grab' : fs.isFullscreen && !visible ? 'none' : 'pointer';
+  const cursor = dragging
+    ? 'grabbing'
+    : zoomed
+      ? 'grab'
+      : fs.isFullscreen && !visible
+        ? 'none'
+        : 'pointer';
 
   return (
-    <ModalPortal open={open} onClose={onClose} ariaLabel={ariaLabel} showClose={!fs.isFullscreen} closeOnBackdrop={false}>
+    <ModalPortal
+      open={open}
+      onClose={onClose}
+      ariaLabel={ariaLabel}
+      showClose={!fs.isFullscreen}
+      closeOnBackdrop={false}
+    >
       <div
         ref={frameRef}
         tabIndex={-1}
@@ -214,7 +232,6 @@ export function VideoLightbox({ src, open, onClose, label, durationHintSec }: Vi
         onMouseMove={show}
         className="absolute inset-0 flex items-center justify-center outline-none"
       >
-        {/* Видео по центру — растёт с зумом, клип по краям экрана (overflow на фоне модалки) */}
         <video
           ref={m.attach}
           src={src}
@@ -230,7 +247,6 @@ export function VideoLightbox({ src, open, onClose, label, durationHintSec }: Vi
           }`}
         />
 
-        {/* Центральная Play (на паузе) — индикатор, клик ловит фрейм */}
         {showPlate && (
           <div className="pointer-events-none absolute inset-0 grid place-items-center">
             <div className="grid size-16 place-items-center rounded-full border border-border bg-bg/70 text-text">
@@ -239,21 +255,18 @@ export function VideoLightbox({ src, open, onClose, label, durationHintSec }: Vi
           </div>
         )}
 
-        {/* Буферизация */}
         {m.waiting && !m.error && (
           <div className="pointer-events-none absolute inset-0 grid place-items-center">
             <Icon name="loader" size={40} className="animate-spin text-accent" />
           </div>
         )}
 
-        {/* Ошибка */}
         {m.error && (
           <div className="pointer-events-none absolute inset-0 grid place-items-center">
             <Icon name="square-alert" size={32} className="text-danger" />
           </div>
         )}
 
-        {/* Аффорданс «включить звук» */}
         {needsUnmute && m.muted && (
           <button
             type="button"
@@ -266,7 +279,6 @@ export function VideoLightbox({ src, open, onClose, label, durationHintSec }: Vi
           </button>
         )}
 
-        {/* Контролы — отдельной плашкой, прижатой к низу вьюпорта */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center px-4 pb-4">
           <div
             onMouseDown={(e) => e.stopPropagation()}

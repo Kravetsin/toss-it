@@ -7,12 +7,10 @@ import type { MediaSize } from './types';
 export interface YouTubeFrameProps {
   youtubeId: string;
   size?: MediaSize;
-  /** Показать постер с кнопкой play; iframe грузится по клику (для превью отправки). */
   thumbnailOnly?: boolean;
   className?: string;
 }
 
-/** YouTube-ролик в единой рамке: постер+play → iframe по клику (или сразу iframe). */
 export function YouTubeFrame({
   youtubeId,
   size = 'queue',

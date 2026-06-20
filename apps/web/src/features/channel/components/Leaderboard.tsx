@@ -6,7 +6,6 @@ import { PlatformIcon, UserBadges } from '@/components/UserMarks';
 import { StarMark } from '@/components/StarMark';
 import { CosmosLegend } from '@/features/channel/components/CosmosLegend';
 
-/** Таблица лидеров канала с подсветкой текущего пользователя. */
 export function Leaderboard({ board, meId }: { board: LeaderboardEntry[]; meId: string | null }) {
   const { t } = useI18n();
   const totalShown = board.reduce((sum, e) => sum + e.count, 0);

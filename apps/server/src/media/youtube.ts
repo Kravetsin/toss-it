@@ -1,22 +1,21 @@
 /**
- * Распознавание и валидация YouTube-ссылок. В отличие от файлов, YouTube не качается
- * и не транскодируется: храним только videoId + старт-секунду, а оверлей играет ролик
- * встроенным IFrame-плеером.
+ * YouTube link parse/validate. Not downloaded/transcoded: store videoId + start
+ * second only; overlay plays via embedded IFrame player.
  */
 
 export interface ParsedYoutube {
   videoId: string;
-  /** Старт-секунда из таймкода ссылки (t / start / #t). 0 — с начала. */
+  /** Start second from link timecode (t / start / #t); 0 means beginning. */
   startSeconds: number;
-  /** Остаток текста без самой ссылки — пойдёт подписью. */
+  /** Leftover text minus the URL, used as caption. */
   caption?: string;
-  /** Ссылка с music.youtube.com — показываем компактным музыкальным плеером. */
+  /** From music.youtube.com — render as compact music player. */
   isMusic: boolean;
 }
 
 const VIDEO_ID_RE = /^[A-Za-z0-9_-]{11}$/;
 
-/** Достаёт videoId/таймкод из первой YouTube-ссылки в тексте, либо null. */
+/** Extracts videoId/timecode from the first YouTube URL in text, else null. */
 export function parseYoutube(input: string): ParsedYoutube | null {
   const urlMatch = input.match(/https?:\/\/[^\s]+/i);
   if (!urlMatch) return null;
@@ -33,7 +32,11 @@ export function parseYoutube(input: string): ParsedYoutube | null {
 
   if (host === 'youtu.be') {
     videoId = url.pathname.slice(1).split('/')[0] || null;
-  } else if (host === 'youtube.com' || host === 'music.youtube.com' || host === 'youtube-nocookie.com') {
+  } else if (
+    host === 'youtube.com' ||
+    host === 'music.youtube.com' ||
+    host === 'youtube-nocookie.com'
+  ) {
     if (url.pathname === '/watch') {
       videoId = url.searchParams.get('v');
     } else if (/^\/(shorts|embed|live|v)\//.test(url.pathname)) {
@@ -51,7 +54,7 @@ export function parseYoutube(input: string): ParsedYoutube | null {
   return { videoId, startSeconds, caption, isMusic: host === 'music.youtube.com' };
 }
 
-/** Таймкод "90", "90s", "1m30s", "1h2m3s" → секунды (с потолком 24ч против мусора/переполнения). */
+/** Timecode "90","90s","1m30s","1h2m3s" -> seconds; capped at 24h vs garbage/overflow. */
 function parseStart(raw: string | null): number {
   if (!raw) return 0;
   let total: number;
@@ -66,8 +69,8 @@ function parseStart(raw: string | null): number {
 }
 
 /**
- * Проверяет, что ролик существует и доступен для встраивания, через публичный oEmbed
- * (без API-ключа). Возвращает название ролика или null (приватный/удалённый/встраивание запрещено).
+ * Checks existence + embeddability via public oEmbed (no API key). Returns title,
+ * or null if private/deleted/embedding disabled.
  */
 export async function validateYoutube(videoId: string): Promise<{ title: string } | null> {
   const oembed = `https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(

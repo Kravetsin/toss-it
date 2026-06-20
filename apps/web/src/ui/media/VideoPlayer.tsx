@@ -14,7 +14,6 @@ export interface VideoPlayerProps {
   size?: MediaSize;
   muted?: boolean;
   loop?: boolean;
-  /** Длительность из сервера (сек) — подпись времени до загрузки метаданных. */
   durationHintSec?: number;
   label?: string;
   onPlay?: () => void;
@@ -22,7 +21,6 @@ export interface VideoPlayerProps {
   className?: string;
 }
 
-/** Видео-плеер с пиксельными контролами (см. AudioPlayer для аудио). */
 export function VideoPlayer({
   src,
   poster,
@@ -39,12 +37,12 @@ export function VideoPlayer({
   const m = useMediaElement();
   const fs = useFullscreen(frameRef);
 
-  // Сбрасываем плеер при смене src (object-URL не трогаем — им владеет вызывающий).
+  // Reload on src change; object-URL lifecycle owned by caller.
   useEffect(() => {
     m.el.current?.load();
   }, [src, m.el]);
 
-  // Внешние колбэки телеметрии («превью = эфир») — строго по переходу состояния.
+  // Fire play/ended callbacks only on state transition (not every render).
   const wasPlaying = useRef(false);
   useEffect(() => {
     if (m.playing && !wasPlaying.current) onPlay?.();
@@ -56,7 +54,12 @@ export function VideoPlayer({
     wasEnded.current = m.ended;
   }, [m.ended, onEnded]);
 
-  const total = m.ready && m.duration ? m.duration : durationHintSec && durationHintSec > 0 ? durationHintSec : 0;
+  const total =
+    m.ready && m.duration
+      ? m.duration
+      : durationHintSec && durationHintSec > 0
+        ? durationHintSec
+        : 0;
   const known = total > 0;
   const compact = size === 'queue' && !fs.isFullscreen;
   const ariaLabel = label ?? 'Video';
@@ -136,7 +139,11 @@ export function VideoPlayer({
       )}
       {m.waiting && !m.error && (
         <div className="pointer-events-none absolute inset-0 grid place-items-center">
-          <Icon name="loader" size={fs.isFullscreen ? 40 : 28} className="animate-spin text-accent" />
+          <Icon
+            name="loader"
+            size={fs.isFullscreen ? 40 : 28}
+            className="animate-spin text-accent"
+          />
         </div>
       )}
       {m.error && (

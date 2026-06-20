@@ -12,29 +12,20 @@ const SIZE: Record<Size, { box: string; glyph: number }> = {
 
 interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'size'> {
   name: IconName;
-  /** Обязательная подпись для скринридера; по умолчанию она же — текст тултипа. */
+  /** Required screen-reader label; also the default tooltip text. */
   label: string;
   size?: Size;
   variant?: 'solid' | 'ghost';
-  /** Залипшее активное состояние (акцентная подсветка). */
   active?: boolean;
-  /**
-   * Текст жидкостного тултипа. По умолчанию = label. `null` отключает тултип
-   * (для кнопок, у которых рядом и так есть видимая подпись).
-   */
+  /** Tooltip text; defaults to label. `null` disables it (when a visible label is already nearby). */
   tooltip?: ReactNode;
-  /** Привязка тултипа по горизонтали — 'end'/'start' для кнопок у края экрана. */
   tooltipAlign?: 'center' | 'start' | 'end';
-  /** Сторона тултипа — 'right'/'left' для вертикальных меню, 'top' для нижнего края. */
   tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
-  /** Классы для ОБЁРТКИ-тултипа (layout: ml-auto и т.п.). className — для самой кнопки. */
+  /** Classes for the tooltip wrapper (layout, e.g. ml-auto); className targets the button itself. */
   wrapClassName?: string;
 }
 
-/**
- * Круглая icon-кнопка — «круглая семья» бренда (контрапункт угловатым элементам).
- * Подпись показывается жидкостным тултипом (Tooltip) вместо нативного `title`.
- */
+/** Round icon button; label shown via Tooltip rather than native `title`. */
 export function IconButton({
   name,
   label,
@@ -68,7 +59,13 @@ export function IconButton({
   if (tip === null) return wrapClassName ? <span className={wrapClassName}>{btn}</span> : btn;
 
   return (
-    <Tooltip content={tip} align={tooltipAlign} placement={tooltipPlacement} focusable={false} className={`shrink-0 ${wrapClassName}`}>
+    <Tooltip
+      content={tip}
+      align={tooltipAlign}
+      placement={tooltipPlacement}
+      focusable={false}
+      className={`shrink-0 ${wrapClassName}`}
+    >
       {btn}
     </Tooltip>
   );

@@ -4,7 +4,6 @@ import { Icon } from '@/ui/icons';
 
 const ACCEPT = 'image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,audio/*';
 
-/** Зона выбора файла: клик открывает диалог, поддержка drag-and-drop. */
 export function FileDropzone({ onPick }: { onPick: (file: File | null) => void }) {
   const { t } = useI18n();
   const [dragOver, setDragOver] = useState(false);
@@ -26,7 +25,9 @@ export function FileDropzone({ onPick }: { onPick: (file: File | null) => void }
       onDragLeave={() => setDragOver(false)}
       onDrop={onDrop}
       className={`flex cursor-pointer flex-col items-center gap-3 rounded-none border border-dashed px-5 py-8 text-center transition-colors ${
-        dragOver ? 'border-accent bg-accent-soft' : 'border-border bg-surface hover:border-accent/60'
+        dragOver
+          ? 'border-accent bg-accent-soft'
+          : 'border-border bg-surface hover:border-accent/60'
       }`}
     >
       <Icon name="folder-plus" size={40} className="text-accent" />

@@ -1,5 +1,12 @@
-export function Avatar({ url, name, size = 48 }: { url: string | null; name: string; size?: number }) {
-  // Аватар — «круглая семья» бренда: мягкая тень + тонкая граница, без пиксель-арта.
+export function Avatar({
+  url,
+  name,
+  size = 48,
+}: {
+  url: string | null;
+  name: string;
+  size?: number;
+}) {
   const frame = 'rounded-full border border-border shadow-1';
   if (url) {
     return <img src={url} alt={name} style={{ width: size, height: size }} className={frame} />;

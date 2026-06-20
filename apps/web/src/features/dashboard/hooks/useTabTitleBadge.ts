@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-/** Счётчик в заголовке вкладки — виден, даже когда дашборд в фоне. */
+/** Badge counter in browser tab title — visible even when dashboard is in background. */
 export function useTabTitleBadge(pendingCount: number) {
   useEffect(() => {
     document.title = (pendingCount > 0 ? `(${pendingCount}) ` : '') + 'Tossit';

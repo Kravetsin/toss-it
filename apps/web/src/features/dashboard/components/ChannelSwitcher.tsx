@@ -2,7 +2,6 @@ import type { AccessibleChannel } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { Badge, Select } from '@/ui';
 
-/** Переключатель канала (когда их несколько) + чип роли модератора. */
 export function ChannelSwitcher({
   list,
   current,

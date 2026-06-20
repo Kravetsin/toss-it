@@ -3,7 +3,6 @@ import { Icon } from '@/ui/icons';
 import { Button, Tooltip } from '@/ui';
 import { ScrollFlow } from '@/marketing/ScrollFlow/ScrollFlow';
 
-/** Экран для неавторизованного пользователя: лого, слоган, кнопки входа и анимация. */
 export function LoggedOutHero() {
   const { t } = useI18n();
   return (
@@ -23,10 +22,7 @@ export function LoggedOutHero() {
               </Button>
             </a>
             <Tooltip content={t('home.loginOther')} focusable={false}>
-              <a
-                href="/api/auth/login?returnTo=/&switch=1"
-                aria-label={t('home.loginOther')}
-              >
+              <a href="/api/auth/login?returnTo=/&switch=1" aria-label={t('home.loginOther')}>
                 <Button variant="secondary" className="px-3 py-3">
                   <Icon name="swap" size={18} />
                 </Button>

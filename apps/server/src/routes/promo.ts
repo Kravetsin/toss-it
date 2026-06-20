@@ -5,16 +5,13 @@ import { db } from '../db/index';
 import { promoCodes, users } from '../db/schema';
 import { requireUser } from '../auth';
 
-/** Промокоды нечувствительны к регистру — нормализуем к верхнему. */
+/** Promo codes are case-insensitive; normalize to uppercase. */
 const normalize = (code: string) => code.trim().toUpperCase();
 
-/**
- * Реестр типов грантов. Чтобы добавить новый тип (например, скидку) —
- * достаточно одной записи здесь: эффект применяется к погасившему пользователю.
- */
+/** Grant-type registry: add a new type via one entry; effect applies to redeemer. */
 const GRANT_HANDLERS: Record<string, { apply: (userId: string) => Promise<void> }> = {
   founder: {
-    // Статус не понижаем — выставляем только если пользователь ещё не первопроходец.
+    // Never downgrade: only set if user is not already a founder.
     apply: async (userId) => {
       await db
         .update(users)
@@ -24,13 +21,13 @@ const GRANT_HANDLERS: Record<string, { apply: (userId: string) => Promise<void> 
   },
 };
 
-/** Известен ли тип гранта (для валидации при выпуске кодов). */
+/** Whether a grant type exists (validation when issuing codes). */
 export function isKnownGrant(grant: string): boolean {
   return grant in GRANT_HANDLERS;
 }
 
 export function registerPromoRoutes(app: FastifyInstance): void {
-  /** Гасит код и применяет грант. Любой залогиненный пользователь. */
+  /** Redeem a code and apply its grant. Any logged-in user. */
   app.post<{ Params: { code: string } }>(
     '/api/promo/:code/redeem',
     async (req, reply): Promise<PromoRedeemResult | undefined> => {
@@ -45,11 +42,11 @@ export function registerPromoRoutes(app: FastifyInstance): void {
       }
       const handler = GRANT_HANDLERS[row.grant];
       if (!handler) {
-        // Тип гранта больше не поддерживается — код не гасим, чтобы не сжечь впустую.
+        // Grant type no longer supported: don't redeem, to avoid burning the code.
         return reply.code(400).send({ error: 'Этот тип промокода больше не поддерживается' });
       }
 
-      // Атомарный «захват»: помечаем код только если он ещё не погашен (защита от гонки/двойного клика).
+      // Atomic claim: mark only if not yet redeemed (guards against race/double-click).
       const now = new Date();
       const claim = await db
         .update(promoCodes)

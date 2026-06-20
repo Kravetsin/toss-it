@@ -7,11 +7,11 @@ import fastifyRateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
 import { Server } from 'socket.io';
 
-// .env лежит в apps/server (см. .env.example). Без него работают dev-дефолты.
+// .env in apps/server (see .env.example); without it dev defaults apply.
 try {
   process.loadEnvFile(path.resolve(import.meta.dirname, '../.env'));
 } catch {
-  // файла нет — ок
+  // no file — fine
 }
 
 const { config } = await import('./config');
@@ -31,7 +31,7 @@ fs.mkdirSync(tmpDir, { recursive: true });
 
 const storage = new LocalDiskStorage(mediaDir);
 
-// trustProxy: на Render/за реверс-прокси нужен X-Forwarded-* для https-редиректов и secure-cookies.
+// trustProxy: behind Render/reverse proxy, need X-Forwarded-* for https redirects and secure cookies.
 const app = Fastify({ logger: true, trustProxy: true });
 
 await app.register(fastifyRateLimit, {
@@ -42,10 +42,10 @@ await app.register(fastifyCookie, { secret: config.cookieSecret });
 await app.register(fastifyMultipart, {
   limits: { fileSize: config.maxFileSizeBytes, files: 1 },
 });
-// serve: false — медиа отдаётся только через GET /api/media/:id (reply.sendFile).
+// serve:false — media served only via GET /api/media/:id (reply.sendFile).
 await app.register(fastifyStatic, { root: storage.root, serve: false });
 
-// Прод: сервер сам раздаёт собранные фронты — один домен, ноль CORS-проблем.
+// Prod: server serves the built frontends — single domain, no CORS issues.
 if (config.serveStatic) {
   const webDist = path.resolve(serverRoot, '../web/dist');
   const overlayDist = path.resolve(serverRoot, '../overlay/dist');
@@ -60,16 +60,16 @@ if (config.serveStatic) {
     root: webDist,
     prefix: '/',
     decorateReply: false,
-    // index:false — чтобы '/' тоже шёл через SPA-fallback и получал мета главной
-    // (иначе статика отдала бы сырой index.html в обход подстановки SEO).
+    // index:false — route '/' through SPA fallback for SEO meta injection;
+    // otherwise static would serve raw index.html, bypassing it.
     index: false,
   });
-  // robots.txt, sitemap.xml и SPA-fallback с подстановкой SEO-мета под маршрут
-  // (+ настоящий 404 для несуществующего /c/<login>). См. seo.ts.
+  // robots.txt, sitemap.xml, SPA fallback with per-route SEO meta
+  // (+ real 404 for nonexistent /c/<login>). See seo.ts.
   registerSeo(app, webDist);
 }
 
-// Оверлей в dev живёт на другом origin (vite :5174) — WebSocket нужен CORS.
+// In dev the overlay is on another origin (vite :5174), so WebSocket needs CORS.
 const io: import('./playback').RealtimeServer = new Server(app.server, {
   cors: { origin: true },
 });

@@ -19,7 +19,7 @@ import {
   frameState,
 } from './engine';
 
-// Цвета — строки CSS-переменных (резолвятся и в темах, и при смене акцента). Никаких хардкод-hex.
+// CSS variables resolve across themes and accent changes; no hardcoded hex.
 const C = {
   accent: 'var(--color-accent)',
   accentHover: 'var(--color-accent-hover)',
@@ -33,18 +33,12 @@ const C = {
   warn: 'var(--color-warn)',
 };
 
-// Геометрия связей: линия идёт между краями соседних узлов.
+// Lines between node edges; offset by NODE_R to avoid overlap.
 const SEG = [0, 1, 2].map((k) => ({ sx: NODE_X[k]! + NODE_R, ex: NODE_X[k + 1]! - NODE_R }));
 
 /**
- * Анимация «как это работает» под кнопками входа: «токен» отправки едет по треку через
- * 4 узла-этапа (загрузка → обработка → модерация → на стриме). На модерации — развилка:
- * одобрено (✓, едет дальше), отклонено (✕, рассеивается), свой (★, перелёт поверх щита).
- *
- * Авто-проигрыш по времени с easing: проход вперёд → пауза на исходе → быстрый возврат
- * токена дугой в начало → следующий проход (исход берётся из ORDER). Связи заливаются мятным
- * по мере прохода, узлы подсвечиваются. Крутится только пока секция видна (IntersectionObserver);
- * при prefers-reduced-motion — статичная полоса этапов (ScrollFlowStatic).
+ * Token animation flow: cycles through 4 stages → verdicts at stage 3 (approve/reject/trust).
+ * Auto-loop: forward pass → end pause → curved return to start. Only animates while visible.
  */
 export function ScrollFlow() {
   const { t } = useI18n();
@@ -70,7 +64,10 @@ export function ScrollFlow() {
     const apply = (f: Frame) => {
       const tk = tokenRef.current;
       if (tk) {
-        tk.setAttribute('transform', `translate(${f.x.toFixed(1)} ${f.y.toFixed(1)}) scale(${f.sc.toFixed(3)})`);
+        tk.setAttribute(
+          'transform',
+          `translate(${f.x.toFixed(1)} ${f.y.toFixed(1)}) scale(${f.sc.toFixed(3)})`,
+        );
         tk.setAttribute('opacity', f.op.toFixed(2));
       }
       for (let i = 0; i < 4; i++) {
@@ -153,8 +150,7 @@ export function ScrollFlow() {
       running = false;
       cancelAnimationFrame(raf);
     };
-    // Запускаем сразу; IntersectionObserver лишь ПРИОСТАНАВЛИВАЕТ, когда секция уехала из вида
-    // (экономим CPU/батарею). Гейт не «на старт», чтобы анимация не зависела от срабатывания IO.
+    // Start immediately; IntersectionObserver pauses when out-of-view to save CPU/battery.
     const io = new IntersectionObserver(
       (entries) => {
         if (entries[0]!.isIntersecting) start();
@@ -180,7 +176,6 @@ export function ScrollFlow() {
       <div className="mx-auto w-full max-w-2xl px-4">
         <p className="mb-5 text-center label-mono text-muted">{t('flow.title')}</p>
         <svg width="100%" viewBox="0 0 680 150" role="img" aria-label={t('flow.title')}>
-          {/* Базовые связи между узлами. */}
           {SEG.map((g, k) => (
             <line
               key={`b${k}`}
@@ -193,7 +188,7 @@ export function ScrollFlow() {
               strokeLinecap="round"
             />
           ))}
-          {/* Тусклый ориентир fast-lane: «свои» уходят этой дугой поверх щита. */}
+          {/* Fast-lane curve: trust verdicts arc above the main track. */}
           <path
             d={`M ${NODE_X[1]} ${TRACK_Y} Q ${NODE_X[2]} ${TRACK_Y - TRUST_HOP} ${NODE_X[3]} ${TRACK_Y}`}
             fill="none"
@@ -202,7 +197,6 @@ export function ScrollFlow() {
             strokeDasharray="3 6"
             opacity={0.14}
           />
-          {/* Заливка связей мятным по мере прохода токена. */}
           {SEG.map((g, k) => (
             <line
               key={`f${k}`}
@@ -218,7 +212,6 @@ export function ScrollFlow() {
               strokeLinecap="round"
             />
           ))}
-          {/* Узлы-этапы: круг + Lucide-иконка + подписи. */}
           {STAGE_ICONS.map((name, i) => (
             <g key={i}>
               <circle
@@ -267,7 +260,6 @@ export function ScrollFlow() {
               </text>
             </g>
           ))}
-          {/* Расходящееся кольцо при попадании «на стрим». */}
           <circle
             ref={streamRingRef}
             cx={NODE_X[3]}
@@ -278,19 +270,32 @@ export function ScrollFlow() {
             strokeWidth={1.5}
             opacity={0}
           />
-          {/* Токен отправки: мятный диск с гало. */}
           <g ref={tokenRef} transform={`translate(${NODE_X[0]} ${TRACK_Y})`}>
             <circle r={9} fill="none" style={{ stroke: C.accent }} strokeWidth={1} opacity={0.4} />
             <circle r={4.5} style={{ fill: C.accent }} />
           </g>
-          {/* Стампы-вердикты над узлом модерации. */}
-          <g ref={checkRef} opacity={0} transform={`translate(${NODE_X[2]! - 9} 22)`} style={{ color: C.ok }}>
+          <g
+            ref={checkRef}
+            opacity={0}
+            transform={`translate(${NODE_X[2]! - 9} 22)`}
+            style={{ color: C.ok }}
+          >
             <Icon name="check" size={18} />
           </g>
-          <g ref={closeRef} opacity={0} transform={`translate(${NODE_X[2]! - 9} 22)`} style={{ color: C.danger }}>
+          <g
+            ref={closeRef}
+            opacity={0}
+            transform={`translate(${NODE_X[2]! - 9} 22)`}
+            style={{ color: C.danger }}
+          >
             <Icon name="close" size={18} />
           </g>
-          <g ref={starRef} opacity={0} transform={`translate(${NODE_X[2]! - 9} 22)`} style={{ color: C.warn }}>
+          <g
+            ref={starRef}
+            opacity={0}
+            transform={`translate(${NODE_X[2]! - 9} 22)`}
+            style={{ color: C.warn }}
+          >
             <Icon name="star" size={18} />
           </g>
         </svg>

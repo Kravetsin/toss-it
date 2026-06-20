@@ -1,8 +1,4 @@
-/**
- * Звёздная пыль — «осколки» брендовой звезды ([[StarMark]]): тот же четырёхлучевой мотив,
- * раздробленный на россыпь искр (одна крупная + две мелкие). Гармонирует со StarMark,
- * потому что пыль — это часть звезды. Тонируется currentColor.
- */
+/** Stardust icon: constellation of star fragments (1 large, 2 small) from StarMark design. Uses currentColor. */
 const SPARK =
   'M12 0C12 6.627 6.627 12 0 12C6.627 12 12 17.373 12 24C12 17.373 17.373 12 24 12C17.373 12 12 6.627 12 0Z';
 

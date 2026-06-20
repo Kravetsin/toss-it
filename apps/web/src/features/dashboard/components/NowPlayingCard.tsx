@@ -6,7 +6,6 @@ import { Button, Card } from '@/ui';
 import { PlatformIcon } from '@/components/UserMarks';
 import { formatTrackDuration } from '../constants';
 
-/** «Сейчас играет» + скип + (для владельца) сворачиваемая форма тестовой отправки. Компактна для правой панели. */
 export function NowPlayingCard({
   now,
   isOwner,
@@ -59,7 +58,10 @@ export function NowPlayingCard({
       {isOwner && (
         <div className="mt-3 border-t border-border pt-3">
           {testOpen ? (
-            <form onSubmit={(e) => void submitTest(e)} className="flex flex-wrap items-center gap-2">
+            <form
+              onSubmit={(e) => void submitTest(e)}
+              className="flex flex-wrap items-center gap-2"
+            >
               <input
                 type="file"
                 accept="image/*,video/mp4,video/webm,audio/*"

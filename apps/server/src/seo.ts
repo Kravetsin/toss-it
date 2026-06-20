@@ -7,13 +7,10 @@ import { channels, users } from './db/schema';
 import { config } from './config';
 
 /**
- * Server-side SEO для SPA: один и тот же index.html, но <head> (title/description/OG/
- * canonical/robots/JSON-LD) и «первая волна» контента в #root подставляются под маршрут.
- * Нужно потому, что чистый Vite-SPA отдаёт пустой каркас — без этого Google/AI-краулеры
- * не понимают, что за бренд, а главная не попадает в индекс.
- *
- * Бренд: видимое имя — «Tossit», но домен/запрос — «toss-it». Связываем их через
- * alternateName в JSON-LD, чтобы поисковик считал это одной сущностью.
+ * Server-side SEO for the SPA: same index.html, but <head> meta and a first-paint #root
+ * body are injected per route, since a bare Vite SPA ships an empty shell crawlers can't index.
+ * Brand: visible name "Tossit" vs domain "toss-it" — linked via alternateName so search
+ * engines treat them as one entity.
  */
 
 const SITE_NAME = 'Tossit';
@@ -21,7 +18,7 @@ const DEFAULT_TITLE = 'Tossit — submissions inbox for streamers';
 const DEFAULT_DESC =
   'Tossit — a submissions inbox for streamers. Viewers send images, GIFs, videos and sounds straight to your stream, with moderation, a whitelist and limits.';
 
-/** Блок-маркер в index.html, который целиком заменяется на мета конкретного маршрута. */
+/** Marker block in index.html, replaced wholesale with the route's meta. */
 const SEO_BLOCK = /<!--SEO-->[\s\S]*?<!--\/SEO-->/;
 const ROOT_DIV = '<div id="root"></div>';
 
@@ -40,17 +37,17 @@ function esc(s: string): string {
 interface PageMeta {
   title: string;
   description: string;
-  /** Канонический путь (без домена), например '/' или '/c/login'. */
+  /** Canonical path without domain, e.g. '/' or '/c/login'. */
   path: string;
   /** index,follow vs noindex,follow. */
   index: boolean;
-  /** «Первая волна» — статический контент в #root для краулеров без JS (React его заменит). */
+  /** First-paint #root content for no-JS crawlers (React replaces it). */
   bodyHtml?: string;
-  /** HTTP-статус (404 для несуществующего канала — иначе soft-404). */
+  /** HTTP status (404 for a missing channel, else soft-404). */
   status?: number;
 }
 
-/** Глобальная сущность бренда. Без пользовательских данных — безопасно в ld+json. */
+/** Global brand entity. No user data, so safe to emit as ld+json. */
 function jsonLd(): string {
   const url = base() + '/';
   const data = [
@@ -80,7 +77,7 @@ function jsonLd(): string {
       offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
     },
   ];
-  // Экранируем '<' на случай, если когда-нибудь в данные попадёт ввод — защита от выхода из <script>.
+  // Escape '<' in case user input ever enters data — prevents breaking out of <script>.
   return `<script type="application/ld+json">${JSON.stringify(data).replace(/</g, '\\u003c')}</script>`;
 }
 
@@ -136,12 +133,18 @@ function channelBody(name: string): string {
   );
 }
 
-/** Маршрут → мета. /c/:login требует запроса в БД (имя канала + настоящий 404). */
+/** Route to meta. /c/:login hits the DB for the channel name and a real 404. */
 async function resolve(url: string): Promise<PageMeta> {
   const pathname = url.split('?')[0]!.split('#')[0]!;
 
   if (pathname === '/' || pathname === '') {
-    return { title: DEFAULT_TITLE, description: DEFAULT_DESC, path: '/', index: true, bodyHtml: homeBody() };
+    return {
+      title: DEFAULT_TITLE,
+      description: DEFAULT_DESC,
+      path: '/',
+      index: true,
+      bodyHtml: homeBody(),
+    };
   }
 
   const ch = pathname.match(/^\/c\/([^/]+)\/?$/);
@@ -172,7 +175,7 @@ async function resolve(url: string): Promise<PageMeta> {
     };
   }
 
-  // Дашборд/админка/промо/инвайты/прочее — служебное, в индекс не пускаем.
+  // Dashboard/admin/promo/invites/etc are internal — keep out of the index.
   return { title: DEFAULT_TITLE, description: DEFAULT_DESC, path: pathname, index: false };
 }
 
@@ -201,7 +204,7 @@ function robotsTxt(): string {
   ].join('\n');
 }
 
-/** Кэш sitemap: список каналов меняется редко, не дёргаем БД на каждый запрос краулера. */
+/** Sitemap cache: channel list rarely changes, avoid a DB hit per crawler request. */
 let sitemapCache: { xml: string; at: number } = { xml: '', at: 0 };
 
 async function sitemapXml(): Promise<string> {
@@ -223,8 +226,8 @@ async function sitemapXml(): Promise<string> {
 }
 
 /**
- * Регистрирует robots.txt, sitemap.xml и SPA-fallback с подстановкой мета.
- * Вызывать ПОСЛЕ регистрации статики и только когда сервер сам раздаёт фронт.
+ * Registers robots.txt, sitemap.xml and the SPA fallback with meta injection.
+ * Call AFTER static registration and only when the server serves the frontend itself.
  */
 export function registerSeo(app: FastifyInstance, webDist: string): void {
   const template = fs.readFileSync(path.join(webDist, 'index.html'), 'utf8');
@@ -245,12 +248,11 @@ export function registerSeo(app: FastifyInstance, webDist: string): void {
       .send(render(template, meta));
   };
 
-  // Главная: fastify-static с index:false отдаёт на корень '/' статус 403 и НЕ доходит до
-  // notFoundHandler — поэтому '/' обслуживаем явным маршрутом (точный путь приоритетнее
-  // wildcard-статики). Это и был баг «главная без мета».
+  // Home: fastify-static with index:false returns 403 on '/' and never reaches the
+  // notFoundHandler, so serve '/' via an explicit route (exact path beats wildcard static).
   app.get('/', async (_req, reply) => serve(reply, '/'));
 
-  // SPA-fallback: всё прочее, что не статика и не /api|/socket.io — index.html с мета под маршрут.
+  // SPA fallback: anything non-static and not /api|/socket.io gets index.html with route meta.
   app.setNotFoundHandler(async (req, reply) => {
     const url = req.raw.url ?? '';
     if (req.method === 'GET' && !url.startsWith('/api') && !url.startsWith('/socket.io')) {

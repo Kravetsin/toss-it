@@ -6,7 +6,7 @@ export type Platform = 'twitch' | 'google';
 
 const PLATFORM_LABEL: Record<Platform, string> = { twitch: 'Twitch', google: 'Google' };
 
-/** Платформа входа зашита в id пользователя: 'twitch:…' / 'google:…' / 'fake:…' (см. server/auth). */
+/** Login platform encoded in user id prefix: 'twitch:' / 'google:' / 'fake:' (see server/auth). */
 export function platformOf(userId: string | null | undefined): Platform | null {
   if (!userId) return null;
   const sep = userId.indexOf(':');
@@ -15,9 +15,8 @@ export function platformOf(userId: string | null | undefined): Platform | null {
 }
 
 /**
- * Значок-метка: по умолчанию — иконка, по наведению/фокусу выезжает название (моно-капс).
- * Лейбл всегда в DOM (clip через max-width) — доступен скринридерам. Общий компонент для
- * платформы и бейджей-заслуг.
+ * Icon badge; label slides out on hover/focus. Label always in DOM (clipped via max-width)
+ * so screen readers can read it. Shared by platform glyph and achievement badges.
  */
 export function HoverBadge({
   icon,
@@ -48,7 +47,7 @@ export function HoverBadge({
   );
 }
 
-/** Глиф платформы (по id пользователя) с раскрытием названия. Null, если платформа неизвестна. */
+/** Platform glyph (from user id) with hover-revealed name. Null if platform unknown. */
 export function PlatformIcon({
   userId,
   size = 14,
@@ -61,7 +60,13 @@ export function PlatformIcon({
   const platform = platformOf(userId);
   if (!platform) return null;
   return (
-    <HoverBadge icon={platform} label={PLATFORM_LABEL[platform]} tone="muted" size={size} className={className} />
+    <HoverBadge
+      icon={platform}
+      label={PLATFORM_LABEL[platform]}
+      tone="muted"
+      size={size}
+      className={className}
+    />
   );
 }
 
@@ -72,8 +77,8 @@ interface BadgeDef {
 }
 
 /**
- * Бейджи-заслуги рядом с ником. Сейчас один — Founder; контейнер готов к росту (перенос строк).
- * variant 'icons' — значки с раскрытием названия (плотные списки), 'chips' — текст-чипы (профиль/шапка).
+ * Achievement badges next to a nick. variant 'icons' = hover-reveal glyphs (dense lists),
+ * 'chips' = text chips (profile/header).
  */
 export function UserBadges({
   isFounder = false,
@@ -87,7 +92,6 @@ export function UserBadges({
   const { t } = useI18n();
   const badges: BadgeDef[] = [];
   if (isFounder) badges.push({ key: 'founder', icon: 'sparkles', label: t('badge.founder') });
-  // Будущие бейджи-заслуги добавляются сюда — раскладка уже готова.
   if (badges.length === 0) return null;
 
   if (variant === 'chips') {

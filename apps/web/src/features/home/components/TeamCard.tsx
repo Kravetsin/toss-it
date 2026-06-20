@@ -8,7 +8,7 @@ import { Icon } from '@/ui/icons';
 import { Button, Card, CopyableLinkBox } from '@/ui';
 import { ModeratorList } from './ModeratorList';
 
-/** Блок «Команда» (owner-only): сгенерировать инвайт-ссылку и управлять модераторами. */
+/** Owner-only team panel: generate invite links and manage moderators. */
 export function TeamCard({ channelId }: { channelId: string }) {
   const { t } = useI18n();
   const toast = useToast();

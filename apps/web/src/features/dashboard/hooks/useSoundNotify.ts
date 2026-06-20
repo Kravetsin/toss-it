@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { initAudioUnlock, playNotify } from '@/lib/notify';
 
 /**
- * Звуковое уведомление дашборда: булев флаг с запоминанием в localStorage + ref-зеркало,
- * чтобы обработчик сокета читал актуальное значение без переподключения при переключении.
+ * Boolean toggle with localStorage persistence + ref mirror to let socket handler
+ * read fresh value without reconnect on state change.
  */
 export function useSoundNotify() {
   const [soundOn, setSoundOn] = useState(() => localStorage.getItem('tmw_modsound') !== '0');
@@ -18,7 +18,7 @@ export function useSoundNotify() {
     const next = !soundOn;
     setSoundOn(next);
     localStorage.setItem('tmw_modsound', next ? '1' : '0');
-    if (next) playNotify(); // дать услышать и заодно разблокировать аудио
+    if (next) playNotify(); // Play to confirm + unlock audio in browser
   };
 
   return { soundOn, soundOnRef, toggle };

@@ -3,7 +3,6 @@ import { useI18n } from '@/i18n';
 import { useToast } from '@/providers/ToastProvider';
 import { Badge, Card, IconButton } from '@/ui';
 
-/** Список сгенерированных промокодов с копированием в буфер. */
 export function PromoCodeList({ codes }: { codes: AdminPromoCode[] }) {
   const { t } = useI18n();
   const toast = useToast();
@@ -21,7 +20,9 @@ export function PromoCodeList({ codes }: { codes: AdminPromoCode[] }) {
               {c.code}
             </code>
             {c.redeemedByLogin ? (
-              <span className="text-muted">{t('admin.redeemedBy', { login: c.redeemedByLogin })}</span>
+              <span className="text-muted">
+                {t('admin.redeemedBy', { login: c.redeemedByLogin })}
+              </span>
             ) : (
               <Badge>{t('admin.unused')}</Badge>
             )}

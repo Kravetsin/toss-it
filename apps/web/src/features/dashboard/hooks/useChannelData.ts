@@ -19,9 +19,9 @@ import { connectSocket } from '@/lib/socket';
 import { playNotify } from '@/lib/notify';
 
 /**
- * Данные канала (очередь, сейчас играет, настройки, списки, история, репутация) +
- * live-сокет. Всё перезапускается при смене канала. Звук на новую отправку читается
- * из soundOnRef, чтобы переключение звука не пересоздавало сокет.
+ * Loads channel data (queue, now playing, settings, lists, history, reputation) and establishes
+ * live socket connection. Resets on channel change. Sound on new submission uses soundOnRef
+ * to avoid socket recreation when toggling sound.
  */
 export function useChannelData(
   channelId: string | null,
@@ -34,31 +34,37 @@ export function useChannelData(
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [allowed, setAllowed] = useState<ListedUser[]>([]);
   const [banned, setBanned] = useState<ListedUser[]>([]);
-  // Кэш кросс-канальной репутации по userId (догружаем по мере появления заявок).
+  // Cross-channel reputation cache by userId, loaded on-demand as submissions arrive.
   const [reputation, setReputation] = useState<Record<string, ReputationStats>>({});
   const reputationRef = useRef(reputation);
   reputationRef.current = reputation;
 
   const refreshLists = useCallback(() => {
     if (!channelId) return;
-    void getWhitelist(channelId).then(setAllowed).catch(() => {});
-    void getBans(channelId).then(setBanned).catch(() => {});
-    void getHistory(channelId).then(setHistory).catch(() => {});
+    void getWhitelist(channelId)
+      .then(setAllowed)
+      .catch(() => {});
+    void getBans(channelId)
+      .then(setBanned)
+      .catch(() => {});
+    void getHistory(channelId)
+      .then(setHistory)
+      .catch(() => {});
   }, [channelId]);
 
-  // Догружаем репутацию для новых отправителей в очереди (только отсутствующих в кэше).
+  // Fetch reputation for new senders not yet in cache.
   useEffect(() => {
     if (!channelId) return;
-    const ids = [...new Set(pending.map((p) => p.senderUserId).filter((x): x is string => !!x))].filter(
-      (id) => !(id in reputationRef.current),
-    );
+    const ids = [
+      ...new Set(pending.map((p) => p.senderUserId).filter((x): x is string => !!x)),
+    ].filter((id) => !(id in reputationRef.current));
     if (ids.length === 0) return;
     void getReputation(channelId, ids)
       .then((rep) => setReputation((prev) => ({ ...prev, ...rep })))
       .catch(() => {});
   }, [pending, channelId]);
 
-  // Загрузка данных канала + live-сокет. Перезапускается при смене канала.
+  // Load channel data and establish live socket connection. Restarts on channel change.
   useEffect(() => {
     if (!channelId) return;
     setPending([]);
@@ -68,20 +74,25 @@ export function useChannelData(
     setBanned([]);
     setReputation({});
 
-    void getPending(channelId).then(setPending).catch(() => {});
+    void getPending(channelId)
+      .then(setPending)
+      .catch(() => {});
     void getNowPlaying(channelId)
       .then((r) => setNow(r.now))
       .catch(() => {});
-    // Настройки доступны только владельцу.
-    if (isOwner) void getSettings(channelId).then(setSettings).catch(() => {});
+    // Settings accessible to owner only.
+    if (isOwner)
+      void getSettings(channelId)
+        .then(setSettings)
+        .catch(() => {});
     refreshLists();
 
-    // Live-обновления: авторизация по сессионной куке (модератору overlayToken не нужен).
+    // Live updates authorized via session cookie (overlay token not needed for moderator).
     const socket = connectSocket({ role: 'dashboard', channelId });
     socket.on('moderation:new', (s: SubmissionSummary) =>
       setPending((prev) => {
         if (prev.some((p) => p.id === s.id)) return prev;
-        if (soundOnRef.current) playNotify(); // звуковой сигнал на новую отправку
+        if (soundOnRef.current) playNotify();
         return [...prev, s];
       }),
     );
@@ -91,7 +102,9 @@ export function useChannelData(
     socket.on('playback:started', (s: SubmissionSummary) => setNow(s));
     socket.on('playback:ended', () => {
       setNow(null);
-      void getHistory(channelId).then(setHistory).catch(() => {});
+      void getHistory(channelId)
+        .then(setHistory)
+        .catch(() => {});
     });
     return () => {
       socket.close();

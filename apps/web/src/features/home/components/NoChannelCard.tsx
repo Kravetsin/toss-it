@@ -2,7 +2,6 @@ import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
 import { Button, Card } from '@/ui';
 
-/** Онбординг: у пользователя ещё нет канала — предложить создать. */
 export function NoChannelCard({ onCreate }: { onCreate: () => void }) {
   const { t } = useI18n();
   return (

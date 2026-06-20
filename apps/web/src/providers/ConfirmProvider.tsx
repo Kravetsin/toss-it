@@ -15,7 +15,7 @@ interface ConfirmOptions {
   message: string;
   confirmLabel?: string;
   cancelLabel?: string;
-  /** Красная кнопка подтверждения для деструктивных действий (бан, перевыпуск токена). */
+  /** Red confirm button for destructive actions (ban, token reissue). */
   danger?: boolean;
 }
 
@@ -41,7 +41,6 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     setOpts(null);
   }, []);
 
-  // Esc — отмена.
   useEffect(() => {
     if (!opts) return;
     const onKey = (e: KeyboardEvent) => {
@@ -66,9 +65,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
             onClick={(e) => e.stopPropagation()}
             className="w-full max-w-sm rounded-none p-5 shadow-4"
           >
-            {opts.title && (
-              <h2 className="mb-2 text-base font-medium text-text">{opts.title}</h2>
-            )}
+            {opts.title && <h2 className="mb-2 text-base font-medium text-text">{opts.title}</h2>}
             <p className="text-sm leading-relaxed text-muted">{opts.message}</p>
             <div className="mt-6 flex justify-end gap-2">
               <Button variant="secondary" onClick={() => close(false)}>

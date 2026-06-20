@@ -11,7 +11,6 @@ import { ViewerLinkCard } from '@/features/home/components/ViewerLinkCard';
 import { OverlayCard } from '@/features/home/components/OverlayCard';
 import { TeamCard } from '@/features/home/components/TeamCard';
 
-/** Контентная обёртка главной внутри оболочки (AppShell даёт фон/каркас). */
 function Content({ children }: { children: React.ReactNode }) {
   return <div className="mx-auto max-w-2xl px-4 py-10">{children}</div>;
 }

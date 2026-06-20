@@ -13,11 +13,10 @@ interface LightboxVideoControlsProps {
   fs: ReturnType<typeof useFullscreen>;
   durationHintSec?: number;
   label: string;
-  /** Сообщаем наверх, открыто ли меню скорости — чтобы авто-скрытие не прятало панель. */
+  // Notify parent when menu opens to prevent auto-hide from hiding the controls panel.
   onMenuOpenChange: (open: boolean) => void;
 }
 
-/** Меню скорости воспроизведения (шестерёнка → попап со списком). */
 function SpeedMenu({
   rate,
   onRate,
@@ -38,7 +37,7 @@ function SpeedMenu({
     const onDoc = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
-    // Capture + stopPropagation: Esc закрывает меню, а не всю модалку.
+    // stopPropagation on Esc prevents modal from closing (menu only).
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
@@ -47,7 +46,7 @@ function SpeedMenu({
     };
     document.addEventListener('mousedown', onDoc);
     document.addEventListener('keydown', onKey, true);
-    // Фокус на выбранной скорости при открытии.
+    // Focus on selected speed when menu opens.
     const sel =
       menuRef.current?.querySelector<HTMLElement>('[aria-checked="true"]') ??
       menuRef.current?.querySelector<HTMLElement>('[role="menuitemradio"]');
@@ -73,8 +72,8 @@ function SpeedMenu({
         <div
           ref={menuRef}
           role="menu"
-          // Гасим всплытие клавиш (стрелки/пробел) — иначе долетят до плеера и изменят громкость.
-          // Стрелки ↑/↓ двигают выделение по пунктам (roving focus).
+          // Prevent key events from bubbling to player (would change volume).
+          // Arrow keys navigate menu items (roving focus).
           onKeyDown={(e) => {
             e.stopPropagation();
             if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
@@ -83,7 +82,10 @@ function SpeedMenu({
               menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitemradio"]') ?? [],
             );
             const i = items.indexOf(document.activeElement as HTMLElement);
-            const n = e.key === 'ArrowDown' ? (i + 1) % items.length : (i - 1 + items.length) % items.length;
+            const n =
+              e.key === 'ArrowDown'
+                ? (i + 1) % items.length
+                : (i - 1 + items.length) % items.length;
             items[n]?.focus();
           }}
           className="absolute bottom-full right-0 mb-2 min-w-[6rem] rounded-[var(--radius-sm)] border border-border bg-surface p-1 shadow-3"
@@ -112,11 +114,8 @@ function SpeedMenu({
   );
 }
 
-/**
- * Содержимое панели контролов видео в лайтбоксе (Telegram-стиль). Верхний ряд — перемотка
- * с таймкодами, нижний — громкость слева, play/pause по центру, скорость/PiP/фуллскрин справа.
- * Сама плашка (фон/позиция/видимость) — на стороне VideoLightbox; здесь только содержимое.
- */
+// Video control bar for lightbox: top row = seek with timecodes, bottom = volume/play/speed/PiP/fullscreen.
+// Background, position, visibility managed by VideoLightbox; only content here.
 export function LightboxVideoControls({
   m,
   fs,
@@ -124,15 +123,21 @@ export function LightboxVideoControls({
   label,
   onMenuOpenChange,
 }: LightboxVideoControlsProps) {
-  const total = m.ready && m.duration ? m.duration : durationHintSec && durationHintSec > 0 ? durationHintSec : 0;
+  const total =
+    m.ready && m.duration
+      ? m.duration
+      : durationHintSec && durationHintSec > 0
+        ? durationHintSec
+        : 0;
   const known = total > 0;
   const remaining = known ? Math.max(0, total - m.current) : 0;
 
   return (
     <div className="flex flex-col gap-1.5 px-3 py-2.5">
-      {/* Ряд перемотки: текущее · полоса · оставшееся */}
       <div className="flex items-center gap-2.5">
-        <span className="shrink-0 text-sm tabular-nums text-text/90">{clock(Math.floor(m.current))}</span>
+        <span className="shrink-0 text-sm tabular-nums text-text/90">
+          {clock(Math.floor(m.current))}
+        </span>
         <SeekBar
           current={m.current}
           duration={m.ready ? m.duration : 0}
@@ -148,7 +153,6 @@ export function LightboxVideoControls({
         </span>
       </div>
 
-      {/* Ряд кнопок: громкость слева · play по центру · скорость/PiP/фуллскрин справа */}
       <div className="flex items-center gap-2">
         <div className="flex flex-1 items-center">
           <VolumeControl

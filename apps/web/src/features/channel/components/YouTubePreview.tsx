@@ -2,7 +2,7 @@ import { Icon } from '@/ui/icons';
 import { Card } from '@/ui';
 import { YouTubeFrame } from '@/ui/media';
 
-/** Превью YouTube-ролика по id (когда в тексте ссылка и нет файла). */
+/** YouTube preview card. Shows when text contains link but no file. */
 export function YouTubePreview({ ytId }: { ytId: string }) {
   return (
     <Card className="flex flex-col items-start gap-2">

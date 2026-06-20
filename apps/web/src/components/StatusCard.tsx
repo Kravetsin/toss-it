@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import { Card } from '@/ui';
 import { Icon, type IconName } from '@/ui/icons';
 
-/** Центрированная карточка-статус: крупная иконка + произвольное содержимое. */
 export function StatusCard({
   icon,
   iconSize = 44,

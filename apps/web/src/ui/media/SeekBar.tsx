@@ -2,10 +2,10 @@ import { useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { clock } from '@/lib/format';
 
 interface SeekBarProps {
-  current: number; // сек
-  duration: number; // сек (0/не-конечная ⇒ неопределённый прогресс)
-  buffered?: number; // сек (для видео)
-  cells?: boolean; // пиксельная «ячеистая» текстура заливки
+  current: number;
+  duration: number; // 0 or Infinity → indeterminate progress
+  buffered?: number;
+  cells?: boolean; // Pixel grid texture overlay
   onSeek: (sec: number) => void;
   onScrubStart?: () => void;
   onScrubEnd?: () => void;
@@ -14,8 +14,8 @@ interface SeekBarProps {
 }
 
 /**
- * Полоса перемотки: прозрачный нативный <input type="range"> (даёт указатель,
- * клавиатуру и a11y) поверх слоёв-divов, нарисованных как прогресс-бар оверлея.
+ * Native transparent range input for pointer/keyboard/a11y atop overlay div layers
+ * that render the visual progress bar.
  */
 export function SeekBar({
   current,
@@ -39,7 +39,7 @@ export function SeekBar({
   const max = known ? duration : 1;
 
   function handleKey(e: KeyboardEvent<HTMLInputElement>) {
-    e.stopPropagation(); // не даём долететь до хоткеев очереди модерации
+    e.stopPropagation(); // Prevent hotkeys from moderation queue above
     if (disabled || !known) return;
     const step = e.shiftKey ? 1 : 5;
     const targets: Record<string, number> = {
@@ -78,7 +78,10 @@ export function SeekBar({
       } group/seek`}
     >
       {indeterminate ? (
-        <div className="progress-indeterminate absolute inset-y-0 left-0 w-1/3 bg-accent/70" aria-hidden />
+        <div
+          className="progress-indeterminate absolute inset-y-0 left-0 w-1/3 bg-accent/70"
+          aria-hidden
+        />
       ) : (
         <>
           <div

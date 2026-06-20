@@ -3,35 +3,27 @@ import { useFidgetEnabled } from '@/hooks/useFidgetEnabled';
 
 type Kind = 'amb' | 'comet' | 'spark' | 'launch' | 'keep' | 'cosmos';
 
-/** Потолок «космических» звёзд канала (зажигаются на месте — дёшево; всё равно ограничим). */
+// Static stars cap; ignited in-place (cheap), but capped anyway.
 const MAX_COSMOS_STARS = 700;
-/** Потолок всех сущностей канваса (звёзды + кометы + искры). */
+// Cap for all canvas entities (stars + comets + sparks).
 const ENT_CAP = 900;
 
-/**
- * Императивный мост к живому канвасу звёзд (один инстанс на странице зрителя).
- * Заполняется, пока эффект смонтирован И фиджеты включены; иначе вызовы — no-op
- * (это и есть reduced-motion/слабое-устройство фолбэк: без кометы и «вдоха»).
- */
+// Imperative API for live canvas. Active only when mounted + fidgets enabled; else no-op.
 interface StarsApi {
-  /** Пустить комету из точки (клиентские координаты) вверх в небо; на месте остаётся постоянная звезда. */
   launchKeepsake: (point: { x: number; y: number }) => void;
-  /** Разовый «вдох»: фоновые звёзды на миг устремляются вверх. */
   inhale: () => void;
-  /** Расставить count звёзд по небу (прозрачными) и зажечь каждую в случайный момент. */
   populateCosmos: (count: number) => void;
 }
 let starsApi: StarsApi | null = null;
 
-/** Пик «на стриме»: пост улетает кометой в небо и оставляет звезду в созвездии канала. */
 export function launchKeepsake(point: { x: number; y: number }): void {
   starsApi?.launchKeepsake(point);
 }
-/** Пик «на стриме»: фон делает один «вдох». */
+
 export function inhaleStars(): void {
   starsApi?.inhale();
 }
-/** При заходе/перезагрузке: расставить звёзды по небу (по числу показанных на стриме постов канала). */
+
 export function populateCosmos(count: number): void {
   starsApi?.populateCosmos(count);
 }
@@ -43,11 +35,10 @@ interface Ent {
   vx: number;
   vy: number;
   r: number;
-  // ambient twinkle
   baseA: number;
   tw: number;
   ph: number;
-  // comet (летит из sx,sy в tx,ty за dur секунд)
+  // Comet trajectory: from (sx,sy) to (tx,ty) over dur seconds
   sx: number;
   sy: number;
   tx: number;
@@ -55,20 +46,14 @@ interface Ent {
   t: number;
   dur: number;
   trail: { x: number; y: number }[];
-  // spark (искра взрыва)
   life: number;
-  // cosmos: задержка до зажигания в секундах (случайная — чтобы звёзды не вспыхнули разом)
+  // Random ignition delay (prevents all cosmos stars from flashing at once)
   delay?: number;
 }
 
 const SKIP =
   'button,a,input,textarea,select,label,[role="dialog"],[role="listbox"],[role="option"],[aria-expanded]';
 
-/**
- * Фоновая «жизнь»: редкие падающие мятные звёзды; клик по фону (не по интерактиву) запускает
- * комету из случайной точки сверху — она летит в курсор и взрывается там россыпью искр.
- * Канвас fixed, pointer-events:none (клики ловит window). rAF/canvas; гейт по перф-бюджету.
- */
 export function BackgroundStars() {
   const enabled = useFidgetEnabled();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -81,8 +66,9 @@ export function BackgroundStars() {
     if (!ctx) return;
 
     const accent =
-      getComputedStyle(document.documentElement).getPropertyValue('--color-accent').trim() || '#8df0cc';
-    // accent в RGB — для бленда к белому при зажигании «космических» звёзд.
+      getComputedStyle(document.documentElement).getPropertyValue('--color-accent').trim() ||
+      '#8df0cc';
+    // Parse accent hex to RGB for white-blend on cosmos ignition
     const ah = accent.replace('#', '');
     const aR = parseInt(ah.slice(0, 2), 16) || 141;
     const aG = parseInt(ah.slice(2, 4), 16) || 240;
@@ -93,7 +79,7 @@ export function BackgroundStars() {
     const ents: Ent[] = [];
     let raf = 0;
     let last = performance.now();
-    // Разовый импульс «вдоха» (см. inhale): затухает каждый кадр.
+    // Transient upward impulse (see inhale); decays each frame
     let surge = 0;
 
     const mkAmbient = (x: number, y: number): Ent => ({
@@ -206,7 +192,7 @@ export function BackgroundStars() {
         const e = ents[i]!;
         if (e.kind === 'amb') {
           e.x += e.vx * dt;
-          // surge — мгновенный «вдох» вверх; затухает, звёзды возвращаются к падению.
+          // Surge: transient upward impulse; decays as stars resume falling
           e.y += (e.vy - surge) * dt;
           if (e.y > H + 4) {
             e.y = -4;
@@ -221,19 +207,18 @@ export function BackgroundStars() {
         } else if (e.kind === 'cosmos') {
           if (e.delay && e.delay > 0) {
             e.delay -= dt;
-            continue; // ещё прозрачная — не рисуем (никакого резкого появления)
+            continue; // Still transparent; skip render
           }
-          // Одна непрерывная формула (без стыка режимов): плавное проявление из прозрачного +
-          // одиночная белая вспышка, плавно затухающая в спокойное мятное мерцание.
+          // Unified formula: smooth appear + white flash fading to steady twinkle
           if (e.t < 5) e.t += dt;
           const tt = e.t;
-          const appear = Math.min(1, tt / 0.7); // прозрачный → видимый (тёмно-мятный → мятный)
-          const twk = 0.66 + 0.34 * Math.sin(now * 0.001 * e.tw + e.ph); // спокойное мерцание
+          const appear = Math.min(1, tt / 0.7);
+          const twk = 0.66 + 0.34 * Math.sin(now * 0.001 * e.tw + e.ph);
           const fd = tt - 1.1;
-          const flash = appear * Math.exp(-(fd * fd) / 0.4); // белая вспышка, плавно гаснет
-          const wt = flash * 0.9; // подмешивание белого (пик на вспышке → 0)
+          const flash = appear * Math.exp(-(fd * fd) / 0.4);
+          const wt = flash * 0.9;
           const alpha = Math.min(1, e.baseA * appear * (twk + flash * 0.8));
-          // мягкое свечение — радиальный градиент, только пока есть вспышка
+          // Soft glow (radial gradient only during flash)
           if (flash > 0.05) {
             const gr = e.r * (3 + flash * 5);
             const g = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, gr);
@@ -245,7 +230,7 @@ export function BackgroundStars() {
             ctx.arc(e.x, e.y, gr, 0, 6.2832);
             ctx.fill();
           }
-          // ядро (мятное → белое на вспышке)
+          // Core (accent to white on flash)
           ctx.globalAlpha = alpha;
           ctx.beginPath();
           ctx.arc(e.x, e.y, e.r, 0, 6.2832);
@@ -257,7 +242,7 @@ export function BackgroundStars() {
         } else if (e.kind === 'launch') {
           e.t += dt / e.dur;
           if (e.t >= 1) {
-            // Прилетела: оставляем постоянную звезду + россыпь искр на месте.
+            // Landed: leave permanent star and spark burst
             ents.push({
               kind: 'keep',
               x: e.tx,
@@ -281,7 +266,8 @@ export function BackgroundStars() {
             ents.splice(i, 1);
             continue;
           }
-          const tt = 1 - (1 - e.t) * (1 - e.t); // ease-out: стартует резко, тормозит у неба
+          // Ease-out: sharp start, slows near destination
+          const tt = 1 - (1 - e.t) * (1 - e.t);
           e.x = e.sx + (e.tx - e.sx) * tt;
           e.y = e.sy + (e.ty - e.sy) * tt;
           e.trail.push({ x: e.x, y: e.y });
@@ -299,7 +285,8 @@ export function BackgroundStars() {
             ents.splice(i, 1);
             continue;
           }
-          const tt = e.t * e.t; // ease-in: ускоряется к цели
+          // Ease-in: accelerates toward target
+          const tt = e.t * e.t;
           e.x = e.sx + (e.tx - e.sx) * tt;
           e.y = e.sy + (e.ty - e.sy) * tt;
           e.trail.push({ x: e.x, y: e.y });
@@ -370,18 +357,18 @@ export function BackgroundStars() {
             vx: 0,
             vy: 0,
             r: 0.8 + Math.random() * 1.3,
-            baseA: 0.45 + Math.random() * 0.35, // яркость в установившемся мерцании
+            baseA: 0.45 + Math.random() * 0.35,
             tw: 0.4 + Math.random() * 0.7,
             ph: Math.random() * 6.28,
             sx: 0,
             sy: 0,
             tx: 0,
             ty: 0,
-            t: 0, // прогресс зажигания 0..1, дальше — мерцание
-            dur: 1.6 + Math.random() * 1.2, // длительность зажигания
+            t: 0,
+            dur: 1.6 + Math.random() * 1.2,
             trail: [],
             life: 1,
-            delay: Math.random() * 4, // случайный момент старта — не вспыхивают разом
+            delay: Math.random() * 4,
           });
         }
         if (ents.length > ENT_CAP) ents.splice(0, ents.length - ENT_CAP);

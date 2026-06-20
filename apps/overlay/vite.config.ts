@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig(({ command }) => ({
-  // В проде оверлей раздаётся сервером под /overlay/, в dev — корень своего порта.
+  // Prod: served by server under /overlay/; dev: root of own port.
   base: command === 'build' ? '/overlay/' : '/',
   server: {
     port: 5174,

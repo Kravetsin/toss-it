@@ -46,12 +46,12 @@ export interface DashboardRoutesDeps {
   io: RealtimeServer;
 }
 
-/** Публичный URL колбека Donatello для канала (куда провайдер POST-ит донаты). */
+/** Public Donatello callback URL for a channel (where the provider POSTs donations). */
 function donatelloCallbackUrl(channelId: string): string {
   return `${config.webUrl}/api/donations/donatello/${channelId}`;
 }
 
-/** Доступ к каналу для модерации: владелец ИЛИ модератор. */
+/** Channel moderation access: owner OR moderator. */
 async function requireChannelAccess(
   req: FastifyRequest,
   reply: FastifyReply,
@@ -77,7 +77,7 @@ async function requireChannelAccess(
   return channel;
 }
 
-/** Только владелец канала (настройки, токен, управление модераторами). */
+/** Channel owner only (settings, token, moderator management). */
 async function requireOwnerOf(
   req: FastifyRequest,
   reply: FastifyReply,
@@ -99,14 +99,14 @@ async function requireOwnerOf(
 
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 
-/** Нормализует описание: trim + обрезка по лимиту; пустое → null. */
+/** Normalize description: trim + cap to limit; empty becomes null. */
 function sanitizeDescription(input: unknown): string | null {
   if (typeof input !== 'string') return null;
   const trimmed = input.trim().slice(0, CHANNEL_DESCRIPTION_MAX_LEN);
   return trimmed.length > 0 ? trimmed : null;
 }
 
-/** Отбрасывает мусор: платформа из белого списка, URL — абсолютный http(s). Кап по количеству. */
+/** Drop junk: platform must be whitelisted, URL absolute http(s); cap count. */
 function sanitizeLinks(input: unknown): ChannelLink[] {
   if (!Array.isArray(input)) return [];
   const out: ChannelLink[] = [];
@@ -155,7 +155,7 @@ function toSettings(ch: ChannelRow): ChannelSettings {
 export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRoutesDeps): void {
   const { playback, io } = deps;
 
-  /** Список каналов, к которым у пользователя есть доступ (свои + где он модератор). */
+  /** Channels the user can access (owned + where they moderate). */
   app.get('/api/me/channels', async (req, reply): Promise<AccessibleChannel[] | undefined> => {
     const user = await requireUser(req, reply);
     if (!user) return;
@@ -167,7 +167,12 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
       .where(eq(channels.ownerUserId, user.id))
       .get();
     if (own) {
-      result.push({ channelId: own.id, login: own.login, displayName: own.displayName, role: 'owner' });
+      result.push({
+        channelId: own.id,
+        login: own.login,
+        displayName: own.displayName,
+        role: 'owner',
+      });
     }
     const mod = await db
       .select({ id: channels.id, login: users.login, displayName: users.displayName })
@@ -177,12 +182,17 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
       .where(eq(channelModerators.userId, user.id))
       .all();
     for (const r of mod) {
-      result.push({ channelId: r.id, login: r.login, displayName: r.displayName, role: 'moderator' });
+      result.push({
+        channelId: r.id,
+        login: r.login,
+        displayName: r.displayName,
+        role: 'moderator',
+      });
     }
     return result;
   });
 
-  /** Что сейчас на экране (для панели «сейчас играет» при загрузке дашборда). */
+  /** What is on screen now (for the "now playing" panel on dashboard load). */
   app.get<{ Params: { channelId: string } }>(
     '/api/dashboard/:channelId/now',
     async (req, reply) => {
@@ -193,7 +203,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
     },
   );
 
-  /** Скип текущего показа: мгновенно гасит оверлей и двигает очередь. */
+  /** Skip current display: instantly clears overlay and advances the queue. */
   app.post<{ Params: { channelId: string } }>(
     '/api/dashboard/:channelId/skip',
     async (req, reply) => {
@@ -204,7 +214,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
     },
   );
 
-  /** Владелец шлёт тестовый донат → всплеск на оверлее (превью эффекта без реального доната). */
+  /** Owner sends a test donation: overlay FX preview without a real donation. */
   app.post<{ Params: { channelId: string }; Body: { amount?: unknown } | null }>(
     '/api/dashboard/:channelId/test-donation',
     async (req, reply) => {
@@ -224,7 +234,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
     },
   );
 
-  // --- Интеграции донат-сервисов (owner-only). Деньги через нас НЕ идут — только события. ---
+  // Donation-service integrations (owner-only). Money never flows through us, only events.
 
   app.get<{ Params: { channelId: string } }>(
     '/api/dashboard/:channelId/integrations',
@@ -241,7 +251,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         try {
           key = decryptSecret(r.encToken);
         } catch {
-          /* битый секрет — покажем как «нет ключа» */
+          /* corrupt secret: show as "no key" */
         }
         return {
           provider: r.provider,
@@ -254,8 +264,8 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
   );
 
   /**
-   * Включить колбек Donatello: генерируем секрет (X-Key) и отдаём стримеру вместе с URL.
-   * Идемпотентно — повторный вызов возвращает уже выданный ключ (не ломает настройку в Donatello).
+   * Enable Donatello callback: generate X-Key secret and return it with the URL.
+   * Idempotent: repeat calls return the existing key (won't break Donatello setup).
    */
   app.post<{ Params: { channelId: string } }>(
     '/api/dashboard/:channelId/integrations/donatello',
@@ -388,8 +398,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
           typeof b.musicMargin === 'number'
             ? clamp(Math.round(b.musicMargin), 0, 25)
             : channel.musicMargin,
-        description:
-          'description' in b ? sanitizeDescription(b.description) : channel.description,
+        description: 'description' in b ? sanitizeDescription(b.description) : channel.description,
         links: 'links' in b ? sanitizeLinks(b.links) : channel.links,
       };
       await db.update(channels).set(patch).where(eq(channels.id, channel.id));
@@ -397,7 +406,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
     },
   );
 
-  /** История: всё, что покинуло pending (метаданные; файлы эфемерны и уже удалены). */
+  /** History: everything that left pending (metadata only; files are ephemeral, already deleted). */
   app.get<{ Params: { channelId: string } }>(
     '/api/dashboard/:channelId/history',
     async (req, reply): Promise<HistoryEntry[] | undefined> => {
@@ -439,7 +448,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
     },
   );
 
-  /** Кросс-канальная репутация набора пользователей (агрегаты по всем каналам). */
+  /** Cross-channel reputation for a set of users (aggregates across all channels). */
   app.post<{ Params: { channelId: string }; Body: { userIds?: unknown } | null }>(
     '/api/dashboard/:channelId/reputation',
     async (req, reply): Promise<Record<string, ReputationStats> | undefined> => {
@@ -462,7 +471,6 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         };
       }
 
-      // Статус «первопроходец» отправителя.
       const founders = await db
         .select({ id: users.id })
         .from(users)
@@ -473,7 +481,6 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         if (rep) rep.isFounder = true;
       }
 
-      // Принято (показано) / отклонено — по всем каналам.
       const subs = await db
         .select({ userId: submissions.senderUserId, status: submissions.status, n: count() })
         .from(submissions)
@@ -492,7 +499,6 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         else if (r.status === 'rejected') rep.rejected = r.n;
       }
 
-      // На скольких каналах в белом списке.
       const wl = await db
         .select({ userId: whitelist.userId, n: count() })
         .from(whitelist)
@@ -504,7 +510,6 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         if (rep) rep.whitelistedChannels = r.n;
       }
 
-      // На скольких каналах забанен.
       const bn = await db
         .select({ userId: bans.userId, n: count() })
         .from(bans)
@@ -585,8 +590,8 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
     },
   );
 
-  /** Прямой бан по userId (например, из истории — для зрителей из белого списка,
-   *  чьи отправки не проходят через очередь модерации). */
+  /** Direct ban by userId (e.g. from history, for whitelisted viewers whose
+   *  submissions bypass the moderation queue). */
   app.post<{ Params: { channelId: string; userId: string } }>(
     '/api/dashboard/:channelId/bans/:userId',
     async (req, reply) => {
@@ -639,9 +644,9 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
     },
   );
 
-  // --- Управление командой модераторов (owner-only) ---
+  // Moderator team management (owner-only)
 
-  /** Создать одноразовый инвайт-токен (TTL 1ч). Стример сам шлёт ссылку человеку. */
+  /** Create a one-time invite token (TTL 1h). Streamer sends the link themselves. */
   app.post<{ Params: { channelId: string } }>(
     '/api/dashboard/:channelId/moderators/invite',
     async (req, reply): Promise<{ token: string } | undefined> => {
@@ -685,7 +690,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
     },
   );
 
-  // --- Приём инвайта (любой залогиненный пользователь) ---
+  // Invite acceptance (any logged-in user)
 
   app.get<{ Params: { token: string } }>(
     '/api/mod-invite/:token',
@@ -722,7 +727,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
       if (!invite || invite.expiresAt.getTime() < Date.now()) {
         return reply.code(404).send({ error: 'Приглашение недействительно или истекло' });
       }
-      // Атомарный «захват»: кто удалил строку, тот и активирует инвайт (защита от гонки/двойного клика).
+      // Atomic claim: whoever deletes the row activates the invite (guards against race/double-click).
       const claim = await db.delete(modInvites).where(eq(modInvites.token, invite.token));
       if (claim.rowsAffected === 0) {
         return reply.code(404).send({ error: 'Приглашение уже использовано' });
@@ -732,7 +737,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         .from(channels)
         .where(eq(channels.id, invite.channelId))
         .get();
-      // Владельцу становиться модером своего канала бессмысленно — токен уже погашен выше.
+      // Owner moderating their own channel is pointless; token already consumed above.
       if (channel && channel.ownerUserId !== user.id) {
         await db
           .insert(channelModerators)
@@ -744,21 +749,18 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
   );
 }
 
-/** Забанить зрителя в канале: вытеснить из белого списка и снять с модерации его pending. */
+/** Ban a viewer in a channel: remove from whitelist and reject their pending submissions. */
 async function banUserInChannel(
   io: RealtimeServer,
   channelId: string,
   userId: string,
 ): Promise<void> {
-  await db
-    .insert(bans)
-    .values({ channelId, userId, createdAt: new Date() })
-    .onConflictDoNothing();
-  // Бан несовместим с автопоказом — убираем из белого списка.
+  await db.insert(bans).values({ channelId, userId, createdAt: new Date() }).onConflictDoNothing();
+  // Ban is incompatible with auto-play; remove from whitelist.
   await db
     .delete(whitelist)
     .where(and(eq(whitelist.channelId, channelId), eq(whitelist.userId, userId)));
-  // Снимаем с модерации все ожидающие отправки этого зрителя.
+  // Drop all of this viewer's pending submissions from moderation.
   const pending = await db
     .select()
     .from(submissions)

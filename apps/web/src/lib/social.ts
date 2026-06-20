@@ -1,7 +1,7 @@
 import type { SocialPlatform } from '@tmw/shared';
 import type { IconName } from '@/ui/icons';
 
-/** Иконка для каждой соц-платформы (бренд-глиф или generic globe для 'link'). */
+/** Icon for each social platform; 'link' uses globe. */
 export const PLATFORM_ICON: Record<SocialPlatform, IconName> = {
   twitch: 'twitch',
   youtube: 'youtube',
@@ -13,7 +13,7 @@ export const PLATFORM_ICON: Record<SocialPlatform, IconName> = {
   link: 'globe',
 };
 
-/** Человекочитаемое имя платформы (для подписи/aria — бренды не переводим). */
+/** Platform labels for aria/ui; brand names not translated. */
 export const PLATFORM_LABEL: Record<SocialPlatform, string> = {
   twitch: 'Twitch',
   youtube: 'YouTube',

@@ -8,15 +8,14 @@ export interface ImageFrameProps {
   src: string;
   alt?: string;
   size?: MediaSize;
-  /** Шахматная подложка под прозрачные PNG (по умолчанию вкл. для картинок). */
+  /** Checkerboard backdrop for transparent PNGs (enabled by default). */
   transparent?: boolean;
   scanlines?: boolean;
-  /** Клик по картинке открывает её увеличенную версию в лайтбоксе. */
+  /** Click opens enlarged version in lightbox. */
   zoomable?: boolean;
   className?: string;
 }
 
-/** Изображение в единой пиксельной рамке (с подложкой для прозрачных PNG). */
 export function ImageFrame({
   src,
   alt = '',

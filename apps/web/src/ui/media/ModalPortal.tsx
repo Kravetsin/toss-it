@@ -6,11 +6,8 @@ const FOCUSABLE =
   'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
 /**
- * Универсальная модальная оболочка: портал в `body`, затемнённый фон с блюром, появление/
- * уход (fade), Esc, блокировка прокрутки страницы и кнопка ✕. Содержимое и семантика клика
- * по нему — за вызывающим (картинки закрываются кликом по себе, видео — переключает play).
- * Закрытие по фону: только прямой клик по тёмной подложке (`e.target === e.currentTarget`),
- * клики, всплывшие от детей (видео/контролы), не закрывают.
+ * Modal portal with fade in/out, Esc-close, scroll lock, and close button. Closes on backdrop only via direct click
+ * (`e.target === e.currentTarget`), not bubbled events from children (video/controls). Child click semantics deferred.
  */
 export function ModalPortal({
   open,
@@ -29,7 +26,7 @@ export function ModalPortal({
   className?: string;
   children: ReactNode;
 }) {
-  // render — в DOM ли (держим на время exit-анимации); shown — целевое видимое состояние.
+  // render: mount in DOM (kept during exit animation); shown: opacity target state
   const [render, setRender] = useState(open);
   const [shown, setShown] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -50,8 +47,7 @@ export function ModalPortal({
     return () => cancelAnimationFrame(r);
   }, [render, open]);
 
-  // Esc закрывает; Tab держим внутри модалки (focus-trap для aria-modal); пока открыт —
-  // блокируем скролл страницы под модалкой.
+  // Esc closes; Tab trapped inside modal (focus-trap for aria-modal); disable body scroll while open
   useEffect(() => {
     if (!render) return;
     const onKey = (e: KeyboardEvent) => {

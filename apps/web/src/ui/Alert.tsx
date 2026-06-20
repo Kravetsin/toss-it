@@ -7,9 +7,7 @@ export function Alert({ tone, children }: { tone: 'ok' | 'warn' | 'danger'; chil
     danger: 'border-danger bg-danger-soft text-danger',
   };
   return (
-    <div
-      className={`flex items-center gap-2 rounded-none border px-3 py-2 ${tones[tone]}`}
-    >
+    <div className={`flex items-center gap-2 rounded-none border px-3 py-2 ${tones[tone]}`}>
       {children}
     </div>
   );

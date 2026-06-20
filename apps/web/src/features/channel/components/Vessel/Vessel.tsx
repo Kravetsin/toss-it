@@ -13,18 +13,14 @@ interface VesselProps {
   phase: Phase;
   status: LiveStatus | null;
   cooldownSec: number;
-  /** Форма отправки — субстрат под жидкостью. */
+  /** Form substrate under the liquid. */
   children: ReactNode;
 }
 
 /**
- * «Сосуд»: жизненный цикл отправки зрителя как одна жидкость.
- * - Загрузка/обработка — жидкость заливает карточку поверх формы (форма не нужна — пост уже ушёл).
- * - ПИК «результат пришёл» (сразу после обработки — гарантированно виден): вода вздувается в
- *   сплошной мятный цвет → распадается на брызги (+ комета в небо), и форма ОТКРЫВАЕТСЯ.
- * - Дальше — статус = цвет рамки + свечение; таймер кулдауна = уровень рамки, сливающийся
- *   сверху вниз, с бегущим бликом (текущая вода). Форма доступна для ввода всё ожидание.
- * Живая физика за useFidgetEnabled + prefers-reduced-motion (фолбэк — статичная цветная рамка).
+ * Vessel: submission lifecycle as animated liquid state.
+ * Upload/processing fills card over form; peak (result arrived) bloats, bursts, reopens form.
+ * Status phase: frame color/glow; cooldown: frame fill level top-down with shimmer. Physics gated by useFidgetEnabled + prefers-reduced-motion.
  */
 export function Vessel({ phase, status, cooldownSec, children }: VesselProps) {
   const { t } = useI18n();
@@ -33,22 +29,38 @@ export function Vessel({ phase, status, cooldownSec, children }: VesselProps) {
   const scene = sceneFromProps(phase, status, cooldownSec);
   const cfg = SCENE[scene];
   const bodyMode = scene === 'uploading' || scene === 'processing';
-  // Рамка: пока есть результат отправки (статус) и/или активен кулдаун.
+  // Frame visible during status result or active cooldown.
   const frameMode = phase.name === 'done' || cooldownSec > 0;
 
-  // Переходный «пик»: вода вздулась в сплошной цвет и вот-вот распадётся на брызги.
+  // Peak state: liquid bloated solid (before burst).
   const [flooding, setFlooding] = useState(false);
 
-  // Окно кулдауна: знаменатель уровня = максимум, увиденный за цикл ожидания.
+  // Cooldown window: frame divisor is max seen in this wait cycle (normalizes level 0..1).
   const cdWindow = useRef(0);
   if (cooldownSec > cdWindow.current) cdWindow.current = cooldownSec;
   if (cooldownSec === 0) cdWindow.current = 0;
   const cdLevel = cdWindow.current > 0 ? cooldownSec / cdWindow.current : 0;
 
   const progress = phase.name === 'uploading' && phase.progress !== null ? phase.progress : 0;
-  // На пике — уровень поднят ВЫШЕ краёв, волны уходят за верх (сплошная, но прозрачная вода).
-  const level = flooding ? 1.15 : bodyMode ? (scene === 'uploading' ? progress : 1) : cooldownSec > 0 ? cdLevel : 0;
-  const amp = flooding ? 5 : bodyMode ? (scene === 'processing' ? 6 : 5) : cooldownSec > 0 ? 2.4 : 0;
+  // At peak, level raised above bounds (waves crest, then burst).
+  const level = flooding
+    ? 1.15
+    : bodyMode
+      ? scene === 'uploading'
+        ? progress
+        : 1
+      : cooldownSec > 0
+        ? cdLevel
+        : 0;
+  const amp = flooding
+    ? 5
+    : bodyMode
+      ? scene === 'processing'
+        ? 6
+        : 5
+      : cooldownSec > 0
+        ? 2.4
+        : 0;
   const turb = !flooding && bodyMode && scene === 'processing';
   const color = flooding ? tokens().accent : tokens()[cfg.token];
 
@@ -90,7 +102,7 @@ export function Vessel({ phase, status, cooldownSec, children }: VesselProps) {
     fidget,
   );
 
-  // viewBox карточки в px → система координат движка (1:1).
+  // Card viewBox in px maps 1:1 to engine coordinate system.
   useEffect(() => {
     const card = cardRef.current;
     if (!card) return;
@@ -107,7 +119,7 @@ export function Vessel({ phase, status, cooldownSec, children }: VesselProps) {
     return () => ro.disconnect();
   }, []);
 
-  // Цель жидкости при смене фазы/уровня/цвета — и будим уснувший движок.
+  // Update liquid target on phase/level/color change; wake idle engine.
   useEffect(() => {
     const tg = targetRef.current;
     tg.level = level;
@@ -117,8 +129,7 @@ export function Vessel({ phase, status, cooldownSec, children }: VesselProps) {
     wake();
   }, [level, color, amp, turb, fidget, wake]);
 
-  // ПИК «результат пришёл»: на входе в done (сразу после обработки) вода вздувается в сплошной
-  // цвет и через ~420мс распадается на мятные брызги + комета в небо. Гарантированно виден.
+  // Peak on done entry (result arrived): bloat ~420ms then burst with disintegrate.
   useEffect(() => {
     const entered = prevPhaseName.current !== 'done' && phase.name === 'done';
     prevPhaseName.current = phase.name;
@@ -137,10 +148,15 @@ export function Vessel({ phase, status, cooldownSec, children }: VesselProps) {
     }, 550);
   }, [phase.name, fidget]);
 
-  // Очистка таймера пика только при размонтировании.
-  useEffect(() => () => { if (peakTimer.current) clearTimeout(peakTimer.current); }, []);
+  // Cleanup peak timer on unmount.
+  useEffect(
+    () => () => {
+      if (peakTimer.current) clearTimeout(peakTimer.current);
+    },
+    [],
+  );
 
-  // Распад на красные/жёлтые осколки при отклонении/истечении (вход в фазу).
+  // Burst disintegrate on reject/expire scene entry.
   useEffect(() => {
     if (!fidget) return;
     const burst = SCENE[scene].burst;
@@ -172,7 +188,6 @@ export function Vessel({ phase, status, cooldownSec, children }: VesselProps) {
       style={cardStyle}
       className={`relative overflow-hidden rounded-none border p-5 transition-[border-color,box-shadow] duration-[var(--dur)] ${frameCls}`}
     >
-      {/* Текстовый статус на верхней кромке (цвет рамки несёт основной сигнал). */}
       {frameMode && status && !flooding && (
         <span
           className="pointer-events-none absolute right-3 top-2 z-[6] label-mono text-[10px]"
@@ -182,7 +197,6 @@ export function Vessel({ phase, status, cooldownSec, children }: VesselProps) {
         </span>
       )}
 
-      {/* Форма-субстрат: затемнена и заблокирована ТОЛЬКО на заливке/обработке. */}
       <div
         className={`relative z-[1] transition-opacity duration-[var(--dur)] ${
           bodyMode ? 'pointer-events-none opacity-40' : ''
@@ -191,7 +205,6 @@ export function Vessel({ phase, status, cooldownSec, children }: VesselProps) {
         {children}
       </div>
 
-      {/* Подпись по центру на время заливки/обработки. */}
       {bodyMode && bodyLabel && (
         <div className="pointer-events-none absolute inset-x-0 top-1/2 z-[5] -translate-y-1/2 text-center">
           <span className="label-mono text-xs" style={{ color: rgbStr(lighten(color, 0.2)) }}>
@@ -244,7 +257,6 @@ export function Vessel({ phase, status, cooldownSec, children }: VesselProps) {
             </clipPath>
           </defs>
 
-          {/* Полная заливка — загрузка/обработка и пик-вздутие. */}
           <g
             className="transition-opacity duration-[var(--dur)]"
             style={{ opacity: bodyMode || flooding ? 1 : 0 }}
@@ -271,12 +283,10 @@ export function Vessel({ phase, status, cooldownSec, children }: VesselProps) {
             </g>
           </g>
 
-          {/* Жидкая рамка — статус + таймер (форма открыта под ней). */}
           <g
             className="transition-opacity duration-[var(--dur)]"
             style={{ opacity: frameMode && !flooding ? 1 : 0 }}
           >
-            {/* Слабый полный контур статуса — виден всегда. */}
             <rect
               x="0"
               y="0"
@@ -287,7 +297,6 @@ export function Vessel({ phase, status, cooldownSec, children }: VesselProps) {
               strokeWidth="2"
               opacity="0.3"
             />
-            {/* Налитый уровень: контур, обрезанный под ватерлинию (слив сверху вниз). */}
             <rect
               x="0"
               y="0"
@@ -298,7 +307,6 @@ export function Vessel({ phase, status, cooldownSec, children }: VesselProps) {
               strokeWidth="4"
               clipPath="url(#vsl-clip)"
             />
-            {/* Бегущий блик — ощущение текущей воды (только пока есть налитый уровень). */}
             <rect
               x="0"
               y="0"

@@ -7,15 +7,14 @@ interface MediaButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>,
   icon: IconName;
   label: string;
   size?: MediaSize;
-  /** Главная кнопка (play/pause) — циановый акцент вместо приглушённого. */
+  /** Primary button (play/pause) — cyan accent instead of muted. */
   primary?: boolean;
-  /** Залипший тоггл (напр. включённый mute) — постоянная заливка. */
+  /** Sticky toggle (e.g. active mute) — persistent fill. */
   pressed?: boolean;
 }
 
 /**
- * Транспорт-кнопка плеера: плоская (без «вдавливания», в отличие от Button) —
- * чтобы плотная лента контролов в очереди модерации читалась спокойно.
+ * Player transport button: flat (no inset effect) to keep dense control strips readable.
  */
 export function MediaButton({
   icon,

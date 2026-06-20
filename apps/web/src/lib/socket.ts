@@ -1,7 +1,7 @@
 import { io, type Socket } from 'socket.io-client';
 import { isMockOn } from './devMock';
 
-/** Заглушка сокета для dev-мока (без живых обновлений, но без реконнект-спама). */
+/** Stub socket for dev-mock: no live updates but no reconnect spam. */
 function stubSocket(): Socket {
   const noop = function (this: unknown) {
     return this;
@@ -16,7 +16,7 @@ function stubSocket(): Socket {
   } as unknown as Socket;
 }
 
-/** Единственная точка создания socket.io-соединения в приложении. */
+/** Singleton entry point for socket.io connection creation. */
 export function connectSocket(query: Record<string, string>): Socket {
   if (isMockOn()) return stubSocket();
   return io({ query });

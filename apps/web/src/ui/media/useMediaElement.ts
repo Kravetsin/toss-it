@@ -1,20 +1,20 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 
-/** Снимок состояния <video>/<audio>, на котором рисуем свои контролы. */
+/** Snapshot of <video>/<audio> state used to render custom controls. */
 export interface MediaElementState {
   playing: boolean;
-  current: number; // сек
-  duration: number; // сек (0 / не-конечная ⇒ длительность неизвестна, напр. стрим)
-  buffered: number; // сек загружено
+  current: number; // seconds
+  duration: number; // seconds (0/infinite = unknown duration, e.g. live stream)
+  buffered: number; // seconds buffered
   volume: number; // 0..1
   muted: boolean;
-  rate: number; // скорость воспроизведения (1 = норма)
-  pip: boolean; // активен ли «картинка-в-картинке»
-  ready: boolean; // метаданные загружены
-  waiting: boolean; // буферизация
+  rate: number; // playback rate (1 = normal)
+  pip: boolean; // picture-in-picture active
+  ready: boolean; // metadata loaded
+  waiting: boolean; // buffering
   ended: boolean;
   error: boolean;
-  scrubbing: boolean; // пользователь тянет полосу перемотки
+  scrubbing: boolean; // user dragging seek bar
 }
 
 export interface MediaElementControls {
@@ -46,11 +46,8 @@ const INITIAL: MediaElementState = {
 };
 
 /**
- * Централизует воспроизведение для <video>/<audio>: подписывается на события элемента,
- * плавно тянет currentTime через rAF во время игры и отдаёт действия. Привязка к элементу —
- * через callback-ref `attach` (а не RefObject): подписка пере-инициализируется ровно тогда,
- * когда элемент реально попадает в DOM — важно для медиа, монтируемого порталом с задержкой
- * (лайтбокс). `el` — RefObject для императивного доступа (load(), play() и т.п.).
+ * Centralized playback for <video>/<audio>. Uses callback-ref `attach` (not RefObject)
+ * so subscription re-initializes when element actually enters DOM (critical for portal-mounted media).
  */
 export function useMediaElement(): MediaElementState &
   MediaElementControls & {
@@ -77,7 +74,13 @@ export function useMediaElement(): MediaElementState &
     const dur = () => (Number.isFinite(media.duration) && media.duration > 0 ? media.duration : 0);
 
     const onLoaded = () =>
-      patch({ duration: dur(), ready: true, volume: media.volume, muted: media.muted, rate: media.playbackRate });
+      patch({
+        duration: dur(),
+        ready: true,
+        volume: media.volume,
+        muted: media.muted,
+        rate: media.playbackRate,
+      });
     const onDuration = () => patch({ duration: dur() });
     const onPlay = () => patch({ playing: true, ended: false });
     const onPause = () => patch({ playing: false });
@@ -112,7 +115,7 @@ export function useMediaElement(): MediaElementState &
     media.addEventListener('leavepictureinpicture', onLeavePip);
     media.addEventListener('error', onError, true);
 
-    // Стартовая синхронизация (метаданные/громкость могли подъехать до подписки).
+    // Metadata/volume may already be loaded when subscription fires; sync initial state.
     patch({ volume: media.volume, muted: media.muted, rate: media.playbackRate });
     if (media.readyState >= 1) onLoaded();
 
@@ -134,7 +137,7 @@ export function useMediaElement(): MediaElementState &
     };
   }, [node]);
 
-  // Плавная заливка прогресса: тянем currentTime каждый кадр, пока играет.
+  // Smooth progress: pull currentTime each frame while playing.
   useEffect(() => {
     if (!state.playing) return;
     const media = el.current;
@@ -155,7 +158,7 @@ export function useMediaElement(): MediaElementState &
     const media = el.current;
     if (!media) return;
     if (media.paused) {
-      // play() — промис: гасим AbortError/NotAllowedError (быстрый тоггл/политика автоплея).
+      // play() returns a promise; suppress AbortError/NotAllowedError (quick toggle or autoplay policy).
       void media.play().catch(() => setState((s) => ({ ...s, playing: false })));
     } else {
       media.pause();
@@ -165,7 +168,7 @@ export function useMediaElement(): MediaElementState &
   const seek = useCallback((sec: number) => {
     const media = el.current;
     if (!media) return;
-    // При неизвестной длительности (стрим/live) не клампим сверху — пусть решает браузер.
+    // Unknown duration (live): clamp only at 0; let browser decide max.
     const known = Number.isFinite(media.duration) && media.duration > 0;
     const t = known ? Math.max(0, Math.min(sec, media.duration)) : Math.max(0, sec);
     media.currentTime = t;
@@ -192,7 +195,7 @@ export function useMediaElement(): MediaElementState &
     media.playbackRate = r;
   }, []);
 
-  // PiP — только для <video>; гасим отказы (нет жеста, запрет, неподдержка).
+  // PiP for <video> only; suppress rejections (missing gesture, iframe restriction, etc.).
   const togglePip = useCallback(() => {
     const media = el.current;
     if (!media || !('requestPictureInPicture' in media)) return;
@@ -237,8 +240,6 @@ export function useMediaElement(): MediaElementState &
   };
 }
 
-// --- Полноэкранный режим (на корне рамки), с вебкит-фолбэком для Safari. ---
-
 type FsDocument = Document & {
   webkitFullscreenElement?: Element | null;
   webkitExitFullscreen?: () => void;
@@ -280,8 +281,7 @@ export function useFullscreen(ref: RefObject<HTMLElement | null>): {
     const el = ref.current as FsElement | null;
     if (!el) return;
     const d = document as FsDocument;
-    // requestFullscreen/exitFullscreen — промисы и могут отклониться (отказ юзера,
-    // запрет в iframe и т.п.); гасим, чтобы не было unhandled rejection.
+    // requestFullscreen/exitFullscreen return promises that may reject; suppress unhandled rejection.
     if (fsElement()) {
       if (d.exitFullscreen) void d.exitFullscreen().catch(() => {});
       else d.webkitExitFullscreen?.();

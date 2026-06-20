@@ -9,7 +9,7 @@ import { useI18n } from '@/i18n';
 import { Icon, type IconName } from '@/ui/icons';
 import { Button, Card } from '@/ui';
 
-/** Настройки оверлея (как медиа выглядит на стриме): лимиты, раскладка, озвучка. */
+/** Configure overlay display: duration, size, position, volume, TTS, alerts. */
 export function OverlaySettings({
   settings,
   onSave,
@@ -105,7 +105,11 @@ export function OverlaySettings({
           />
         </div>
         <div className="mt-4">
-          <Toggle checked={musicSeparate} onChange={setMusicSeparate} label={t('dash.musicSeparate')} />
+          <Toggle
+            checked={musicSeparate}
+            onChange={setMusicSeparate}
+            label={t('dash.musicSeparate')}
+          />
         </div>
         {musicSeparate && (
           <div className="mt-3 border-l border-accent/40 pl-4">
@@ -231,7 +235,7 @@ function Slider({
   );
 }
 
-/** Сетка 3×3 якорей. Точка в каждой кнопке стоит в соответствующем углу (через positionToFlex). */
+/** 3×3 position anchor grid; dot position matches corner via positionToFlex. */
 function PositionGrid({
   value,
   onChange,
@@ -253,7 +257,9 @@ function PositionGrid({
             onClick={() => onChange(p)}
             style={{ justifyContent: justify, alignItems: align }}
             className={`flex h-9 w-9 cursor-pointer border p-1.5 transition-colors ${
-              active ? 'border-accent bg-accent-soft' : 'border-border bg-surface-2 hover:border-accent'
+              active
+                ? 'border-accent bg-accent-soft'
+                : 'border-border bg-surface-2 hover:border-accent'
             }`}
           >
             <span className={`h-2 w-2 rounded-full ${active ? 'bg-accent' : 'bg-muted'}`} />
@@ -264,7 +270,7 @@ function PositionGrid({
   );
 }
 
-/** Мини-превью 16:9: плейсхолдер медиа в текущей позиции/размере/отступе (тот же positionToFlex). */
+/** 16:9 preview of media placeholder with current position/size/margin. */
 function LayoutPreview({
   position,
   size,

@@ -2,9 +2,8 @@ import { useEffect } from 'react';
 import type { SubmissionSummary } from '@tmw/shared';
 
 /**
- * Горячие клавиши разбора очереди (действуют на голову очереди pending[0]).
- * Намеренно БЕЗ массива зависимостей: эффект пересоздаётся каждый рендер, чтобы
- * обработчик всегда видел актуальные pending и колбэки.
+ * Queue hotkeys: intentionally no dependency array so handler always sees
+ * current pending and callbacks on each render.
  */
 export function useQueueHotkeys({
   active,
@@ -26,8 +25,8 @@ export function useQueueHotkeys({
     const onKey = (e: KeyboardEvent) => {
       const el = document.activeElement;
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) return;
-      if (el?.closest('[data-media-player]')) return; // фокус внутри плеера — его клавиши важнее
-      if (document.querySelector('[role="dialog"]')) return; // открыт confirm бана
+      if (el?.closest('[data-media-player]')) return; // focus inside player — its keys take precedence
+      if (document.querySelector('[role="dialog"]')) return; // skip if ban confirm open
       const cur = pending[0];
       if (!cur) return;
       const k = e.key.toLowerCase();

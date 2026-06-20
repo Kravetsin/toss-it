@@ -2,7 +2,6 @@ import type { SubmissionSummary } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { AudioPlayer, ImageFrame, VideoThumb, YouTubeFrame } from '@/ui/media';
 
-/** Превью отправки в очереди: картинка/видео/youtube/аудио + текст. */
 export function SubmissionPreview({ s }: { s: SubmissionSummary }) {
   const { t } = useI18n();
   const label = s.senderName ?? t('common.anon');
@@ -12,11 +11,25 @@ export function SubmissionPreview({ s }: { s: SubmissionSummary }) {
     s.kind === 'image' ? (
       <ImageFrame src={s.url} alt={label} size="queue" zoomable className="max-w-sm" />
     ) : s.kind === 'video' ? (
-      <VideoThumb src={s.url} durationHintSec={hint} size="queue" label={label} className="w-full max-w-sm" />
+      <VideoThumb
+        src={s.url}
+        durationHintSec={hint}
+        size="queue"
+        label={label}
+        className="w-full max-w-sm"
+      />
     ) : s.kind === 'youtube' ? (
-      s.youtubeId ? <YouTubeFrame youtubeId={s.youtubeId} size="queue" /> : null
+      s.youtubeId ? (
+        <YouTubeFrame youtubeId={s.youtubeId} size="queue" />
+      ) : null
     ) : s.kind === 'audio' ? (
-      <AudioPlayer src={s.url} size="queue" durationHintSec={hint} label={label} className="w-full max-w-sm" />
+      <AudioPlayer
+        src={s.url}
+        size="queue"
+        durationHintSec={hint}
+        label={label}
+        className="w-full max-w-sm"
+      />
     ) : null;
 
   return (

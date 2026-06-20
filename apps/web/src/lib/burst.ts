@@ -15,8 +15,7 @@ interface P {
   ttl: number;
 }
 
-// Бренд-цвета читаем из токенов темы (как BackgroundStars), литералы — фолбэк.
-// Тёмные красные — оттенки осколков, не токены, остаются как есть.
+// Brand accent from theme tokens (fallback: #8df0cc); dark reds are hardcoded shard tints.
 let MINT = '#8df0cc';
 const REDS = ['#fb5b6e', '#c23a4a', '#7e2533'];
 let colorsResolved = false;
@@ -102,9 +101,8 @@ function loop(now: number) {
 }
 
 /**
- * Распад карточки в точке её прямоугольника (клиентские координаты).
- * approve — мятные искры вверх (растворение); reject — красные осколки наружу + вниз (рассыпание).
- * dir смещает разлёт по X в сторону свайпа. Ленивый fixed-канвас на body (z-45, pointer-events:none).
+ * Burst particle effect from card rect. approve: mint sparks upward; reject: red shards outward+down.
+ * dir: X-spread bias (swipe direction). Uses lazy fixed canvas (z-45, pointer-events:none).
  */
 export function disintegrate(rect: DOMRect, kind: 'approve' | 'reject', dir = 0) {
   if (typeof window === 'undefined') return;

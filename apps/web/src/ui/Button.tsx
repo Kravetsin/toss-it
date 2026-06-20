@@ -11,33 +11,48 @@ const SIZE: Record<ButtonSize, string> = {
 };
 
 interface VariantSpec {
-  /** классы на самой кнопке */
   cls: string;
   corners: boolean;
   /**
-   * Цвет заливки круговой анимации.
-   * undefined → `bg-text` + `mix-blend-mode: difference` на лейбле (инверсия; для прозрачных фонов).
-   * string  → кастомный цвет без blend (для непрозрачных фонов и тихих вариантов).
+   * Circular fill color. undefined → bg-text + mix-blend-difference label
+   * (inverts; for transparent bg). string → custom color, no blend (opaque/quiet bg).
    */
   fillColor?: string;
-  /** цвет уголков (--cf-color) */
+  /** corner color (--cf-color) */
   cf?: string;
-  /** цвет лейбла */
   label?: string;
 }
 
 const VARIANTS: Record<ButtonVariant, VariantSpec> = {
-  // Штриховка + уголки + круговая заливка с инверсией лейбла (геро-CTA).
   primary: { cls: 'hatch-strong bg-transparent', corners: true },
-  // То же, но штриховка слабее (10%).
   framed: { cls: 'hatch bg-transparent', corners: true },
-  // Сплошной акцент: шимер rgba поверх фона (без инверсии).
-  accent: { cls: 'bg-accent', corners: true, fillColor: 'rgba(255,255,255,0.25)', cf: 'var(--color-accent)', label: 'text-accent-contrast' },
-  danger: { cls: 'bg-danger', corners: true, fillColor: 'rgba(255,255,255,0.25)', cf: 'var(--color-danger)', label: 'text-danger-contrast' },
-  // Тихая обводка с уголками.
-  secondary: { cls: 'bg-transparent', corners: true, fillColor: 'rgba(255,255,255,0.10)', cf: 'var(--color-muted)', label: 'text-text' },
-  // Только текст — лёгкий шимер вместо opacity-hover.
-  ghost: { cls: 'bg-transparent', corners: false, fillColor: 'rgba(255,255,255,0.07)', label: 'text-muted' },
+  accent: {
+    cls: 'bg-accent',
+    corners: true,
+    fillColor: 'rgba(255,255,255,0.25)',
+    cf: 'var(--color-accent)',
+    label: 'text-accent-contrast',
+  },
+  danger: {
+    cls: 'bg-danger',
+    corners: true,
+    fillColor: 'rgba(255,255,255,0.25)',
+    cf: 'var(--color-danger)',
+    label: 'text-danger-contrast',
+  },
+  secondary: {
+    cls: 'bg-transparent',
+    corners: true,
+    fillColor: 'rgba(255,255,255,0.10)',
+    cf: 'var(--color-muted)',
+    label: 'text-text',
+  },
+  ghost: {
+    cls: 'bg-transparent',
+    corners: false,
+    fillColor: 'rgba(255,255,255,0.07)',
+    label: 'text-muted',
+  },
 };
 
 export function Button({

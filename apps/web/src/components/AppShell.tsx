@@ -11,7 +11,6 @@ import { Icon, type IconName } from '@/ui/icons';
 import { PlatformIcon, UserBadges } from '@/components/UserMarks';
 import { BackgroundStars } from '@/components/BackgroundStars';
 
-/** Бренд-знак: угловатый акцентный «T» + вордмарк. */
 function Brand({ compact = false }: { compact?: boolean }) {
   return (
     <Link to="/" className="flex items-center gap-2" aria-label="Tossit">
@@ -23,7 +22,6 @@ function Brand({ compact = false }: { compact?: boolean }) {
   );
 }
 
-/** Пункт боковой навигации (десктоп + мобильный drawer). */
 function NavItem({
   to,
   icon,
@@ -35,9 +33,7 @@ function NavItem({
   to: string;
   icon: IconName;
   label: string;
-  /** Скрыть лейбл (сайдбар свёрнут или мобильный иконочный рейл). */
   collapsed?: boolean;
-  /** Точное совпадение пути (по умолчанию — только для корня '/'). */
   end?: boolean;
   onClick?: () => void;
 }) {
@@ -54,7 +50,8 @@ function NavItem({
       }
       style={{
         gap: collapsed ? 0 : '0.75rem',
-        transition: 'gap var(--dur) ease-out, color var(--dur-fast) ease-out, background-color var(--dur-fast) ease-out',
+        transition:
+          'gap var(--dur) ease-out, color var(--dur-fast) ease-out, background-color var(--dur-fast) ease-out',
       }}
       {...handlers}
     >
@@ -74,8 +71,6 @@ function NavItem({
     </NavLink>
   );
 
-  // В свёрнутом сайдбаре лейбл скрыт — подсказываем жидкостным тултипом сбоку (справа).
-  // В развёрнутом виде лейбл виден, тултип не нужен.
   return collapsed ? (
     <Tooltip content={label} placement="right" focusable={false} className="w-full">
       {link}
@@ -85,11 +80,6 @@ function NavItem({
   );
 }
 
-/**
- * Круглый icon-NavLink для мобильной панели и свёрнутого сайдбара.
- * `tip` — сторона жидкостного тултипа (свёрнутый сайдбар — 'right'); на мобильной
- * тач-панели не задаём (hover там не работает).
- */
 function MobileNavIcon({
   to,
   icon,
@@ -136,7 +126,6 @@ function MobileNavIcon({
   );
 }
 
-/** Строка аккаунт-меню: иконка + лейбл, единый hover. Ссылка или действие. */
 function AccountRow({
   icon,
   label,
@@ -170,9 +159,6 @@ function AccountRow({
   );
 }
 
-/** Блок аккаунта: карточка + строки меню + языковый тоггл + feedback.
- *  Используется и в десктопном сайдбаре, и в мобильном drawer.
- *  onNavigate вызывается при клике на ссылки (для закрытия drawer). */
 function AccountBlock({
   user,
   onLogout,
@@ -219,7 +205,6 @@ function AccountBlock({
   );
 }
 
-/** Модалка обратной связи: Discord + Telegram. */
 function FeedbackModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t } = useI18n();
   useEffect(() => {
@@ -275,7 +260,6 @@ function FeedbackModal({ open, onClose }: { open: boolean; onClose: () => void }
   );
 }
 
-/** Сайдбар: коллапсируется до иконочного рейла (md+). */
 function Sidebar({
   user,
   onLogout,
@@ -295,7 +279,6 @@ function Sidebar({
       className="relative sticky top-0 hidden h-screen shrink-0 flex-col border-r border-border bg-surface md:flex overflow-visible"
       style={{ width: collapsed ? '4rem' : '15rem', transition: 'width var(--dur) ease-out' }}
     >
-      {/* Кнопка свернуть / развернуть — по центру правой грани. */}
       <button
         type="button"
         onClick={onToggle}
@@ -305,8 +288,9 @@ function Sidebar({
         <Icon name={collapsed ? 'chevron-right' : 'chevron-left'} size={12} />
       </button>
 
-      {/* Логотип */}
-      <div className={`flex items-center overflow-hidden px-3 py-5 ${collapsed ? 'justify-center' : ''}`}>
+      <div
+        className={`flex items-center overflow-hidden px-3 py-5 ${collapsed ? 'justify-center' : ''}`}
+      >
         <Link
           to="/"
           aria-label="Tossit"
@@ -325,10 +309,15 @@ function Sidebar({
         </Link>
       </div>
 
-      {/* Навигация */}
       <nav className="flex flex-col gap-1 px-2">
         <NavItem to="/" icon="home" label={t('nav.home')} collapsed={collapsed} />
-        <NavItem to="/dashboard" icon="shield" label={t('nav.dashboard')} collapsed={collapsed} end />
+        <NavItem
+          to="/dashboard"
+          icon="shield"
+          label={t('nav.dashboard')}
+          collapsed={collapsed}
+          end
+        />
         <NavItem
           to="/dashboard/settings"
           icon="settings"
@@ -339,7 +328,6 @@ function Sidebar({
 
       <div className="flex-1" />
 
-      {/* Аккаунт-блок — полный или компактный */}
       {collapsed ? (
         <div className="flex flex-col items-center gap-1.5 border-t border-border p-2">
           <Avatar url={user.avatarUrl} name={user.displayName} size={34} />
@@ -372,7 +360,6 @@ function Sidebar({
   );
 }
 
-/** Мобильный drawer — тот же сайдбар, выезжает слева. */
 function MobileSidebar({
   open,
   onClose,
@@ -441,8 +428,14 @@ function MobileSidebar({
 
         <AccountBlock
           user={user}
-          onLogout={() => { onLogout(); onClose(); }}
-          onFeedback={() => { onFeedback(); onClose(); }}
+          onLogout={() => {
+            onLogout();
+            onClose();
+          }}
+          onFeedback={() => {
+            onFeedback();
+            onClose();
+          }}
           onNavigate={onClose}
         />
       </div>
@@ -450,7 +443,6 @@ function MobileSidebar({
   );
 }
 
-/** Мобильная верхняя панель (< md): бренд + nav + бургер. */
 function MobileBar({ onMenu }: { onMenu: () => void }) {
   const { t } = useI18n();
   return (
@@ -466,11 +458,7 @@ function MobileBar({ onMenu }: { onMenu: () => void }) {
   );
 }
 
-/**
- * Постоянная оболочка приложения для стримерских маршрутов (`/`, `/dashboard`).
- * Сайдбар/мобильная панель показываются только залогиненному пользователю —
- * лендинг и экраны входа рендерятся во всю ширину. См. apps/web/REDESIGN.md §7.1.
- */
+/** Sidebar/mobile bar only shown to logged-in user; landing/auth render full-width (REDESIGN.md §7.1). */
 const SIDEBAR_KEY = 'tmw_sidebar_collapsed';
 
 export function AppShell() {

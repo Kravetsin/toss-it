@@ -2,10 +2,8 @@ import { useEffect, type ReactNode } from 'react';
 import { IconButton } from './IconButton';
 
 /**
- * Выезжающая панель (slide-over справа) — для тяжёлого контента вне основного
- * потока (настройки, история). Backdrop-клик и Escape закрывают, скролл body
- * блокируется. Анимация slide уважает prefers-reduced-motion (глобальное правило
- * в index.css гасит длительность). z-[60] — выше LanguageSwitcher (z-50).
+ * Right slide-over panel. z-[60] sits above LanguageSwitcher (z-50);
+ * reduced-motion is handled by a global rule in index.css.
  */
 export function Drawer({
   open,
@@ -19,7 +17,6 @@ export function Drawer({
   onClose: () => void;
   title: ReactNode;
   closeLabel: string;
-  /** Tailwind max-w-* класс панели. */
   width?: string;
   children: ReactNode;
 }) {

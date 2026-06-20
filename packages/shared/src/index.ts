@@ -1,9 +1,9 @@
 export type MediaKind = 'image' | 'video' | 'audio' | 'text' | 'youtube';
 
-/** Максимальная длина текста сообщения/подписи (валидируется и на клиенте, и на сервере). */
+/** Max message/caption length; validated on both client and server. */
 export const TEXT_MAX_LEN = 280;
 
-/** Один из 9 якорей-пресетов для позиционирования медиа в оверлее (в порядке сетки 3×3). */
+/** One of 9 preset anchors for media placement in overlay (3x3 grid order). */
 export type OverlayPosition =
   | 'top-left'
   | 'top'
@@ -15,7 +15,7 @@ export type OverlayPosition =
   | 'bottom'
   | 'bottom-right';
 
-/** Порядок как в UI-сетке (слева направо, сверху вниз). */
+/** UI grid order (left-to-right, top-to-bottom). */
 export const OVERLAY_POSITIONS: OverlayPosition[] = [
   'top-left',
   'top',
@@ -29,18 +29,22 @@ export const OVERLAY_POSITIONS: OverlayPosition[] = [
 ];
 
 /**
- * Маппинг якоря во flexbox-выравнивание (justify-content / align-items).
- * Единый источник правды для оверлея и для превью в дашборде — чтобы они совпадали.
+ * Anchor to flexbox alignment (justify-content / align-items).
+ * Single source of truth so overlay and dashboard preview match.
  */
 export function positionToFlex(pos: OverlayPosition): { justify: string; align: string } {
-  const justify = pos.includes('left') ? 'flex-start' : pos.includes('right') ? 'flex-end' : 'center';
+  const justify = pos.includes('left')
+    ? 'flex-start'
+    : pos.includes('right')
+      ? 'flex-end'
+      : 'center';
   const align = pos.includes('top') ? 'flex-start' : pos.includes('bottom') ? 'flex-end' : 'center';
   return { justify, align };
 }
 
 /**
- * Платформы соц-ссылок в публичном профиле канала. Порядок = порядок в селекте UI.
- * 'link' — произвольная ссылка (generic-иконка) для всего, чего нет в списке.
+ * Social link platforms in public channel profile. Order = UI select order.
+ * 'link' — arbitrary URL (generic icon) for anything not listed.
  */
 export type SocialPlatform =
   | 'twitch'
@@ -63,14 +67,13 @@ export const SOCIAL_PLATFORMS: SocialPlatform[] = [
   'link',
 ];
 
-/** Ссылка на ресурс стримера, показывается в шапке страницы зрителя. */
 export interface ChannelLink {
   platform: SocialPlatform;
-  /** Абсолютный http(s)-URL; валидируется на сервере. */
+  /** Absolute http(s) URL; validated on server. */
   url: string;
 }
 
-/** Лимиты редактируемого профиля канала (валидируются и на клиенте, и на сервере). */
+/** Editable channel profile limits; validated on both client and server. */
 export const CHANNEL_DESCRIPTION_MAX_LEN = 200;
 export const CHANNEL_LINKS_MAX = 8;
 export const CHANNEL_LINK_URL_MAX_LEN = 300;
@@ -79,38 +82,34 @@ export type SubmissionStatus = 'pending' | 'approved' | 'rejected' | 'played' | 
 
 export interface MediaPlayPayload {
   submissionId: string;
-  /** Относительный путь на сервере, например /api/media/<id>. Оверлей сам подставляет origin. */
+  /** Server-relative path, e.g. /api/media/<id>. Overlay prepends origin. */
   url: string;
   kind: MediaKind;
-  /** Жёсткий лимит показа: оверлей снимает медиа с экрана по этому таймеру. */
+  /** Hard display cap: overlay removes media when this timer elapses. */
   durationMs: number;
-  /** Громкость воспроизведения, 0–100 (настройка канала). */
+  /** Playback volume, 0-100 (channel setting). */
   volume: number;
-  /** Проиграть короткий звук при появлении медиа (настройка канала). */
   sound: boolean;
-  /** Зачитать имя отправителя голосом (TTS, настройка канала). */
   tts: boolean;
-  /** Отсутствует, если стример выключил показ имени отправителя. */
+  /** Absent if streamer disabled showing sender name. */
   senderName?: string;
-  /** Текст: подпись к файлу или тело текста-онли (kind='text'). */
+  /** Caption for a file, or body of text-only submission (kind='text'). */
   text?: string;
-  /** Зачитать текст сообщения голосом (TTS, настройка канала). */
   ttsText: boolean;
-  /** Якорь-позиция медиа в кадре (настройка канала). */
   position: OverlayPosition;
-  /** Максимальный размер медиа в % вьюпорта (настройка канала). */
+  /** Max media size, % of viewport (channel setting). */
   size: number;
-  /** Отступ от края кадра в % вьюпорта — для прижатых к краю позиций. */
+  /** Edge margin, % of viewport — for edge-anchored positions. */
   margin: number;
-  /** YouTube: id видео (kind='youtube'). Оверлей рендерит встроенный IFrame-плеер. */
+  /** YouTube video id (kind='youtube'); overlay renders embedded IFrame player. */
   youtubeId?: string;
-  /** YouTube: старт-секунда из таймкода ссылки (0 — с начала). */
+  /** YouTube start second from link timecode (0 = from start). */
   youtubeStartSeconds?: number;
-  /** YouTube Music (music.youtube.com): рендерить компактным плеером, а не на весь кадр. */
+  /** YouTube Music: render as compact player rather than fullscreen. */
   youtubeMusic?: boolean;
 }
 
-/** Статус отправки для живого индикатора у зрителя ('playing' — транзиентный, не в БД). */
+/** Live status for viewer indicator ('playing' is transient, not persisted). */
 export type LiveStatus = SubmissionStatus | 'playing';
 
 export interface SubmissionStatusEvent {
@@ -119,118 +118,102 @@ export interface SubmissionStatusEvent {
 }
 
 /**
- * Донат, полученный сервером от стороннего сервиса (Donatello и т.п.) — для зрелища на оверлее.
- * Деньги через нас НЕ идут: мы лишь слушаем события и превращаем их в эффект.
+ * Donation received by server from a third party (Donatello etc.) for overlay FX.
+ * Money does NOT flow through us; we only listen and turn events into effects.
  */
 export interface DonationFx {
-  /** Источник: 'donatello' | 'test' | ... */
   provider: string;
   donorName: string | null;
-  /** Сумма в единицах валюты провайдера (для масштаба интенсивности эффекта). */
+  /** Amount in provider's currency units (scales effect intensity). */
   amount: number;
   currency: string;
   message: string | null;
 }
 
-/** Статус интеграции донат-сервиса (для дашборда). Колбек-модель: провайдер POST-ит донаты к нам. */
+/** Donation integration status (dashboard). Callback model: provider POSTs to us. */
 export interface IntegrationStatus {
   provider: string;
   connected: boolean;
-  /** Куда стример указывает колбек в Donatello (наш публичный POST-эндпоинт). */
+  /** Callback URL the streamer sets in Donatello (our public POST endpoint). */
   callbackUrl: string | null;
-  /** Секрет для заголовка X-Key — проверка, что запрос пришёл из Donatello. */
+  /** Secret for X-Key header — verifies request came from Donatello. */
   key: string | null;
 }
 
-/** События сервер → оверлей. */
 export interface ServerToOverlayEvents {
   'media:play': (payload: MediaPlayPayload) => void;
   'media:skip': (submissionId: string) => void;
-  /** Донат на канал → всплеск-эффект на оверлее (на весь экран, поверх показа медиа). */
+  /** Channel donation → fullscreen burst FX over media display. */
   'donation:fx': (fx: DonationFx) => void;
 }
 
-/** События сервер → страница зрителя (живой статус его отправки). */
 export interface ServerToViewerEvents {
   'submission:status': (event: SubmissionStatusEvent) => void;
 }
 
-/** События оверлей → сервер. */
 export interface OverlayToServerEvents {
   'playback:done': (submissionId: string) => void;
-  /** Оверлей узнал реальную длительность ролика (для YouTube — только при проигрывании). */
+  /** Overlay learned real clip duration (YouTube: only during playback). */
   'playback:duration': (submissionId: string, durationMs: number) => void;
 }
 
-/** Краткая карточка отправки для очереди модерации. */
 export interface SubmissionSummary {
   id: string;
   senderUserId: string | null;
   senderName: string | null;
   kind: MediaKind;
   mime: string;
-  /** Текст: подпись к файлу или тело текста-онли. */
+  /** Caption for a file, or body of text-only submission. */
   text: string | null;
   durationMs: number;
   /** epoch ms */
   createdAt: number;
-  /** Превью: тот же /api/media/<id>. */
   url: string;
-  /** YouTube: id видео для превью (kind='youtube'), иначе null/отсутствует. */
+  /** YouTube video id for preview (kind='youtube'), else null/absent. */
   youtubeId?: string | null;
 }
 
-/** События сервер → дашборд стримера. */
 export interface ServerToDashboardEvents {
   'moderation:new': (submission: SubmissionSummary) => void;
-  /** Отправка ушла из pending (одобрена/отклонена) — убрать из списка. */
+  /** Submission left pending (approved/rejected) — remove from list. */
   'moderation:resolved': (submissionId: string) => void;
-  /** На оверлее начался показ — панель «сейчас играет». */
   'playback:started': (submission: SubmissionSummary) => void;
   'playback:ended': (submissionId: string) => void;
 }
 
-/** Настройки канала (правит стример в дашборде). */
 export interface ChannelSettings {
-  /** Лимит длительности для видео и картинок, мс. Более длинные видео обрезаются. */
+  /** Duration cap for video and images, ms. Longer videos are truncated. */
   maxDurationMs: number;
-  /** Отдельный лимит для аудио (музыка длиннее мемов), мс. */
+  /** Separate cap for audio (music runs longer than memes), ms. */
   maxAudioDurationMs: number;
   maxFileSizeBytes: number;
-  /** Громкость в оверлее, 0–100. */
+  /** Overlay volume, 0-100. */
   volume: number;
-  /** «Стоп-кран»: false — приём отправок приостановлен. */
+  /** Kill switch: false = submissions paused. */
   accepting: boolean;
   showSenderName: boolean;
-  /** Короткий звук при появлении медиа в оверлее. */
   soundAlert: boolean;
-  /** Зачитывать имя отправителя голосом (TTS). */
   ttsName: boolean;
-  /** Зачитывать текст сообщения голосом (TTS). */
   ttsMessage: boolean;
-  /** Якорь-позиция медиа в кадре оверлея (общая для картинок/видео; музыка наследует, если musicSeparate=false). */
+  /** Media anchor (shared for images/video; music inherits unless musicSeparate). */
   overlayPosition: OverlayPosition;
-  /** Максимальный размер медиа, % вьюпорта (10–100). */
+  /** Max media size, % of viewport (10-100). */
   overlaySize: number;
-  /** Отступ от края кадра, % вьюпорта (0–25) — для прижатых к краю позиций. */
+  /** Edge margin, % of viewport (0-25) — for edge-anchored positions. */
   overlayMargin: number;
-  /** true — у музыкального плеера своя раскладка (поля music*), иначе наследует overlay*. */
+  /** true = music player has its own layout (music* fields), else inherits overlay*. */
   musicSeparate: boolean;
-  /** Якорь-позиция музыкального плеера (если musicSeparate). */
   musicPosition: OverlayPosition;
-  /** Размер музыкального плеера, % вьюпорта (если musicSeparate). */
   musicSize: number;
-  /** Отступ музыкального плеера от края, % вьюпорта (если musicSeparate). */
   musicMargin: number;
-  /** Описание канала на странице зрителя; null/'' — показываем дефолтный подзаголовок. */
+  /** Channel description on viewer page; null/'' = default subtitle shown. */
   description: string | null;
-  /** Соц-ссылки в шапке страницы зрителя (порядок сохраняется). */
+  /** Social links in viewer page header (order preserved). */
   links: ChannelLink[];
 }
 
 export interface HistoryEntry extends SubmissionSummary {
   status: SubmissionStatus;
-  /** Отправитель — первопроходец (для значка у ника). */
   isFounder: boolean;
 }
 
@@ -240,7 +223,6 @@ export interface ListedUser {
   displayName: string;
   /** epoch ms */
   addedAt: number;
-  /** Первопроходец — для значка у ника. */
   isFounder: boolean;
 }
 
@@ -248,15 +230,15 @@ export interface UploadResponse {
   id: string;
   status: SubmissionStatus;
   durationMs: number;
-  /** Позиция в очереди показа (1 = следующий). */
+  /** Position in playback queue (1 = next). */
   queuePosition: number;
   /**
-   * Сколько секунд этому отправителю ждать до следующей отправки (кулдаун зрителя).
-   * 0 — кулдауна нет (например, владелец канала). Клиент показывает проактивный таймер
-   * сразу после отправки, а не ошибкой при повторной попытке.
+   * Seconds this sender must wait before next submission (viewer cooldown).
+   * 0 = no cooldown (e.g. channel owner). Client shows a proactive timer
+   * right after sending rather than erroring on retry.
    */
   cooldownSec: number;
-  /** Новый баланс звёздной пыли отправителя после начисления за эту отправку. */
+  /** Sender's stardust balance after crediting this submission. */
   stardustBalance: number;
 }
 
@@ -265,15 +247,15 @@ export interface SessionUser {
   login: string;
   displayName: string;
   avatarUrl: string | null;
-  /** Первопроходец — погасил промокод founder. Даёт бейдж и грандфэзеринг. */
+  /** Founder — redeemed founder promo. Grants badge and grandfathering. */
   isFounder: boolean;
-  /** Входит в ADMIN_USER_IDS — может выпускать промокоды. */
+  /** In ADMIN_USER_IDS — may issue promo codes. */
   isAdmin: boolean;
-  /** Звёздная пыль — глобальный косметический кошелёк пользователя. */
+  /** Stardust — user's global cosmetic wallet. */
   stardust: number;
 }
 
-/** Собственный канал залогиненного стримера (overlayToken — секрет, наружу не светить). */
+/** Logged-in streamer's own channel (overlayToken is secret, never expose). */
 export interface ChannelSelf {
   id: string;
   overlayToken: string;
@@ -284,16 +266,15 @@ export interface MeResponse {
   channel: ChannelSelf | null;
 }
 
-/** Канал, к которому у пользователя есть доступ в дашборде: свой или где он модератор. */
+/** Channel the user can access in dashboard: own or one they moderate. */
 export interface AccessibleChannel {
   channelId: string;
-  /** Логин владельца канала (для публичных ссылок и заголовка). */
+  /** Channel owner's login (for public links and title). */
   login: string;
   displayName: string;
   role: 'owner' | 'moderator';
 }
 
-/** Инфо об инвайте модератора для страницы принятия. */
 export interface ModInviteInfo {
   channelLogin: string;
   channelDisplayName: string;
@@ -303,67 +284,59 @@ export interface PublicChannelInfo {
   login: string;
   displayName: string;
   avatarUrl: string | null;
-  /** false — стример приостановил приём отправок. */
+  /** false = streamer paused submissions. */
   accepting: boolean;
-  /** Лимиты канала — показываем зрителю до отправки, а не ошибкой после. */
+  /** Channel limits — shown to viewer before sending, not errored after. */
   maxDurationMs: number;
   maxAudioDurationMs: number;
   maxFileSizeBytes: number;
-  /** Владелец канала — первопроходец: показываем бейдж в шапке. */
   isFounder: boolean;
-  /** Описание от стримера; null — зритель видит дефолтный подзаголовок. */
+  /** Streamer description; null = viewer sees default subtitle. */
   description: string | null;
-  /** Соц-ссылки стримера для шапки. */
   links: ChannelLink[];
 }
 
-/** Результат гашения промокода. */
 export interface PromoRedeemResult {
   ok: true;
-  /** Тип погашенного гранта ('founder' и т.д.) — фронт показывает сообщение по типу. */
+  /** Redeemed grant type ('founder' etc.) — frontend messages per type. */
   grant: string;
 }
 
-/** Промокод в списке админки. */
 export interface AdminPromoCode {
   code: string;
   grant: string;
   note: string | null;
   createdAt: number;
-  /** Логин погасившего, либо null — код ещё не использован. */
+  /** Redeemer's login, or null if code unused. */
   redeemedByLogin: string | null;
   redeemedAt: number | null;
 }
 
-/** Один отправитель в таблице лидеров канала. */
 export interface LeaderboardEntry {
   userId: string;
   login: string;
   displayName: string;
-  /** Сколько медиа этого зрителя реально проигралось на стриме. */
+  /** How many of this viewer's media actually played on stream. */
   count: number;
-  /** Первопроходец — для значка у ника. */
   isFounder: boolean;
 }
 
-/** Кросс-канальная репутация пользователя — агрегаты по всем каналам сразу. */
+/** Cross-channel user reputation — aggregates across all channels. */
 export interface ReputationStats {
-  /** Сколько отправок зрителя реально показано на стримах (status='played'). */
+  /** Submissions actually shown on streams (status='played'). */
   accepted: number;
-  /** Сколько отправок отклонено модерацией. */
   rejected: number;
-  /** На скольких каналах зритель в белом списке. */
+  /** Channels where viewer is whitelisted. */
   whitelistedChannels: number;
-  /** На скольких каналах зритель забанен. */
+  /** Channels where viewer is banned. */
   bannedChannels: number;
-  /** Отправитель — первопроходец (статус founder). */
   isFounder: boolean;
 }
 
 export interface ApiError {
   error: string;
-  /** Машиночитаемый код для особой обработки на клиенте (напр. 'cooldown'). */
+  /** Machine-readable code for special client handling (e.g. 'cooldown'). */
   code?: string;
-  /** Для code='cooldown': через сколько секунд можно повторить. */
+  /** For code='cooldown': seconds until retry allowed. */
   retryAfterSec?: number;
 }

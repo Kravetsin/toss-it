@@ -2,10 +2,8 @@ import { useEffect, useState } from 'react';
 import type { AccessibleChannel } from '@tmw/shared';
 import { getMyChannels } from '@/lib/api';
 
-/**
- * Доступные каналы (свои + где модератор), выбранный канал с запоминанием в localStorage,
- * и производные current/channelId/isOwner.
- */
+// Hook: list of accessible channels (owned + moderated), selected channel persisted via localStorage.
+// Returns: channelsList/list/current, channelId, isOwner, and setCurrentId control.
 export function useChannels() {
   const [channelsList, setChannelsList] = useState<AccessibleChannel[] | 'loading'>('loading');
   const [currentId, setCurrentId] = useState<string | null>(() => {
@@ -32,13 +30,12 @@ export function useChannels() {
   const channelId = current?.channelId ?? null;
   const isOwner = current?.role === 'owner';
 
-  // Запоминаем выбранный канал.
   useEffect(() => {
     if (channelId) {
       try {
         localStorage.setItem('tmw_dash_channel', channelId);
       } catch {
-        /* приватный режим */
+        // localStorage may be unavailable
       }
     }
   }, [channelId]);

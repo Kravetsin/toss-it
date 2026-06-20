@@ -3,10 +3,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 const HIDE_MS = 3000;
 
 /**
- * Авто-скрытие контролов плеера (как в Telegram): пока `active` (идёт воспроизведение и не
- * открыто меню) — прячем панель через 3 с бездействия; `show()` (по движению мыши/фокусу)
- * показывает снова и перезапускает таймер. Когда `active=false` (пауза, буферизация,
- * открытое меню) — панель всегда видима.
+ * Auto-hide player controls (Telegram style): when active, hide panel after 3s idle; show() displays
+ * and restarts timer. Panel always visible when inactive (paused/buffering/menu open).
  */
 export function useAutoHideControls(active: boolean): { visible: boolean; show: () => void } {
   const [visible, setVisible] = useState(true);

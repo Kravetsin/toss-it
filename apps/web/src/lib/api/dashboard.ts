@@ -8,14 +8,12 @@ import type {
 } from '@tmw/shared';
 import { json } from './http';
 
-/** Префикс ручек дашборда конкретного канала. */
 const dash = (channelId: string) => `/api/dashboard/${encodeURIComponent(channelId)}`;
 
 export function getPending(channelId: string): Promise<SubmissionSummary[]> {
   return fetch(`${dash(channelId)}/pending`).then((r) => json<SubmissionSummary[]>(r));
 }
 
-/** Кросс-канальная репутация набора пользователей (батчем). */
 export function getReputation(
   channelId: string,
   userIds: string[],
@@ -61,7 +59,7 @@ export function getBans(channelId: string): Promise<ListedUser[]> {
   return fetch(`${dash(channelId)}/bans`).then((r) => json<ListedUser[]>(r));
 }
 
-/** Прямой бан зрителя по userId (из истории/белого списка, без привязки к отправке). */
+/** Direct viewer ban by userId, not tied to a submission. */
 export function banUser(channelId: string, userId: string): Promise<unknown> {
   return fetch(`${dash(channelId)}/bans/${encodeURIComponent(userId)}`, { method: 'POST' }).then(
     (r) => json(r),
@@ -84,7 +82,7 @@ export function skipCurrent(channelId: string): Promise<{ skipped: boolean }> {
   );
 }
 
-/** Владелец: тестовый донат → всплеск на оверлее (превью эффекта). */
+/** Channel owner: test donation triggers effect burst on overlay (effect preview). */
 export function sendTestDonation(channelId: string, amount = 50): Promise<unknown> {
   return fetch(`${dash(channelId)}/test-donation`, {
     method: 'POST',
@@ -93,13 +91,11 @@ export function sendTestDonation(channelId: string, amount = 50): Promise<unknow
   }).then((r) => json(r));
 }
 
-// --- Интеграции донат-сервисов ---
-
 export function getIntegrations(channelId: string): Promise<IntegrationStatus[]> {
   return fetch(`${dash(channelId)}/integrations`).then((r) => json<IntegrationStatus[]>(r));
 }
 
-/** Включить колбек Donatello — сервер сгенерит и вернёт Callback URL + Key. Идемпотентно. */
+/** Enable Donatello webhook (idempotent). Server generates and returns Callback URL + Key. */
 export function connectDonatello(channelId: string): Promise<IntegrationStatus> {
   return fetch(`${dash(channelId)}/integrations/donatello`, { method: 'POST' }).then((r) =>
     json<IntegrationStatus>(r),
@@ -130,8 +126,6 @@ export function saveSettings(
 export function getHistory(channelId: string): Promise<HistoryEntry[]> {
   return fetch(`${dash(channelId)}/history`).then((r) => json<HistoryEntry[]>(r));
 }
-
-// --- Модераторы / инвайты ---
 
 export function getModerators(channelId: string): Promise<ListedUser[]> {
   return fetch(`${dash(channelId)}/moderators`).then((r) => json<ListedUser[]>(r));

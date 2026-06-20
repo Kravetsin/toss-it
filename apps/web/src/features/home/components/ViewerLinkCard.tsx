@@ -4,7 +4,6 @@ import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
 import { Button, Card, CopyableLinkBox } from '@/ui';
 
-/** Карточка «Управление»: переходы в дашборд/страницу зрителя + копируемая ссылка зрителя. */
 export function ViewerLinkCard({ login, viewerUrl }: { login: string; viewerUrl: string }) {
   const { t } = useI18n();
   const { copiedKey, copy } = useClipboard();

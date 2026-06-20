@@ -6,9 +6,8 @@ import { config } from './config';
 import type { Storage } from './storage';
 
 /**
- * Эфемерное хранение: файл живёт от загрузки до показа.
- * Зачистка удаляет файлы терминальных статусов (с запасом на реконнект
- * оверлея) и протухшие отправки, которые так и не проиграли.
+ * Ephemeral storage: file lives from upload until shown. Sweep deletes files in
+ * terminal statuses (with slack for overlay reconnect) and never-played expired ones.
  */
 export function startCleanup(storage: Storage, log: FastifyBaseLogger): NodeJS.Timeout {
   const timer = setInterval(() => {
@@ -21,7 +20,7 @@ export function startCleanup(storage: Storage, log: FastifyBaseLogger): NodeJS.T
 async function sweep(storage: Storage, log: FastifyBaseLogger): Promise<void> {
   const now = Date.now();
 
-  // 1. Не показанное за queuedTtl — протухает (стрим закончился и т.п.).
+  // Not shown within queuedTtl -> expire (e.g. stream ended).
   await db
     .update(submissions)
     .set({ status: 'expired', updatedAt: new Date() })
@@ -32,7 +31,7 @@ async function sweep(storage: Storage, log: FastifyBaseLogger): Promise<void> {
       ),
     );
 
-  // 2. Терминальные статусы старше retention — удаляем файл, запись остаётся как история.
+  // Terminal statuses past retention: delete file, keep row as history.
   const stale = await db
     .select()
     .from(submissions)

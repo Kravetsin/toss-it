@@ -2,11 +2,8 @@ import { useI18n } from '@/i18n';
 import { Tooltip } from '@/ui';
 import { StarMark } from '@/components/StarMark';
 
-/**
- * Подпись к «космосу» канала: называет смысл фоновых звёзд — каждая звезда это
- * показанная на стриме отправка. Без неё фон читается просто как декор; чип даёт
- * число и связывает мерцающие звёзды с историей канала. Скрыт при пустом космосе.
- */
+/** Label for channel cosmos: connects visible stars (shimmer effects) to sent messages.
+ * Without it, background is read as decoration; hidden when count <= 0. */
 export function CosmosLegend({ count, className = '' }: { count: number; className?: string }) {
   const { t, lang } = useI18n();
   if (count <= 0) return null;

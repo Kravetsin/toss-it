@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 
-/** Небольшой бейдж-чип (напр. статус «Первопроходец»). Круглая семья, акцентный. */
 export function Badge({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
     <span

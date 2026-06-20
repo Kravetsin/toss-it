@@ -1,7 +1,6 @@
 /**
- * Разрешение CSS-токенов темы в rgb для канвас/SVG-движка «Сосуда».
- * Контракт REDESIGN: в компонентах не хардкодим hex — читаем токены один раз
- * (тот же приём, что в BackgroundStars). Тема только тёмная → кэш на весь сеанс.
+ * Resolve CSS theme tokens to RGB for canvas/SVG engine.
+ * REDESIGN contract: read tokens once per session (avoid hardcoded hex in components).
  */
 export interface Rgb {
   r: number;
@@ -11,7 +10,13 @@ export interface Rgb {
 
 function hexToRgb(h: string): Rgb {
   const s = h.replace('#', '').trim();
-  const v = s.length === 3 ? s.split('').map((c) => c + c).join('') : s;
+  const v =
+    s.length === 3
+      ? s
+          .split('')
+          .map((c) => c + c)
+          .join('')
+      : s;
   return {
     r: parseInt(v.slice(0, 2), 16),
     g: parseInt(v.slice(2, 4), 16),
@@ -23,7 +28,7 @@ export function mix(a: Rgb, b: Rgb, f: number): Rgb {
   return { r: a.r + (b.r - a.r) * f, g: a.g + (b.g - a.g) * f, b: a.b + (b.b - a.b) * f };
 }
 
-/** Подмешать белого (для блика мениска и пузырьков). */
+/** Blend toward white (meniscus gloss and bubbles). */
 export function lighten(c: Rgb, f: number): Rgb {
   return { r: c.r + (255 - c.r) * f, g: c.g + (255 - c.g) * f, b: c.b + (255 - c.b) * f };
 }

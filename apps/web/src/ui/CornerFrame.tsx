@@ -1,9 +1,8 @@
 import type { CSSProperties, ReactNode } from 'react';
 
 /**
- * Фирменные уголки-скобки (подпись бренда, см. motion.dev). По наведению/фокусу
- * рамка «выезжает» наружу; опционально — диагональная заливка (`fill`). Вся
- * механика в CSS-утилитах `.cornerframe`/`.cornerframe-fill` (apps/web/src/index.css).
+ * Brand corner brackets. All motion lives in CSS utilities
+ * `.cornerframe`/`.cornerframe-fill` (apps/web/src/index.css).
  */
 export function CornerFrame({
   tone = 'default',
@@ -13,9 +12,9 @@ export function CornerFrame({
   children,
 }: {
   tone?: 'default' | 'accent' | 'muted';
-  /** Принудительно «активное» (выехавшее) состояние без наведения. */
+  /** Force the extended/active state without hover. */
   active?: boolean;
-  /** Включить диагональную заливку на ховере. */
+  /** Enable diagonal fill on hover. */
   fill?: boolean;
   className?: string;
   children: ReactNode;

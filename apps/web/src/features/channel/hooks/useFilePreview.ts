@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-/** Object-URL превью для выбранного файла; сам освобождает URL при смене/размонтировании. */
+/** Auto-revokes ObjectURL on file change or unmount. */
 export function useFilePreview(file: File | null): string | null {
   const [url, setUrl] = useState<string | null>(null);
 

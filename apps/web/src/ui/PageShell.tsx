@@ -1,13 +1,12 @@
 import type { ReactNode } from 'react';
 
-// Полные литералы классов — чтобы Tailwind JIT их выпустил (без интерполяции фрагментов).
+// Full class literals required for Tailwind JIT to emit (avoids interpolation issues).
 const WIDTHS = {
   xl: 'max-w-xl',
   '2xl': 'max-w-2xl',
   '3xl': 'max-w-3xl',
 } as const;
 
-/** Каркас страницы: центрированный <main> с настраиваемой максимальной шириной. */
 export function PageShell({
   children,
   maxWidth = 'xl',
@@ -18,7 +17,9 @@ export function PageShell({
   className?: string;
 }) {
   return (
-    <main className={`mx-auto min-h-screen bg-bg px-4 py-10 text-text ${WIDTHS[maxWidth]} ${className}`}>
+    <main
+      className={`mx-auto min-h-screen bg-bg px-4 py-10 text-text ${WIDTHS[maxWidth]} ${className}`}
+    >
       {children}
     </main>
   );

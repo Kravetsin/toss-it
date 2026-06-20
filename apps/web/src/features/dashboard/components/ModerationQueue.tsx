@@ -5,7 +5,7 @@ import { Badge, Icon } from '@/ui';
 import { useQueueHotkeys } from '../hooks/useQueueHotkeys';
 import { SubmissionCard } from './SubmissionCard';
 
-/** Очередь модерации: единый список со свайпом (→ одобрить, ← отклонить) и разворотом строки. */
+/** Moderation queue: single list with swipe gestures (right=approve, left=reject) and row expansion. */
 export function ModerationQueue({
   pending,
   reputation,
@@ -23,10 +23,10 @@ export function ModerationQueue({
 }) {
   const { t } = useI18n();
   const [stats, setStats] = useState({ approved: 0, rejected: 0 });
-  // Оптимистично убранные (после действия), чтобы очередь пустела сразу, не дожидаясь сокета.
+  // Optimistically removed items; queue empties immediately, not waiting for socket sync.
   const [dismissed, setDismissed] = useState<Set<string>>(() => new Set());
 
-  // Чистим dismissed от заявок, которых уже нет в pending (реально удалены по сокету/обновлению).
+  // Prune dismissed items no longer in pending (deleted via socket/refresh).
   useEffect(() => {
     setDismissed((prev) => {
       if (prev.size === 0) return prev;
@@ -36,7 +36,8 @@ export function ModerationQueue({
   }, [pending]);
 
   const visible = pending.filter((p) => !dismissed.has(p.id));
-  const drop = (id: string) => setDismissed((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
+  const drop = (id: string) =>
+    setDismissed((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
 
   const approve = (s: SubmissionSummary) => {
     onApprove(s);
@@ -54,7 +55,7 @@ export function ModerationQueue({
     drop(s.id);
   };
 
-  // Хоткеи действуют на голову видимой очереди (Space/W/R/B); жесты — на конкретную строку.
+  // Hotkeys act on queue head (Space/W/R/B); gestures target specific row.
   useQueueHotkeys({
     active: visible.length > 0,
     pending: visible,

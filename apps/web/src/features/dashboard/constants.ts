@@ -18,7 +18,6 @@ export const STATUS_ICON: Record<HistoryEntry['status'], { icon: IconName; cls: 
   expired: { icon: 'clock', cls: 'text-muted' },
 };
 
-/** Длительность трека: ∞ для YouTube без известной длительности, иначе обычное форматирование. */
 export function formatTrackDuration(kind: MediaKind, durationMs: number, t: TFn): string {
   return kind === 'youtube' && durationMs <= 0 ? '∞' : formatDuration(durationMs, t);
 }

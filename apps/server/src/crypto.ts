@@ -2,11 +2,8 @@ import crypto from 'node:crypto';
 import { config } from './config';
 
 /**
- * Шифрование секретов интеграций at-rest (AES-256-GCM). Токен донат-сервиса даёт доступ
- * к истории донатов стримера — храним только в зашифрованном виде, клиенту не отдаём.
- *
- * Ключ: INTEGRATION_ENC_KEY из env (любой длины — нормализуем через sha256 к 32 байтам),
- * dev-fallback — производный от cookieSecret. Формат строки: iv:tag:ciphertext (hex).
+ * At-rest AES-256-GCM for integration secrets; never sent to client. Key from
+ * INTEGRATION_ENC_KEY (sha256 to 32 bytes), dev-fallback cookieSecret. Format: iv:tag:ciphertext (hex).
  */
 function key(): Buffer {
   const raw = process.env.INTEGRATION_ENC_KEY || config.cookieSecret;

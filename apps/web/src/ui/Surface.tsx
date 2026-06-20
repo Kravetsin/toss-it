@@ -1,9 +1,6 @@
 import type { HTMLAttributes, ReactNode } from 'react';
 
-/**
- * Стеклянная поверхность (плавающая хромированная панель/бейдж). Используется
- * дозированно — для шапки/оверлеев/бейджей над медиа, не под длинным текстом.
- */
+/** Glass surface for floating panels/badges over media; not for long text. */
 export function Surface({
   variant = 'glass',
   className = '',

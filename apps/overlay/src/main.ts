@@ -11,7 +11,7 @@ import {
   type ServerToOverlayEvents,
 } from '@tmw/shared';
 
-// --- Минимальные типы YouTube IFrame API (без зависимости @types/youtube) ---
+// Minimal YouTube IFrame API types (avoids @types/youtube dependency).
 interface YTPlayer {
   setVolume(volume: number): void;
   playVideo(): void;
@@ -41,20 +41,19 @@ declare global {
   }
 }
 
-// Pixelarticons glyphs (inline, без зависимости от React-набора в оверлее).
+// Inline pixelarticons glyph (no React icon set in the overlay).
 const GIFT_SVG =
   '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M4 6h16v2H4zM2 8h2v4H2zm2 4h16v2H4zm16-4h2v4h-2zM6 4h2v2H6zm2-2h3v2H8zm3 2h2v2h-2zm2-2h3v2h-3zm3 2h2v2h-2zM4 14h2v6H4zm2 6h12v2H6zm12-6h2v6h-2zm-7-6h2v4h-2zm0 6h2v6h-2z"/></svg>';
 
-// В dev сервер на отдельном порту; в проде оверлей раздаётся самим сервером (same-origin).
+// Dev: server on separate port. Prod: overlay served by the server (same-origin).
 const SERVER_URL = import.meta.env.DEV ? 'http://127.0.0.1:3000' : window.location.origin;
 
 const stage = document.getElementById('stage')!;
 
-// DEV-демо: ?demo=1 рисует примеры медиа без сервера/токена (оценка внешнего вида, в т.ч. в OBS).
+// ?demo=1 renders sample media without server/token (look-and-feel check, incl. OBS).
 const DEMO = import.meta.env.DEV && new URLSearchParams(window.location.search).has('demo');
 
-// Аутентификация секретным токеном канала из URL: /?token=...
-// (OAuth в OBS Browser Source невозможен.)
+// Auth via channel secret token in URL (?token=...); OAuth impossible in OBS Browser Source.
 const token = new URLSearchParams(window.location.search).get('token');
 if (!DEMO && !token) {
   stage.innerHTML =
@@ -86,7 +85,6 @@ function show(payload: MediaPlayPayload): void {
   currentId = payload.submissionId;
   finishing = false;
 
-  // Раскладка из настроек канала: якорь (flex-выравнивание), отступ от края и размер.
   const { justify, align } = positionToFlex(payload.position);
   stage.style.justifyContent = justify;
   stage.style.alignItems = align;
@@ -96,8 +94,7 @@ function show(payload: MediaPlayPayload): void {
   const url = resolveMediaUrl(payload.url);
   const alert = document.createElement('div');
   alert.className = 'alert enter';
-  // Подпись — НАД медиа: так при её исчезновении плеер/медиа не «прыгают».
-  // (Для текста-онли сам контент уже в карточке.)
+  // Caption ABOVE media so it doesn't shift the player when it disappears.
   if (payload.text && payload.kind !== 'text') {
     const cap = document.createElement('div');
     cap.className = 'caption';
@@ -117,9 +114,8 @@ function show(payload: MediaPlayPayload): void {
   if (payload.sound) playChime(payload.volume);
   scheduleSpeech(payload);
 
-  // Жёсткий таймер: что бы файл ни «думал» о своей длительности,
-  // с экрана он уйдёт не позже durationMs, выданного сервером.
-  // Для YouTube durationMs=0 (без лимита) — завершение по событию 'ended' самого плеера.
+  // Hard cap: leaves screen no later than server-issued durationMs.
+  // YouTube uses durationMs=0 (no cap) — finishes on the player's 'ended' event.
   if (payload.durationMs > 0) {
     hideTimer = window.setTimeout(finish, payload.durationMs);
   }
@@ -129,7 +125,7 @@ function createMediaElement(payload: MediaPlayPayload, url: string): HTMLElement
   const volume = Math.min(100, Math.max(0, payload.volume ?? 100)) / 100;
 
   if (payload.kind === 'text') {
-    // Текст-онли: к /api/media не обращаемся, рисуем карточку-сообщение.
+    // Text-only: skip /api/media, render a message card.
     const card = document.createElement('div');
     card.className = 'text-card';
     card.textContent = payload.text ?? '';
@@ -148,8 +144,7 @@ function createMediaElement(payload: MediaPlayPayload, url: string): HTMLElement
     video.autoplay = true;
     video.volume = volume;
     video.addEventListener('ended', finish);
-    // В OBS autoplay со звуком разрешён; в обычном браузере политика
-    // может его заблокировать — тогда повторяем без звука.
+    // OBS allows autoplay with sound; browsers may block it — retry muted.
     video.play().catch(() => {
       video.muted = true;
       void video.play();
@@ -161,11 +156,11 @@ function createMediaElement(payload: MediaPlayPayload, url: string): HTMLElement
     return createYoutubePlayer(payload);
   }
 
-  // Аудио: самого медиа не видно — рисуем плеер с эквалайзером, прогрессом и временем.
+  // Audio has nothing to show — render a player with progress + time.
   return createMusicWidget(payload, url, volume);
 }
 
-/** Музыкальный виджет: заполняющийся прогресс-бар + время mm:ss. */
+/** Music widget: filling progress bar + mm:ss time. */
 function createMusicWidget(payload: MediaPlayPayload, url: string, volume: number): HTMLElement {
   const widget = document.createElement('div');
   widget.className = 'music';
@@ -181,7 +176,7 @@ function createMusicWidget(payload: MediaPlayPayload, url: string, volume: numbe
   const cur = document.createElement('span');
   const dur = document.createElement('span');
   cur.textContent = '0:00';
-  // Длительность из payload — мгновенная подпись до того, как audio узнает свою.
+  // payload duration: instant label before the audio reports its own.
   dur.textContent = formatTime(payload.durationMs / 1000);
   time.append(cur, dur);
 
@@ -209,13 +204,12 @@ function createMusicWidget(payload: MediaPlayPayload, url: string, volume: numbe
   return widget;
 }
 
-/** YouTube: встроенный IFrame-плеер. Играет до конца, длительность сообщаем серверу. */
+/** YouTube embedded IFrame player. Plays to the end; duration reported to server. */
 function createYoutubePlayer(payload: MediaPlayPayload): HTMLElement {
   const container = document.createElement('div');
   container.className = 'youtube';
-  // Явные размеры 16:9 БЕЗ css aspect-ratio: старые сборки CEF в OBS его не поддерживают,
-  // из-за чего контейнер схлопывается в высоту 0 и плеер не виден. calc/min понимают все версии.
-  // YouTube Music — компактный плеер (потолок ширины), обычное видео — на заданный размер.
+  // Explicit 16:9 WITHOUT css aspect-ratio: old OBS CEF builds don't support it and
+  // collapse the container to height 0. calc/min work everywhere. Music = capped width.
   const widthExpr = payload.youtubeMusic ? `min(${payload.size}vw, 460px)` : `${payload.size}vw`;
   container.style.width = widthExpr;
   container.style.height = `calc(${widthExpr} * 9 / 16)`;
@@ -229,8 +223,8 @@ function createYoutubePlayer(payload: MediaPlayPayload): HTMLElement {
   if (!videoId) return container;
 
   void loadYouTubeApi().then(() => {
-    // Пока грузился YT API, показ мог смениться или начать завершаться — не создаём
-    // «осиротевший» плеер, который продолжит играть звук уже после destroyYoutube().
+    // The show may have changed/ended while the YT API loaded — avoid an orphaned
+    // player that keeps playing audio after destroyYoutube().
     if (currentId !== sid || finishing || !window.YT) return;
     ytPlayer = new window.YT.Player(mount, {
       videoId,
@@ -255,15 +249,15 @@ function createYoutubePlayer(payload: MediaPlayPayload): HTMLElement {
           reportYoutubeDuration(sid, e.target);
         },
         onStateChange: (e) => {
-          // Реагируем только на события текущего показа: старый плеер мог прислать
-          // запоздалый ENDED уже после переключения на следующий ролик.
+          // Only react to the current show: an old player may emit a late ENDED
+          // after we've switched to the next clip.
           if (currentId !== sid || !window.YT) return;
           if (e.data === window.YT.PlayerState.ENDED) finish();
           else if (e.data === window.YT.PlayerState.PLAYING) reportYoutubeDuration(sid, e.target);
         },
         onError: () => {
-          // Видео не воспроизводится (ограничение по возрасту/региону, удалено и т.п.) —
-          // не держим пустой кадр до watchdog, сразу завершаем показ.
+          // Video won't play (age/region restriction, removed, etc.) — finish now
+          // instead of holding an empty frame until the watchdog.
           if (currentId === sid) finish();
         },
       },
@@ -273,7 +267,7 @@ function createYoutubePlayer(payload: MediaPlayPayload): HTMLElement {
   return container;
 }
 
-/** Сообщает серверу реальную длительность ролика — один раз на показ (watchdog + панель «сейчас играет»). */
+/** Report the clip's real duration to the server, once per show (watchdog + now-playing panel). */
 function reportYoutubeDuration(submissionId: string, player: YTPlayer): void {
   if (ytReportedSid === submissionId) return;
   const ms = Math.round(player.getDuration() * 1000);
@@ -283,7 +277,7 @@ function reportYoutubeDuration(submissionId: string, player: YTPlayer): void {
   }
 }
 
-/** Лениво подгружает YouTube IFrame API (один раз на сессию оверлея). */
+/** Lazily load the YouTube IFrame API (once per overlay session). */
 function loadYouTubeApi(): Promise<void> {
   if (window.YT?.Player) return Promise.resolve();
   if (ytApiPromise) return ytApiPromise;
@@ -296,14 +290,14 @@ function loadYouTubeApi(): Promise<void> {
   return ytApiPromise;
 }
 
-/** Секунды → m:ss. */
+/** Seconds -> m:ss. */
 function formatTime(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds));
   const m = Math.floor(s / 60);
   return `${m}:${String(s % 60).padStart(2, '0')}`;
 }
 
-/** Короткий приятный «динь» через Web Audio — без бандла звукового файла. */
+/** Short chime via Web Audio — avoids bundling a sound file. */
 function playChime(volume: number): void {
   try {
     const Ctx = window.AudioContext;
@@ -322,13 +316,13 @@ function playChime(volume: number): void {
     });
     setTimeout(() => void ctx.close(), 600);
   } catch {
-    /* звук не критичен */
+    /* sound is non-critical */
   }
 }
 
 /**
- * Озвучка имени и/или текста сообщения по очереди (чтобы не накладывались).
- * Web Speech API в OBS не работает (нет голосов) — проигрываем mp3 от TTS-прокси.
+ * Speak name and/or message sequentially (so they don't overlap).
+ * Web Speech API has no voices in OBS — play mp3 from the TTS proxy instead.
  */
 function scheduleSpeech(payload: MediaPlayPayload): void {
   const parts: ('name' | 'message')[] = [];
@@ -342,7 +336,7 @@ function scheduleSpeech(payload: MediaPlayPayload): void {
     if (!part) return;
     speak(payload.submissionId, part, payload.volume, next);
   };
-  // Тот же небольшой сдвиг, что и раньше, — чтобы не наложиться на «динь».
+  // Small delay so speech doesn't overlap the chime.
   window.setTimeout(next, 280);
 }
 
@@ -363,13 +357,13 @@ function speak(
   }
 }
 
-/** Останавливает и удаляет YouTube-плеер (чтобы звук гас сразу при завершении/скипе). */
+/** Stop and destroy the YouTube player so audio cuts immediately on finish/skip. */
 function destroyYoutube(): void {
   if (ytPlayer) {
     try {
       ytPlayer.destroy();
     } catch {
-      /* плеер мог не успеть создаться */
+      /* player may not have been created yet */
     }
     ytPlayer = null;
   }
@@ -384,7 +378,7 @@ function finish(): void {
     window.clearTimeout(hideTimer);
     hideTimer = undefined;
   }
-  // Анимация ухода, затем чистка и сигнал серверу «можно следующий».
+  // Exit animation, then cleanup and signal the server it can send the next one.
   const alert = stage.querySelector('.alert');
   alert?.classList.remove('enter');
   alert?.classList.add('exit');
@@ -401,8 +395,8 @@ function clearStage(): void {
     window.clearTimeout(hideTimer);
     hideTimer = undefined;
   }
-  // Гасим висящий таймер ухода: иначе media:play в течение 300мс после finish()
-  // затрёт уже показанный следующий ролик.
+  // Cancel a pending exit timer: otherwise a media:play within 300ms of finish()
+  // would wipe the already-shown next clip.
   if (exitTimer !== undefined) {
     window.clearTimeout(exitTimer);
     exitTimer = undefined;
@@ -411,13 +405,11 @@ function clearStage(): void {
   stage.replaceChildren();
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-// Донат-эффект: метеоритный всплеск на full-screen canvas поверх показа медиа.
-// Канвас — fixed/inset:0 (вне flex-потока #stage), pointer-events:none, сам себя
-// удаляет по завершении. Деньги через нас не идут — это лишь реакция на событие.
-// ─────────────────────────────────────────────────────────────────────────
+// Donation FX: meteor burst on a full-screen canvas over the media. Canvas is
+// fixed/inset:0 (outside #stage flex), pointer-events:none, self-removes when done.
+// Money never flows through us — this is just a reaction to the event.
 
-const FX_ACCENT = '141,240,204'; // мятный акцент космоса (rgb)
+const FX_ACCENT = '141,240,204'; // mint accent (rgb)
 
 function triggerDonationFx(fx: DonationFx): void {
   const canvas = document.createElement('canvas');
@@ -433,7 +425,7 @@ function triggerDonationFx(fx: DonationFx): void {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   stage.appendChild(canvas);
 
-  // Интенсивность по сумме: больше донат — гуще метеоры (с разумным потолком).
+  // Intensity scales with amount: bigger donation = denser meteors (capped).
   const amount = Number.isFinite(fx.amount) ? Math.max(0, fx.amount) : 0;
   const meteorCount = Math.round(Math.min(70, 14 + amount * 0.6));
   const DURATION = 2600;
@@ -470,7 +462,7 @@ function triggerDonationFx(fx: DonationFx): void {
     }
     ctx!.clearRect(0, 0, W, H);
 
-    // Разовая радиальная вспышка из центра (быстро гаснет).
+    // One-shot radial flash from center (fades fast).
     const flash = Math.max(0, 1 - t / 600);
     if (flash > 0.01) {
       const r = Math.max(W, H) * 0.6;
@@ -487,7 +479,7 @@ function triggerDonationFx(fx: DonationFx): void {
       const px = m.x + m.vx * mt;
       const py = m.y + m.vy * mt;
       if (py - m.len > H || px - m.len > W) continue;
-      // Хвост метеора — линейный градиент к прозрачному.
+      // Meteor tail: linear gradient to transparent.
       const tx = px - (m.vx / m.vy) * m.len;
       const ty = py - m.len;
       const grad = ctx!.createLinearGradient(px, py, tx, ty);
@@ -500,7 +492,7 @@ function triggerDonationFx(fx: DonationFx): void {
       ctx!.moveTo(px, py);
       ctx!.lineTo(tx, ty);
       ctx!.stroke();
-      // Головка метеора.
+      // Meteor head.
       ctx!.fillStyle = `rgba(255,255,255,${(a * 0.9).toFixed(3)})`;
       ctx!.beginPath();
       ctx!.arc(px, py, 1.8, 0, 6.2832);
@@ -511,18 +503,15 @@ function triggerDonationFx(fx: DonationFx): void {
   requestAnimationFrame(frame);
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-// DEV-демо (?demo=1): прогон примеров медиа через настоящий render оверлея,
-// без сервера/токена — чтобы оценивать внешний вид (в т.ч. в OBS Browser Source).
-// Только в dev-сборке. См. apps/web/REDESIGN.md §5.4 (трек оверлея).
-// ─────────────────────────────────────────────────────────────────────────
+// DEV demo (?demo=1): runs sample media through the real overlay render without
+// server/token, dev-only. See apps/web/REDESIGN.md §5.4 (overlay track).
 
-/** Не добавляем SERVER_URL к абсолютным/data/blob-URL (нужно демо; в общем случае безопасно). */
+/** Don't prefix SERVER_URL onto absolute/data/blob URLs (needed for demo, safe in general). */
 function resolveMediaUrl(u: string): string {
   return /^(data:|https?:|blob:)/i.test(u) ? u : SERVER_URL + u;
 }
 
-/** Заглушка сокета для демо (без сервера): on/emit/close — no-op. */
+/** Socket stub for demo (no server): on/emit/close are no-ops. */
 function demoSocketStub(): Socket<ServerToOverlayEvents, OverlayToServerEvents> {
   const noop = function (this: unknown) {
     return this;
@@ -548,7 +537,7 @@ const SAMPLE_IMG = `data:image/svg+xml,${encodeURIComponent(
 const SAMPLE_VIDEO = 'https://media.w3.org/2010/05/sintel/trailer.mp4';
 const SAMPLE_YT = 'dQw4w9WgXcQ';
 
-/** Короткий тихий WAV (data-URI) — музыкальный виджет реально играет/двигает прогресс офлайн. */
+/** Short silent WAV (data-URI) so the music widget actually plays/advances offline. */
 function makeSilentWavDataUri(seconds: number): string {
   const rate = 8000;
   const samples = Math.floor(rate * seconds);
@@ -576,7 +565,7 @@ function makeSilentWavDataUri(seconds: number): string {
   return `data:audio/wav;base64,${btoa(bin)}`;
 }
 
-// Ленивая генерация WAV — чтобы не считать его в обычном (не-демо) оверлее.
+// Lazy WAV generation — skipped in the normal (non-demo) overlay.
 let _sampleAudio: string | undefined;
 function sampleAudio(): string {
   if (_sampleAudio === undefined) _sampleAudio = makeSilentWavDataUri(12);
@@ -607,7 +596,8 @@ function demoPayload(kind: MediaKind, st: DemoState): MediaPlayPayload {
     margin: 5,
   };
   const cap = st.caption ? 'демо-подпись к медиа' : undefined;
-  if (kind === 'text') return { ...base, text: 'Тестовое сообщение ✦ как текст смотрится на стриме?' };
+  if (kind === 'text')
+    return { ...base, text: 'Тестовое сообщение ✦ как текст смотрится на стриме?' };
   if (kind === 'image') return { ...base, url: SAMPLE_IMG, text: cap };
   if (kind === 'video') return { ...base, url: SAMPLE_VIDEO, text: cap };
   if (kind === 'youtube') return { ...base, youtubeId: SAMPLE_YT, durationMs: 0, text: cap };

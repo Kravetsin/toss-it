@@ -10,7 +10,7 @@ import { StatusCard } from '@/components/StatusCard';
 import { PromoGenerateForm } from '@/features/admin/components/PromoGenerateForm';
 import { PromoCodeList } from '@/features/admin/components/PromoCodeList';
 
-/** Админка промокодов первопроходца: /admin (только для ADMIN_USER_IDS). */
+/** Admin panel for promo codes (only for ADMIN_USER_IDS). */
 export function AdminPage() {
   const { t } = useI18n();
   const { me, loading } = useMe();

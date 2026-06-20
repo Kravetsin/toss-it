@@ -24,17 +24,16 @@ export function roomOf(channelId: string): string {
   return `channel:${channelId}`;
 }
 
-/** Комната дашборда стримера: live-события модерации и показа. */
+/** Streamer dashboard room: live moderation and playback events. */
 export function dashboardRoomOf(channelId: string): string {
   return `dashboard:${channelId}`;
 }
 
-/** Комната одной отправки: живой статус для страницы зрителя. */
+/** Per-submission room: live status for the viewer page. */
 export function submissionRoomOf(submissionId: string): string {
   return `submission:${submissionId}`;
 }
 
-/** Отправить живой статус зрителю, который ждёт судьбу своей отправки. */
 export function emitSubmissionStatus(
   io: RealtimeServer,
   submissionId: string,
@@ -43,7 +42,6 @@ export function emitSubmissionStatus(
   io.to(submissionRoomOf(submissionId)).emit('submission:status', { submissionId, status });
 }
 
-/** Краткая карточка отправки для дашборда. */
 export function toSummary(sub: SubmissionRow): SubmissionSummary {
   return {
     id: sub.id,
@@ -66,16 +64,15 @@ interface ChannelState {
 }
 
 /**
- * Очередь показа per-channel. Проигрывание строго по одному:
- * следующий элемент уходит в оверлей только после playback:done
- * (или по watchdog-таймеру, если оверлей умер посреди показа).
+ * Per-channel playback queue, strictly one at a time: next item goes to the
+ * overlay only after playback:done (or via watchdog if the overlay died mid-show).
  */
 export class PlaybackManager {
   private states = new Map<string, ChannelState>();
 
   constructor(private io: RealtimeServer) {}
 
-  /** Возвращает позицию в очереди (1 = следующий). */
+  /** Returns queue position (1 = next). */
   enqueue(sub: SubmissionRow): number {
     const st = this.state(sub.channelId);
     st.queue.push(sub);
@@ -84,7 +81,7 @@ export class PlaybackManager {
     return position;
   }
 
-  /** При старте сервера возвращаем в очередь всё, что не успело проиграться. */
+  /** On server start, requeue everything that never got played. */
   async recoverFromDb(): Promise<void> {
     const rows = await db
       .select()
@@ -100,12 +97,12 @@ export class PlaybackManager {
     return this.state(channelId).current;
   }
 
-  /** Скип текущего показа стримером. true, если что-то играло. */
+  /** Streamer skips the current show. true if something was playing. */
   async skip(channelId: string): Promise<boolean> {
     const current = this.state(channelId).current;
     if (!current) return false;
-    // Оверлей получит media:skip и погасит экран; onDone продвинет очередь
-    // независимо от того, жив ли оверлей.
+    // Overlay gets media:skip and clears the screen; onDone advances the queue
+    // regardless of whether the overlay is alive.
     this.io.to(roomOf(channelId)).emit('media:skip', current.id);
     await this.onDone(channelId, current.id);
     return true;
@@ -117,7 +114,7 @@ export class PlaybackManager {
   ): Promise<void> {
     const st = this.state(channelId);
     if (st.current) {
-      // Оверлей переподключился посреди показа — переигрываем текущий элемент.
+      // Overlay reconnected mid-show: replay the current item.
       replayTo(await this.buildPayload(st.current));
     } else {
       void this.tryNext(channelId);
@@ -136,18 +133,18 @@ export class PlaybackManager {
       .set({ status: 'played', updatedAt: new Date() })
       .where(eq(submissions.id, submissionId));
 
-    // Гасим отставшие копии оверлея (несколько открытых вкладок и т.п.).
+    // Clear straggler overlay copies (multiple open tabs etc.).
     this.io.to(roomOf(channelId)).emit('media:skip', submissionId);
     this.io.to(dashboardRoomOf(channelId)).emit('playback:ended', submissionId);
     emitSubmissionStatus(this.io, submissionId, 'played');
     void this.tryNext(channelId);
   }
 
-  /** Оверлей сообщил реальную длительность текущего ролика (YouTube). Перенастраиваем watchdog. */
+  /** Overlay reported real duration of current clip (YouTube). Reconfigure watchdog. */
   reportDuration(channelId: string, submissionId: string, durationMs: number): void {
     const st = this.state(channelId);
-    // Оверлей за overlayToken (полу-доверенный) — клампим значение: мусор/огромное число
-    // иначе зарядило бы watchdog на сутки. Сверх лимита остаётся щадящий watchdog из tryNext.
+    // Overlay is only semi-trusted (overlayToken): clamp the value, else garbage/huge
+    // numbers would arm the watchdog for a day. Past the limit, tryNext's grace watchdog stays.
     if (
       st.current?.id !== submissionId ||
       !Number.isFinite(durationMs) ||
@@ -161,7 +158,7 @@ export class PlaybackManager {
       () => void this.onDone(channelId, submissionId),
       durationMs + config.watchdogGraceMs,
     );
-    // Панель «сейчас играет» получает реальное время вместо нулевого.
+    // "Now playing" panel gets the real time instead of zero.
     this.io.to(dashboardRoomOf(channelId)).emit('playback:started', toSummary(st.current));
   }
 
@@ -171,16 +168,16 @@ export class PlaybackManager {
 
     while (st.queue.length > 0) {
       const candidate = st.queue.shift()!;
-      // Статус мог измениться, пока элемент ждал в памяти (например, протух).
+      // Status may have changed while the item waited in memory (e.g. expired).
       const fresh = await db
         .select()
         .from(submissions)
         .where(eq(submissions.id, candidate.id))
         .get();
-      // Текст и YouTube не имеют файла на диске (filePath=null) — для них это норма.
+      // Text and YouTube have no on-disk file (filePath=null), which is normal for them.
       const fileless = fresh?.kind === 'text' || fresh?.kind === 'youtube';
       if (!fresh || fresh.status !== 'approved' || (!fresh.filePath && !fileless)) continue;
-      // Пока ходили в БД, другой вызов tryNext мог занять слот.
+      // Another tryNext call may have grabbed the slot during the DB round-trip.
       if (st.current) {
         st.queue.unshift(candidate);
         return;
@@ -190,8 +187,8 @@ export class PlaybackManager {
       this.io.to(roomOf(channelId)).emit('media:play', await this.buildPayload(fresh));
       this.io.to(dashboardRoomOf(channelId)).emit('playback:started', toSummary(fresh));
       emitSubmissionStatus(this.io, fresh.id, 'playing');
-      // YouTube: длительность узнаём только при проигрывании (см. reportDuration),
-      // поэтому до её получения держим щадящий watchdog вместо durationMs (=0).
+      // YouTube: duration is only known at play time (see reportDuration), so until
+      // then keep a grace watchdog instead of durationMs (=0).
       const watchdogMs =
         fresh.kind === 'youtube'
           ? config.youtube.loadGraceMs
@@ -232,13 +229,13 @@ export class PlaybackManager {
       durationMs: sub.durationMs,
       volume: channel?.volume ?? 100,
       sound: channel?.soundAlert ?? false,
-      // TTS озвучивает имя — без показа имени оно тоже не имеет смысла.
+      // TTS reads the name aloud; pointless if the name isn't shown.
       tts: (channel?.ttsName ?? false) && showName && sub.senderName !== null,
       senderName: showName ? (sub.senderName ?? undefined) : undefined,
       text: sub.text ?? undefined,
       ttsText: (channel?.ttsMessage ?? false) && !!sub.text,
-      // У музыки может быть своя раскладка; сервер сам выбирает нужную по типу медиа,
-      // поэтому оверлею всё равно — он просто применяет position/size/margin из payload.
+      // Music may use its own layout; the server picks it by media type, so the
+      // overlay just applies position/size/margin from the payload.
       ...resolveLayout(sub.kind, channel, sub.mime === 'audio/youtube'),
       youtubeId: sub.youtubeId ?? undefined,
       youtubeStartSeconds: sub.youtubeStart,
@@ -256,26 +253,33 @@ export class PlaybackManager {
   }
 }
 
-/** Какую раскладку показать для данного типа медиа: общую (overlay*) или музыкальную (music*). */
+/** Which layout to use for a media type: general (overlay*) or music (music*). */
 function resolveLayout(
   kind: SubmissionRow['kind'],
-  channel: {
-    overlayPosition: MediaPlayPayload['position'];
-    overlaySize: number;
-    overlayMargin: number;
-    musicSeparate: boolean;
-    musicPosition: MediaPlayPayload['position'];
-    musicSize: number;
-    musicMargin: number;
-  } | null | undefined,
+  channel:
+    | {
+        overlayPosition: MediaPlayPayload['position'];
+        overlaySize: number;
+        overlayMargin: number;
+        musicSeparate: boolean;
+        musicPosition: MediaPlayPayload['position'];
+        musicSize: number;
+        musicMargin: number;
+      }
+    | null
+    | undefined,
   isMusic = false,
 ): Pick<MediaPlayPayload, 'position' | 'size' | 'margin'> {
   if (!channel) return { position: 'center', size: 80, margin: 0 };
-  // YouTube Music идёт по музыкальной раскладке наравне с аудиофайлами.
+  // YouTube Music uses the music layout alongside audio files.
   const useMusic = (kind === 'audio' || isMusic) && channel.musicSeparate;
   return useMusic
     ? { position: channel.musicPosition, size: channel.musicSize, margin: channel.musicMargin }
-    : { position: channel.overlayPosition, size: channel.overlaySize, margin: channel.overlayMargin };
+    : {
+        position: channel.overlayPosition,
+        size: channel.overlaySize,
+        margin: channel.overlayMargin,
+      };
 }
 
 export function setupRealtime(io: RealtimeServer, app: FastifyInstance): PlaybackManager {
@@ -284,111 +288,110 @@ export function setupRealtime(io: RealtimeServer, app: FastifyInstance): Playbac
   io.on('connection', (socket) => {
     void (async () => {
       try {
-      const { role } = socket.handshake.query;
+        const { role } = socket.handshake.query;
 
-      // Зритель следит за судьбой своей отправки. Аутентификация не нужна:
-      // id отправки — случайный UUID, знание его и есть пропуск в комнату.
-      if (role === 'viewer') {
-        const submissionId = socket.handshake.query.submission;
-        if (typeof submissionId !== 'string' || !submissionId) {
-          socket.disconnect(true);
-          return;
-        }
-        void socket.join(submissionRoomOf(submissionId));
-        // Текущий статус сразу — на случай, если показ уже случился до подписки.
-        const sub = await db
-          .select({ status: submissions.status, channelId: submissions.channelId })
-          .from(submissions)
-          .where(eq(submissions.id, submissionId))
-          .get();
-        if (sub) {
-          const playing = playback.getCurrent(sub.channelId)?.id === submissionId;
-          socket.emit('submission:status', {
-            submissionId,
-            status: playing ? 'playing' : sub.status,
-          });
-        }
-        return;
-      }
-
-      // Дашборд: авторизация по сессионной куке (модератору overlayToken не даём).
-      // Членство в канале = владелец ИЛИ строка в channel_moderators.
-      if (role === 'dashboard') {
-        const { channelId } = socket.handshake.query;
-        if (typeof channelId !== 'string' || !channelId) {
-          socket.disconnect(true);
-          return;
-        }
-        const user = await getUserFromCookieHeader(
-          socket.handshake.headers.cookie,
-          (v) => app.unsignCookie(v),
-        );
-        if (!user) {
-          socket.disconnect(true);
-          return;
-        }
-        const channel = await db
-          .select({ ownerUserId: channels.ownerUserId })
-          .from(channels)
-          .where(eq(channels.id, channelId))
-          .get();
-        if (!channel) {
-          socket.disconnect(true);
-          return;
-        }
-        if (channel.ownerUserId !== user.id) {
-          const mod = await db
-            .select({ userId: channelModerators.userId })
-            .from(channelModerators)
-            .where(
-              and(
-                eq(channelModerators.channelId, channelId),
-                eq(channelModerators.userId, user.id),
-              ),
-            )
-            .get();
-          if (!mod) {
+        // Viewer tracks their submission. No auth needed: the submission id is a
+        // random UUID, and knowing it is the ticket into the room.
+        if (role === 'viewer') {
+          const submissionId = socket.handshake.query.submission;
+          if (typeof submissionId !== 'string' || !submissionId) {
             socket.disconnect(true);
             return;
           }
-        }
-        void socket.join(dashboardRoomOf(channelId));
-        return;
-      }
-
-      // Оверлей (OBS Browser Source не умеет OAuth) — секретный токен канала.
-      if (role === 'overlay') {
-        const { token } = socket.handshake.query;
-        if (typeof token !== 'string' || token.length === 0) {
-          socket.disconnect(true);
-          return;
-        }
-        const channel = await db
-          .select({ id: channels.id })
-          .from(channels)
-          .where(eq(channels.overlayToken, token))
-          .get();
-        if (!channel) {
-          socket.disconnect(true);
-          return;
-        }
-        void socket.join(roomOf(channel.id));
-        socket.on('playback:done', (submissionId) => {
-          if (typeof submissionId === 'string') void playback.onDone(channel.id, submissionId);
-        });
-        socket.on('playback:duration', (submissionId, durationMs) => {
-          if (typeof submissionId === 'string' && typeof durationMs === 'number') {
-            playback.reportDuration(channel.id, submissionId, durationMs);
+          void socket.join(submissionRoomOf(submissionId));
+          // Send current status immediately, in case the show happened before subscribing.
+          const sub = await db
+            .select({ status: submissions.status, channelId: submissions.channelId })
+            .from(submissions)
+            .where(eq(submissions.id, submissionId))
+            .get();
+          if (sub) {
+            const playing = playback.getCurrent(sub.channelId)?.id === submissionId;
+            socket.emit('submission:status', {
+              submissionId,
+              status: playing ? 'playing' : sub.status,
+            });
           }
-        });
-        void playback.onOverlayConnected(channel.id, (payload) =>
-          socket.emit('media:play', payload),
-        );
-        return;
-      }
+          return;
+        }
 
-      // Неизвестная роль.
-      socket.disconnect(true);
+        // Dashboard: auth via session cookie (moderators don't get the overlayToken).
+        // Channel membership = owner OR a row in channel_moderators.
+        if (role === 'dashboard') {
+          const { channelId } = socket.handshake.query;
+          if (typeof channelId !== 'string' || !channelId) {
+            socket.disconnect(true);
+            return;
+          }
+          const user = await getUserFromCookieHeader(socket.handshake.headers.cookie, (v) =>
+            app.unsignCookie(v),
+          );
+          if (!user) {
+            socket.disconnect(true);
+            return;
+          }
+          const channel = await db
+            .select({ ownerUserId: channels.ownerUserId })
+            .from(channels)
+            .where(eq(channels.id, channelId))
+            .get();
+          if (!channel) {
+            socket.disconnect(true);
+            return;
+          }
+          if (channel.ownerUserId !== user.id) {
+            const mod = await db
+              .select({ userId: channelModerators.userId })
+              .from(channelModerators)
+              .where(
+                and(
+                  eq(channelModerators.channelId, channelId),
+                  eq(channelModerators.userId, user.id),
+                ),
+              )
+              .get();
+            if (!mod) {
+              socket.disconnect(true);
+              return;
+            }
+          }
+          void socket.join(dashboardRoomOf(channelId));
+          return;
+        }
+
+        // Overlay (OBS Browser Source can't do OAuth): channel secret token.
+        if (role === 'overlay') {
+          const { token } = socket.handshake.query;
+          if (typeof token !== 'string' || token.length === 0) {
+            socket.disconnect(true);
+            return;
+          }
+          const channel = await db
+            .select({ id: channels.id })
+            .from(channels)
+            .where(eq(channels.overlayToken, token))
+            .get();
+          if (!channel) {
+            socket.disconnect(true);
+            return;
+          }
+          void socket.join(roomOf(channel.id));
+          socket.on('playback:done', (submissionId) => {
+            if (typeof submissionId === 'string') void playback.onDone(channel.id, submissionId);
+          });
+          socket.on('playback:duration', (submissionId, durationMs) => {
+            if (typeof submissionId === 'string' && typeof durationMs === 'number') {
+              playback.reportDuration(channel.id, submissionId, durationMs);
+            }
+          });
+          void playback.onOverlayConnected(channel.id, (payload) =>
+            socket.emit('media:play', payload),
+          );
+          return;
+        }
+
+        // Unknown role.
+        socket.disconnect(true);
       } catch (err) {
         app.log.error({ err }, 'socket connection handler failed');
         socket.disconnect(true);

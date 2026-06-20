@@ -6,7 +6,7 @@ import { channelIntegrations } from '../db/schema';
 import { decryptSecret } from '../crypto';
 import { roomOf, type RealtimeServer } from '../playback';
 
-/** Постоянное по времени сравнение строк (защита от тайминг-атак на ключ). */
+/** Constant-time string compare; guards key against timing attacks. */
 function safeEqual(a: string, b: string): boolean {
   const ab = Buffer.from(a);
   const bb = Buffer.from(b);
@@ -14,9 +14,8 @@ function safeEqual(a: string, b: string): boolean {
 }
 
 /**
- * Входящие колбеки донат-сервисов (Donatello «Колбеки»): провайдер сам POST-ит каждый донат
- * на наш URL. Деньги через нас не идут — превращаем событие во всплеск на оверлее. Публичный
- * (server-to-server), поэтому подлинность проверяем по секрету в заголовке X-Key.
+ * Donatello callback endpoint: provider POSTs each donation here. No money flows through us;
+ * we turn the event into an overlay FX. Public server-to-server, so auth via X-Key secret.
  */
 export function registerDonationRoutes(app: FastifyInstance, io: RealtimeServer): void {
   app.post<{ Params: { channelId: string }; Body: Record<string, unknown> | null }>(
@@ -47,7 +46,7 @@ export function registerDonationRoutes(app: FastifyInstance, io: RealtimeServer)
       }
 
       const b = req.body ?? {};
-      // Donatello шлёт amount строкой ("100"); приводим к числу для масштаба эффекта.
+      // Donatello sends amount as a string ("100"); coerce to number for FX scaling.
       const amount = Number(b.amount);
       io.to(roomOf(channelId)).emit('donation:fx', {
         provider: 'donatello',

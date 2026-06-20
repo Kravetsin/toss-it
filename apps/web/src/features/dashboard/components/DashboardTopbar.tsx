@@ -5,11 +5,8 @@ import { IconButton } from '@/ui';
 import { StardustWallet } from '@/components/StardustWallet';
 import { ChannelSwitcher } from './ChannelSwitcher';
 
-/**
- * Sticky-топбар кокпита. Слева — заголовок + переключатель канала; справа — «стоп-кран»
- * приёма (accepting, owner-only — оперативное действие, держим под рукой), звук и история.
- * Настройки переехали в раздел сайдбара «Настройки». См. REDESIGN.md §7.2.
- */
+// Sticky topbar: title + channel switcher (left), accepting toggle + sound + history (right).
+// accepting toggle is owner-only, hidden if null.
 export function DashboardTopbar({
   list,
   current,
@@ -27,7 +24,7 @@ export function DashboardTopbar({
   onSelect: (id: string) => void;
   soundOn: boolean;
   onToggleSound: () => void;
-  /** null — скрыть тоггл (не владелец / настройки не загружены). */
+  // null = toggle hidden (owner-only or settings not loaded)
   accepting: boolean | null;
   onToggleAccepting: (v: boolean) => void;
   onOpenHistory: () => void;
@@ -68,7 +65,12 @@ export function DashboardTopbar({
           active={soundOn}
           onClick={onToggleSound}
         />
-        <IconButton name="history" label={t('dash.history')} variant="ghost" onClick={onOpenHistory} />
+        <IconButton
+          name="history"
+          label={t('dash.history')}
+          variant="ghost"
+          onClick={onOpenHistory}
+        />
       </div>
     </div>
   );

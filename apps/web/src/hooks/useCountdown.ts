@@ -1,9 +1,5 @@
 import { useEffect, useState } from 'react';
 
-/**
- * Обратный отсчёт в секундах: тикает раз в секунду до нуля.
- * Возвращает [текущее значение, установить значение] — установка запускает отсчёт.
- */
 export function useCountdown(): [number, (sec: number) => void] {
   const [sec, setSec] = useState(0);
 

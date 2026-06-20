@@ -7,7 +7,7 @@ import { promoCodes, users } from '../db/schema';
 import { requireAdmin } from '../auth';
 import { isKnownGrant } from './promo';
 
-// Алфавит без неоднозначных символов (нет 0/O/1/I) — код легко продиктовать.
+// No ambiguous chars (0/O/1/I) so codes are easy to dictate.
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 function randomChunk(len: number): string {
@@ -16,13 +16,11 @@ function randomChunk(len: number): string {
   return out;
 }
 
-/** Код вида FND-XXXX-XXXX. */
 function genCode(): string {
   return `FND-${randomChunk(4)}-${randomChunk(4)}`;
 }
 
 export function registerAdminRoutes(app: FastifyInstance): void {
-  /** Сгенерировать N промокодов (1..20) заданного типа с опциональной заметкой. */
   app.post<{ Body: { count?: number; note?: string; grant?: string } }>(
     '/api/admin/promo',
     async (req, reply): Promise<{ codes: string[] } | undefined> => {
@@ -43,7 +41,6 @@ export function registerAdminRoutes(app: FastifyInstance): void {
     },
   );
 
-  /** Список всех промокодов со статусом гашения. */
   app.get('/api/admin/promo', async (req, reply): Promise<AdminPromoCode[] | undefined> => {
     const admin = await requireAdmin(req, reply);
     if (!admin) return;

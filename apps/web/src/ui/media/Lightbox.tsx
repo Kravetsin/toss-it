@@ -3,16 +3,11 @@ import { createPortal } from 'react-dom';
 import { Icon } from '@/ui/icons';
 
 /**
- * Лайтбокс: увеличенная картинка в модалке (НЕ на весь экран — открывается «средним»
- * размером, вписана в ~80vh/82vw). Портал в `body` — иначе `position: fixed` обрезался бы/
- * смещался внутри карточки (motion.div ставит transform → containing block) с overflow-hidden.
- *
- * Поведение как в Telegram: колесо мыши приближает/отдаляет К ТОЧКЕ КУРСОРА (можно и
- * уменьшить ниже исходного), при увеличении картинку можно таскать (pan) в пределах краёв,
- * одиночный клик по картинке (без перетаскивания) — закрывает. Также ✕ и Esc.
+ * Portal to body to avoid position:fixed clipping by containing block (transform in parent).
+ * Wheel zooms toward cursor; pan on scaled image; single click or Esc closes.
  */
 
-const MIN = 0.2; // можно уменьшить ниже исходного размера открытия
+const MIN = 0.2;
 const MAX = 8;
 
 interface View {
@@ -32,11 +27,11 @@ export function Lightbox({
   open: boolean;
   onClose: () => void;
 }) {
-  // render — в DOM ли (держим на время exit-анимации); shown — целевое видимое состояние.
+  // render: stay in DOM during exit animation; shown: target opacity state
   const [render, setRender] = useState(open);
   const [shown, setShown] = useState(false);
   const [view, setView] = useState<View>({ scale: 1, tx: 0, ty: 0 });
-  // animate — плавный переход transform (сброс); при колесе/таскании — без, чтобы отзывчиво.
+  // animate: smooth transform transition on reset; false on wheel/drag for responsiveness
   const [animate, setAnimate] = useState(false);
   const [dragging, setDragging] = useState(false);
 
@@ -60,13 +55,11 @@ export function Lightbox({
     return () => cancelAnimationFrame(r);
   }, [render, open]);
 
-  // Сбрасываем зум при каждом открытии и смене картинки.
   useEffect(() => {
     if (open) setView({ scale: 1, tx: 0, ty: 0 });
   }, [open, src]);
 
-  // Ограничиваем сдвиг краями картинки: меньше экрана — держим по центру, больше — не
-  // даём утащить дальше края.
+  // Clamp pan to edges: smaller than viewport → center; larger → prevent over-drag
   const clampPan = useCallback((x: number, y: number, s: number) => {
     const img = imgRef.current;
     if (!img) return { x, y };
@@ -78,7 +71,7 @@ export function Lightbox({
     };
   }, []);
 
-  // Esc закрывает; пока открыт — блокируем скролл страницы под модалкой.
+  // Esc closes; block page scroll while open
   useEffect(() => {
     if (!render) return;
     const onKey = (e: KeyboardEvent) => {
@@ -93,8 +86,7 @@ export function Lightbox({
     };
   }, [render, onClose]);
 
-  // Колесо: зум к точке курсора (в обе стороны). Нативный listener с passive:false —
-  // чтобы погасить прокрутку страницы (preventDefault).
+  // Wheel zoom toward cursor; passive:false to preventDefault page scroll
   useEffect(() => {
     const el = overlayRef.current;
     if (!el) return;
@@ -117,8 +109,7 @@ export function Lightbox({
     return () => el.removeEventListener('wheel', onWheel);
   }, [render, clampPan]);
 
-  // Перетаскивание/клик: тащим картинку (pan), а чистый клик без движения — закрывает.
-  // Слушаем на окне, чтобы курсор мог уходить за пределы картинки во время перетаскивания.
+  // Pan on drag; click without movement closes. Listen on window to allow cursor outside image
   useEffect(() => {
     if (!dragging) return;
     const onMove = (e: MouseEvent) => {
@@ -134,7 +125,7 @@ export function Lightbox({
       const moved = drag.current.moved;
       drag.current.active = false;
       setDragging(false);
-      if (!moved) onClose(); // клик без перетаскивания = закрыть
+      if (!moved) onClose(); // click without movement closes
     };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
@@ -145,7 +136,7 @@ export function Lightbox({
   }, [dragging, clampPan, onClose]);
 
   function onMouseDown(e: React.MouseEvent) {
-    if (e.button !== 0) return; // только левая кнопка
+    if (e.button !== 0) return;
     drag.current = {
       active: true,
       sx: e.clientX,
@@ -172,8 +163,7 @@ export function Lightbox({
         shown ? 'opacity-100' : 'opacity-0'
       }`}
     >
-      {/* h-[80vh] + w-auto открывает «средним» размером (апскейл мелких, не только потолок);
-          max-w-[82vw] + object-contain аккуратно вписывает сверхширокие. scale поверх — зум. */}
+      {/* h-[80vh]+w-auto: medium fit (upscale small); max-w-[82vw]+object-contain: letterbox wide images */}
       <img
         ref={imgRef}
         src={src}

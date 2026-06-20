@@ -1,13 +1,7 @@
 /**
- * DEV-ONLY мок данных для оценки внешнего вида без логина/бэкенда.
- *
- * Зачем: OAuth-callback не работает на localhost, поэтому залогиненный UI
- * (оболочка, кокпит дашборда, карточка аккаунта) раньше можно было смотреть
- * только в проде. Здесь мы подменяем `fetch('/api/*')` и сокет фейковыми
- * данными — никакие хуки/провайдеры/компоненты не меняются.
- *
- * Включение: открыть `http://localhost:5173/?mock=1` (флаг запоминается в
- * localStorage). Выключение: `?mock=0`. Работает ТОЛЬКО в dev-сборке.
+ * Dev-only mock data to preview signed-in UI without backend.
+ * OAuth callback fails on localhost, so this intercepts fetch('/api/*')
+ * with fake responses—no component/hook changes needed.
  */
 import type {
   AccessibleChannel,
@@ -23,7 +17,6 @@ import type {
 
 const FLAG_KEY = 'tmw_mock';
 
-/** ?mock=1/0 из URL → localStorage (вызывается один раз при установке). */
 function syncFlagFromUrl() {
   try {
     const p = new URLSearchParams(window.location.search);
@@ -32,11 +25,10 @@ function syncFlagFromUrl() {
     if (v === '0' || v === 'false') localStorage.removeItem(FLAG_KEY);
     else localStorage.setItem(FLAG_KEY, '1');
   } catch {
-    /* приватный режим */
+    /* private mode */
   }
 }
 
-/** Включён ли мок прямо сейчас (читается живьём — logout его гасит). */
 export function isMockOn(): boolean {
   if (!import.meta.env.DEV) return false;
   try {
@@ -46,7 +38,6 @@ export function isMockOn(): boolean {
   }
 }
 
-// ─── Данные ──────────────────────────────────────────────────────────────
 const t = Date.now();
 const min = 60_000;
 
@@ -75,7 +66,12 @@ const MOCK_ME: MeResponse = {
 
 const MOCK_CHANNELS: AccessibleChannel[] = [
   { channelId: 'ch_dev', login: 'kravetsinside', displayName: 'Kravets', role: 'owner' },
-  { channelId: 'ch_friend', login: 'friendstreamer', displayName: 'FriendStreamer', role: 'moderator' },
+  {
+    channelId: 'ch_friend',
+    login: 'friendstreamer',
+    displayName: 'FriendStreamer',
+    role: 'moderator',
+  },
 ];
 
 const MOCK_SETTINGS: ChannelSettings = {
@@ -103,7 +99,9 @@ const MOCK_SETTINGS: ChannelSettings = {
   ],
 };
 
-const sub = (s: Partial<SubmissionSummary> & Pick<SubmissionSummary, 'id' | 'kind'>): SubmissionSummary => ({
+const sub = (
+  s: Partial<SubmissionSummary> & Pick<SubmissionSummary, 'id' | 'kind'>,
+): SubmissionSummary => ({
   senderUserId: null,
   senderName: null,
   mime: 'text/plain',
@@ -234,15 +232,38 @@ const MOCK_HISTORY: HistoryEntry[] = [
 ];
 
 const MOCK_REPUTATION: Record<string, ReputationStats> = {
-  'twitch:v1': { accepted: 14, rejected: 2, whitelistedChannels: 1, bannedChannels: 0, isFounder: false },
-  'google:v2': { accepted: 31, rejected: 0, whitelistedChannels: 4, bannedChannels: 0, isFounder: true },
-  'twitch:v3': { accepted: 3, rejected: 5, whitelistedChannels: 0, bannedChannels: 1, isFounder: false },
-  'twitch:v9': { accepted: 58, rejected: 1, whitelistedChannels: 6, bannedChannels: 0, isFounder: false },
+  'twitch:v1': {
+    accepted: 14,
+    rejected: 2,
+    whitelistedChannels: 1,
+    bannedChannels: 0,
+    isFounder: false,
+  },
+  'google:v2': {
+    accepted: 31,
+    rejected: 0,
+    whitelistedChannels: 4,
+    bannedChannels: 0,
+    isFounder: true,
+  },
+  'twitch:v3': {
+    accepted: 3,
+    rejected: 5,
+    whitelistedChannels: 0,
+    bannedChannels: 1,
+    isFounder: false,
+  },
+  'twitch:v9': {
+    accepted: 58,
+    rejected: 1,
+    whitelistedChannels: 6,
+    bannedChannels: 0,
+    isFounder: false,
+  },
 };
 
 const MOCK_MODERATORS: ListedUser[] = [user('twitch:m1', 'trusty_mod', 'Trusty Mod', 60 * 24 * 20)];
 
-/** Публичная инфа канала зрителя (мок). login берём из URL. */
 function mockPublicChannel(login: string): PublicChannelInfo {
   return {
     login,
@@ -258,17 +279,44 @@ function mockPublicChannel(login: string): PublicChannelInfo {
   };
 }
 
-/** Лидерборд канала (мок). Текущий dev-юзер (twitch:u_dev) с count=12 — для проверки залпа звёзд. */
 const MOCK_LEADERBOARD: LeaderboardEntry[] = [
-  { userId: 'twitch:other1', login: 'darkblane', displayName: 'DarkBlane_', count: 12, isFounder: false },
-  { userId: 'twitch:u_dev', login: 'kravetsinside', displayName: 'Kravets', count: 12, isFounder: true },
-  { userId: 'twitch:other2', login: 'kravetsin', displayName: 'Kravetsin', count: 6, isFounder: false },
-  { userId: 'google:other3', login: 'slava', displayName: 'Слава Anfani', count: 5, isFounder: false },
-  { userId: 'google:other4', login: 'darina', displayName: 'Дмитриева Дарина', count: 2, isFounder: false },
+  {
+    userId: 'twitch:other1',
+    login: 'darkblane',
+    displayName: 'DarkBlane_',
+    count: 12,
+    isFounder: false,
+  },
+  {
+    userId: 'twitch:u_dev',
+    login: 'kravetsinside',
+    displayName: 'Kravets',
+    count: 12,
+    isFounder: true,
+  },
+  {
+    userId: 'twitch:other2',
+    login: 'kravetsin',
+    displayName: 'Kravetsin',
+    count: 6,
+    isFounder: false,
+  },
+  {
+    userId: 'google:other3',
+    login: 'slava',
+    displayName: 'Слава Anfani',
+    count: 5,
+    isFounder: false,
+  },
+  {
+    userId: 'google:other4',
+    login: 'darina',
+    displayName: 'Дмитриева Дарина',
+    count: 2,
+    isFounder: false,
+  },
 ];
 
-// ─── Роутер ──────────────────────────────────────────────────────────────
-/** Возвращает мок-тело для известной ручки, иначе undefined (→ реальный fetch). */
 function route(pathname: string): unknown | undefined {
   if (pathname === '/api/auth/me') return MOCK_ME;
   if (pathname === '/api/auth/logout') {
@@ -281,7 +329,6 @@ function route(pathname: string): unknown | undefined {
   }
   if (pathname === '/api/me/channels') return MOCK_CHANNELS;
 
-  // Публичная страница зрителя: канал + лидерборд (аплоад идёт через XHR — мок его не трогает).
   const cm = pathname.match(/^\/api\/c\/([^/]+)(?:\/(leaderboard))?$/);
   if (cm) return cm[2] === 'leaderboard' ? MOCK_LEADERBOARD : mockPublicChannel(cm[1]!);
 
@@ -289,7 +336,6 @@ function route(pathname: string): unknown | undefined {
   if (m) {
     switch (m[1]) {
       case 'pending':
-        // ?empty — посмотреть фиджет пустой очереди (dev).
         return new URLSearchParams(window.location.search).has('empty') ? [] : MOCK_PENDING;
       case 'now':
         return { now: MOCK_NOW };
@@ -306,9 +352,8 @@ function route(pathname: string): unknown | undefined {
       case 'moderators':
         return MOCK_MODERATORS;
       case 'integrations':
-        return []; // донат-интеграции (в моке не подключены)
+        return []; // donation integrations
       case 'integrations/donatello':
-        // POST «подключить» → фейковый статус колбека (для просмотра UI без сервера).
         return {
           provider: 'donatello',
           connected: true,
@@ -316,7 +361,7 @@ function route(pathname: string): unknown | undefined {
           key: 'demo0000111122223333444455556666',
         };
       default:
-        return {}; // действия (approve/reject/skip/invite/save/test-donation) → ok
+        return {};
     }
   }
   return undefined;
@@ -326,7 +371,6 @@ interface PatchedFetch {
   __mockPatched?: boolean;
 }
 
-/** Устанавливает перехват fetch (только dev). Вызвать до первого рендера. */
 export function installDevMock() {
   if (!import.meta.env.DEV) return;
   syncFlagFromUrl();
@@ -354,12 +398,11 @@ export function installDevMock() {
   window.fetch = patched;
 
   if (isMockOn()) {
-    console.info('[dev] mock-режим ВКЛ — данные фейковые. Выключить: ?mock=0');
+    console.info('[dev] mock mode enabled');
     queueMicrotask(mountBadge);
   }
 }
 
-/** Маленький угловой бейдж, чтобы скриншоты не путали с реальными данными. */
 function mountBadge() {
   if (document.getElementById('dev-mock-badge')) return;
   const el = document.createElement('div');

@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 /**
- * Копирование в буфер с временной отметкой «скопировано» по ключу.
- * Несколько кнопок на странице делят один хук: `copiedKey` указывает, какая
- * последней была скопирована (ключ по умолчанию — для одиночной кнопки).
+ * Copy to clipboard with a temporary per-key "copied" flag; multiple buttons
+ * share one hook via `copiedKey` (key defaults to 'default' for a single button).
  */
 export function useClipboard(timeout = 2000) {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);

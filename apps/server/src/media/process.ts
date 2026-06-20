@@ -6,18 +6,14 @@ import { config } from '../config';
 
 const execFileAsync = promisify(execFile);
 
-// libvips держит свой операционный кэш (~50МБ) и плодит воркер-треды по числу ядер —
-// на маленьком инстансе это лишняя нативная память, которая считается контейнером.
-// Кэш выключаем, декод ведём в один тред: задачи и так сериализуются семафором ниже.
+// libvips' op cache (~50MB) and per-core worker threads are native memory counted against
+// the container. Disable cache, decode single-threaded: tasks are serialized by the semaphore below.
 sharp.cache(false);
 sharp.concurrency(1);
 
 /**
- * Семафор на тяжёлые задачи. sharp-декод и ffmpeg держат десятки–сотни МБ НАТИВНОЙ
- * памяти (вне V8-кучи), которая целиком ложится на лимит контейнера. Без ограничения
- * параллелизма пачка одновременных аплоадов складывает эту память и роняет инстанс по
- * OOM (rate-limit считает запросы в минуту, но не число одновременных задач).
- * По умолчанию — одна задача за раз; на инстансе побольше можно поднять MEDIA_CONCURRENCY.
+ * Semaphore for heavy tasks: sharp/ffmpeg hold tens–hundreds of MB of native memory counted
+ * against the container limit. Without it, concurrent uploads stack and OOM the instance.
  */
 function createSemaphore(max: number) {
   let active = 0;
@@ -27,7 +23,7 @@ function createSemaphore(max: number) {
       active++;
       return;
     }
-    // Слот занят — ждём, пока release() передаст его нам (active при передаче не меняется).
+    // Slot full: wait for release() to hand it over (active unchanged on handoff).
     await new Promise<void>((resolve) => waiters.push(resolve));
   };
   const release = (): void => {
@@ -47,7 +43,7 @@ function createSemaphore(max: number) {
 
 const runExclusive = createSemaphore(Math.max(1, config.media.concurrency));
 
-/** Удаляет недописанный выходной файл, если задача упала на полпути (иначе он копится на диске). */
+/** Removes the partial output file if the task fails midway, else it piles up on disk. */
 async function cleanupOnError<T>(output: string, work: () => Promise<T>): Promise<T> {
   try {
     return await work();
@@ -57,15 +53,18 @@ async function cleanupOnError<T>(output: string, work: () => Promise<T>): Promis
   }
 }
 
-/** Длительность медиа в мс или null, если ffprobe не смог её определить. */
+/** Media duration in ms, or null if ffprobe could not determine it. */
 export async function probeDurationMs(file: string): Promise<number | null> {
   try {
     const { stdout } = await execFileAsync(
       'ffprobe',
       [
-        '-v', 'error',
-        '-show_entries', 'format=duration',
-        '-of', 'default=noprint_wrappers=1:nokey=1',
+        '-v',
+        'error',
+        '-show_entries',
+        'format=duration',
+        '-of',
+        'default=noprint_wrappers=1:nokey=1',
         file,
       ],
       { timeout: config.media.ffprobeTimeoutMs, killSignal: 'SIGKILL', maxBuffer: 1024 * 1024 },
@@ -78,12 +77,11 @@ export async function probeDurationMs(file: string): Promise<number | null> {
 }
 
 /**
- * Всё медиа перекодируется в три предсказуемых формата: webp / mp4 / mp3.
- * Это одновременно: обрезка по длительности, защита от экзотических кодеков,
- * которые OBS может не проиграть, удаление метаданных и ограничение размеров.
+ * All media is re-encoded into three predictable formats (webp/mp4/mp3): this also clamps
+ * duration, strips exotic codecs OBS may not play, removes metadata, and limits dimensions.
  */
 
-/** Видео → mp4 (h264 + aac): максимально совместимо с Browser Source. */
+/** Video → mp4 (h264 + aac): maximally compatible with Browser Source. */
 export async function transcodeVideo(input: string, output: string, maxMs: number): Promise<void> {
   await runExclusive(() =>
     cleanupOnError(output, () =>
@@ -91,21 +89,35 @@ export async function transcodeVideo(input: string, output: string, maxMs: numbe
         'ffmpeg',
         [
           '-y',
-          '-i', input,
-          '-t', String(maxMs / 1000),
-          '-vf', "scale=w='min(1280,iw)':h=-2",
-          '-r', '30',
-          '-c:v', 'libx264',
-          '-preset', 'veryfast',
-          '-crf', '23',
-          '-pix_fmt', 'yuv420p',
-          '-c:a', 'aac',
-          '-b:a', '128k',
-          '-ac', '2',
-          '-movflags', '+faststart',
-          '-map_metadata', '-1',
-          // Один тред: на shared-CPU ограничивает и память кодера, и нагрузку на ядро.
-          '-threads', '1',
+          '-i',
+          input,
+          '-t',
+          String(maxMs / 1000),
+          '-vf',
+          "scale=w='min(1280,iw)':h=-2",
+          '-r',
+          '30',
+          '-c:v',
+          'libx264',
+          '-preset',
+          'veryfast',
+          '-crf',
+          '23',
+          '-pix_fmt',
+          'yuv420p',
+          '-c:a',
+          'aac',
+          '-b:a',
+          '128k',
+          '-ac',
+          '2',
+          '-movflags',
+          '+faststart',
+          '-map_metadata',
+          '-1',
+          // Single thread: on shared CPU caps both encoder memory and core load.
+          '-threads',
+          '1',
           output,
         ],
         { timeout: config.media.ffmpegTimeoutMs, killSignal: 'SIGKILL', maxBuffer: 1024 * 1024 },
@@ -114,7 +126,7 @@ export async function transcodeVideo(input: string, output: string, maxMs: numbe
   );
 }
 
-/** Аудио → mp3. */
+/** Audio → mp3. */
 export async function transcodeAudio(input: string, output: string, maxMs: number): Promise<void> {
   await runExclusive(() =>
     cleanupOnError(output, () =>
@@ -122,13 +134,19 @@ export async function transcodeAudio(input: string, output: string, maxMs: numbe
         'ffmpeg',
         [
           '-y',
-          '-i', input,
-          '-t', String(maxMs / 1000),
+          '-i',
+          input,
+          '-t',
+          String(maxMs / 1000),
           '-vn',
-          '-c:a', 'libmp3lame',
-          '-b:a', '128k',
-          '-map_metadata', '-1',
-          '-threads', '1',
+          '-c:a',
+          'libmp3lame',
+          '-b:a',
+          '128k',
+          '-map_metadata',
+          '-1',
+          '-threads',
+          '1',
           output,
         ],
         { timeout: config.media.ffmpegTimeoutMs, killSignal: 'SIGKILL', maxBuffer: 1024 * 1024 },
@@ -137,15 +155,13 @@ export async function transcodeAudio(input: string, output: string, maxMs: numbe
   );
 }
 
-/** Картинки (включая анимированные gif) → webp с ограничением размеров. */
+/** Images (including animated gifs) → webp with size limits. */
 export async function processImage(input: string, output: string): Promise<void> {
   await runExclusive(() =>
     cleanupOnError(output, async () => {
-      // metadata() читает только заголовок (кадры НЕ декодирует) — дёшево.
-      // {animated:true} разворачивает все кадры в сырой RGBA сразу: w*h*4*кадры байт.
-      // Сжатая гифка в пределах лимита файла может развернуться в сотни МБ — это и есть
-      // путь к OOM. Поэтому считаем «развёрнутый» размер заранее и, если он больше бюджета,
-      // не декодируем анимацию — отдаём один кадр (картинка пройдёт, просто без анимации).
+      // metadata() reads only the header (no frame decode) — cheap. {animated:true} expands all
+      // frames to raw RGBA (w*h*4*frames); a small gif can balloon to hundreds of MB and OOM.
+      // So estimate expanded size first; if over budget, decode a single frame instead.
       const meta = await sharp(input).metadata();
       const frames = meta.pages ?? 1;
       const surfaceBytes = (meta.width ?? 0) * (meta.height ?? 0) * 4 * frames;

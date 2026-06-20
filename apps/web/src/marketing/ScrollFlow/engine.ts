@@ -1,35 +1,30 @@
 import type { IconName } from '@/ui/icons';
 
 /**
- * Чистая математика анимации воронки «как это работает» — без React/DOM.
- * Один «токен» отправки едет по треку между 4 узлами-этапами; на модерации —
- * развилка (одобрено / отклонено / свой). Геометрия в координатах viewBox 0 0 680 150.
+ * Animation funnel math without React/DOM. One token travels tracks between 4 nodes;
+ * at moderation: fork (approve/reject/trust). Geometry: viewBox 0 0 680 150.
  */
 
 export const STAGE_ICONS: IconName[] = ['upload', 'loader', 'shield', 'play'];
 
-// Геометрия трека.
 export const NODE_X = [70, 250, 430, 610];
 export const TRACK_Y = 78;
 export const NODE_R = 22;
-export const MOD = 2; // индекс узла модерации
-export const STREAM = 3; // индекс узла «на стриме»
+export const MOD = 2; // moderation node index
+export const STREAM = 3; // live stream node index
 
-// Высоты дуг и амплитуды.
-export const HOP = 14; // лёгкая дуга токена на перегонах
-export const TRUST_HOP = 70; // «свой» перелетает поверх модерации высокой дугой
-export const REJECT_RECOIL = 34; // отскок токена влево от щита при отказе
-export const REJECT_DIP = 12; // просадка к треку на отскоке
-export const RETURN_HOP = 58; // высота дуги возврата токена в начало
+export const HOP = 14; // arc height between nodes
+export const TRUST_HOP = 70; // high arc for trust path (bypasses moderation)
+export const REJECT_RECOIL = 34; // bounce distance when rejected
+export const REJECT_DIP = 12; // dip amplitude during reject bounce
+export const RETURN_HOP = 58; // return arc height to start
 
-// Тайминги (мс).
-export const FWD_DUR = 6200; // проход вперёд (загрузка → исход)
-export const END_PAUSE = 1100; // пауза на результате перед возвратом
-export const RETURN_DUR = 900; // быстрый возврат токена в начало
-export const START_PAUSE = 450; // короткая пауза перед новым проходом
+export const FWD_DUR = 6200; // forward pass duration (upload → verdict)
+export const END_PAUSE = 1100; // pause at verdict before return
+export const RETURN_DUR = 900; // return to start
+export const START_PAUSE = 450; // pause before next pass
 
-// Развилка модерации: исход держим весь проход (frame — чистая функция p).
-// Порядок подобран так, что первый показ гостю — «одобрено», «отклонено» раз в 4 прохода.
+// Verdict is constant per pass; ORDER ensures first show is APPROVE, then cycles.
 export const APPROVE = 0;
 export const REJECT = 1;
 export const TRUST = 2;
@@ -39,24 +34,19 @@ export const smooth = (t: number) => t * t * (3 - 2 * t);
 export const clamp01 = (t: number) => (t < 0 ? 0 : t > 1 ? 1 : t);
 export const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
-/** Трапеция 0→1→0: плавный заход [a,b], плато [b,c], плавный выход [c,d]. Для прозрачности стампов. */
+/** Trapezoid 0→1→0: fade-in [a,b], hold [b,c], fade-out [c,d]. For stamp opacity. */
 export const pulse = (x: number, a: number, b: number, c: number, d: number) =>
   x < a ? 0 : x < b ? (x - a) / (b - a) : x < c ? 1 : x < d ? 1 - (x - c) / (d - c) : 0;
 
-/** Состояние одного кадра: позиция токена, подсветка узлов, заливка связей, стампы. */
+/** Frame state: token position, node highlights, segment fills, stamp opacities. */
 export interface Frame {
   x: number;
   y: number;
-  /** Прозрачность токена (отказ — рассеивается). */
-  op: number;
-  /** Масштаб токена (взлёт «своего» — чуть крупнее). */
-  sc: number;
-  /** Какие узлы подсвечены (мятным). */
-  lit: [boolean, boolean, boolean, boolean];
-  /** Заливка 3 связей между узлами, 0..1. */
-  seg: [number, number, number];
-  /** Расходящееся кольцо при попадании «на стрим», 0..1. */
-  live: number;
+  op: number; // token opacity (fades on reject)
+  sc: number; // token scale (grows on trust)
+  lit: [boolean, boolean, boolean, boolean]; // node highlights
+  seg: [number, number, number]; // edge fill progress 0..1
+  live: number; // expanding ring on stream reach 0..1
   stampApprove: number;
   stampReject: number;
   stampTrust: number;
@@ -64,7 +54,7 @@ export interface Frame {
 
 const X = NODE_X;
 
-/** Кадр прохода вперёд для прогресса p∈[0,1] и выбранного исхода. */
+/** Frame state for forward pass (p∈[0,1]) and verdict choice. */
 export function frameState(p: number, verdict: number): Frame {
   let x: number;
   let y = TRACK_Y;
@@ -82,7 +72,7 @@ export function frameState(p: number, verdict: number): Frame {
       x = X[1]!;
       lit = [true, true, false, false];
     } else if (p < 0.82) {
-      // Перелёт поверх щита одной высокой дугой 1→3, в модерацию не заходит.
+      // Trust path bypasses moderation (node 1 → node 3 in one arc).
       const t = (p - 0.3) / 0.52;
       x = lerp(X[1]!, X[3]!, smooth(t));
       y = TRACK_Y - TRUST_HOP * Math.sin(Math.PI * t);
@@ -108,20 +98,20 @@ export function frameState(p: number, verdict: number): Frame {
       y = TRACK_Y - HOP * Math.sin(Math.PI * t);
       lit = [true, true, false, false];
     } else if (p < 0.64) {
-      // Удар о щит и отскок влево с просадкой.
+      // Hit shield and bounce left.
       const t = (p - 0.52) / 0.12;
       x = X[2]! - REJECT_RECOIL * smooth(t);
       y = TRACK_Y - REJECT_DIP * Math.sin(Math.PI * t);
       lit = [true, true, true, false];
     } else {
-      // Рассеивается — на стрим не попадает.
+      // Disperses; does not reach stream.
       const t = (p - 0.64) / 0.36;
       x = X[2]! - REJECT_RECOIL;
       op = clamp01(1 - t / 0.5);
       lit = [true, true, true, false];
     }
   } else {
-    // APPROVE: проезд через все узлы с паузой-проверкой на модерации.
+    // APPROVE: pass through all nodes with moderation pause.
     if (p < 0.22) {
       const t = p / 0.22;
       x = lerp(X[0]!, X[1]!, smooth(t));
@@ -150,7 +140,7 @@ export function frameState(p: number, verdict: number): Frame {
     }
   }
 
-  // Заливка связей по текущему x; для отказа не «отливаем» назад и не зажигаем последнюю.
+  // Edge fill based on token x; on reject, don't reverse or light final edge.
   const seg: Frame['seg'] = [0, 0, 0];
   for (let k = 0; k < 3; k++) {
     seg[k] = clamp01((x - X[k]!) / (X[k + 1]! - X[k]!));
@@ -174,7 +164,7 @@ export function frameState(p: number, verdict: number): Frame {
   };
 }
 
-/** Кадр возврата: токен дугой летит из конечной точки прямо в начало, связи «сливаются». */
+/** Return frame: token arcs from endpoint back to start; edges drain. */
 export function frameReturn(rp: number, verdict: number): Frame {
   const e = smooth(rp);
   const endX = verdict === REJECT ? X[2]! - REJECT_RECOIL : X[3]!;
@@ -182,7 +172,7 @@ export function frameReturn(rp: number, verdict: number): Frame {
   return {
     x: lerp(endX, X[0]!, e),
     y: TRACK_Y - RETURN_HOP * Math.sin(Math.PI * rp),
-    // Отклонённый токен был рассеян — на возврате собирается и проявляется ближе к дому.
+    // Rejected token was dispersed; fade-in as it nears home.
     op: verdict === REJECT ? smooth(clamp01((rp - 0.35) / 0.65)) : 1,
     sc: 1,
     lit: [true, false, false, false],

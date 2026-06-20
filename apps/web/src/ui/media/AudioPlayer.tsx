@@ -12,7 +12,7 @@ export interface AudioPlayerProps {
   src: string;
   size?: MediaSize;
   durationHintSec?: number;
-  /** Пиксельный эквалайзер (авто-выкл. при системном reduce-motion). */
+  /** Pixel equalizer animation; auto-disabled if system reduce-motion is active. */
   equalizer?: boolean;
   loop?: boolean;
   label?: string;
@@ -22,9 +22,8 @@ export interface AudioPlayerProps {
 }
 
 /**
- * Аудио-«картридж»: самого медиа не видно, виджет повторяет язык музыкального
- * плеера оверлея (тиловая рамка + верхняя циан-кромка) — превью читается как
- * родственник того, что увидит зритель в эфире.
+ * Audio player widget with styling matching overlay music player (tile frame + cyan top border).
+ * Doubles as preview for how viewer sees it during broadcast.
  */
 export function AudioPlayer({
   src,
@@ -56,7 +55,12 @@ export function AudioPlayer({
     wasEnded.current = m.ended;
   }, [m.ended, onEnded]);
 
-  const total = m.ready && m.duration ? m.duration : durationHintSec && durationHintSec > 0 ? durationHintSec : 0;
+  const total =
+    m.ready && m.duration
+      ? m.duration
+      : durationHintSec && durationHintSec > 0
+        ? durationHintSec
+        : 0;
   const known = total > 0;
 
   return (

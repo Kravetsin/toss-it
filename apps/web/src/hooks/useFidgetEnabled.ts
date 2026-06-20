@@ -2,9 +2,8 @@ import { useState } from 'react';
 import { useReducedMotion } from './useReducedMotion';
 
 /**
- * Включать ли «фиджет»-анимации (курсор-эффекты, частицы, физика). Гейт по перф-бюджету:
- * НЕ reduced-motion, точный указатель (мышь, не тач) и не слишком слабая машина.
- * Решается однократно — без подписки на изменения.
+ * Gate fidget animations on perf budget: not reduced-motion, fine pointer, >=4 cores.
+ * Capability resolved once (no live re-eval).
  */
 export function useFidgetEnabled(): boolean {
   const reduced = useReducedMotion();

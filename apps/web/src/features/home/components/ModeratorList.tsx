@@ -3,7 +3,6 @@ import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
 import { Tooltip } from '@/ui';
 
-/** Список модераторов канала с кнопкой удаления. */
 export function ModeratorList({
   mods,
   onRemove,

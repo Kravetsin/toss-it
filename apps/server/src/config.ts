@@ -5,21 +5,20 @@ const isProd = process.env.NODE_ENV === 'production';
 
 export const config = {
   port: Number(process.env.PORT ?? 3000),
-  /** В контейнере нужен 0.0.0.0 — задаётся через HOST. */
+  /** Containers need 0.0.0.0 — set via HOST. */
   host: process.env.HOST ?? '127.0.0.1',
   isProd,
 
-  /** Прод-режим: сервер сам раздаёт собранные web и overlay (в dev это делает vite). */
+  /** Prod: server serves built web+overlay itself (vite does this in dev). */
   serveStatic: isProd || process.env.SERVE_STATIC === '1',
 
-  /** Базовый URL фронта (редиректы после OAuth). */
+  /** Frontend base URL (post-OAuth redirects). */
   webUrl: process.env.PUBLIC_WEB_URL ?? 'http://localhost:5173',
 
   twitch: {
     clientId: twitchClientId,
     clientSecret: process.env.TWITCH_CLIENT_SECRET ?? '',
-    redirectUri:
-      process.env.TWITCH_REDIRECT_URI ?? 'http://localhost:3000/api/auth/callback',
+    redirectUri: process.env.TWITCH_REDIRECT_URI ?? 'http://localhost:3000/api/auth/callback',
   },
 
   google: {
@@ -29,54 +28,48 @@ export const config = {
       process.env.GOOGLE_REDIRECT_URI ?? 'http://localhost:3000/api/auth/google/callback',
   },
 
-  /**
-   * Без ключей Twitch включается фейковая авторизация для локальной разработки:
-   * GET /api/auth/login?fake=<login> логинит выдуманного пользователя.
-   */
+  /** Without Twitch keys, fake auth turns on for local dev:
+   *  GET /api/auth/login?fake=<login> logs in a made-up user. */
   allowFakeAuth: !twitchClientId || process.env.ALLOW_FAKE_AUTH === '1',
 
   cookieSecret: process.env.COOKIE_SECRET ?? 'dev-secret-change-me',
   sessionTtlMs: 30 * 24 * 3_600_000,
 
-  /** Кто может выпускать промокоды: список user id (twitch:.../google:...) через запятую. */
+  /** Who can issue promo codes: comma-separated user ids (twitch:.../google:...). */
   adminUserIds: (process.env.ADMIN_USER_IDS ?? '')
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean),
 
   maxFileSizeBytes: 50 * 1024 * 1024,
-  /** Максимальная длительность показа; более длинные видео/аудио обрезаются. */
+  /** Max display duration; longer video/audio is truncated. */
   maxDurationMs: 15_000,
-  /** Сколько держать на экране статичные картинки и гифки. */
+  /** How long static images and gifs stay on screen. */
   imageDurationMs: 8_000,
 
-  /** Обработка медиа: лимиты против спайков памяти (sharp/ffmpeg держат нативную RAM). */
+  /** Media processing: limits against memory spikes (sharp/ffmpeg hold native RAM). */
   media: {
-    /** Сколько тяжёлых задач (декод/транскод) выполнять одновременно. На 512МБ — 1. */
+    /** Concurrent heavy tasks (decode/transcode). 1 on 512MB. */
     concurrency: Number(process.env.MEDIA_CONCURRENCY ?? 1),
-    /**
-     * Бюджет на «развёрнутую» анимацию: ширина×высота×4×кадры (сырой RGBA в памяти).
-     * Сверх него gif/webp обрабатываем как один кадр, а не как анимацию. По умолчанию ~96МБ.
-     */
+    /** Budget for expanded animation: w*h*4*frames (raw RGBA in memory).
+     *  Above it, gif/webp treated as single frame, not animated. Default ~96MB. */
     animatedPixelBudgetBytes: Number(process.env.ANIMATED_PIXEL_BUDGET_BYTES ?? 96 * 1024 * 1024),
-    /** Жёсткий потолок пикселей на один кадр (защита от pixel-bomb). ~24 МП. */
+    /** Hard per-frame pixel cap (pixel-bomb guard). ~24 MP. */
     maxInputPixels: Number(process.env.MAX_INPUT_PIXELS ?? 24_000_000),
-    /** Таймаут ffmpeg-транскода: зависший процесс убиваем, чтобы не держал RAM. */
+    /** ffmpeg transcode timeout: kill hung process so it stops holding RAM. */
     ffmpegTimeoutMs: Number(process.env.FFMPEG_TIMEOUT_MS ?? 120_000),
-    /** Таймаут ffprobe (определение длительности). */
+    /** ffprobe timeout (duration detection). */
     ffprobeTimeoutMs: Number(process.env.FFPROBE_TIMEOUT_MS ?? 30_000),
   },
 
-  /** YouTube-отправки: ссылка играет встроенным плеером, без лимита длительности (играет до конца). */
+  /** YouTube sends: link plays in embedded player, no duration cap (plays to end). */
   youtube: {
-    /**
-     * Сколько ждать реальную длительность от плеера, прежде чем watchdog решит,
-     * что оверлей мёртв, и продвинет очередь (мс). Плеер обычно сообщает её за секунды.
-     */
+    /** How long to wait for real duration from player before watchdog deems the
+     *  overlay dead and advances the queue (ms). Player usually reports in seconds. */
     loadGraceMs: Number(process.env.YOUTUBE_LOAD_GRACE_MS ?? 60_000),
   },
 
-  /** mime по magic bytes (file-type) → вид медиа. Всё остальное отклоняется. */
+  /** mime by magic bytes (file-type) → media kind. Everything else rejected. */
   allowedMime: {
     'image/jpeg': 'image',
     'image/png': 'image',
@@ -90,34 +83,34 @@ export const config = {
     'audio/x-wav': 'audio',
   } as Record<string, MediaKind>,
 
-  /** TTS через Google Translate (бесплатно, без ключа). */
+  /** TTS via Google Translate (free, no key). */
   tts: {
-    /** Принудительный язык озвучки (en/ru/...); по умолчанию определяется по имени. */
+    /** Forced voice language (en/ru/...); defaults to detection by name. */
     lang: process.env.TTS_LANG,
   },
 
   rateLimit: {
-    /** Общий потолок запросов с одного IP в минуту. */
+    /** Overall request cap per IP per minute. */
     global: Number(process.env.RATE_LIMIT_GLOBAL ?? 120),
-    /** Отдельный потолок на аплоад: транскодирование — дорогая операция. */
+    /** Separate upload cap: transcoding is expensive. */
     upload: Number(process.env.RATE_LIMIT_UPLOAD ?? 10),
   },
 
   moderation: {
-    /** Минимальный интервал между отправками одного зрителя в один канал. */
+    /** Min interval between one viewer's sends to one channel. */
     viewerCooldownMs: Number(process.env.VIEWER_COOLDOWN_MS ?? 60_000),
-    /** Максимум принятых отправок на канал в час. */
+    /** Max accepted sends per channel per hour. */
     channelHourlyLimit: Number(process.env.CHANNEL_HOURLY_LIMIT ?? 60),
   },
 
   cleanup: {
     intervalMs: 60_000,
-    /** Сколько держать файл после терминального статуса (запас на реконнект оверлея). */
+    /** How long to keep file after terminal status (slack for overlay reconnect). */
     terminalRetentionMs: 10 * 60_000,
-    /** Не показанные за это время отправки протухают. */
+    /** Sends not shown within this time expire. */
     queuedTtlMs: 4 * 3_600_000,
   },
 
-  /** Запас к таймеру watchdog: если оверлей не прислал done за durationMs + это время, считаем показ завершённым. */
+  /** Slack on watchdog timer: if overlay sends no done within durationMs + this, treat show as finished. */
   watchdogGraceMs: 10_000,
 };

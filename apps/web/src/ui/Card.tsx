@@ -8,9 +8,9 @@ export function Card({
 }: {
   children: ReactNode;
   className?: string;
-  /** Верхняя акцентная кромка (для главной карточки экрана). */
+  /** Top accent edge (for the screen's main card). */
   accent?: boolean;
-  /** Декоративные уголки-скобки по периметру (без заливки). */
+  /** Decorative corner brackets around the perimeter (no fill). */
   corners?: boolean;
 }) {
   const shadow = accent

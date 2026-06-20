@@ -1,7 +1,6 @@
 import { useI18n } from '@/i18n';
 import { Button, Icon } from '@/ui';
 
-/** Пара кнопок входа (Twitch + Google) с возвратом на returnTo после авторизации. */
 export function AuthButtons({ returnTo }: { returnTo: string }) {
   const { t } = useI18n();
   const rt = encodeURIComponent(returnTo);

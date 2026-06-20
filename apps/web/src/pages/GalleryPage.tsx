@@ -23,8 +23,8 @@ import { Vessel } from '@/features/channel/components/Vessel/Vessel';
 import type { Phase } from '@/features/channel/hooks/useMediaSubmission';
 
 /**
- * Dev-витрина дизайн-системы «Motion-dark» (Фаза 0). Показывает примитивы во всех
- * состояниях — чтобы агенты Фазы 1 сверяли свой реског с эталоном. Только DEV.
+ * Design system reference gallery for Phase 0 development. Agents in Phase 1 use this
+ * to verify component specs match the baseline.
  */
 
 const COLORS: { name: string; cls: string; border?: boolean }[] = [
@@ -46,11 +46,41 @@ const COLORS: { name: string; cls: string; border?: boolean }[] = [
 ];
 
 const ICONS: IconName[] = [
-  'folder-plus', 'send', 'upload', 'clock', 'check', 'close', 'monitor', 'trophy',
-  'volume-1', 'volume-2', 'volume-3', 'volume-x', 'gift', 'sparkles', 'star', 'image',
-  'loader', 'reload', 'copy', 'user-x', 'forward', 'bell', 'bell-off', 'shield', 'eye',
-  'home', 'save', 'play', 'pause', 'square-alert', 'fullscreen', 'fullscreen-exit',
-  'swap', 'twitch', 'google',
+  'folder-plus',
+  'send',
+  'upload',
+  'clock',
+  'check',
+  'close',
+  'monitor',
+  'trophy',
+  'volume-1',
+  'volume-2',
+  'volume-3',
+  'volume-x',
+  'gift',
+  'sparkles',
+  'star',
+  'image',
+  'loader',
+  'reload',
+  'copy',
+  'user-x',
+  'forward',
+  'bell',
+  'bell-off',
+  'shield',
+  'eye',
+  'home',
+  'save',
+  'play',
+  'pause',
+  'square-alert',
+  'fullscreen',
+  'fullscreen-exit',
+  'swap',
+  'twitch',
+  'google',
 ];
 
 const BTN_VARIANTS = ['primary', 'framed', 'accent', 'secondary', 'ghost', 'danger'] as const;
@@ -73,12 +103,12 @@ const DEMO_RESULT: UploadResponse = {
   stardustBalance: 0,
 };
 
-/** Dev-стенд «Сосуда»: чипы прыгают по фазам, «проиграть» гонит весь happy-path. */
 function VesselDemo() {
   const [phase, setPhase] = useState<Phase>({ name: 'idle' });
   const [status, setStatus] = useState<LiveStatus | null>(null);
   const [cooldownSec, setCooldownSec] = useState(0);
   const [text, setText] = useState('врубай этого на стрим 🔥');
+  // Token incremented on each action to cancel stale async completions.
   const tok = useRef(0);
 
   useEffect(() => {
@@ -101,6 +131,7 @@ function VesselDemo() {
   };
   const play = () => {
     const my = ++tok.current;
+    // Schedule timed action; cancelled if token changes (action interrupted).
     const at = (ms: number, fn: () => void) =>
       window.setTimeout(() => {
         if (my === tok.current) fn();
@@ -180,8 +211,8 @@ export function GalleryPage() {
         <span className="label-mono text-accent">&gt; FOUNDATION · PHASE 0</span>
         <h1>Motion-dark</h1>
         <p className="max-w-xl text-muted">
-          Эталон дизайн-системы. Значения акцента и шрифтов провизорные. Наведи курсор на
-          кнопки — уголки «выезжают», диагональная заливка вытирает фон, лейбл инвертируется.
+          Эталон дизайн-системы. Значения акцента и шрифтов провизорные. Наведи курсор на кнопки —
+          уголки «выезжают», диагональная заливка вытирает фон, лейбл инвертируется.
         </p>
       </header>
 
@@ -193,7 +224,9 @@ export function GalleryPage() {
         <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
           {COLORS.map((c) => (
             <div key={c.name} className="flex flex-col gap-1.5">
-              <div className={`h-12 w-full rounded-none ${c.cls} ${c.border ? 'border border-border' : ''}`} />
+              <div
+                className={`h-12 w-full rounded-none ${c.cls} ${c.border ? 'border border-border' : ''}`}
+              />
               <span className="label-mono text-faint">{c.name}</span>
             </div>
           ))}
@@ -203,7 +236,10 @@ export function GalleryPage() {
       <Section title="Elevation (shadow-1..4)">
         <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
           {(['shadow-1', 'shadow-2', 'shadow-3', 'shadow-4'] as const).map((s) => (
-            <div key={s} className={`grid h-20 place-items-center rounded-none border border-border bg-surface ${s}`}>
+            <div
+              key={s}
+              className={`grid h-20 place-items-center rounded-none border border-border bg-surface ${s}`}
+            >
               <span className="label-mono text-muted">{s}</span>
             </div>
           ))}
@@ -230,16 +266,21 @@ export function GalleryPage() {
           {BTN_VARIANTS.map((v) => (
             <div key={v} className="flex flex-wrap items-center gap-4">
               <span className="w-20 shrink-0 label-mono text-faint">{v}</span>
-              <Button variant={v} size="sm">Small</Button>
+              <Button variant={v} size="sm">
+                Small
+              </Button>
               <Button variant={v}>
                 <Icon name="send" size={15} />
                 Default
               </Button>
-              <Button variant={v} size="lg">Large</Button>
-              <Button variant={v} disabled>Disabled</Button>
+              <Button variant={v} size="lg">
+                Large
+              </Button>
+              <Button variant={v} disabled>
+                Disabled
+              </Button>
             </div>
           ))}
-          {/* Паттерн загрузки (без отдельного prop): disabled + крутящийся спиннер. */}
           <div className="flex flex-wrap items-center gap-4">
             <span className="w-20 shrink-0 label-mono text-faint">loading</span>
             <Button variant="primary" disabled aria-busy>
@@ -273,10 +314,7 @@ export function GalleryPage() {
               </span>
             </Tooltip>
           ))}
-          <Tooltip
-            placement="top"
-            content="Раскрытие сверху — для кнопок у нижнего края (плеер)."
-          >
+          <Tooltip placement="top" content="Раскрытие сверху — для кнопок у нижнего края (плеер).">
             <span className="inline-flex cursor-help items-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 py-1.5 text-sm text-muted">
               <Icon name="play" size={14} className="text-accent" />
               placement=top
@@ -298,14 +336,21 @@ export function GalleryPage() {
       <Section title="CornerFrame (standalone)">
         <div className="flex flex-wrap gap-6">
           {(['default', 'accent', 'muted'] as const).map((tone) => (
-            <CornerFrame key={tone} tone={tone} className="grid h-20 w-40 place-items-center bg-surface">
+            <CornerFrame
+              key={tone}
+              tone={tone}
+              className="grid h-20 w-40 place-items-center bg-surface"
+            >
               <span className="label-mono text-muted">{tone}</span>
             </CornerFrame>
           ))}
           <CornerFrame active className="grid h-20 w-40 place-items-center bg-surface">
             <span className="label-mono text-muted">active</span>
           </CornerFrame>
-          <CornerFrame fill className="grid h-20 w-40 cursor-pointer place-items-center bg-surface hatch">
+          <CornerFrame
+            fill
+            className="grid h-20 w-40 cursor-pointer place-items-center bg-surface hatch"
+          >
             <span className="relative z-[1] label-mono text-text">hover fill</span>
           </CornerFrame>
         </div>

@@ -6,9 +6,8 @@ import { Icon } from '@/ui/icons';
 import { Button, Card, CopyableLinkBox } from '@/ui';
 
 /**
- * Интеграции канала. Donatello работает через «Колбеки»: Donatello сам POST-ит каждый донат
- * на наш Callback URL (деньги через нас НЕ идут). Стример включает колбек у себя и вставляет
- * выданные URL + Key. Кнопка «Тест-донат» рисует тот же эффект напрямую (без Donatello).
+ * Donatello integration via webhooks: Donatello POSTs donations to our callback URL
+ * (money bypasses us). Streamer enables callback and enters generated URL + Key. Test button simulates effect locally.
  */
 export function IntegrationsCard({
   channelId,

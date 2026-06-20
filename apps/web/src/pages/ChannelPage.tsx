@@ -38,10 +38,9 @@ export function ChannelPage() {
     loadBoard();
   }, [login, loadBoard]);
 
-  // При заходе/перезагрузке: расставляем по небу звёзды по СУММЕ показанных на стриме постов ВСЕХ
-  // контрибьюторов (общий «космос канала» — стимул слать достойное, а не спам). Звёзды появляются
-  // прозрачными и плавно зажигаются каждая в случайный момент. Один раз на маунт — независимо от
-  // обновлений борда после поста (чтобы не задваивать с сессионной звездой показа).
+  // On mount: populate sky with stars based on total visible posts from all contributors.
+  // Channel cosmos incentivizes quality submissions. Stars animate in with fade/twinkle.
+  // Run once to avoid duplication with session stars.
   useEffect(() => {
     let cancelled = false;
     let timer = 0;
@@ -61,7 +60,7 @@ export function ChannelPage() {
   const loadedChannel = channel !== 'loading' ? channel : null;
   const sub = useMediaSubmission(loadedChannel, login, loadBoard);
 
-  // Отправка принята → осколок звёздной пыли летит в кошелёк, баланс из ответа; затем фоновый refresh.
+  // On successful submission: animate stardust fragment to sender's wallet, update balance, refresh user state.
   useEffect(() => {
     if (sub.phase.name !== 'done') return;
     const res = sub.phase.result;

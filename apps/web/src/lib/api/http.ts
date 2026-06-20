@@ -1,6 +1,6 @@
 import type { ApiError } from '@tmw/shared';
 
-/** Ошибка API с машиночитаемым кодом (напр. кулдаун с retryAfterSec). */
+/** API error with machine-readable code and optional retry metadata. */
 export class ApiRequestError extends Error {
   constructor(
     message: string,
@@ -11,12 +11,16 @@ export class ApiRequestError extends Error {
   }
 }
 
-/** Разбор ответа fetch: бросает ApiRequestError на не-2xx, иначе типизированное тело. */
+/** Parse fetch response: throws ApiRequestError on non-2xx, else typed body. */
 export async function json<T>(res: Response): Promise<T> {
   const body = (await res.json()) as T | ApiError;
   if (!res.ok) {
     const e = body as ApiError;
-    throw new ApiRequestError('error' in e ? e.error : `HTTP ${res.status}`, e.code, e.retryAfterSec);
+    throw new ApiRequestError(
+      'error' in e ? e.error : `HTTP ${res.status}`,
+      e.code,
+      e.retryAfterSec,
+    );
   }
   return body as T;
 }

@@ -7,8 +7,8 @@ export interface SelectOption {
 }
 
 /**
- * Кастомный селект (нативный нельзя стилизовать под тему): кнопка + поповер-список.
- * Закрытие по Escape и клику снаружи; высота как у Input (px-3 py-2 text-sm).
+ * Themed select (native can't be styled): button + popover list.
+ * Closes on Escape and outside click; height matches Input.
  */
 export function Select({
   value,
@@ -20,7 +20,6 @@ export function Select({
   value: string;
   onChange: (value: string) => void;
   options: SelectOption[];
-  /** aria-label кнопки. */
   label?: string;
   className?: string;
 }) {

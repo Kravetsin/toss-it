@@ -4,11 +4,9 @@ import { Tooltip } from '@/ui';
 import { StarMark } from '@/components/StarMark';
 
 /**
- * Кросс-канальная репутация отправителя — только «показано на стримах» в виде звёзд.
- * Намеренно НЕ показываем отказы/баны/WL: заградительный сигнал заставляет зрителя
- * дважды подумать перед отправкой и душит активность, а не растит качество. Звезда =
- * показанная на стриме отправка (та же «валюта», что в лидерборде канала). founder-бейдж
- * не дублируем — он уже есть в шапке карточки (UserBadges).
+ * Cross-channel reputation: accepted submissions only (shown on streams as stars).
+ * Intentionally hide rejections/bans: negative signals suppress activity more than they improve quality.
+ * Star = accepted submission on stream (same currency as channel leaderboard).
  */
 export function RepChip({ rep }: { rep?: ReputationStats }) {
   const { t } = useI18n();

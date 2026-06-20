@@ -14,8 +14,7 @@ export type Phase =
   | { name: 'error'; message: string };
 
 /**
- * Поведенческое ядро отправки медиа: выбор/валидация файла, текст, загрузка с прогрессом,
- * кулдаун, живой статус по сокету. Компонент остаётся преимущественно презентационным.
+ * Media submission logic: file selection/validation, text, upload with progress, cooldown, live status via socket.
  */
 export function useMediaSubmission(
   channel: PublicChannelInfo | null,
@@ -34,7 +33,10 @@ export function useMediaSubmission(
     (f: File | null) => {
       if (!f || !channel) return;
       if (f.size > channel.maxFileSizeBytes) {
-        setPhase({ name: 'error', message: t('channel.tooBig', { mb: mb(channel.maxFileSizeBytes) }) });
+        setPhase({
+          name: 'error',
+          message: t('channel.tooBig', { mb: mb(channel.maxFileSizeBytes) }),
+        });
         return;
       }
       setPhase({ name: 'idle' });
@@ -52,8 +54,7 @@ export function useMediaSubmission(
       );
       setLiveStatus(result.status);
       setPhase({ name: 'done', result });
-      // Проактивный кулдаун: запускаем таймер сразу после приёма отправки, а не ошибкой
-      // при повторной попытке. 0 (владелец канала) — таймер не запускается.
+      // Start cooldown proactively after successful send, not on retry-after error. 0 (channel owner) = no cooldown.
       if (result.cooldownSec > 0) setCooldownSec(result.cooldownSec);
       setFile(null);
       setText('');
@@ -74,7 +75,7 @@ export function useMediaSubmission(
     setText('');
   }
 
-  // Живой статус по сокету привязан к id завершённой отправки.
+  // Live status via socket keyed to submission id when done.
   const doneId = phase.name === 'done' ? phase.result.id : null;
   useSubmissionStatus(doneId, (status) => {
     setLiveStatus(status);

@@ -32,9 +32,8 @@ export function uploadMedia(login: string, file: File): Promise<UploadResponse> 
 }
 
 /**
- * Загрузка с прогрессом (XHR — у fetch нет upload-прогресса).
- * onProgress: 0..1 пока файл едет на сервер, затем null = «сервер обрабатывает»
- * (транскодирование может занимать секунды, особенно на слабом хостинге).
+ * Uses XHR for upload progress (fetch lacks upload events).
+ * onProgress: 0..1 while uploading, then null while server processes (e.g. transcoding).
  */
 export function uploadMediaWithProgress(
   login: string,
@@ -74,7 +73,6 @@ export function uploadMediaWithProgress(
   });
 }
 
-/** Каналы, к которым у пользователя есть доступ (свои + где он модератор). */
 export function getMyChannels(): Promise<AccessibleChannel[]> {
   return fetch('/api/me/channels').then((r) => json<AccessibleChannel[]>(r));
 }

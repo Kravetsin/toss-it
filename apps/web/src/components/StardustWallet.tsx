@@ -6,10 +6,8 @@ import { DustMark } from '@/components/DustMark';
 import { registerStardustWallet } from '@/lib/stardustFx';
 
 /**
- * Чип кошелька звёздной пыли (глобальный баланс залогиненного пользователя). Регистрируется
- * как мишень для анимации «осколок летит в кошелёк» (flyStardust) и делает «+1»-pop по прилёту.
- * Скрыт, если не залогинен. Источник истины — me.user.stardust; локальный displayed только
- * вперёд (Math.max), чтобы оптимистичный бамп не откатывался гонкой с refresh.
+ * Stardust wallet chip; registers as flyStardust animation target. Source of truth is
+ * me.user.stardust; displayed only moves forward (Math.max) so optimistic bumps survive refresh races.
  */
 export function StardustWallet({ className = '' }: { className?: string }) {
   const { t } = useI18n();

@@ -3,7 +3,6 @@ import { mb } from '@/lib/format';
 import { Card, IconButton } from '@/ui';
 import { AudioPlayer, ImageFrame, VideoPlayer } from '@/ui/media';
 
-/** Превью выбранного файла по его типу (image/video/audio). */
 function FilePreview({ file, url }: { file: File; url: string | null }) {
   if (!url) return null;
   if (file.type.startsWith('image/')) return <ImageFrame src={url} alt={file.name} size="submit" />;
@@ -14,7 +13,6 @@ function FilePreview({ file, url }: { file: File; url: string | null }) {
   return null;
 }
 
-/** Карточка выбранного файла: превью + имя/размер + кнопка убрать. */
 export function SelectedFileCard({
   file,
   url,

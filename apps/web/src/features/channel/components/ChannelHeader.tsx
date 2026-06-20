@@ -5,7 +5,6 @@ import { PLATFORM_ICON, PLATFORM_LABEL } from '@/lib/social';
 import { Icon } from '@/ui/icons';
 import { Avatar, Badge, Chip, Tooltip } from '@/ui';
 
-/** Шапка канала: аватар, имя, бейдж первопроходца и чипы лимитов. */
 export function ChannelHeader({ channel }: { channel: PublicChannelInfo }) {
   const { t } = useI18n();
   return (
@@ -49,8 +48,14 @@ export function ChannelHeader({ channel }: { channel: PublicChannelInfo }) {
       )}
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <Chip icon="image" text={t('channel.limitVideo', { dur: formatDuration(channel.maxDurationMs, t) })} />
-        <Chip icon="volume-2" text={t('channel.limitAudio', { dur: formatDuration(channel.maxAudioDurationMs, t) })} />
+        <Chip
+          icon="image"
+          text={t('channel.limitVideo', { dur: formatDuration(channel.maxDurationMs, t) })}
+        />
+        <Chip
+          icon="volume-2"
+          text={t('channel.limitAudio', { dur: formatDuration(channel.maxAudioDurationMs, t) })}
+        />
         <Chip icon="save" text={t('channel.limitSize', { mb: mb(channel.maxFileSizeBytes) })} />
         <Chip icon="send" text={t('channel.limitText', { n: TEXT_MAX_LEN })} />
       </div>

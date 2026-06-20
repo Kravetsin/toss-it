@@ -1,7 +1,6 @@
 /**
- * Императивный мост «осколок звёздной пыли летит в кошелёк» (по образцу launchKeepsake в
- * BackgroundStars). Кошелёк регистрирует свою позицию + колбэк бампа баланса; flyStardust
- * спавнит DOM-осколок в точке отправки и анимирует его в кошелёк, по прилёту бампает баланс.
+ * Imperative bridge for stardust animation: wallet registers its position and balance callback;
+ * flyStardust spawns DOM fragment at send point, animates to wallet, then bumps balance on arrival.
  */
 interface WalletTarget {
   rect: () => DOMRect | null;
@@ -16,7 +15,7 @@ export function registerStardustWallet(t: WalletTarget | null): void {
 const SPARK =
   'M12 0C12 6.627 6.627 12 0 12C6.627 12 12 17.373 12 24C12 17.373 17.373 12 24 12C17.373 12 12 6.627 12 0Z';
 
-/** Пустить осколок из точки `from` (клиентские координаты) в кошелёк; по прилёту баланс → newBalance. */
+/** Animate stardust fragment from `from` (client coords) to wallet; updates balance on arrival. */
 export function flyStardust(from: { x: number; y: number }, newBalance: number): void {
   if (!target) return;
   const rect = target.rect();
@@ -41,7 +40,11 @@ export function flyStardust(from: { x: number; y: number }, newBalance: number):
   const anim = el.animate(
     [
       { transform: `translate(${fx}px, ${fy}px) scale(0.4) rotate(0deg)`, opacity: 0 },
-      { transform: `translate(${fx}px, ${fy - 28}px) scale(1) rotate(120deg)`, opacity: 1, offset: 0.25 },
+      {
+        transform: `translate(${fx}px, ${fy - 28}px) scale(1) rotate(120deg)`,
+        opacity: 1,
+        offset: 0.25,
+      },
       { transform: `translate(${tx}px, ${ty}px) scale(0.5) rotate(360deg)`, opacity: 0.9 },
     ],
     { duration: 850, easing: 'cubic-bezier(.5,0,.4,1)' },

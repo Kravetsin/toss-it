@@ -1,7 +1,6 @@
 /**
- * Звуковое уведомление для дашборда модерации (через Web Audio, без файла).
- * Браузеры блокируют автоплей до первого жеста — поэтому разблокируем контекст
- * по первому клику/нажатию клавиши на странице.
+ * Audio notifications via Web Audio (no file). Browsers block autoplay until first user gesture,
+ * so unlock context on initial pointer/key event.
  */
 let ctx: AudioContext | null = null;
 let unlockBound = false;
@@ -15,7 +14,6 @@ function ensureCtx(): AudioContext | null {
   }
 }
 
-/** Один раз навесить разблокировку аудио на первый жест пользователя. */
 export function initAudioUnlock(): void {
   if (unlockBound) return;
   unlockBound = true;
@@ -28,7 +26,6 @@ export function initAudioUnlock(): void {
   window.addEventListener('keydown', unlock);
 }
 
-/** Короткий восходящий сигнал, привлекающий внимание. */
 export function playNotify(): void {
   const c = ensureCtx();
   if (!c) return;

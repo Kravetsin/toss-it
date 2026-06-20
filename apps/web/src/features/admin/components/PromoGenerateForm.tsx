@@ -5,7 +5,6 @@ import { useToast } from '@/providers/ToastProvider';
 import { Icon } from '@/ui/icons';
 import { Button, Card, Input } from '@/ui';
 
-/** Форма генерации промокодов первопроходца (admin-only). */
 export function PromoGenerateForm({ onCreated }: { onCreated: () => void }) {
   const { t } = useI18n();
   const toast = useToast();

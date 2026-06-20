@@ -11,7 +11,7 @@ import { registerPromoRoutes } from './promo';
 import { registerDonationRoutes } from './donations';
 
 export function registerRoutes(app: FastifyInstance, deps: MediaRoutesDeps): void {
-  /** Лёгкий пинг для аптайм-мониторинга (не трогает БД). */
+  /** Lightweight uptime-monitor ping; does not touch the DB. */
   app.get('/api/ping', async () => ({ ok: true }));
 
   app.get('/api/health', async () => {

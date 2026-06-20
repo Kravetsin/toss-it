@@ -1,7 +1,6 @@
 /**
- * Брендовая звезда «Tossit» — четырёхлучевая искра (а не заезженная пятиконечная).
- * Смысл: звезда = показанная на стриме отправка. Задел под будущую валюту канала,
- * поэтому живёт отдельным компонентом, а не в общем наборе Icon. Тонируется currentColor.
+ * Brand "Tossit" star (4-point spark). Kept as its own component (not in Icon set)
+ * as groundwork for a future channel currency. Tinted via currentColor.
  */
 export function StarMark({ size = 16, className = '' }: { size?: number; className?: string }) {
   return (

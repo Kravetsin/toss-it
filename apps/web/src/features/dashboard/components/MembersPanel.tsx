@@ -36,7 +36,7 @@ function TabBtn({
   );
 }
 
-/** Контекст-панель участников канала: табы «Доверенные / Баны» (Фаза 3, замена двух UserList). */
+/** Channel members context panel with tabs for whitelist and bans. Replaces two separate UserList components. */
 export function MembersPanel({
   allowed,
   banned,

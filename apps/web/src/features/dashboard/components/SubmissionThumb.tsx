@@ -4,9 +4,9 @@ import { youtubeThumbnail } from '@/lib/youtube';
 import { Icon } from '@/ui/icons';
 import { KIND_ICON } from '../constants';
 
-const BOX = 'grid size-14 shrink-0 place-items-center overflow-hidden border border-border bg-surface-2';
+const BOX =
+  'grid size-14 shrink-0 place-items-center overflow-hidden border border-border bg-surface-2';
 
-/** Единая мини-тумба отправки (фикс-размер) — чтобы все строки очереди читались одинаково. */
 export function SubmissionThumb({ s }: { s: SubmissionSummary }) {
   const [imgError, setImgError] = useState(false);
 

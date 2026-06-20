@@ -1,49 +1,33 @@
-import {
-  useEffect,
-  useId,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type ReactNode,
-} from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 /**
- * Лёгкий тултип-пояснение для функционала. Показывается по наведению И фокусу (a11y),
- * содержимое — произвольный ReactNode. `align` управляет горизонтальной привязкой к триггеру,
- * `placement` — стороной (снизу/сверху).
- *
- * Плашка рендерится ПОРТАЛОМ в `document.body` и позиционируется `fixed` по координатам
- * триггера — так она не обрезается `overflow: hidden` родительских контейнеров (карточки,
- * drawer, таблицы) и всегда поверх. Позиция пересчитывается на scroll/resize, пока тултип
- * открыт (в скроллящихся контейнерах плашка иначе оторвалась бы от кнопки).
- *
- * Появление — «жидкостью»: плашка целиком (фон, рамка, текст) клипуется растущим `circle()`
- * из точки касания у кромки, обращённой к триггеру, так что буквы проявляются по мере того,
- * как заливка до них доходит. Та же идиома, что у круговой заливки кнопок (useFillEffect).
- * Тень — `drop-shadow`, чтобы следовала за формой капли. Под `prefers-reduced-motion`
- * глобальное правило (index.css) гасит длительность — тултип появляется мгновенно.
+ * Tooltip shown on hover AND focus (a11y); content is an arbitrary ReactNode.
+ * Plate renders via portal into document.body, positioned `fixed` so parent
+ * `overflow: hidden` (cards, drawers, tables) never clips it; reposition on
+ * scroll/resize while open. Reveal "liquid" via growing circle() clip-path from
+ * the edge facing the trigger (same idiom as button fill); reduced-motion makes
+ * it instant via global index.css rule.
  */
 
-// Заливка: мягкий старт → быстрая середина → медленный конец (как у кнопок, чуть короче).
+// Fill easing: soft start, fast middle, slow end (like buttons, a bit shorter).
 const REVEAL_GROW = 'clip-path .5s cubic-bezier(.25, 0, .1, 1)';
 const REVEAL_SHRINK = 'clip-path .28s cubic-bezier(.25, 0, 0, 1)';
-// Через сколько после сжатия снимаем плашку с DOM (длительность SHRINK + запас).
-// На таймере, а не на transitionend: событие clip-path не всегда приходит (прерванная
-// анимация, reduced-motion с почти нулевой длительностью) — иначе плашка зависла бы в DOM.
+// Delay before unmounting plate after shrink (SHRINK duration + margin). Timer,
+// not transitionend: clip-path event isn't always fired (interrupted anim,
+// near-zero reduced-motion duration) — else the plate would stick in the DOM.
 const HIDE_MS = 320;
-// Зазор между триггером и плашкой.
 const GAP = 8;
 
-// circle() проценты считаются относительно sqrt((w² + h²) / 2). Радиус подбираем так,
-// чтобы круг из точки (xPct, yPct) у кромки накрыл дальний угол.
+// circle() percentages are relative to sqrt((w² + h²) / 2). Pick radius so the
+// circle at (xPct, yPct) on the edge covers the far corner.
 function targetPct(w: number, h: number, xPct: number, yPct: number) {
   const xPx = (xPct / 100) * w;
   const yPx = (yPct / 100) * h;
   const farPx = Math.sqrt(Math.max(xPx, w - xPx) ** 2 + Math.max(yPx, h - yPx) ** 2);
   const refLen = Math.sqrt((w ** 2 + h ** 2) / 2);
-  return Math.ceil((farPx / refLen) * 100) + 2; // +2 — мини-запас
+  return Math.ceil((farPx / refLen) * 100) + 2; // +2 — small margin
 }
 
 export function Tooltip({
@@ -56,25 +40,25 @@ export function Tooltip({
 }: {
   content: ReactNode;
   children: ReactNode;
-  /** Горизонтальная привязка для placement top/bottom (для left/right игнорируется). */
+  /** Horizontal anchor for top/bottom placement (ignored for left/right). */
   align?: 'center' | 'start' | 'end';
   /**
-   * Сторона триггера, с которой раскрывается тултип. 'top' — для кнопок у нижнего края,
-   * 'right'/'left' — для вертикальных меню (свёрнутый сайдбар), где снизу/сверху перекрыло
-   * бы соседние пункты. Для left/right плашка центрируется по вертикали триггера.
+   * Side the tooltip opens from. 'top' for buttons near the bottom edge;
+   * 'right'/'left' for vertical menus (collapsed sidebar) where top/bottom would
+   * overlap neighbors. left/right plates are centered vertically on the trigger.
    */
   placement?: 'top' | 'bottom' | 'left' | 'right';
   className?: string;
   /**
-   * true (по умолч.) — триггер сам по себе не фокусируем (текст/чип): оборачиваем его
-   * в `span[tabIndex=0]`, чтобы тултип открывался и с клавиатуры.
-   * false — триггер УЖЕ фокусируем (кнопка, ссылка): обёртку не добавляем, иначе
-   * получится двойной фокус-таргет. Фокус ловим через всплытие (focusin/out) на контейнере.
+   * true (default): trigger isn't focusable (text/chip), so wrap in
+   * span[tabIndex=0] for keyboard access. false: trigger already focusable
+   * (button/link) — no wrapper, else a double focus target. Focus caught via
+   * focusin/out bubbling on the container.
    */
   focusable?: boolean;
 }) {
-  // open — целевое состояние (растём/сжимаемся); render — смонтирована ли плашка в DOM
-  // (держим её на время exit-анимации сжатия).
+  // open = target state (grow/shrink); render = whether plate is mounted (kept
+  // during shrink exit animation).
   const [open, setOpen] = useState(false);
   const [render, setRender] = useState(false);
   const id = useId();
@@ -82,20 +66,20 @@ export function Tooltip({
 
   const triggerRef = useRef<HTMLSpanElement>(null);
   const plateRef = useRef<HTMLSpanElement>(null);
-  // clientX курсора в момент наведения (null = вход с клавиатуры → старт от привязки align).
+  // Cursor clientX at hover time (null = keyboard entry → start from align anchor).
   const cursorX = useRef<number | null>(null);
-  // Точка входа в % по горизонтали — переиспользуется при сжатии (схлопываемся туда же).
+  // Horizontal entry point (%), reused on shrink so it collapses to the same spot.
   const originPct = useRef(50);
-  // Таймер отложенного размонтирования (см. HIDE_MS). Чистится при повторном наведении.
+  // Deferred unmount timer (see HIDE_MS); cleared on re-hover.
   const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const horizontal = placement === 'left' || placement === 'right';
-  // Кромка, обращённая к триггеру, откуда стартует заливка:
-  // bottom→верхняя (y=0), top→нижняя (y=100), right→левая (x=0), left→правая (x=100).
+  // Edge facing the trigger where the fill starts:
+  // bottom→top (y=0), top→bottom (y=100), right→left (x=0), left→right (x=100).
   const originY = horizontal ? 50 : placement === 'top' ? 100 : 0;
 
-  // Ставит плашку (fixed) по координатам триггера. Без знания размеров плашки фиксируем ту
-  // кромку, что прилегает к триггеру (через top/bottom/left/right), остальное — transform.
+  // Position the fixed plate by trigger coords: pin the edge adjacent to the
+  // trigger (top/bottom/left/right), offset the rest via transform.
   function position() {
     const el = plateRef.current;
     const trig = triggerRef.current;
@@ -106,13 +90,13 @@ export function Tooltip({
     el.style.left = 'auto';
     el.style.right = 'auto';
     if (horizontal) {
-      // Сбоку: по вертикали центрируем по триггеру.
+      // Side placement: center vertically on the trigger.
       el.style.top = `${tr.top + tr.height / 2}px`;
       el.style.transform = 'translateY(-50%)';
       if (placement === 'right') el.style.left = `${tr.right + GAP}px`;
       else el.style.right = `${window.innerWidth - tr.left + GAP}px`;
     } else {
-      // Снизу/сверху: по горизонтали — привязка align.
+      // Top/bottom placement: horizontal anchor follows align.
       if (align === 'start') {
         el.style.left = `${tr.left}px`;
         el.style.transform = 'none';
@@ -141,11 +125,11 @@ export function Tooltip({
     hideTimer.current = setTimeout(() => setRender(false), reduced ? 0 : HIDE_MS);
   }
 
-  // Подчищаем таймер, если компонент исчезнет посреди ухода тултипа.
+  // Clear the timer if the component unmounts mid-hide.
   useEffect(() => () => clearTimeout(hideTimer.current), []);
 
-  // Пока тултип раскрыт — держим плашку приклеенной к триггеру при прокрутке/ресайзе.
-  // capture:true ловит и прокрутку вложенных контейнеров (drawer, таблица), не только окна.
+  // While open, keep the plate glued to the trigger on scroll/resize.
+  // capture:true also catches nested-container scroll (drawer, table), not just window.
   useEffect(() => {
     if (!open) return;
     const onMove = () => position();
@@ -158,7 +142,7 @@ export function Tooltip({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // Запускаем/сворачиваем заливку после того, как плашка оказалась в DOM и измерена.
+  // Grow/shrink the fill once the plate is mounted in the DOM and measured.
   useLayoutEffect(() => {
     const el = plateRef.current;
     if (!el) return;
@@ -166,7 +150,7 @@ export function Tooltip({
     if (open) {
       position();
       const { width, height, left } = el.getBoundingClientRect();
-      // Для left/right старт от прилегающей боковой кромки; для top/bottom — из точки курсора.
+      // left/right start from the adjacent side edge; top/bottom from the cursor point.
       const xPct = horizontal
         ? placement === 'right'
           ? 0
@@ -180,18 +164,18 @@ export function Tooltip({
               : 50;
       originPct.current = xPct;
       const target = targetPct(width, height, xPct, originY);
-      // 0% из точки входа → reflow → рост до радиуса, накрывающего дальний угол.
+      // 0% at entry point → reflow → grow to a radius covering the far corner.
       el.style.transition = 'none';
       el.style.clipPath = `circle(0% at ${xPct}% ${originY}%)`;
       void el.offsetWidth;
       el.style.transition = REVEAL_GROW;
       el.style.clipPath = `circle(${target}% at ${xPct}% ${originY}%)`;
     } else {
-      // Сжатие к той же точке; плашку снимет с DOM таймер hide() (HIDE_MS).
+      // Shrink to the same point; the hide() timer unmounts the plate (HIDE_MS).
       el.style.transition = REVEAL_SHRINK;
       el.style.clipPath = `circle(0% at ${originPct.current}% ${originY}%)`;
     }
-    // originY/placement производны от пропа placement (статичен) — не реактивные зависимости.
+    // originY/placement derive from the static placement prop — not reactive deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, align]);
 

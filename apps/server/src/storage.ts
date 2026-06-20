@@ -3,14 +3,13 @@ import fsp from 'node:fs/promises';
 import path from 'node:path';
 
 /**
- * Абстракция хранилища медиа. В MVP — локальный диск; в фазе 6
- * появится S3/R2-реализация, остальной код измениться не должен.
+ * Media storage abstraction. MVP uses local disk; an S3/R2 impl can
+ * be swapped in without touching the rest of the code.
  */
 export interface Storage {
-  /** Перемещает готовый файл (абсолютный путь) в хранилище по относительному пути. */
   putFile(relPath: string, sourceAbsPath: string): Promise<void>;
   delete(relPath: string): Promise<void>;
-  /** Только для локальной реализации: корень для отдачи файлов через @fastify/static. */
+  /** Local-only: root served by @fastify/static. */
   readonly root: string;
 }
 

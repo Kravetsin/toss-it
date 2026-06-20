@@ -2,7 +2,6 @@ import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
 import { STAGE_ICONS } from './engine';
 
-/** Статичная полоса этапов для prefers-reduced-motion (без анимации). */
 export function ScrollFlowStatic({ stages }: { stages: { name: string; cap: string }[] }) {
   const { t } = useI18n();
   return (
@@ -16,7 +15,7 @@ export function ScrollFlowStatic({ stages }: { stages: { name: string; cap: stri
             <Icon name={name} size={30} className="text-accent" />
             <span className="mt-2 font-body text-sm text-text">{stages[i]!.name}</span>
             <span className="text-xs text-muted">{stages[i]!.cap}</span>
-            {/* Модерация — это развилка: одобрить ✓ / отклонить ✕ / свой без проверки ★. */}
+            {/* Moderation stage: approve ✓ / reject ✕ / custom ★. */}
             {i === 2 && (
               <span className="mt-1 flex gap-1.5">
                 <Icon name="check" size={16} className="text-ok" />

@@ -3,27 +3,21 @@ import type { MediaKind, MediaSize } from './types';
 
 export interface MediaFrameProps extends HTMLAttributes<HTMLDivElement> {
   kind: MediaKind;
-  /** Шахматная подложка под прозрачные PNG. По умолчанию — только для изображений. */
+  /** Checkered background for transparent PNGs; defaults to true for images only. */
   transparent?: boolean;
-  /** Скан-линии на «мате» (никогда под контролами). По умолчанию выкл. */
+  /** Scan-lines on mat (never under controls); disabled by default. */
   scanlines?: boolean;
-  /** Контрол-бар, приклеенный снизу рамки (видео/аудио/yt). */
+  /** Control bar attached below frame (video/audio/yt). */
   bar?: ReactNode;
-  /** Слой поверх медиа (центральная кнопка play, спиннер, ошибка). */
+  /** Overlay layer above media (play button, spinner, error). */
   overlay?: ReactNode;
-  /** Полноэкранный режим: «мат» растягивается, шахматка гасится. */
+  /** Fullscreen mode: mat stretches, checkered bg disabled. */
   fullscreen?: boolean;
   rootRef?: RefObject<HTMLDivElement | null>;
   mediaClassName?: string;
   children: ReactNode;
 }
 
-/**
- * Единая рамка для всех медиа: угловатая, 1px-граница, мягкая тень (shadow-2 —
- * единственная тень у самой рамки), сверху — «мат» с медиа, снизу —
- * опциональный контрол-бар через разделитель. Тонкая акцентная кромка сверху
- * медиа-области роднит рамку с акцентными карточками системы.
- */
 export function MediaFrame({
   kind,
   transparent,
@@ -44,15 +38,10 @@ export function MediaFrame({
       className={`group/frame relative flex flex-col overflow-hidden rounded-none border border-border bg-surface text-text shadow-2 ${className}`}
       {...rest}
     >
-      {/* В фуллскрине медиа-область растягивается (flex-1), а само медиа внутри
-          вписывается через object-contain — без обрезки для любого формата. */}
+      {/* Fullscreen: media container flex-1, media itself via object-contain (no cropping). */}
       <div
         className={`relative grid place-items-center ${
-          fullscreen
-            ? 'min-h-0 flex-1 bg-bg'
-            : isTransparent
-              ? 'mat-checker'
-              : 'bg-black/40'
+          fullscreen ? 'min-h-0 flex-1 bg-bg' : isTransparent ? 'mat-checker' : 'bg-black/40'
         } ${mediaClassName}`}
       >
         {children}
@@ -72,7 +61,7 @@ export function MediaFrame({
   );
 }
 
-/** Высота «мата» по месту использования (на самом медиа-элементе). */
+/** Max height for mat based on context (on media element itself). */
 export function matHeightClass(size: MediaSize): string {
   return size === 'submit' ? 'max-h-72' : 'max-h-60';
 }

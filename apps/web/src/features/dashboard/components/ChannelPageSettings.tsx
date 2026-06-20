@@ -12,7 +12,6 @@ import { PLATFORM_LABEL } from '@/lib/social';
 import { Icon } from '@/ui/icons';
 import { Button, Card, Input, Select, Textarea } from '@/ui';
 
-/** Настройки публичной страницы канала (что видит зритель на /c/:login): описание + соц-ссылки. */
 export function ChannelPageSettings({
   settings,
   onSave,
