@@ -6,7 +6,7 @@ import { logout } from '@/lib/api';
 import { useMe } from '@/hooks/useMe';
 import { useApiAction } from '@/hooks/useApiAction';
 import { LanguageToggle, LanguageToggleCycle, useI18n } from '@/i18n';
-import { Avatar, IconButton } from '@/ui';
+import { Avatar, IconButton, Tooltip } from '@/ui';
 import { Icon, type IconName } from '@/ui/icons';
 import { PlatformIcon, UserBadges } from '@/components/UserMarks';
 import { BackgroundStars } from '@/components/BackgroundStars';
@@ -42,14 +42,13 @@ function NavItem({
   onClick?: () => void;
 }) {
   const { fillRef, handlers } = useFillEffect();
-  return (
+  const link = (
     <NavLink
       to={to}
       end={end ?? to === '/'}
-      title={label}
       onClick={onClick}
       className={({ isActive }) =>
-        `relative flex items-center overflow-hidden px-3 py-2.5 label-mono ${
+        `relative flex w-full items-center overflow-hidden px-3 py-2.5 label-mono ${
           collapsed ? 'justify-center' : 'justify-start'
         } ${isActive ? 'bg-accent-soft text-accent' : 'text-muted hover:text-text'}`
       }
@@ -74,27 +73,42 @@ function NavItem({
       </span>
     </NavLink>
   );
+
+  // В свёрнутом сайдбаре лейбл скрыт — подсказываем жидкостным тултипом сбоку (справа).
+  // В развёрнутом виде лейбл виден, тултип не нужен.
+  return collapsed ? (
+    <Tooltip content={label} placement="right" focusable={false} className="w-full">
+      {link}
+    </Tooltip>
+  ) : (
+    link
+  );
 }
 
-/** Круглый icon-NavLink для мобильной панели. */
+/**
+ * Круглый icon-NavLink для мобильной панели и свёрнутого сайдбара.
+ * `tip` — сторона жидкостного тултипа (свёрнутый сайдбар — 'right'); на мобильной
+ * тач-панели не задаём (hover там не работает).
+ */
 function MobileNavIcon({
   to,
   icon,
   label,
   end,
+  tip,
 }: {
   to: string;
   icon: IconName;
   label: string;
   end?: boolean;
+  tip?: 'top' | 'bottom' | 'left' | 'right';
 }) {
   const { fillRef, handlers } = useFillEffect();
-  return (
+  const link = (
     <NavLink
       to={to}
       end={end ?? to === '/'}
       aria-label={label}
-      title={label}
       className={({ isActive }) =>
         `relative inline-flex size-9 items-center justify-center overflow-hidden rounded-full border transition-colors duration-[var(--dur-fast)] ease-out ${
           isActive
@@ -112,6 +126,13 @@ function MobileNavIcon({
       />
       <Icon name={icon} size={18} className="relative z-[1]" />
     </NavLink>
+  );
+  return tip ? (
+    <Tooltip content={label} placement={tip} focusable={false}>
+      {link}
+    </Tooltip>
+  ) : (
+    link
   );
 }
 
@@ -322,14 +343,17 @@ function Sidebar({
       {collapsed ? (
         <div className="flex flex-col items-center gap-1.5 border-t border-border p-2">
           <Avatar url={user.avatarUrl} name={user.displayName} size={34} />
-          <MobileNavIcon to="/promo" icon="gift" label={t('promo.haveCode')} />
-          {user.isAdmin && <MobileNavIcon to="/admin" icon="settings" label={t('admin.title')} />}
-          <LanguageToggleCycle />
+          <MobileNavIcon to="/promo" icon="gift" label={t('promo.haveCode')} tip="right" />
+          {user.isAdmin && (
+            <MobileNavIcon to="/admin" icon="settings" label={t('admin.title')} tip="right" />
+          )}
+          <LanguageToggleCycle tip="right" />
           <IconButton
             name="log-out"
             label={t('home.logout')}
             variant="ghost"
             size="sm"
+            tooltipPlacement="right"
             onClick={onLogout}
           />
           <IconButton
@@ -337,6 +361,7 @@ function Sidebar({
             label={t('feedback.button')}
             variant="ghost"
             size="sm"
+            tooltipPlacement="right"
             onClick={onFeedback}
           />
         </div>

@@ -1,11 +1,17 @@
 export { MediaFrame } from './MediaFrame';
 export { ImageFrame } from './ImageFrame';
+export { Lightbox } from './Lightbox';
+export { ModalPortal } from './ModalPortal';
 export { VideoPlayer } from './VideoPlayer';
+export { VideoThumb } from './VideoThumb';
+export { VideoLightbox } from './VideoLightbox';
 export { AudioPlayer } from './AudioPlayer';
 export { YouTubeFrame } from './YouTubeFrame';
 export type { MediaFrameProps } from './MediaFrame';
 export type { ImageFrameProps } from './ImageFrame';
 export type { VideoPlayerProps } from './VideoPlayer';
+export type { VideoThumbProps } from './VideoThumb';
+export type { VideoLightboxProps } from './VideoLightbox';
 export type { AudioPlayerProps } from './AudioPlayer';
 export type { YouTubeFrameProps } from './YouTubeFrame';
 export type { MediaKind, MediaSize } from './types';

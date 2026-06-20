@@ -8,10 +8,13 @@ export interface MediaElementState {
   buffered: number; // сек загружено
   volume: number; // 0..1
   muted: boolean;
+  rate: number; // скорость воспроизведения (1 = норма)
+  pip: boolean; // активен ли «картинка-в-картинке»
   ready: boolean; // метаданные загружены
   waiting: boolean; // буферизация
   ended: boolean;
   error: boolean;
+  scrubbing: boolean; // пользователь тянет полосу перемотки
 }
 
 export interface MediaElementControls {
@@ -19,6 +22,8 @@ export interface MediaElementControls {
   seek: (sec: number) => void;
   setVolume: (v: number) => void;
   toggleMute: () => void;
+  setRate: (r: number) => void;
+  togglePip: () => void;
   replay: () => void;
   beginScrub: () => void;
   endScrub: () => void;
@@ -31,31 +36,48 @@ const INITIAL: MediaElementState = {
   buffered: 0,
   volume: 1,
   muted: false,
+  rate: 1,
+  pip: false,
   ready: false,
   waiting: false,
   ended: false,
   error: false,
+  scrubbing: false,
 };
 
 /**
- * Централизует воспроизведение для <video>/<audio>: подписывается на события
- * элемента, плавно тянет currentTime через rAF во время игры и отдаёт действия.
- * URL/он не трогает (его владелец — вызывающий код, напр. object-URL превью).
+ * Централизует воспроизведение для <video>/<audio>: подписывается на события элемента,
+ * плавно тянет currentTime через rAF во время игры и отдаёт действия. Привязка к элементу —
+ * через callback-ref `attach` (а не RefObject): подписка пере-инициализируется ровно тогда,
+ * когда элемент реально попадает в DOM — важно для медиа, монтируемого порталом с задержкой
+ * (лайтбокс). `el` — RefObject для императивного доступа (load(), play() и т.п.).
  */
-export function useMediaElement(
-  ref: RefObject<HTMLMediaElement | null>,
-): MediaElementState & MediaElementControls {
+export function useMediaElement(): MediaElementState &
+  MediaElementControls & {
+    pipSupported: boolean;
+    attach: (node: HTMLMediaElement | null) => void;
+    el: RefObject<HTMLMediaElement | null>;
+  } {
   const [state, setState] = useState<MediaElementState>(INITIAL);
   const scrubbingRef = useRef(false);
+  const el = useRef<HTMLMediaElement | null>(null);
+  const [node, setNode] = useState<HTMLMediaElement | null>(null);
+  const attach = useCallback((n: HTMLMediaElement | null) => {
+    el.current = n;
+    setNode(n);
+  }, []);
+  const [pipSupported] = useState(
+    () => typeof document !== 'undefined' && !!document.pictureInPictureEnabled,
+  );
 
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
+    const media = node;
+    if (!media) return;
     const patch = (p: Partial<MediaElementState>) => setState((s) => ({ ...s, ...p }));
-    const dur = () => (Number.isFinite(el.duration) && el.duration > 0 ? el.duration : 0);
+    const dur = () => (Number.isFinite(media.duration) && media.duration > 0 ? media.duration : 0);
 
     const onLoaded = () =>
-      patch({ duration: dur(), ready: true, volume: el.volume, muted: el.muted });
+      patch({ duration: dur(), ready: true, volume: media.volume, muted: media.muted, rate: media.playbackRate });
     const onDuration = () => patch({ duration: dur() });
     const onPlay = () => patch({ playing: true, ended: false });
     const onPause = () => patch({ playing: false });
@@ -63,113 +85,156 @@ export function useMediaElement(
     const onWaiting = () => patch({ waiting: true });
     const onPlaying = () => patch({ waiting: false, playing: true, ended: false });
     const onTime = () => {
-      if (!scrubbingRef.current) patch({ current: el.currentTime });
+      if (!scrubbingRef.current) patch({ current: media.currentTime });
     };
     const onProgress = () => {
-      const b = el.buffered;
+      const b = media.buffered;
       if (b.length) patch({ buffered: b.end(b.length - 1) });
     };
-    const onVolume = () => patch({ volume: el.volume, muted: el.muted });
+    const onVolume = () => patch({ volume: media.volume, muted: media.muted });
+    const onRate = () => patch({ rate: media.playbackRate });
+    const onEnterPip = () => patch({ pip: true });
+    const onLeavePip = () => patch({ pip: false });
     const onError = () => patch({ error: true, waiting: false });
 
-    el.addEventListener('loadedmetadata', onLoaded);
-    el.addEventListener('durationchange', onDuration);
-    el.addEventListener('play', onPlay);
-    el.addEventListener('pause', onPause);
-    el.addEventListener('ended', onEnded);
-    el.addEventListener('waiting', onWaiting);
-    el.addEventListener('playing', onPlaying);
-    el.addEventListener('timeupdate', onTime);
-    el.addEventListener('progress', onProgress);
-    el.addEventListener('volumechange', onVolume);
-    el.addEventListener('error', onError, true);
+    media.addEventListener('loadedmetadata', onLoaded);
+    media.addEventListener('durationchange', onDuration);
+    media.addEventListener('play', onPlay);
+    media.addEventListener('pause', onPause);
+    media.addEventListener('ended', onEnded);
+    media.addEventListener('waiting', onWaiting);
+    media.addEventListener('playing', onPlaying);
+    media.addEventListener('timeupdate', onTime);
+    media.addEventListener('progress', onProgress);
+    media.addEventListener('volumechange', onVolume);
+    media.addEventListener('ratechange', onRate);
+    media.addEventListener('enterpictureinpicture', onEnterPip);
+    media.addEventListener('leavepictureinpicture', onLeavePip);
+    media.addEventListener('error', onError, true);
 
     // Стартовая синхронизация (метаданные/громкость могли подъехать до подписки).
-    patch({ volume: el.volume, muted: el.muted });
-    if (el.readyState >= 1) onLoaded();
+    patch({ volume: media.volume, muted: media.muted, rate: media.playbackRate });
+    if (media.readyState >= 1) onLoaded();
 
     return () => {
-      el.removeEventListener('loadedmetadata', onLoaded);
-      el.removeEventListener('durationchange', onDuration);
-      el.removeEventListener('play', onPlay);
-      el.removeEventListener('pause', onPause);
-      el.removeEventListener('ended', onEnded);
-      el.removeEventListener('waiting', onWaiting);
-      el.removeEventListener('playing', onPlaying);
-      el.removeEventListener('timeupdate', onTime);
-      el.removeEventListener('progress', onProgress);
-      el.removeEventListener('volumechange', onVolume);
-      el.removeEventListener('error', onError, true);
+      media.removeEventListener('loadedmetadata', onLoaded);
+      media.removeEventListener('durationchange', onDuration);
+      media.removeEventListener('play', onPlay);
+      media.removeEventListener('pause', onPause);
+      media.removeEventListener('ended', onEnded);
+      media.removeEventListener('waiting', onWaiting);
+      media.removeEventListener('playing', onPlaying);
+      media.removeEventListener('timeupdate', onTime);
+      media.removeEventListener('progress', onProgress);
+      media.removeEventListener('volumechange', onVolume);
+      media.removeEventListener('ratechange', onRate);
+      media.removeEventListener('enterpictureinpicture', onEnterPip);
+      media.removeEventListener('leavepictureinpicture', onLeavePip);
+      media.removeEventListener('error', onError, true);
     };
-  }, [ref]);
+  }, [node]);
 
   // Плавная заливка прогресса: тянем currentTime каждый кадр, пока играет.
   useEffect(() => {
     if (!state.playing) return;
-    const el = ref.current;
-    if (!el) return;
+    const media = el.current;
+    if (!media) return;
     let raf = 0;
     const loop = () => {
       if (!scrubbingRef.current) {
-        const t = el.currentTime;
+        const t = media.currentTime;
         setState((s) => (s.current === t ? s : { ...s, current: t }));
       }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [state.playing, ref]);
+  }, [state.playing, node]);
 
   const toggle = useCallback(() => {
-    const el = ref.current;
-    if (!el) return;
-    if (el.paused) {
+    const media = el.current;
+    if (!media) return;
+    if (media.paused) {
       // play() — промис: гасим AbortError/NotAllowedError (быстрый тоггл/политика автоплея).
-      void el.play().catch(() => setState((s) => ({ ...s, playing: false })));
+      void media.play().catch(() => setState((s) => ({ ...s, playing: false })));
     } else {
-      el.pause();
+      media.pause();
     }
-  }, [ref]);
+  }, []);
 
   const seek = useCallback((sec: number) => {
-    const el = ref.current;
-    if (!el) return;
+    const media = el.current;
+    if (!media) return;
     // При неизвестной длительности (стрим/live) не клампим сверху — пусть решает браузер.
-    const known = Number.isFinite(el.duration) && el.duration > 0;
-    const t = known ? Math.max(0, Math.min(sec, el.duration)) : Math.max(0, sec);
-    el.currentTime = t;
+    const known = Number.isFinite(media.duration) && media.duration > 0;
+    const t = known ? Math.max(0, Math.min(sec, media.duration)) : Math.max(0, sec);
+    media.currentTime = t;
     setState((s) => ({ ...s, current: t, ended: false }));
-  }, [ref]);
+  }, []);
 
   const setVolume = useCallback((v: number) => {
-    const el = ref.current;
-    if (!el) return;
+    const media = el.current;
+    if (!media) return;
     const vol = Math.max(0, Math.min(1, v));
-    el.volume = vol;
-    if (vol > 0 && el.muted) el.muted = false;
-  }, [ref]);
+    media.volume = vol;
+    if (vol > 0 && media.muted) media.muted = false;
+  }, []);
 
   const toggleMute = useCallback(() => {
-    const el = ref.current;
-    if (!el) return;
-    el.muted = !el.muted;
-  }, [ref]);
+    const media = el.current;
+    if (!media) return;
+    media.muted = !media.muted;
+  }, []);
+
+  const setRate = useCallback((r: number) => {
+    const media = el.current;
+    if (!media) return;
+    media.playbackRate = r;
+  }, []);
+
+  // PiP — только для <video>; гасим отказы (нет жеста, запрет, неподдержка).
+  const togglePip = useCallback(() => {
+    const media = el.current;
+    if (!media || !('requestPictureInPicture' in media)) return;
+    const video = media as HTMLVideoElement;
+    if (document.pictureInPictureElement === video) {
+      void document.exitPictureInPicture().catch(() => {});
+    } else {
+      void video.requestPictureInPicture().catch(() => {});
+    }
+  }, []);
 
   const replay = useCallback(() => {
-    const el = ref.current;
-    if (!el) return;
-    el.currentTime = 0;
-    void el.play().catch(() => {});
-  }, [ref]);
+    const media = el.current;
+    if (!media) return;
+    media.currentTime = 0;
+    void media.play().catch(() => {});
+  }, []);
 
   const beginScrub = useCallback(() => {
     scrubbingRef.current = true;
+    setState((s) => (s.scrubbing ? s : { ...s, scrubbing: true }));
   }, []);
   const endScrub = useCallback(() => {
     scrubbingRef.current = false;
+    setState((s) => (s.scrubbing ? { ...s, scrubbing: false } : s));
   }, []);
 
-  return { ...state, toggle, seek, setVolume, toggleMute, replay, beginScrub, endScrub };
+  return {
+    ...state,
+    toggle,
+    seek,
+    setVolume,
+    toggleMute,
+    setRate,
+    togglePip,
+    replay,
+    beginScrub,
+    endScrub,
+    pipSupported,
+    attach,
+    el,
+  };
 }
 
 // --- Полноэкранный режим (на корне рамки), с вебкит-фолбэком для Safari. ---

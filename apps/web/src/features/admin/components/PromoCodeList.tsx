@@ -31,7 +31,7 @@ export function PromoCodeList({ codes }: { codes: AdminPromoCode[] }) {
               label={t('admin.copyCode')}
               size="sm"
               variant="ghost"
-              className="ml-auto"
+              wrapClassName="ml-auto"
               onClick={() => {
                 void navigator.clipboard.writeText(c.code);
                 toast(t('admin.codeCopied'));

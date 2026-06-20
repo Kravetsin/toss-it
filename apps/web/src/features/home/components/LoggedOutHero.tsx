@@ -1,6 +1,6 @@
 import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
-import { Button } from '@/ui';
+import { Button, Tooltip } from '@/ui';
 import { ScrollFlow } from '@/marketing/ScrollFlow/ScrollFlow';
 
 /** Экран для неавторизованного пользователя: лого, слоган, кнопки входа и анимация. */
@@ -22,15 +22,16 @@ export function LoggedOutHero() {
                 {t('common.loginTwitch')}
               </Button>
             </a>
-            <a
-              href="/api/auth/login?returnTo=/&switch=1"
-              title={t('home.loginOther')}
-              aria-label={t('home.loginOther')}
-            >
-              <Button variant="secondary" className="px-3 py-3">
-                <Icon name="swap" size={18} />
-              </Button>
-            </a>
+            <Tooltip content={t('home.loginOther')} focusable={false}>
+              <a
+                href="/api/auth/login?returnTo=/&switch=1"
+                aria-label={t('home.loginOther')}
+              >
+                <Button variant="secondary" className="px-3 py-3">
+                  <Icon name="swap" size={18} />
+                </Button>
+              </a>
+            </Tooltip>
           </div>
           <a href="/api/auth/google/login?returnTo=/">
             <Button variant="primary" className="px-6 py-3">

@@ -36,14 +36,13 @@ export function VideoPlayer({
   className = '',
 }: VideoPlayerProps) {
   const frameRef = useRef<HTMLDivElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const m = useMediaElement(videoRef);
+  const m = useMediaElement();
   const fs = useFullscreen(frameRef);
 
   // Сбрасываем плеер при смене src (object-URL не трогаем — им владеет вызывающий).
   useEffect(() => {
-    videoRef.current?.load();
-  }, [src]);
+    m.el.current?.load();
+  }, [src, m.el]);
 
   // Внешние колбэки телеметрии («превью = эфир») — строго по переходу состояния.
   const wasPlaying = useRef(false);
@@ -170,7 +169,7 @@ export function VideoPlayer({
       }}
     >
       <video
-        ref={videoRef}
+        ref={m.attach}
         src={src}
         poster={poster}
         muted={muted}

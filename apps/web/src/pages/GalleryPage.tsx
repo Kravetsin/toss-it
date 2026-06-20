@@ -15,6 +15,7 @@ import {
   ProgressBar,
   Surface,
   Textarea,
+  Tooltip,
 } from '@/ui';
 import type { IconName } from '@/ui/icons';
 import { ComposeForm } from '@/features/channel/components/ComposeForm';
@@ -250,6 +251,47 @@ export function GalleryPage() {
               Saving
             </Button>
           </div>
+        </div>
+      </Section>
+
+      <Section title="Tooltip — liquid reveal">
+        <div className="flex flex-wrap items-center gap-10">
+          {(['start', 'center', 'end'] as const).map((align) => (
+            <Tooltip
+              key={align}
+              align={align}
+              content={
+                <span className="flex flex-col gap-1">
+                  <span className="font-semibold text-text">align={align}</span>
+                  <span>Заливка растёт из точки наведения — буквы проявляются под кромкой.</span>
+                </span>
+              }
+            >
+              <span className="inline-flex cursor-help items-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 py-1.5 text-sm text-muted">
+                <Icon name="sparkles" size={14} className="text-accent" />
+                Наведи ({align})
+              </span>
+            </Tooltip>
+          ))}
+          <Tooltip
+            placement="top"
+            content="Раскрытие сверху — для кнопок у нижнего края (плеер)."
+          >
+            <span className="inline-flex cursor-help items-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 py-1.5 text-sm text-muted">
+              <Icon name="play" size={14} className="text-accent" />
+              placement=top
+            </span>
+          </Tooltip>
+          <Tooltip
+            placement="right"
+            content="Раскрытие сбоку — для вертикальных меню (свёрнутый сайдбар)."
+          >
+            <span className="inline-flex cursor-help items-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 py-1.5 text-sm text-muted">
+              <Icon name="forward" size={14} className="text-accent" />
+              placement=right
+            </span>
+          </Tooltip>
+          <IconButton name="bell" label="Тултип на IconButton" />
         </div>
       </Section>
 

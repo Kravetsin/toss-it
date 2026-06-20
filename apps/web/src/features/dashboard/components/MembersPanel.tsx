@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { ListedUser } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { Icon, type IconName } from '@/ui/icons';
-import { Card } from '@/ui';
+import { Card, Tooltip } from '@/ui';
 import { PlatformIcon, UserBadges } from '@/components/UserMarks';
 
 type Tab = 'whitelist' | 'bans';
@@ -89,13 +89,14 @@ export function MembersPanel({
               </span>
               <span className="ml-auto flex shrink-0 items-center gap-2">
                 {tab === 'whitelist' && (
-                  <button
-                    onClick={() => onBanAllowed(u.userId, u.displayName)}
-                    className="cursor-pointer text-muted outline-none transition-colors duration-[180ms] ease-out hover:text-danger focus-visible:text-danger"
-                    title={t('dash.ban')}
-                  >
-                    <Icon name="user-x" size={16} />
-                  </button>
+                  <Tooltip content={t('dash.ban')} align="end" focusable={false}>
+                    <button
+                      onClick={() => onBanAllowed(u.userId, u.displayName)}
+                      className="cursor-pointer text-muted outline-none transition-colors duration-[180ms] ease-out hover:text-danger focus-visible:text-danger"
+                    >
+                      <Icon name="user-x" size={16} />
+                    </button>
+                  </Tooltip>
                 )}
                 <button
                   onClick={() => (tab === 'whitelist' ? onRemoveAllowed : onRemoveBan)(u.userId)}

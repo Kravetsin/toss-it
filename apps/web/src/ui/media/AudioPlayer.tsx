@@ -37,15 +37,14 @@ export function AudioPlayer({
   onEnded,
   className = '',
 }: AudioPlayerProps) {
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const m = useMediaElement(audioRef);
+  const m = useMediaElement();
   const reduced = useReducedMotion();
   const showEq = equalizer && !reduced && !m.error;
   const ariaLabel = label ?? 'Audio';
 
   useEffect(() => {
-    audioRef.current?.load();
-  }, [src]);
+    m.el.current?.load();
+  }, [src, m.el]);
   const wasPlaying = useRef(false);
   useEffect(() => {
     if (m.playing && !wasPlaying.current) onPlay?.();
@@ -75,7 +74,7 @@ export function AudioPlayer({
       }}
       className={`flex h-11 items-center gap-2 rounded-none border border-border bg-surface px-2 text-text [box-shadow:inset_0_1px_0_0_var(--color-accent),var(--shadow-2)] sm:gap-2.5 sm:px-2.5 ${className}`}
     >
-      <audio ref={audioRef} src={src} loop={loop} preload="metadata" hidden aria-hidden="true" />
+      <audio ref={m.attach} src={src} loop={loop} preload="metadata" hidden aria-hidden="true" />
       <MediaButton
         icon={m.error ? 'square-alert' : m.playing ? 'pause' : m.ended ? 'reload' : 'play'}
         label={m.playing ? 'Pause' : 'Play'}

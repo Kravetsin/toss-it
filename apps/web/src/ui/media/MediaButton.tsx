@@ -1,5 +1,6 @@
 import type { ButtonHTMLAttributes } from 'react';
 import { Icon, type IconName } from '@/ui/icons';
+import { Tooltip } from '@/ui/Tooltip';
 import type { MediaSize } from './types';
 
 interface MediaButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'size'> {
@@ -32,15 +33,16 @@ export function MediaButton({
       ? 'bg-surface-2 text-text hover:bg-surface-2'
       : 'text-muted hover:text-text hover:bg-surface-2 active:bg-surface-2 disabled:hover:bg-transparent disabled:hover:text-muted';
   return (
-    <button
-      type="button"
-      aria-label={label}
-      title={label}
-      aria-pressed={pressed || undefined}
-      className={`grid h-7 w-7 shrink-0 cursor-pointer place-items-center rounded-none outline-none transition-colors duration-75 focus-visible:[box-shadow:var(--shadow-focus)] disabled:cursor-not-allowed disabled:opacity-40 sm:h-8 sm:w-8 ${tone} ${className}`}
-      {...rest}
-    >
-      <Icon name={icon} size={glyph} />
-    </button>
+    <Tooltip content={label} placement="top" focusable={false} className="shrink-0">
+      <button
+        type="button"
+        aria-label={label}
+        aria-pressed={pressed || undefined}
+        className={`grid h-7 w-7 shrink-0 cursor-pointer place-items-center rounded-none outline-none transition-colors duration-75 focus-visible:[box-shadow:var(--shadow-focus)] disabled:cursor-not-allowed disabled:opacity-40 sm:h-8 sm:w-8 ${tone} ${className}`}
+        {...rest}
+      >
+        <Icon name={icon} size={glyph} />
+      </button>
+    </Tooltip>
   );
 }

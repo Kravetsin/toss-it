@@ -8,7 +8,7 @@ import {
 } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useMe } from '@/hooks/useMe';
-import { Surface } from '@/ui';
+import { Surface, Tooltip } from '@/ui';
 import { dicts, en, type Lang, type Params } from './dictionaries';
 
 export type { Lang } from './dictionaries';
@@ -127,19 +127,37 @@ export function LanguageToggle({ className = '' }: { className?: string }) {
   return <LangButtons className={className} />;
 }
 
-/** Компактная кнопка EN↔RU для узких панелей (md-рейл, мобильная шапка). */
-export function LanguageToggleCycle({ className = '' }: { className?: string }) {
+/**
+ * Компактная кнопка EN↔RU для узких панелей (md-рейл, мобильная шапка).
+ * `tip` — сторона жидкостного тултипа (для свёрнутого сайдбара — 'right').
+ */
+export function LanguageToggleCycle({
+  className = '',
+  tip,
+}: {
+  className?: string;
+  tip?: 'top' | 'bottom' | 'left' | 'right';
+}) {
   const { lang, setLang } = useI18n();
   const order: Lang[] = ['en', 'ru', 'uk'];
   const next = order[(order.indexOf(lang) + 1) % order.length]!;
-  return (
+  const btn = (
     <button
       type="button"
       onClick={() => setLang(next)}
       aria-label={`Switch language to ${next.toUpperCase()}`}
       className={`inline-flex size-8 cursor-pointer items-center justify-center rounded-full border border-transparent text-muted label-mono outline-none transition-[color,background-color,border-color] duration-[180ms] ease-out hover:border-border-strong hover:text-text focus-visible:[box-shadow:var(--shadow-focus)] ${className}`}
     >
-      {lang.toUpperCase()}
+      {/* Отрицательный margin гасит хвостовой letter-spacing label-mono — иначе текст
+          в justify-center смещён влево от истинного центра. */}
+      <span className="[margin-right:calc(var(--tracking-label)*-1)]">{lang.toUpperCase()}</span>
     </button>
+  );
+  return tip ? (
+    <Tooltip content={`${lang.toUpperCase()} → ${next.toUpperCase()}`} placement={tip} focusable={false}>
+      {btn}
+    </Tooltip>
+  ) : (
+    btn
   );
 }

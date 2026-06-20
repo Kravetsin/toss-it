@@ -1,4 +1,5 @@
 import { useI18n } from '@/i18n';
+import { Tooltip } from '@/ui';
 import { StarMark } from '@/components/StarMark';
 
 /**
@@ -11,12 +12,11 @@ export function CosmosLegend({ count, className = '' }: { count: number; classNa
   if (count <= 0) return null;
   const n = new Intl.NumberFormat(lang).format(count);
   return (
-    <span
-      title={t('channel.cosmosLegendHint')}
-      className={`inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 py-1 text-sm text-muted ${className}`}
-    >
-      <StarMark size={13} className="text-accent" />
-      {t('channel.cosmosLegend', { n })}
-    </span>
+    <Tooltip content={t('channel.cosmosLegendHint')} className={className}>
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 py-1 text-sm text-muted">
+        <StarMark size={13} className="text-accent" />
+        {t('channel.cosmosLegend', { n })}
+      </span>
+    </Tooltip>
   );
 }

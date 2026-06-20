@@ -1,6 +1,7 @@
 import type { ListedUser } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
+import { Tooltip } from '@/ui';
 
 /** Список модераторов канала с кнопкой удаления. */
 export function ModeratorList({
@@ -21,14 +22,15 @@ export function ModeratorList({
           <Icon name="shield" size={15} className="text-accent" />
           <b className="text-text">{m.displayName}</b>
           <span className="text-xs">{m.login}</span>
-          <button
-            type="button"
-            onClick={() => onRemove(m.userId)}
-            className="ml-auto cursor-pointer rounded-full text-faint outline-none transition-colors duration-[120ms] ease-out hover:text-danger focus-visible:[box-shadow:var(--shadow-focus)]"
-            title={t('dash.removeUser')}
-          >
-            <Icon name="close" size={16} />
-          </button>
+          <Tooltip content={t('dash.removeUser')} align="end" focusable={false} className="ml-auto">
+            <button
+              type="button"
+              onClick={() => onRemove(m.userId)}
+              className="cursor-pointer rounded-full text-faint outline-none transition-colors duration-[120ms] ease-out hover:text-danger focus-visible:[box-shadow:var(--shadow-focus)]"
+            >
+              <Icon name="close" size={16} />
+            </button>
+          </Tooltip>
         </li>
       ))}
     </ul>

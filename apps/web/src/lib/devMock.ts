@@ -135,6 +135,17 @@ const MOCK_PENDING: SubmissionSummary[] = [
     createdAt: t - 3 * min,
   }),
   sub({
+    id: 's-video',
+    kind: 'video',
+    mime: 'video/mp4',
+    senderUserId: 'twitch:v7',
+    senderName: 'clip_gremlin',
+    text: 'зацени нарезку, го на стрим',
+    url: '/mock-video.mp4',
+    durationMs: 12_000,
+    createdAt: t - 5 * min,
+  }),
+  sub({
     id: 's3',
     kind: 'youtube',
     mime: 'video/youtube',

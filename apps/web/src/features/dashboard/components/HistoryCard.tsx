@@ -1,6 +1,7 @@
 import type { HistoryEntry } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
+import { Tooltip } from '@/ui';
 import { PlatformIcon, UserBadges } from '@/components/UserMarks';
 import { STATUS_ICON } from '../constants';
 
@@ -42,13 +43,14 @@ export function HistoryCard({
                     </td>
                     <td className="py-1.5 text-right align-middle">
                       {h.senderUserId && !bannedIds.has(h.senderUserId) && (
-                        <button
-                          onClick={() => onBan(h.senderUserId!, h.senderName ?? t('dash.thisSender'))}
-                          className="cursor-pointer text-muted hover:text-danger"
-                          title={t('dash.ban')}
-                        >
-                          <Icon name="user-x" size={16} />
-                        </button>
+                        <Tooltip content={t('dash.ban')} align="end" focusable={false}>
+                          <button
+                            onClick={() => onBan(h.senderUserId!, h.senderName ?? t('dash.thisSender'))}
+                            className="cursor-pointer text-muted hover:text-danger"
+                          >
+                            <Icon name="user-x" size={16} />
+                          </button>
+                        </Tooltip>
                       )}
                     </td>
                   </tr>

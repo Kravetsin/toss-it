@@ -3,7 +3,7 @@ import { formatDuration, useI18n } from '@/i18n';
 import { mb } from '@/lib/format';
 import { PLATFORM_ICON, PLATFORM_LABEL } from '@/lib/social';
 import { Icon } from '@/ui/icons';
-import { Avatar, Badge, Chip } from '@/ui';
+import { Avatar, Badge, Chip, Tooltip } from '@/ui';
 
 /** Шапка канала: аватар, имя, бейдж первопроходца и чипы лимитов. */
 export function ChannelHeader({ channel }: { channel: PublicChannelInfo }) {
@@ -29,17 +29,21 @@ export function ChannelHeader({ channel }: { channel: PublicChannelInfo }) {
       {channel.links.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-2">
           {channel.links.map((link, i) => (
-            <a
+            <Tooltip
               key={`${link.platform}-${i}`}
-              href={link.url}
-              target="_blank"
-              rel="noopener noreferrer nofollow"
-              aria-label={PLATFORM_LABEL[link.platform]}
-              title={PLATFORM_LABEL[link.platform]}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface-2 text-muted transition-colors hover:border-accent hover:text-accent"
+              content={PLATFORM_LABEL[link.platform]}
+              focusable={false}
             >
-              <Icon name={PLATFORM_ICON[link.platform]} size={18} />
-            </a>
+              <a
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer nofollow"
+                aria-label={PLATFORM_LABEL[link.platform]}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface-2 text-muted transition-colors hover:border-accent hover:text-accent"
+              >
+                <Icon name={PLATFORM_ICON[link.platform]} size={18} />
+              </a>
+            </Tooltip>
           ))}
         </div>
       )}
