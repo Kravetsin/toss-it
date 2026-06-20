@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ReputationStats, SubmissionSummary } from '@tmw/shared';
 import { useI18n } from '@/i18n';
-import { Badge } from '@/ui';
+import { Badge, Icon } from '@/ui';
 import { useQueueHotkeys } from '../hooks/useQueueHotkeys';
 import { SubmissionCard } from './SubmissionCard';
 
@@ -71,7 +71,21 @@ export function ModerationQueue({
           {t('dash.modQueue')}
           {visible.length > 0 && <Badge>{visible.length}</Badge>}
         </h2>
-        {visible.length > 0 && <p className="mt-1 text-xs text-faint">{t('dash.swipeHint')}</p>}
+        {visible.length > 0 && (
+          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-faint">
+            <span className="inline-flex items-center gap-1">
+              <Icon name="arrow-right" size={13} className="text-ok" />
+              {t('dash.swipeApprove')}
+            </span>
+            <span aria-hidden>·</span>
+            <span className="inline-flex items-center gap-1">
+              <Icon name="arrow-left" size={13} className="text-danger" />
+              {t('dash.swipeReject')}
+            </span>
+            <span aria-hidden>·</span>
+            <span>{t('dash.swipeExpand')}</span>
+          </p>
+        )}
       </div>
 
       {visible.length === 0 ? (

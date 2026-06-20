@@ -4,7 +4,9 @@
  * Бренд-глифы (twitch/google) в Lucide отсутствуют — рисуем инлайн-SVG.
  */
 import {
+  ArrowLeft,
   ArrowLeftRight,
+  ArrowRight,
   Bell,
   BellOff,
   Check,
@@ -91,6 +93,8 @@ const LUCIDE = {
   fullscreen: Maximize,
   'fullscreen-exit': Minimize,
   swap: ArrowLeftRight,
+  'arrow-left': ArrowLeft,
+  'arrow-right': ArrowRight,
   globe: Globe,
 } satisfies Record<string, LucideIcon>;
 

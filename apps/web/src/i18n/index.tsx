@@ -136,7 +136,7 @@ export function LanguageToggleCycle({ className = '' }: { className?: string }) 
     <button
       type="button"
       onClick={() => setLang(next)}
-      aria-label={`Switch language → ${next.toUpperCase()}`}
+      aria-label={`Switch language to ${next.toUpperCase()}`}
       className={`inline-flex size-8 cursor-pointer items-center justify-center rounded-full border border-transparent text-muted label-mono outline-none transition-[color,background-color,border-color] duration-[180ms] ease-out hover:border-border-strong hover:text-text focus-visible:[box-shadow:var(--shadow-focus)] ${className}`}
     >
       {lang.toUpperCase()}

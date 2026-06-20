@@ -15,4 +15,5 @@ export * from './Input';
 export * from './Select';
 export * from './PageShell';
 export * from './CopyableLinkBox';
+export * from './Tooltip';
 export * from './media';

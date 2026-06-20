@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMe } from '@/hooks/useMe';
 import { useI18n } from '@/i18n';
+import { Tooltip } from '@/ui';
 import { DustMark } from '@/components/DustMark';
 import { registerStardustWallet } from '@/lib/stardustFx';
 
@@ -37,17 +38,33 @@ export function StardustWallet({ className = '' }: { className?: string }) {
 
   if (!me?.user) return null;
   return (
-    <span
-      ref={ref}
-      title={t('wallet.stardust')}
-      className={`inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 py-1 text-sm text-muted ${className}`}
+    <Tooltip
+      align="end"
+      className={className}
+      content={
+        <span className="flex flex-col gap-1">
+          <span className="flex items-center gap-1.5 font-semibold text-text">
+            <DustMark size={13} className="text-accent" />
+            {t('wallet.stardust')}
+          </span>
+          <span>{t('wallet.about')}</span>
+          <span className="mt-0.5 text-faint">{t('wallet.howTitle')}</span>
+          <span className="text-faint">{t('wallet.earnPost')}</span>
+          <span className="text-faint">{t('wallet.earnDonate')}</span>
+        </span>
+      }
     >
-      <DustMark size={15} className="text-accent" />
       <span
-        className={`tabular-nums transition-transform duration-200 ${pop ? 'scale-125 text-accent' : ''}`}
+        ref={ref}
+        className="inline-flex cursor-help items-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 py-1 text-sm text-muted"
       >
-        {displayed}
+        <DustMark size={15} className="text-accent" />
+        <span
+          className={`tabular-nums transition-transform duration-200 ${pop ? 'scale-125 text-accent' : ''}`}
+        >
+          {displayed}
+        </span>
       </span>
-    </span>
+    </Tooltip>
   );
 }

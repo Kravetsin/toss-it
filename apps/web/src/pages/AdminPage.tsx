@@ -40,7 +40,8 @@ export function AdminPage() {
       <PageShell maxWidth="3xl">
         <StatusCard icon="square-alert" iconSize={40} tone="warn" gap={3}>
           <p className="text-muted">{t('admin.denied')}</p>
-          <Link to="/" className="text-accent underline">
+          <Link to="/" className="inline-flex items-center gap-1 text-accent underline">
+            <Icon name="arrow-left" size={14} />
             {t('common.home')}
           </Link>
         </StatusCard>
