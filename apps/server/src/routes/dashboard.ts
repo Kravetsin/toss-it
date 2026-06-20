@@ -11,6 +11,7 @@ import {
   type ChannelLink,
   type ChannelSettings,
   type HistoryEntry,
+  type IntegrationStatus,
   type ListedUser,
   type ModInviteInfo,
   type ReputationStats,
@@ -19,6 +20,7 @@ import {
 import { db } from '../db/index';
 import {
   bans,
+  channelIntegrations,
   channelModerators,
   channels,
   modInvites,
@@ -29,9 +31,13 @@ import {
 } from '../db/schema';
 import { config } from '../config';
 import { requireUser } from '../auth';
+import { encryptSecret } from '../crypto';
+import { donatelloAdapter } from '../donations/donatello';
+import type { DonationGateway } from '../donations/gateway';
 import {
   dashboardRoomOf,
   emitSubmissionStatus,
+  roomOf,
   toSummary,
   type PlaybackManager,
   type RealtimeServer,
@@ -40,6 +46,7 @@ import {
 export interface DashboardRoutesDeps {
   playback: PlaybackManager;
   io: RealtimeServer;
+  donationGateway: DonationGateway;
 }
 
 /** Доступ к каналу для модерации: владелец ИЛИ модератор. */
@@ -144,7 +151,7 @@ function toSettings(ch: ChannelRow): ChannelSettings {
 }
 
 export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRoutesDeps): void {
-  const { playback, io } = deps;
+  const { playback, io, donationGateway } = deps;
 
   /** Список каналов, к которым у пользователя есть доступ (свои + где он модератор). */
   app.get('/api/me/channels', async (req, reply): Promise<AccessibleChannel[] | undefined> => {
@@ -192,6 +199,99 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
       if (!channel) return;
       const skipped = await playback.skip(channel.id);
       return { skipped };
+    },
+  );
+
+  /** Владелец шлёт тестовый донат → всплеск на оверлее (превью эффекта без реального доната). */
+  app.post<{ Params: { channelId: string }; Body: { amount?: unknown } | null }>(
+    '/api/dashboard/:channelId/test-donation',
+    async (req, reply) => {
+      const channel = await requireOwnerOf(req, reply, req.params.channelId);
+      if (!channel) return;
+      const raw = req.body?.amount;
+      const amount =
+        typeof raw === 'number' && Number.isFinite(raw) ? clamp(Math.round(raw), 1, 100_000) : 50;
+      io.to(roomOf(channel.id)).emit('donation:fx', {
+        provider: 'test',
+        donorName: 'Test',
+        amount,
+        currency: 'UAH',
+        message: null,
+      });
+      return { ok: true };
+    },
+  );
+
+  // --- Интеграции донат-сервисов (owner-only). Деньги через нас НЕ идут — только события. ---
+
+  app.get<{ Params: { channelId: string } }>(
+    '/api/dashboard/:channelId/integrations',
+    async (req, reply): Promise<IntegrationStatus[] | undefined> => {
+      const channel = await requireOwnerOf(req, reply, req.params.channelId);
+      if (!channel) return;
+      const rows = await db
+        .select()
+        .from(channelIntegrations)
+        .where(eq(channelIntegrations.channelId, channel.id))
+        .all();
+      return rows.map((r) => ({ provider: r.provider, connected: true, name: r.externalName }));
+    },
+  );
+
+  /** Подключить Donatello: валидируем токен, шифруем, перезапускаем поллер (если оверлей онлайн). */
+  app.post<{ Params: { channelId: string }; Body: { token?: unknown } | null }>(
+    '/api/dashboard/:channelId/integrations/donatello',
+    async (req, reply): Promise<IntegrationStatus | undefined> => {
+      const channel = await requireOwnerOf(req, reply, req.params.channelId);
+      if (!channel) return;
+      const token = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
+      if (!token) return reply.code(400).send({ error: 'Пустой токен' });
+
+      let name: string | null;
+      try {
+        ({ name } = await donatelloAdapter.validate(token));
+      } catch {
+        return reply.code(400).send({ error: 'Невалидный токен Donatello' });
+      }
+
+      const now = new Date();
+      const enc = encryptSecret(token);
+      await db
+        .insert(channelIntegrations)
+        .values({
+          channelId: channel.id,
+          provider: 'donatello',
+          encToken: enc,
+          externalName: name,
+          lastDonationId: null,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .onConflictDoUpdate({
+          target: [channelIntegrations.channelId, channelIntegrations.provider],
+          // Новое подключение → сбрасываем курсор, чтобы старые донаты не выстрелили.
+          set: { encToken: enc, externalName: name, lastDonationId: null, updatedAt: now },
+        });
+      await donationGateway.refresh(channel.id);
+      return { provider: 'donatello', connected: true, name };
+    },
+  );
+
+  app.delete<{ Params: { channelId: string } }>(
+    '/api/dashboard/:channelId/integrations/donatello',
+    async (req, reply) => {
+      const channel = await requireOwnerOf(req, reply, req.params.channelId);
+      if (!channel) return;
+      await db
+        .delete(channelIntegrations)
+        .where(
+          and(
+            eq(channelIntegrations.channelId, channel.id),
+            eq(channelIntegrations.provider, 'donatello'),
+          ),
+        );
+      await donationGateway.refresh(channel.id);
+      return { ok: true };
     },
   );
 

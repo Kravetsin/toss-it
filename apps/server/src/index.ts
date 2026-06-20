@@ -18,6 +18,7 @@ const { config } = await import('./config');
 const { runMigrations } = await import('./db/index');
 const { LocalDiskStorage } = await import('./storage');
 const { setupRealtime } = await import('./playback');
+const { DonationGateway } = await import('./donations/gateway');
 const { registerRoutes } = await import('./routes/index');
 const { startCleanup } = await import('./cleanup');
 
@@ -74,10 +75,11 @@ if (config.serveStatic) {
 const io: import('./playback').RealtimeServer = new Server(app.server, {
   cors: { origin: true },
 });
-const playback = setupRealtime(io, app);
+const donationGateway = new DonationGateway(io, app.log);
+const playback = setupRealtime(io, app, donationGateway);
 await playback.recoverFromDb();
 
-registerRoutes(app, { playback, storage, tmpDir, io });
+registerRoutes(app, { playback, storage, tmpDir, io, donationGateway });
 startCleanup(storage, app.log);
 
 if (config.allowFakeAuth) {
@@ -85,6 +87,7 @@ if (config.allowFakeAuth) {
 }
 
 app.addHook('onClose', async () => {
+  donationGateway.stopAll();
   await io.close();
 });
 

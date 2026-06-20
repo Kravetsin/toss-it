@@ -3,6 +3,7 @@ import { io, type Socket } from 'socket.io-client';
 import {
   OVERLAY_POSITIONS,
   positionToFlex,
+  type DonationFx,
   type MediaKind,
   type MediaPlayPayload,
   type OverlayPosition,
@@ -78,6 +79,7 @@ socket.on('media:play', show);
 socket.on('media:skip', (submissionId) => {
   if (submissionId === currentId) finish();
 });
+socket.on('donation:fx', triggerDonationFx);
 
 function show(payload: MediaPlayPayload): void {
   clearStage();
@@ -410,6 +412,106 @@ function clearStage(): void {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// Донат-эффект: метеоритный всплеск на full-screen canvas поверх показа медиа.
+// Канвас — fixed/inset:0 (вне flex-потока #stage), pointer-events:none, сам себя
+// удаляет по завершении. Деньги через нас не идут — это лишь реакция на событие.
+// ─────────────────────────────────────────────────────────────────────────
+
+const FX_ACCENT = '141,240,204'; // мятный акцент космоса (rgb)
+
+function triggerDonationFx(fx: DonationFx): void {
+  const canvas = document.createElement('canvas');
+  canvas.className = 'donation-fx';
+  canvas.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:50';
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  stage.appendChild(canvas);
+
+  // Интенсивность по сумме: больше донат — гуще метеоры (с разумным потолком).
+  const amount = Number.isFinite(fx.amount) ? Math.max(0, fx.amount) : 0;
+  const meteorCount = Math.round(Math.min(70, 14 + amount * 0.6));
+  const DURATION = 2600;
+
+  interface Meteor {
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    len: number;
+    delay: number;
+    born: number;
+  }
+  const rand = (a: number, b: number) => a + Math.random() * (b - a);
+  const meteors: Meteor[] = Array.from({ length: meteorCount }, () => {
+    const speed = rand(0.5, 1.05);
+    return {
+      x: rand(-0.1, 1.1) * W,
+      y: rand(-0.3, 0.4) * H,
+      vx: speed * rand(0.35, 0.6),
+      vy: speed,
+      len: rand(60, 150),
+      delay: rand(0, DURATION * 0.45),
+      born: 0,
+    };
+  });
+
+  const start = performance.now();
+  function frame(now: number): void {
+    const t = now - start;
+    if (t > DURATION) {
+      canvas.remove();
+      return;
+    }
+    ctx!.clearRect(0, 0, W, H);
+
+    // Разовая радиальная вспышка из центра (быстро гаснет).
+    const flash = Math.max(0, 1 - t / 600);
+    if (flash > 0.01) {
+      const r = Math.max(W, H) * 0.6;
+      const g = ctx!.createRadialGradient(W / 2, H * 0.4, 0, W / 2, H * 0.4, r);
+      g.addColorStop(0, `rgba(${FX_ACCENT},${(flash * 0.35).toFixed(3)})`);
+      g.addColorStop(1, `rgba(${FX_ACCENT},0)`);
+      ctx!.fillStyle = g;
+      ctx!.fillRect(0, 0, W, H);
+    }
+
+    for (const m of meteors) {
+      const mt = t - m.delay;
+      if (mt < 0) continue;
+      const px = m.x + m.vx * mt;
+      const py = m.y + m.vy * mt;
+      if (py - m.len > H || px - m.len > W) continue;
+      // Хвост метеора — линейный градиент к прозрачному.
+      const tx = px - (m.vx / m.vy) * m.len;
+      const ty = py - m.len;
+      const grad = ctx!.createLinearGradient(px, py, tx, ty);
+      const a = Math.max(0, 1 - mt / DURATION);
+      grad.addColorStop(0, `rgba(${FX_ACCENT},${(a * 0.9).toFixed(3)})`);
+      grad.addColorStop(1, `rgba(${FX_ACCENT},0)`);
+      ctx!.strokeStyle = grad;
+      ctx!.lineWidth = 2;
+      ctx!.beginPath();
+      ctx!.moveTo(px, py);
+      ctx!.lineTo(tx, ty);
+      ctx!.stroke();
+      // Головка метеора.
+      ctx!.fillStyle = `rgba(255,255,255,${(a * 0.9).toFixed(3)})`;
+      ctx!.beginPath();
+      ctx!.arc(px, py, 1.8, 0, 6.2832);
+      ctx!.fill();
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 // DEV-демо (?demo=1): прогон примеров медиа через настоящий render оверлея,
 // без сервера/токена — чтобы оценивать внешний вид (в т.ч. в OBS Browser Source).
 // Только в dev-сборке. См. apps/web/REDESIGN.md §5.4 (трек оверлея).
@@ -602,6 +704,19 @@ function mountDemoPanel(): void {
   };
   toggles.append(toggle('имя', 'sender'), toggle('подпись', 'caption'), toggle('звук', 'sound'));
   panel.appendChild(toggles);
+
+  section('донат');
+  panel.appendChild(
+    btn('Всплеск (донат)', () =>
+      triggerDonationFx({
+        provider: 'test',
+        donorName: 'demo_viewer',
+        amount: 50,
+        currency: 'UAH',
+        message: 'тест',
+      }),
+    ),
+  );
 
   panel.appendChild(btn('Убрать с экрана', () => finish(), 'clear'));
 

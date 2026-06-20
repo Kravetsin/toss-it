@@ -1,6 +1,7 @@
 import type {
   ChannelSettings,
   HistoryEntry,
+  IntegrationStatus,
   ListedUser,
   ReputationStats,
   SubmissionSummary,
@@ -80,6 +81,35 @@ export function getNowPlaying(channelId: string): Promise<{ now: SubmissionSumma
 export function skipCurrent(channelId: string): Promise<{ skipped: boolean }> {
   return fetch(`${dash(channelId)}/skip`, { method: 'POST' }).then((r) =>
     json<{ skipped: boolean }>(r),
+  );
+}
+
+/** Владелец: тестовый донат → всплеск на оверлее (превью эффекта). */
+export function sendTestDonation(channelId: string, amount = 50): Promise<unknown> {
+  return fetch(`${dash(channelId)}/test-donation`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ amount }),
+  }).then((r) => json(r));
+}
+
+// --- Интеграции донат-сервисов ---
+
+export function getIntegrations(channelId: string): Promise<IntegrationStatus[]> {
+  return fetch(`${dash(channelId)}/integrations`).then((r) => json<IntegrationStatus[]>(r));
+}
+
+export function connectDonatello(channelId: string, token: string): Promise<IntegrationStatus> {
+  return fetch(`${dash(channelId)}/integrations/donatello`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ token }),
+  }).then((r) => json<IntegrationStatus>(r));
+}
+
+export function disconnectDonatello(channelId: string): Promise<unknown> {
+  return fetch(`${dash(channelId)}/integrations/donatello`, { method: 'DELETE' }).then((r) =>
+    json(r),
   );
 }
 

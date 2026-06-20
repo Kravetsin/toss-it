@@ -118,10 +118,34 @@ export interface SubmissionStatusEvent {
   status: LiveStatus;
 }
 
+/**
+ * Донат, полученный сервером от стороннего сервиса (Donatello и т.п.) — для зрелища на оверлее.
+ * Деньги через нас НЕ идут: мы лишь слушаем события и превращаем их в эффект.
+ */
+export interface DonationFx {
+  /** Источник: 'donatello' | 'test' | ... */
+  provider: string;
+  donorName: string | null;
+  /** Сумма в единицах валюты провайдера (для масштаба интенсивности эффекта). */
+  amount: number;
+  currency: string;
+  message: string | null;
+}
+
+/** Статус подключения донат-сервиса к каналу (без токена — для дашборда). */
+export interface IntegrationStatus {
+  provider: string;
+  connected: boolean;
+  /** Имя аккаунта у провайдера (для «Подключено как X»). */
+  name: string | null;
+}
+
 /** События сервер → оверлей. */
 export interface ServerToOverlayEvents {
   'media:play': (payload: MediaPlayPayload) => void;
   'media:skip': (submissionId: string) => void;
+  /** Донат на канал → всплеск-эффект на оверлее (на весь экран, поверх показа медиа). */
+  'donation:fx': (fx: DonationFx) => void;
 }
 
 /** События сервер → страница зрителя (живой статус его отправки). */

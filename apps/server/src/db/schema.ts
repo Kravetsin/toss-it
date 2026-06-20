@@ -67,6 +67,30 @@ export const channels = sqliteTable('channels', {
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 });
 
+/**
+ * Подключения канала к донат-сервисам (Donatello и т.п.). Деньги через нас НЕ идут —
+ * слушаем события доната и превращаем в эффект на оверлее. Токен зашифрован (AES-GCM).
+ */
+export const channelIntegrations = sqliteTable(
+  'channel_integrations',
+  {
+    channelId: text('channel_id')
+      .notNull()
+      .references(() => channels.id),
+    /** Провайдер: 'donatello' | ... (один на провайдера на канал). */
+    provider: text('provider').notNull(),
+    /** Зашифрованный токен доступа к API провайдера. Клиенту НЕ отдаётся. */
+    encToken: text('enc_token').notNull(),
+    /** Ник аккаунта у провайдера (из /me) — для «Подключено как X». */
+    externalName: text('external_name'),
+    /** Курсор дедупа: id (pubId) последнего обработанного доната. */
+    lastDonationId: text('last_donation_id'),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.channelId, t.provider] })],
+);
+
 /** Белый список: отправки этих зрителей идут на экран без модерации. */
 export const whitelist = sqliteTable(
   'whitelist',
@@ -170,5 +194,6 @@ export type UserRow = typeof users.$inferSelect;
 export type ChannelRow = typeof channels.$inferSelect;
 export type SubmissionRow = typeof submissions.$inferSelect;
 export type ChannelModeratorRow = typeof channelModerators.$inferSelect;
+export type ChannelIntegrationRow = typeof channelIntegrations.$inferSelect;
 export type ModInviteRow = typeof modInvites.$inferSelect;
 export type PromoCodeRow = typeof promoCodes.$inferSelect;

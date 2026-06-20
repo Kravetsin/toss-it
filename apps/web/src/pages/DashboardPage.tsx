@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { removeBan, removeFromWhitelist, saveSettings } from '@/lib/api';
+import { removeBan, removeFromWhitelist, saveSettings, sendTestDonation } from '@/lib/api';
 import { useMe } from '@/hooks/useMe';
 import { useApiAction } from '@/hooks/useApiAction';
 import { useI18n } from '@/i18n';
@@ -9,6 +9,7 @@ import { AuthButtons } from '@/components/AuthButtons';
 import { DashboardTopbar } from '@/features/dashboard/components/DashboardTopbar';
 import { NowPlayingCard } from '@/features/dashboard/components/NowPlayingCard';
 import { SettingsCard } from '@/features/dashboard/components/SettingsCard';
+import { IntegrationsCard } from '@/features/dashboard/components/IntegrationsCard';
 import { ModerationQueue } from '@/features/dashboard/components/ModerationQueue';
 import { MembersPanel } from '@/features/dashboard/components/MembersPanel';
 import { HistoryCard } from '@/features/dashboard/components/HistoryCard';
@@ -157,14 +158,24 @@ export function DashboardPage() {
           closeLabel={t('common.close')}
           width="max-w-lg"
         >
-          <SettingsCard
-            settings={data.settings}
-            onSave={(patch) =>
-              void act(async () => data.setSettings(await saveSettings(channelId!, patch)), {
-                success: t('toast.saved'),
-              })
-            }
-          />
+          <div className="flex flex-col gap-4">
+            <SettingsCard
+              settings={data.settings}
+              onSave={(patch) =>
+                void act(async () => data.setSettings(await saveSettings(channelId!, patch)), {
+                  success: t('toast.saved'),
+                })
+              }
+            />
+            <IntegrationsCard
+              channelId={channelId!}
+              onTestDonation={() =>
+                void act(() => sendTestDonation(channelId!), {
+                  success: t('toast.donationSent'),
+                })
+              }
+            />
+          </div>
         </Drawer>
       )}
 

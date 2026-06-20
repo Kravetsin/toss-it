@@ -14,6 +14,8 @@ import { db } from './db/index';
 import { channelModerators, channels, submissions, type SubmissionRow } from './db/schema';
 import { config } from './config';
 import { getUserFromCookieHeader } from './auth';
+// Только тип — чтобы не создавать runtime-цикл (gateway импортирует roomOf отсюда).
+import type { DonationGateway } from './donations/gateway';
 
 export type RealtimeServer = Server<
   OverlayToServerEvents,
@@ -278,7 +280,11 @@ function resolveLayout(
     : { position: channel.overlayPosition, size: channel.overlaySize, margin: channel.overlayMargin };
 }
 
-export function setupRealtime(io: RealtimeServer, app: FastifyInstance): PlaybackManager {
+export function setupRealtime(
+  io: RealtimeServer,
+  app: FastifyInstance,
+  donations: DonationGateway,
+): PlaybackManager {
   const playback = new PlaybackManager(io);
 
   io.on('connection', (socket) => {
@@ -373,6 +379,9 @@ export function setupRealtime(io: RealtimeServer, app: FastifyInstance): Playbac
           return;
         }
         void socket.join(roomOf(channel.id));
+        // Оверлей подключён = «стрим идёт» → запускаем поллинг донатов; отключился → гасим.
+        void donations.onOverlayConnected(channel.id);
+        socket.on('disconnect', () => donations.onOverlayMaybeGone(channel.id));
         socket.on('playback:done', (submissionId) => {
           if (typeof submissionId === 'string') void playback.onDone(channel.id, submissionId);
         });

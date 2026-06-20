@@ -293,8 +293,10 @@ function route(pathname: string): unknown | undefined {
         return MOCK_REPUTATION;
       case 'moderators':
         return MOCK_MODERATORS;
+      case 'integrations':
+        return []; // донат-интеграции (в моке не подключены)
       default:
-        return {}; // действия (approve/reject/skip/invite/save) → ok
+        return {}; // действия (approve/reject/skip/invite/save/test-donation) → ok
     }
   }
   return undefined;
