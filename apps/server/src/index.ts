@@ -20,6 +20,7 @@ const { LocalDiskStorage } = await import('./storage');
 const { setupRealtime } = await import('./playback');
 const { registerRoutes } = await import('./routes/index');
 const { startCleanup } = await import('./cleanup');
+const { registerSeo } = await import('./seo');
 
 await runMigrations();
 
@@ -59,15 +60,13 @@ if (config.serveStatic) {
     root: webDist,
     prefix: '/',
     decorateReply: false,
+    // index:false — чтобы '/' тоже шёл через SPA-fallback и получал мета главной
+    // (иначе статика отдала бы сырой index.html в обход подстановки SEO).
+    index: false,
   });
-  // SPA-fallback: /c/<login> и /dashboard обслуживает index.html веб-приложения.
-  app.setNotFoundHandler((req, reply) => {
-    const url = req.raw.url ?? '';
-    if (req.method === 'GET' && !url.startsWith('/api') && !url.startsWith('/socket.io')) {
-      return reply.type('text/html').sendFile('index.html', webDist);
-    }
-    return reply.code(404).send({ error: 'Не найдено' });
-  });
+  // robots.txt, sitemap.xml и SPA-fallback с подстановкой SEO-мета под маршрут
+  // (+ настоящий 404 для несуществующего /c/<login>). См. seo.ts.
+  registerSeo(app, webDist);
 }
 
 // Оверлей в dev живёт на другом origin (vite :5174) — WebSocket нужен CORS.

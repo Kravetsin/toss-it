@@ -1,0 +1,14 @@
+{
+  "name": "Tossit — submissions inbox for streamers",
+  "short_name": "Tossit",
+  "description": "Viewers send images, GIFs, videos and sounds straight to your stream, with moderation, a whitelist and limits.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0d1111",
+  "theme_color": "#0d1111",
+  "icons": [
+    { "src": "/favicon.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any" },
+    { "src": "/apple-touch-icon.png", "type": "image/png", "sizes": "180x180", "purpose": "any" }
+  ]
+}
