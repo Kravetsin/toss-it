@@ -1,4 +1,4 @@
-import type { DonationAdapter, DonationEvent } from './types';
+import { DonationHttpError, type DonationAdapter, type DonationEvent } from './types';
 
 /**
  * Адаптер Donatello. Транспорт — REST с заголовком `X-Token` (без OAuth):
@@ -20,8 +20,23 @@ interface RawDonate {
 
 async function get(token: string, path: string): Promise<unknown> {
   const res = await fetch(`${API}/${path}`, { headers: { 'X-Token': token } });
-  if (!res.ok) throw new Error(`donatello ${path} -> ${res.status}`);
+  if (!res.ok) {
+    throw new DonationHttpError(
+      res.status,
+      parseRetryAfter(res.headers.get('retry-after')),
+      `donatello ${path} -> ${res.status}`,
+    );
+  }
   return res.json();
+}
+
+/** Retry-After → мс. Поддерживает и число секунд, и HTTP-дату. */
+function parseRetryAfter(v: string | null): number | null {
+  if (!v) return null;
+  const secs = Number(v);
+  if (Number.isFinite(secs)) return Math.max(0, secs * 1000);
+  const date = Date.parse(v);
+  return Number.isFinite(date) ? Math.max(0, date - Date.now()) : null;
 }
 
 /** "YYYY-MM-DD HH:MM:SS" → мс. Пробел → 'T' для кроссдвижкового парсинга; NaN → 0. */

@@ -1,5 +1,17 @@
 import type { DonationFx } from '@tmw/shared';
 
+/** HTTP-ошибка провайдера — несёт статус и Retry-After (для backoff на 429). */
+export class DonationHttpError extends Error {
+  constructor(
+    readonly status: number,
+    readonly retryAfterMs: number | null,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'DonationHttpError';
+  }
+}
+
 /** Нормализованный донат от любого провайдера. */
 export interface DonationEvent {
   /** Стабильный id доната у провайдера (для дедупа/курсора). */
