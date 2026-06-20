@@ -99,12 +99,11 @@ export function getIntegrations(channelId: string): Promise<IntegrationStatus[]>
   return fetch(`${dash(channelId)}/integrations`).then((r) => json<IntegrationStatus[]>(r));
 }
 
-export function connectDonatello(channelId: string, token: string): Promise<IntegrationStatus> {
-  return fetch(`${dash(channelId)}/integrations/donatello`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ token }),
-  }).then((r) => json<IntegrationStatus>(r));
+/** Включить колбек Donatello — сервер сгенерит и вернёт Callback URL + Key. Идемпотентно. */
+export function connectDonatello(channelId: string): Promise<IntegrationStatus> {
+  return fetch(`${dash(channelId)}/integrations/donatello`, { method: 'POST' }).then((r) =>
+    json<IntegrationStatus>(r),
+  );
 }
 
 export function disconnectDonatello(channelId: string): Promise<unknown> {

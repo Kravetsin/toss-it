@@ -8,12 +8,9 @@ import { registerChannelRoutes } from './channels';
 import { registerDashboardRoutes } from './dashboard';
 import { registerMediaRoutes, type MediaRoutesDeps } from './media';
 import { registerPromoRoutes } from './promo';
-import type { DonationGateway } from '../donations/gateway';
+import { registerDonationRoutes } from './donations';
 
-export function registerRoutes(
-  app: FastifyInstance,
-  deps: MediaRoutesDeps & { donationGateway: DonationGateway },
-): void {
+export function registerRoutes(app: FastifyInstance, deps: MediaRoutesDeps): void {
   /** Лёгкий пинг для аптайм-мониторинга (не трогает БД). */
   app.get('/api/ping', async () => ({ ok: true }));
 
@@ -30,11 +27,8 @@ export function registerRoutes(
   registerAuthRoutes(app);
   registerChannelRoutes(app);
   registerMediaRoutes(app, deps);
-  registerDashboardRoutes(app, {
-    playback: deps.playback,
-    io: deps.io,
-    donationGateway: deps.donationGateway,
-  });
+  registerDashboardRoutes(app, { playback: deps.playback, io: deps.io });
+  registerDonationRoutes(app, deps.io);
   registerPromoRoutes(app);
   registerAdminRoutes(app);
 }

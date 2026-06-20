@@ -31,9 +31,7 @@ import {
 } from '../db/schema';
 import { config } from '../config';
 import { requireUser } from '../auth';
-import { encryptSecret } from '../crypto';
-import { donatelloAdapter } from '../donations/donatello';
-import type { DonationGateway } from '../donations/gateway';
+import { decryptSecret, encryptSecret } from '../crypto';
 import {
   dashboardRoomOf,
   emitSubmissionStatus,
@@ -46,7 +44,11 @@ import {
 export interface DashboardRoutesDeps {
   playback: PlaybackManager;
   io: RealtimeServer;
-  donationGateway: DonationGateway;
+}
+
+/** Публичный URL колбека Donatello для канала (куда провайдер POST-ит донаты). */
+function donatelloCallbackUrl(channelId: string): string {
+  return `${config.webUrl}/api/donations/donatello/${channelId}`;
 }
 
 /** Доступ к каналу для модерации: владелец ИЛИ модератор. */
@@ -151,7 +153,7 @@ function toSettings(ch: ChannelRow): ChannelSettings {
 }
 
 export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRoutesDeps): void {
-  const { playback, io, donationGateway } = deps;
+  const { playback, io } = deps;
 
   /** Список каналов, к которым у пользователя есть доступ (свои + где он модератор). */
   app.get('/api/me/channels', async (req, reply): Promise<AccessibleChannel[] | undefined> => {
@@ -234,46 +236,78 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         .from(channelIntegrations)
         .where(eq(channelIntegrations.channelId, channel.id))
         .all();
-      return rows.map((r) => ({ provider: r.provider, connected: true, name: r.externalName }));
+      return rows.map((r) => {
+        let key: string | null = null;
+        try {
+          key = decryptSecret(r.encToken);
+        } catch {
+          /* битый секрет — покажем как «нет ключа» */
+        }
+        return {
+          provider: r.provider,
+          connected: true,
+          callbackUrl: donatelloCallbackUrl(channel.id),
+          key,
+        };
+      });
     },
   );
 
-  /** Подключить Donatello: валидируем токен, шифруем, перезапускаем поллер (если оверлей онлайн). */
-  app.post<{ Params: { channelId: string }; Body: { token?: unknown } | null }>(
+  /**
+   * Включить колбек Donatello: генерируем секрет (X-Key) и отдаём стримеру вместе с URL.
+   * Идемпотентно — повторный вызов возвращает уже выданный ключ (не ломает настройку в Donatello).
+   */
+  app.post<{ Params: { channelId: string } }>(
     '/api/dashboard/:channelId/integrations/donatello',
     async (req, reply): Promise<IntegrationStatus | undefined> => {
       const channel = await requireOwnerOf(req, reply, req.params.channelId);
       if (!channel) return;
-      const token = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
-      if (!token) return reply.code(400).send({ error: 'Пустой токен' });
 
-      let name: string | null;
-      try {
-        ({ name } = await donatelloAdapter.validate(token));
-      } catch {
-        return reply.code(400).send({ error: 'Невалидный токен Donatello' });
+      const existing = await db
+        .select()
+        .from(channelIntegrations)
+        .where(
+          and(
+            eq(channelIntegrations.channelId, channel.id),
+            eq(channelIntegrations.provider, 'donatello'),
+          ),
+        )
+        .get();
+
+      let key: string | null = null;
+      if (existing) {
+        try {
+          key = decryptSecret(existing.encToken);
+        } catch {
+          key = null;
+        }
       }
-
-      const now = new Date();
-      const enc = encryptSecret(token);
-      await db
-        .insert(channelIntegrations)
-        .values({
-          channelId: channel.id,
-          provider: 'donatello',
-          encToken: enc,
-          externalName: name,
-          lastDonationId: null,
-          createdAt: now,
-          updatedAt: now,
-        })
-        .onConflictDoUpdate({
-          target: [channelIntegrations.channelId, channelIntegrations.provider],
-          // Новое подключение → сбрасываем курсор, чтобы старые донаты не выстрелили.
-          set: { encToken: enc, externalName: name, lastDonationId: null, updatedAt: now },
-        });
-      await donationGateway.refresh(channel.id);
-      return { provider: 'donatello', connected: true, name };
+      if (!key) {
+        key = crypto.randomBytes(24).toString('hex');
+        const now = new Date();
+        const enc = encryptSecret(key);
+        await db
+          .insert(channelIntegrations)
+          .values({
+            channelId: channel.id,
+            provider: 'donatello',
+            encToken: enc,
+            externalName: null,
+            lastDonationId: null,
+            createdAt: now,
+            updatedAt: now,
+          })
+          .onConflictDoUpdate({
+            target: [channelIntegrations.channelId, channelIntegrations.provider],
+            set: { encToken: enc, updatedAt: now },
+          });
+      }
+      return {
+        provider: 'donatello',
+        connected: true,
+        callbackUrl: donatelloCallbackUrl(channel.id),
+        key,
+      };
     },
   );
 
@@ -290,7 +324,6 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
             eq(channelIntegrations.provider, 'donatello'),
           ),
         );
-      await donationGateway.refresh(channel.id);
       return { ok: true };
     },
   );

@@ -132,12 +132,14 @@ export interface DonationFx {
   message: string | null;
 }
 
-/** Статус подключения донат-сервиса к каналу (без токена — для дашборда). */
+/** Статус интеграции донат-сервиса (для дашборда). Колбек-модель: провайдер POST-ит донаты к нам. */
 export interface IntegrationStatus {
   provider: string;
   connected: boolean;
-  /** Имя аккаунта у провайдера (для «Подключено как X»). */
-  name: string | null;
+  /** Куда стример указывает колбек в Donatello (наш публичный POST-эндпоинт). */
+  callbackUrl: string | null;
+  /** Секрет для заголовка X-Key — проверка, что запрос пришёл из Donatello. */
+  key: string | null;
 }
 
 /** События сервер → оверлей. */

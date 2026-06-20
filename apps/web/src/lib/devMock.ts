@@ -295,6 +295,14 @@ function route(pathname: string): unknown | undefined {
         return MOCK_MODERATORS;
       case 'integrations':
         return []; // донат-интеграции (в моке не подключены)
+      case 'integrations/donatello':
+        // POST «подключить» → фейковый статус колбека (для просмотра UI без сервера).
+        return {
+          provider: 'donatello',
+          connected: true,
+          callbackUrl: 'https://toss-it.win/api/donations/donatello/ch_dev',
+          key: 'demo0000111122223333444455556666',
+        };
       default:
         return {}; // действия (approve/reject/skip/invite/save/test-donation) → ok
     }

@@ -3,12 +3,12 @@ import type { IntegrationStatus } from '@tmw/shared';
 import { connectDonatello, disconnectDonatello, getIntegrations } from '@/lib/api';
 import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
-import { Button, Card, Input } from '@/ui';
+import { Button, Card, CopyableLinkBox } from '@/ui';
 
 /**
- * Интеграции канала. Donatello: донаты с сервиса стримера запускают всплеск на оверлее
- * (деньги через нас НЕ идут — только слушаем события). Прозрачность: токен вводится честно,
- * статус показывается сразу; невалидный токен — явная ошибка, а не тихий сбой.
+ * Интеграции канала. Donatello работает через «Колбеки»: Donatello сам POST-ит каждый донат
+ * на наш Callback URL (деньги через нас НЕ идут). Стример включает колбек у себя и вставляет
+ * выданные URL + Key. Кнопка «Тест-донат» рисует тот же эффект напрямую (без Donatello).
  */
 export function IntegrationsCard({
   channelId,
@@ -19,9 +19,8 @@ export function IntegrationsCard({
 }) {
   const { t } = useI18n();
   const [donatello, setDonatello] = useState<IntegrationStatus | null>(null);
-  const [token, setToken] = useState('');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState<'url' | 'key' | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -37,12 +36,8 @@ export function IntegrationsCard({
 
   const connect = async () => {
     setBusy(true);
-    setError(null);
     try {
-      setDonatello(await connectDonatello(channelId, token.trim()));
-      setToken('');
-    } catch {
-      setError(t('dash.donatelloInvalid'));
+      setDonatello(await connectDonatello(channelId));
     } finally {
       setBusy(false);
     }
@@ -50,7 +45,6 @@ export function IntegrationsCard({
 
   const disconnect = async () => {
     setBusy(true);
-    setError(null);
     try {
       await disconnectDonatello(channelId);
       setDonatello(null);
@@ -58,6 +52,14 @@ export function IntegrationsCard({
       setBusy(false);
     }
   };
+
+  const copy = (field: 'url' | 'key', value: string) => {
+    void navigator.clipboard?.writeText(value);
+    setCopied(field);
+    window.setTimeout(() => setCopied((c) => (c === field ? null : c)), 1500);
+  };
+
+  const connected = !!donatello?.connected && !!donatello.key;
 
   return (
     <Card className="flex flex-col gap-3">
@@ -67,33 +69,36 @@ export function IntegrationsCard({
       </h3>
       <p className="text-sm text-muted">{t('dash.integrationsDonatelloDesc')}</p>
 
-      {donatello?.connected ? (
-        <div className="flex items-center justify-between gap-2">
-          <span className="flex items-center gap-1.5 text-sm text-ok">
-            <Icon name="check" size={14} />
-            {t('dash.donatelloConnected', { name: donatello.name ?? 'Donatello' })}
-          </span>
-          <Button variant="ghost" size="sm" onClick={() => void disconnect()} disabled={busy}>
-            {t('dash.donatelloDisconnect')}
-          </Button>
+      {connected ? (
+        <div className="flex flex-col gap-2">
+          <p className="text-xs text-muted">{t('dash.donatelloSteps')}</p>
+          <span className="label-mono text-faint">{t('dash.donatelloUrlLabel')}</span>
+          <CopyableLinkBox
+            value={donatello.callbackUrl ?? ''}
+            copied={copied === 'url'}
+            onCopy={() => copy('url', donatello.callbackUrl ?? '')}
+          />
+          <span className="label-mono text-faint">{t('dash.donatelloKeyLabel')}</span>
+          <CopyableLinkBox
+            value={donatello.key ?? ''}
+            secret
+            copied={copied === 'key'}
+            onCopy={() => copy('key', donatello.key ?? '')}
+          />
+          <div className="mt-1 flex items-center justify-between gap-2">
+            <span className="flex items-center gap-1.5 text-sm text-ok">
+              <Icon name="check" size={14} />
+              {t('dash.donatelloReady')}
+            </span>
+            <Button variant="ghost" size="sm" onClick={() => void disconnect()} disabled={busy}>
+              {t('dash.donatelloDisconnect')}
+            </Button>
+          </div>
         </div>
       ) : (
-        <div className="flex flex-col gap-2">
-          <Input
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            placeholder={t('dash.donatelloTokenPlaceholder')}
-          />
-          <p className="text-xs text-muted">{t('dash.donatelloHint')}</p>
-          <Button
-            variant="primary"
-            onClick={() => void connect()}
-            disabled={busy || !token.trim()}
-          >
-            {t('dash.donatelloConnect')}
-          </Button>
-          {error && <span className="text-xs text-danger">{error}</span>}
-        </div>
+        <Button variant="primary" onClick={() => void connect()} disabled={busy}>
+          {t('dash.donatelloConnect')}
+        </Button>
       )}
 
       <Button variant="secondary" className="justify-center" onClick={onTestDonation}>
