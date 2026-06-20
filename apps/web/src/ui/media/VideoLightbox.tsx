@@ -270,7 +270,7 @@ export function VideoLightbox({ src, open, onClose, label, durationHintSec }: Vi
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center px-4 pb-4">
           <div
             onMouseDown={(e) => e.stopPropagation()}
-            className={`pointer-events-auto w-[min(42rem,90vw)] overflow-hidden rounded-[var(--radius)] border border-border bg-surface/95 shadow-3 backdrop-blur-sm transition-opacity duration-200 ${
+            className={`pointer-events-auto w-[min(42rem,90vw)] rounded-[var(--radius)] border border-border bg-surface/95 shadow-3 backdrop-blur-sm transition-opacity duration-200 ${
               visible ? 'opacity-100' : 'pointer-events-none opacity-0'
             }`}
           >
