@@ -60,6 +60,8 @@ const MOCK_ME: MeResponse = {
     isFounder: true,
     isAdmin: true,
     stardust: 250,
+    ownedCosmetics: [],
+    equipped: {},
   },
   channel: { id: 'ch_dev', overlayToken: 'dev-overlay-token-7f3a91' },
 };
@@ -104,6 +106,7 @@ const sub = (
 ): SubmissionSummary => ({
   senderUserId: null,
   senderName: null,
+  senderColor: null,
   mime: 'text/plain',
   text: null,
   durationMs: 6000,
@@ -118,6 +121,7 @@ const MOCK_PENDING: SubmissionSummary[] = [
     kind: 'text',
     senderUserId: 'twitch:v1',
     senderName: 'meme_lord',
+    senderColor: '#ff6ad5',
     text: 'каеф, врубай этого на стрим 🔥🔥🔥',
     createdAt: t - 1 * min,
   }),
@@ -127,6 +131,7 @@ const MOCK_PENDING: SubmissionSummary[] = [
     mime: 'image/svg+xml',
     senderUserId: 'google:v2',
     senderName: 'pixel_witch',
+    senderColor: '#8df0cc',
     text: 'смотри какой котик получился',
     url: IMG,
     durationMs: 8000,
@@ -286,6 +291,7 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     displayName: 'DarkBlane_',
     count: 12,
     isFounder: false,
+    nickColor: '#ffb86c',
   },
   {
     userId: 'twitch:u_dev',
@@ -293,6 +299,7 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     displayName: 'Kravets',
     count: 12,
     isFounder: true,
+    nickColor: null,
   },
   {
     userId: 'twitch:other2',
@@ -300,6 +307,7 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     displayName: 'Kravetsin',
     count: 6,
     isFounder: false,
+    nickColor: '#8df0cc',
   },
   {
     userId: 'google:other3',
@@ -307,6 +315,7 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     displayName: 'Слава Anfani',
     count: 5,
     isFounder: false,
+    nickColor: null,
   },
   {
     userId: 'google:other4',
@@ -314,10 +323,16 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     displayName: 'Дмитриева Дарина',
     count: 2,
     isFounder: false,
+    nickColor: null,
   },
 ];
 
-function route(pathname: string): unknown | undefined {
+function cosmeticState() {
+  const u = MOCK_ME.user!;
+  return { stardust: u.stardust, ownedCosmetics: u.ownedCosmetics, equipped: u.equipped };
+}
+
+function route(pathname: string, init?: RequestInit): unknown | undefined {
   if (pathname === '/api/auth/me') return MOCK_ME;
   if (pathname === '/api/auth/logout') {
     try {
@@ -328,6 +343,23 @@ function route(pathname: string): unknown | undefined {
     return {};
   }
   if (pathname === '/api/me/channels') return MOCK_CHANNELS;
+
+  if (pathname === '/api/cosmetics/buy') {
+    const u = MOCK_ME.user!;
+    if (!u.ownedCosmetics.includes('nick-color')) {
+      u.ownedCosmetics = [...u.ownedCosmetics, 'nick-color'];
+      u.stardust -= 100;
+    }
+    return cosmeticState();
+  }
+  if (pathname === '/api/cosmetics/equip') {
+    const u = MOCK_ME.user!;
+    const body = init?.body ? (JSON.parse(String(init.body)) as { nickColor?: string | null }) : {};
+    if ('nickColor' in body) {
+      u.equipped = body.nickColor ? { nickColor: body.nickColor } : {};
+    }
+    return cosmeticState();
+  }
 
   const cm = pathname.match(/^\/api\/c\/([^/]+)(?:\/(leaderboard))?$/);
   if (cm) return cm[2] === 'leaderboard' ? MOCK_LEADERBOARD : mockPublicChannel(cm[1]!);
@@ -383,7 +415,7 @@ export function installDevMock() {
         typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
       const { pathname } = new URL(href, window.location.origin);
       if (pathname.startsWith('/api/')) {
-        const data = route(pathname);
+        const data = route(pathname, init);
         if (data !== undefined) {
           return new Response(JSON.stringify(data), {
             status: 200,

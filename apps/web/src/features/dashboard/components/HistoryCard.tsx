@@ -32,7 +32,12 @@ export function HistoryCard({
                 </td>
                 <td className="py-1.5 pr-3 align-middle">
                   <span className="flex items-center gap-1.5">
-                    <b className="text-text">{h.senderName ?? t('common.anon')}</b>
+                    <b
+                      className="text-text"
+                      style={h.senderColor ? { color: h.senderColor } : undefined}
+                    >
+                      {h.senderName ?? t('common.anon')}
+                    </b>
                     <PlatformIcon userId={h.senderUserId} size={13} />
                     <UserBadges isFounder={h.isFounder} variant="icons" />
                   </span>

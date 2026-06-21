@@ -133,7 +133,12 @@ export function SubmissionCard({
           <SubmissionThumb s={s} />
           <span className="min-w-0 flex-1">
             <span className="flex items-center gap-1.5">
-              <b className="truncate text-sm text-text">{s.senderName ?? t('common.anon')}</b>
+              <b
+                className="truncate text-sm text-text"
+                style={s.senderColor ? { color: s.senderColor } : undefined}
+              >
+                {s.senderName ?? t('common.anon')}
+              </b>
               <RepChip rep={rep} />
               <PlatformIcon userId={s.senderUserId} size={13} />
               <UserBadges isFounder={rep?.isFounder} variant="icons" />

@@ -35,6 +35,8 @@ import { decryptSecret, encryptSecret } from '../crypto';
 import {
   dashboardRoomOf,
   emitSubmissionStatus,
+  equippedColorOf,
+  equippedColorsFor,
   roomOf,
   toSummary,
   type PlaybackManager,
@@ -199,7 +201,9 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
       const channel = await requireChannelAccess(req, reply, req.params.channelId);
       if (!channel) return;
       const current = playback.getCurrent(channel.id);
-      return { now: current ? toSummary(current) : null };
+      return {
+        now: current ? toSummary(current, await equippedColorOf(current.senderUserId)) : null,
+      };
     },
   );
 
@@ -413,7 +417,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
       const channel = await requireChannelAccess(req, reply, req.params.channelId);
       if (!channel) return;
       const rows = await db
-        .select({ sub: submissions, founderSince: users.founderSince })
+        .select({ sub: submissions, founderSince: users.founderSince, equipped: users.equipped })
         .from(submissions)
         .leftJoin(users, eq(users.id, submissions.senderUserId))
         .where(
@@ -426,7 +430,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         .limit(50)
         .all();
       return rows.map((r) => ({
-        ...toSummary(r.sub),
+        ...toSummary(r.sub, r.equipped?.nickColor ?? null),
         status: r.sub.status,
         isFounder: r.founderSince != null,
       }));
@@ -444,7 +448,8 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         .where(and(eq(submissions.channelId, channel.id), eq(submissions.status, 'pending')))
         .orderBy(asc(submissions.createdAt))
         .all();
-      return rows.map(toSummary);
+      const colors = await equippedColorsFor(rows.map((r) => r.senderUserId));
+      return rows.map((r) => toSummary(r, colors.get(r.senderUserId ?? '') ?? null));
     },
   );
 

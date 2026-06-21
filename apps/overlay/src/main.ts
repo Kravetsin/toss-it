@@ -106,7 +106,11 @@ function show(payload: MediaPlayPayload): void {
     const banner = document.createElement('div');
     banner.className = 'sender';
     banner.innerHTML = `<span class="glyph">${GIFT_SVG}</span>`;
-    banner.appendChild(document.createTextNode(payload.senderName));
+    // Wrap the name so an equipped nick color tints only the name, not the glyph.
+    const nameEl = document.createElement('span');
+    nameEl.textContent = payload.senderName;
+    if (payload.senderColor) nameEl.style.color = payload.senderColor;
+    banner.appendChild(nameEl);
     alert.appendChild(banner);
   }
   stage.appendChild(alert);

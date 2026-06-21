@@ -285,7 +285,10 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
         if (row.status === 'approved') {
           queuePosition = playback.enqueue(row);
         } else {
-          io.to(dashboardRoomOf(channel.id)).emit('moderation:new', toSummary(row));
+          io.to(dashboardRoomOf(channel.id)).emit(
+            'moderation:new',
+            toSummary(row, user.equipped?.nickColor ?? null),
+          );
         }
 
         const response: UploadResponse = {

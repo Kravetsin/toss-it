@@ -4,3 +4,4 @@ export * from './channels';
 export * from './dashboard';
 export * from './invites';
 export * from './promo';
+export * from './shop';

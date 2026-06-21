@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type { Server } from 'socket.io';
 import type {
@@ -11,7 +11,7 @@ import type {
   SubmissionSummary,
 } from '@tmw/shared';
 import { db } from './db/index';
-import { channelModerators, channels, submissions, type SubmissionRow } from './db/schema';
+import { channelModerators, channels, submissions, users, type SubmissionRow } from './db/schema';
 import { config } from './config';
 import { getUserFromCookieHeader } from './auth';
 
@@ -42,11 +42,15 @@ export function emitSubmissionStatus(
   io.to(submissionRoomOf(submissionId)).emit('submission:status', { submissionId, status });
 }
 
-export function toSummary(sub: SubmissionRow): SubmissionSummary {
+export function toSummary(
+  sub: SubmissionRow,
+  senderColor: string | null = null,
+): SubmissionSummary {
   return {
     id: sub.id,
     senderUserId: sub.senderUserId,
     senderName: sub.senderName,
+    senderColor,
     kind: sub.kind,
     mime: sub.mime,
     text: sub.text,
@@ -55,6 +59,39 @@ export function toSummary(sub: SubmissionRow): SubmissionSummary {
     url: `/api/media/${sub.id}`,
     youtubeId: sub.youtubeId,
   };
+}
+
+/** Resolve a single sender's equipped nick color (null if anon/none). */
+export async function equippedColorOf(userId: string | null): Promise<string | null> {
+  if (!userId) return null;
+  const row = await db
+    .select({ equipped: users.equipped })
+    .from(users)
+    .where(eq(users.id, userId))
+    .get();
+  return row?.equipped?.nickColor ?? null;
+}
+
+/** Batch-resolve equipped nick colors for a set of users (avoids N+1 in list endpoints). */
+export async function equippedColorsFor(userIds: (string | null)[]): Promise<Map<string, string>> {
+  const ids = [...new Set(userIds.filter((x): x is string => !!x))];
+  const out = new Map<string, string>();
+  if (ids.length === 0) return out;
+  const rows = await db
+    .select({ id: users.id, equipped: users.equipped })
+    .from(users)
+    .where(inArray(users.id, ids))
+    .all();
+  for (const r of rows) {
+    const c = r.equipped?.nickColor;
+    if (c) out.set(r.id, c);
+  }
+  return out;
+}
+
+/** toSummary with the sender's equipped nick color resolved (for live socket emits). */
+export async function toLiveSummary(sub: SubmissionRow): Promise<SubmissionSummary> {
+  return toSummary(sub, await equippedColorOf(sub.senderUserId));
 }
 
 interface ChannelState {
@@ -158,8 +195,15 @@ export class PlaybackManager {
       () => void this.onDone(channelId, submissionId),
       durationMs + config.watchdogGraceMs,
     );
-    // "Now playing" panel gets the real time instead of zero.
-    this.io.to(dashboardRoomOf(channelId)).emit('playback:started', toSummary(st.current));
+    // "Now playing" panel gets the real time instead of zero (with nick color).
+    // Re-check currency after the async color lookup: the clip may have ended meanwhile,
+    // and a late emit would resurrect an already-ended submission on the dashboard.
+    const cur = st.current;
+    void toLiveSummary(cur).then((summary) => {
+      if (this.state(channelId).current?.id === cur.id) {
+        this.io.to(dashboardRoomOf(channelId)).emit('playback:started', summary);
+      }
+    });
   }
 
   private async tryNext(channelId: string): Promise<void> {
@@ -185,7 +229,7 @@ export class PlaybackManager {
 
       st.current = fresh;
       this.io.to(roomOf(channelId)).emit('media:play', await this.buildPayload(fresh));
-      this.io.to(dashboardRoomOf(channelId)).emit('playback:started', toSummary(fresh));
+      this.io.to(dashboardRoomOf(channelId)).emit('playback:started', await toLiveSummary(fresh));
       emitSubmissionStatus(this.io, fresh.id, 'playing');
       // YouTube: duration is only known at play time (see reportDuration), so until
       // then keep a grace watchdog instead of durationMs (=0).
@@ -222,6 +266,8 @@ export class PlaybackManager {
       .where(eq(channels.id, sub.channelId))
       .get();
     const showName = channel?.showSenderName ?? true;
+    // Color is pointless without the name; resolve only when the name is shown.
+    const senderColor = showName ? await equippedColorOf(sub.senderUserId) : null;
     return {
       submissionId: sub.id,
       url: `/api/media/${sub.id}`,
@@ -232,6 +278,7 @@ export class PlaybackManager {
       // TTS reads the name aloud; pointless if the name isn't shown.
       tts: (channel?.ttsName ?? false) && showName && sub.senderName !== null,
       senderName: showName ? (sub.senderName ?? undefined) : undefined,
+      senderColor: senderColor ?? undefined,
       text: sub.text ?? undefined,
       ttsText: (channel?.ttsMessage ?? false) && !!sub.text,
       // Music may use its own layout; the server picks it by media type, so the

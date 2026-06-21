@@ -88,6 +88,7 @@ export function registerChannelRoutes(app: FastifyInstance): void {
         login: users.login,
         displayName: users.displayName,
         founderSince: users.founderSince,
+        equipped: users.equipped,
         count: count(),
       })
       .from(submissions)
@@ -110,6 +111,7 @@ export function registerChannelRoutes(app: FastifyInstance): void {
       displayName: r.displayName,
       count: r.count,
       isFounder: r.founderSince != null,
+      nickColor: r.equipped?.nickColor ?? null,
     }));
     return response;
   });

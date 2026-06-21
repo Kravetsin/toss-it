@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type { MeResponse } from '@tmw/shared';
 import { db } from '../db/index';
-import { channels, users } from '../db/schema';
+import { channels, userCosmetics, users } from '../db/schema';
 import { config } from '../config';
 import {
   buildAuthorizeUrl,
@@ -153,6 +153,11 @@ export function registerAuthRoutes(app: FastifyInstance): void {
     const user = await getSessionUser(req);
     if (!user) return { user: null, channel: null };
     const channel = await db.select().from(channels).where(eq(channels.ownerUserId, user.id)).get();
+    const owned = await db
+      .select({ itemId: userCosmetics.itemId })
+      .from(userCosmetics)
+      .where(eq(userCosmetics.userId, user.id))
+      .all();
     return {
       user: {
         id: user.id,
@@ -162,6 +167,8 @@ export function registerAuthRoutes(app: FastifyInstance): void {
         isFounder: user.founderSince != null,
         isAdmin: isAdmin(user.id),
         stardust: user.stardust,
+        ownedCosmetics: owned.map((o) => o.itemId),
+        equipped: user.equipped ?? {},
       },
       channel: channel ? { id: channel.id, overlayToken: channel.overlayToken } : null,
     };

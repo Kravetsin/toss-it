@@ -93,6 +93,8 @@ export interface MediaPlayPayload {
   tts: boolean;
   /** Absent if streamer disabled showing sender name. */
   senderName?: string;
+  /** Sender's equipped nickname color (#rrggbb), absent if none/anon. */
+  senderColor?: string;
   /** Caption for a file, or body of text-only submission (kind='text'). */
   text?: string;
   ttsText: boolean;
@@ -161,6 +163,8 @@ export interface SubmissionSummary {
   id: string;
   senderUserId: string | null;
   senderName: string | null;
+  /** Sender's equipped nickname color (#rrggbb), null if none/anon. */
+  senderColor: string | null;
   kind: MediaKind;
   mime: string;
   /** Caption for a file, or body of text-only submission. */
@@ -242,6 +246,41 @@ export interface UploadResponse {
   stardustBalance: number;
 }
 
+/**
+ * Cosmetics bought with stardust (never with money — see CLAUDE.md / product notes).
+ * Catalog lives here in code; the DB stores only ownership + equip state.
+ */
+export type CosmeticType = 'nick_color';
+
+export interface CosmeticItem {
+  /** Stable catalog id; stored in user_cosmetics. */
+  id: string;
+  type: CosmeticType;
+  /** Price in stardust. */
+  costDust: number;
+}
+
+/** Single source of truth for buyable cosmetics. */
+export const COSMETICS: CosmeticItem[] = [{ id: 'nick-color', type: 'nick_color', costDust: 100 }];
+
+/** What a user currently has equipped (one slot per type). */
+export interface EquippedCosmetics {
+  /** Free-form #rrggbb nickname color; requires owning the 'nick-color' item. */
+  nickColor?: string | null;
+}
+
+/** Validate a #rrggbb hex color (exactly 6 hex digits, no alpha). */
+export function isHexColor(v: string): boolean {
+  return /^#[0-9a-fA-F]{6}$/.test(v);
+}
+
+/** Returned by /api/cosmetics/buy and /equip — the user's post-mutation cosmetic state. */
+export interface CosmeticStateResponse {
+  stardust: number;
+  ownedCosmetics: string[];
+  equipped: EquippedCosmetics;
+}
+
 export interface SessionUser {
   id: string;
   login: string;
@@ -253,6 +292,10 @@ export interface SessionUser {
   isAdmin: boolean;
   /** Stardust — user's global cosmetic wallet. */
   stardust: number;
+  /** Catalog ids the user owns (from COSMETICS). */
+  ownedCosmetics: string[];
+  /** Currently equipped cosmetics (nick color, etc.). */
+  equipped: EquippedCosmetics;
 }
 
 /** Logged-in streamer's own channel (overlayToken is secret, never expose). */
@@ -319,6 +362,8 @@ export interface LeaderboardEntry {
   /** How many of this viewer's media actually played on stream. */
   count: number;
   isFounder: boolean;
+  /** Equipped nickname color (#rrggbb), null if none. */
+  nickColor: string | null;
 }
 
 /** Cross-channel user reputation — aggregates across all channels. */

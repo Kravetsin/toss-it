@@ -1,6 +1,12 @@
 import { sql } from 'drizzle-orm';
 import { sqliteTable, text, integer, index, primaryKey } from 'drizzle-orm/sqlite-core';
-import type { ChannelLink, MediaKind, OverlayPosition, SubmissionStatus } from '@tmw/shared';
+import type {
+  ChannelLink,
+  EquippedCosmetics,
+  MediaKind,
+  OverlayPosition,
+  SubmissionStatus,
+} from '@tmw/shared';
 
 export const appMeta = sqliteTable('app_meta', {
   key: text('key').primaryKey(),
@@ -17,6 +23,8 @@ export const users = sqliteTable('users', {
   founderSince: integer('founder_since', { mode: 'timestamp_ms' }),
   /** Global cosmetic currency, earned through activity. */
   stardust: integer('stardust').notNull().default(0),
+  /** Equipped cosmetics (nick color, etc.); null = nothing equipped. */
+  equipped: text('equipped', { mode: 'json' }).$type<EquippedCosmetics>(),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 });
 
@@ -162,6 +170,19 @@ export const promoCodes = sqliteTable('promo_codes', {
   redeemedAt: integer('redeemed_at', { mode: 'timestamp_ms' }),
 });
 
+/** Cosmetics a user owns (bought with stardust). itemId = catalog id from COSMETICS. */
+export const userCosmetics = sqliteTable(
+  'user_cosmetics',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id),
+    itemId: text('item_id').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.itemId] })],
+);
+
 export const submissions = sqliteTable(
   'submissions',
   {
@@ -190,6 +211,7 @@ export const submissions = sqliteTable(
 );
 
 export type UserRow = typeof users.$inferSelect;
+export type UserCosmeticRow = typeof userCosmetics.$inferSelect;
 export type ChannelRow = typeof channels.$inferSelect;
 export type SubmissionRow = typeof submissions.$inferSelect;
 export type ChannelModeratorRow = typeof channelModerators.$inferSelect;

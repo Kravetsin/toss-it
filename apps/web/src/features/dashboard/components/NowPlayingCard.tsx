@@ -36,7 +36,12 @@ export function NowPlayingCard({
           <h2 className="label-mono text-muted">{t('dash.nowPlaying')}</h2>
           {now ? (
             <div className="mt-1 flex items-center gap-1.5 text-sm text-muted">
-              <b className="truncate text-text">{now.senderName ?? t('common.anon')}</b>
+              <b
+                className="truncate text-text"
+                style={now.senderColor ? { color: now.senderColor } : undefined}
+              >
+                {now.senderName ?? t('common.anon')}
+              </b>
               <PlatformIcon userId={now.senderUserId} size={13} />
               <span className="truncate">
                 · {now.kind === 'youtube' ? 'YouTube' : now.mime} ·{' '}

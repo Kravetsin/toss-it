@@ -5,6 +5,7 @@ import { appMeta } from '../db/schema';
 import { registerAdminRoutes } from './admin';
 import { registerAuthRoutes } from './auth';
 import { registerChannelRoutes } from './channels';
+import { registerCosmeticsRoutes } from './cosmetics';
 import { registerDashboardRoutes } from './dashboard';
 import { registerMediaRoutes, type MediaRoutesDeps } from './media';
 import { registerPromoRoutes } from './promo';
@@ -26,6 +27,7 @@ export function registerRoutes(app: FastifyInstance, deps: MediaRoutesDeps): voi
 
   registerAuthRoutes(app);
   registerChannelRoutes(app);
+  registerCosmeticsRoutes(app);
   registerMediaRoutes(app, deps);
   registerDashboardRoutes(app, { playback: deps.playback, io: deps.io });
   registerDonationRoutes(app, deps.io);

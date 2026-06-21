@@ -39,7 +39,12 @@ export function Leaderboard({ board, meId }: { board: LeaderboardEntry[]; meId: 
                   >
                     {i + 1}
                   </span>
-                  <b className={isYou ? 'text-accent' : 'text-text'}>{e.displayName}</b>
+                  <b
+                    className={isYou ? 'text-accent' : 'text-text'}
+                    style={e.nickColor ? { color: e.nickColor } : undefined}
+                  >
+                    {e.displayName}
+                  </b>
                   <PlatformIcon userId={e.userId} size={13} />
                   <UserBadges isFounder={e.isFounder} variant="icons" />
                   {isYou && <span className="label-mono text-accent">{t('channel.you')}</span>}
