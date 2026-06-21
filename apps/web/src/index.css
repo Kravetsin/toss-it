@@ -332,6 +332,78 @@ textarea {
   }
 }
 
+/* Nick glow: halo in the nick color (--nick-glow, falls back to the text color). Uses
+   filter (not text-shadow) so the nick's own `truncate` overflow doesn't clip the glow. */
+.nick-glow {
+  filter: drop-shadow(0 0 2px var(--nick-glow, currentColor))
+    drop-shadow(0 0 6px var(--nick-glow, currentColor));
+}
+
+/* Card effects: a particle layer over the whole card / leaderboard row. The layer is
+   absolute inset-0 and the card clips it (overflow-hidden), so nothing spills out.
+   Particles fade in/out, so reduced-motion (animation off) simply leaves them invisible. */
+.card-fx {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  border-radius: inherit;
+}
+.card-fx .p {
+  position: absolute;
+  opacity: 0;
+}
+.card-fx-levitation .p {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  box-shadow: 0 0 6px var(--color-accent);
+  /* duration + delay are randomized inline per particle (see makeParticles). */
+  animation: cardfx-rise 3.4s linear infinite;
+}
+@keyframes cardfx-rise {
+  0% {
+    top: 100%;
+    opacity: 0;
+    transform: translateX(0) scale(var(--s, 1));
+  }
+  14% {
+    opacity: 0.8;
+  }
+  100% {
+    top: -8%;
+    opacity: 0;
+    transform: translateX(var(--drift, 0)) scale(calc(var(--s, 1) * 0.35));
+  }
+}
+.card-fx-stardust .p {
+  width: 2px;
+  height: 20px;
+  border-radius: 2px;
+  background: linear-gradient(to bottom, transparent, var(--color-accent));
+  filter: drop-shadow(0 0 3px var(--color-accent));
+  animation: cardfx-fall 2.6s linear infinite;
+}
+/* All meteors share one direction; the bar is rotated to point along it (-24deg matches the
+   translate vector), so each star flies the way it points. Only spawn/speed/phase are random. */
+@keyframes cardfx-fall {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(-24deg);
+  }
+  15% {
+    opacity: 0.9;
+  }
+  85% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(100px, 225px) rotate(-24deg);
+  }
+}
+
 /* Legacy pixel-era utilities still used by un-migrated components
    (media players, loader, toasts, ScrollFlow). */
 @utility card-pixel {

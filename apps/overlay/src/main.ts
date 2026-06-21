@@ -2,6 +2,7 @@ import '@fontsource/jetbrains-mono';
 import { io, type Socket } from 'socket.io-client';
 import {
   OVERLAY_POSITIONS,
+  makeParticles,
   positionToFlex,
   type DonationFx,
   type MediaKind,
@@ -41,9 +42,15 @@ declare global {
   }
 }
 
-// Inline pixelarticons glyph (no React icon set in the overlay).
+// Inline lucide-style glyphs (no React icon set in the overlay; stroke = 2, matches the web).
 const GIFT_SVG =
-  '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M4 6h16v2H4zM2 8h2v4H2zm2 4h16v2H4zm16-4h2v4h-2zM6 4h2v2H6zm2-2h3v2H8zm3 2h2v2h-2zm2-2h3v2h-3zm3 2h2v2h-2zM4 14h2v6H4zm2 6h12v2H6zm12-6h2v6h-2zm-7-6h2v4h-2zm0 6h2v6h-2z"/></svg>';
+  '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"/></svg>';
+
+// Badge id -> inline SVG, rendered in mint after the name. Founder = sparkles (matches web UserBadges).
+const BADGE_SVG: Record<string, string> = {
+  founder:
+    '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M6 18H2"/></svg>',
+};
 
 // Dev: server on separate port. Prod: overlay served by the server (same-origin).
 const SERVER_URL = import.meta.env.DEV ? 'http://127.0.0.1:3000' : window.location.origin;
@@ -106,13 +113,31 @@ function show(payload: MediaPlayPayload): void {
     const banner = document.createElement('div');
     banner.className = 'sender';
     banner.innerHTML = `<span class="glyph">${GIFT_SVG}</span>`;
-    // Wrap the name so an equipped nick color tints only the name, not the glyph.
+    // Wrap the name so an equipped nick color tints only the name, not the glyph/badges.
     const nameEl = document.createElement('span');
+    nameEl.className = 'name';
     nameEl.textContent = payload.senderName;
     if (payload.senderColor) nameEl.style.color = payload.senderColor;
     banner.appendChild(nameEl);
+    // Badges (founder, future cosmetics) — mint glyphs after the name.
+    const badgeSvgs = (payload.senderBadges ?? [])
+      .map((id) => BADGE_SVG[id])
+      .filter((svg): svg is string => Boolean(svg));
+    if (badgeSvgs.length) {
+      const badges = document.createElement('span');
+      badges.className = 'badges';
+      badges.innerHTML = badgeSvgs.map((svg) => `<span class="badge">${svg}</span>`).join('');
+      banner.appendChild(badges);
+    }
+    // Nick effect: glow halo in the nick color.
+    if (payload.senderEffect === 'nick-glow') {
+      banner.classList.add('fx-glow');
+      banner.style.setProperty('--nick-glow', payload.senderColor || '#8df0cc');
+    }
     alert.appendChild(banner);
   }
+  // Card effect: particle layer over the whole alert (media + sender).
+  if (payload.senderCardEffect) addCardEffect(alert, payload.senderCardEffect);
   stage.appendChild(alert);
 
   if (payload.sound) playChime(payload.volume);
@@ -123,6 +148,25 @@ function show(payload: MediaPlayPayload): void {
   if (payload.durationMs > 0) {
     hideTimer = window.setTimeout(finish, payload.durationMs);
   }
+}
+
+/** Add a card-effect particle layer (levitation / stardust) over the whole alert. */
+function addCardEffect(alert: HTMLElement, effect: string): void {
+  if (effect !== 'card-levitation' && effect !== 'card-stardust') return;
+  const layer = document.createElement('div');
+  layer.className =
+    effect === 'card-levitation' ? 'card-fx card-fx-levitation' : 'card-fx card-fx-stardust';
+  const count = effect === 'card-levitation' ? 14 : 10;
+  for (const ps of makeParticles(effect, count)) {
+    const p = document.createElement('span');
+    p.className = 'p';
+    for (const [k, v] of Object.entries(ps)) {
+      if (k.startsWith('--')) p.style.setProperty(k, v);
+      else (p.style as unknown as Record<string, string>)[k] = v;
+    }
+    layer.appendChild(p);
+  }
+  alert.appendChild(layer);
 }
 
 function createMediaElement(payload: MediaPlayPayload, url: string): HTMLElement {
@@ -582,6 +626,9 @@ interface DemoState {
   sender: boolean;
   caption: boolean;
   sound: boolean;
+  founder: boolean;
+  nickGlow: boolean;
+  cardEffect: string;
 }
 
 function demoPayload(kind: MediaKind, st: DemoState): MediaPlayPayload {
@@ -593,6 +640,11 @@ function demoPayload(kind: MediaKind, st: DemoState): MediaPlayPayload {
     volume: 80,
     sound: st.sound,
     senderName: st.sender ? 'demo_viewer' : undefined,
+    // Sample cosmetics so the demo shows nick color + effects + badges on stream.
+    senderColor: st.sender ? '#ff9ed8' : undefined,
+    senderEffect: st.sender && st.nickGlow ? 'nick-glow' : undefined,
+    senderCardEffect: st.cardEffect !== 'none' ? st.cardEffect : undefined,
+    senderBadges: st.sender && st.founder ? ['founder'] : undefined,
     tts: false,
     ttsText: false,
     position: st.pos,
@@ -609,7 +661,16 @@ function demoPayload(kind: MediaKind, st: DemoState): MediaPlayPayload {
 }
 
 function mountDemoPanel(): void {
-  const st: DemoState = { pos: 'center', size: 60, sender: true, caption: true, sound: false };
+  const st: DemoState = {
+    pos: 'center',
+    size: 60,
+    sender: true,
+    caption: true,
+    sound: false,
+    founder: true,
+    nickGlow: true,
+    cardEffect: 'card-levitation',
+  };
 
   const style = document.createElement('style');
   style.textContent = `
@@ -622,7 +683,7 @@ function mountDemoPanel(): void {
     #demo-panel button:hover{border-color:#8df0cc;color:#8df0cc}
     #demo-panel .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px}
     #demo-panel .grid button{padding:7px 0}
-    #demo-panel .grid button.on{border-color:#8df0cc;color:#8df0cc;background:#8df0cc22}
+    #demo-panel button.on{border-color:#8df0cc;color:#8df0cc;background:#8df0cc22}
     #demo-panel label{display:flex;align-items:center;gap:5px}
     #demo-panel input[type=range]{width:100%}
     #demo-panel .clear{border-color:#fb5b6e55;color:#fb5b6e}`;
@@ -685,7 +746,7 @@ function mountDemoPanel(): void {
 
   const toggles = document.createElement('div');
   toggles.className = 'row';
-  const toggle = (label: string, key: 'sender' | 'caption' | 'sound') => {
+  const toggle = (label: string, key: 'sender' | 'caption' | 'sound' | 'founder' | 'nickGlow') => {
     const wrap = document.createElement('label');
     const cb = document.createElement('input');
     cb.type = 'checkbox';
@@ -696,8 +757,34 @@ function mountDemoPanel(): void {
     wrap.append(cb, document.createTextNode(label));
     return wrap;
   };
-  toggles.append(toggle('имя', 'sender'), toggle('подпись', 'caption'), toggle('звук', 'sound'));
+  toggles.append(
+    toggle('имя', 'sender'),
+    toggle('подпись', 'caption'),
+    toggle('звук', 'sound'),
+    toggle('бейдж', 'founder'),
+    toggle('свечение', 'nickGlow'),
+  );
   panel.appendChild(toggles);
+
+  section('эффект карточки');
+  const fxRow = document.createElement('div');
+  fxRow.className = 'row';
+  const fxButtons = (
+    [
+      ['none', 'Нет'],
+      ['card-levitation', 'Левитация'],
+      ['card-stardust', 'Пыль'],
+    ] as [string, string][]
+  ).map(([val, label]) => {
+    const b = btn(label, () => {
+      st.cardEffect = val;
+      fxButtons.forEach((x) => x.classList.toggle('on', x === b));
+    });
+    if (val === st.cardEffect) b.classList.add('on');
+    fxRow.appendChild(b);
+    return b;
+  });
+  panel.appendChild(fxRow);
 
   section('донат');
   panel.appendChild(

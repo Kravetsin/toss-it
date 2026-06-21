@@ -15,6 +15,8 @@ import { disintegrate } from '@/lib/burst';
 import { Icon } from '@/ui/icons';
 import { IconButton } from '@/ui';
 import { PlatformIcon, UserBadges } from '@/components/UserMarks';
+import { CardEffect } from '@/components/CardEffect';
+import { nickProps } from '@/lib/nick';
 import { formatTrackDuration } from '../constants';
 import { RepChip } from './RepChip';
 import { SubmissionThumb } from './SubmissionThumb';
@@ -121,6 +123,7 @@ export function SubmissionCard({
           className="pointer-events-none absolute inset-0 z-0"
           style={{ backgroundColor: 'rgba(255,255,255,0.05)', clipPath: 'circle(0% at 50% 50%)' }}
         />
+        <CardEffect effect={s.senderCardEffect} />
         <button
           type="button"
           onClick={() => {
@@ -134,8 +137,8 @@ export function SubmissionCard({
           <span className="min-w-0 flex-1">
             <span className="flex items-center gap-1.5">
               <b
-                className="truncate text-sm text-text"
-                style={s.senderColor ? { color: s.senderColor } : undefined}
+                className={`truncate text-sm text-text ${nickProps(s.senderColor, s.senderEffect).className}`}
+                style={nickProps(s.senderColor, s.senderEffect).style}
               >
                 {s.senderName ?? t('common.anon')}
               </b>

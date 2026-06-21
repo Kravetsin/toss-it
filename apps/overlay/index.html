@@ -23,52 +23,136 @@
       }
 
       .alert {
+        position: relative;
         display: flex;
         flex-direction: column;
         align-items: center;
         gap: 12px;
       }
-      /* Спрайтовое появление: масштаб 0→1 за 3 кадра (steps). */
+      /* Smooth entrance/exit with the house easing — no pixel-step stutter. */
       .alert.enter {
-        animation: pop-in 0.4s steps(3) both;
+        animation: pop-in 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
       }
       .alert.exit {
-        animation: pop-out 0.25s steps(3) both;
+        animation: pop-out 0.22s cubic-bezier(0.4, 0, 1, 1) both;
       }
       .alert img,
       .alert video {
         /* Размер задаётся настройкой канала через --overlay-size (% вьюпорта). */
         max-width: calc(var(--overlay-size, 80) * 1vw);
         max-height: calc(var(--overlay-size, 80) * 1vh);
-        border-radius: 0;
-        image-rendering: pixelated;
+        border-radius: 6px;
+        box-shadow: 0 18px 50px -14px rgba(0, 0, 0, 0.7);
       }
 
-      /* Единственное санкционированное неон-свечение во всей системе. */
+      /* Dark-glass name bar with a mint top edge; the semi-opaque bg keeps it readable
+         over any stream background even if backdrop-filter is unsupported. */
       .sender {
+        position: relative;
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 10px;
         font-family: 'JetBrains Mono', monospace;
-        font-weight: 700;
-        font-size: 26px;
-        color: #fff;
-        padding: 6px 18px;
-        border-radius: 0;
-        background: #0e7490;
-        border: 3px solid #22d3ee;
-        text-shadow: 2px 2px 0 #06323b;
-        letter-spacing: 0.04em;
+        font-weight: 600;
+        font-size: 24px;
+        color: #ededec;
+        padding: 8px 18px;
+        letter-spacing: 0.01em;
         white-space: nowrap;
-        image-rendering: pixelated;
+        background: rgba(13, 17, 17, 0.72);
+        -webkit-backdrop-filter: blur(10px);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(141, 240, 204, 0.22);
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
         box-shadow:
-          inset 0 0 0 2px rgba(255, 255, 255, 0.18),
-          4px 4px 0 0 rgba(5, 5, 7, 0.85),
-          0 0 22px rgba(34, 211, 238, 0.55);
+          inset 0 1px 0 0 rgba(141, 240, 204, 0.5),
+          0 10px 30px -10px rgba(0, 0, 0, 0.6);
+      }
+      .sender .glyph,
+      .sender .badges,
+      .sender .badge {
+        display: flex;
+        align-items: center;
       }
       .sender .glyph {
-        display: flex;
-        color: #67e8f9;
+        color: #8df0cc;
+        opacity: 0.85;
+      }
+      .sender .badges {
+        gap: 6px;
+      }
+      .sender .badge {
+        color: #8df0cc;
+      }
+
+      /* Nick glow: halo in the nick colour (--nick-glow, falls back to mint). */
+      .sender.fx-glow .name {
+        text-shadow:
+          0 0 7px var(--nick-glow, #8df0cc),
+          0 0 18px var(--nick-glow, #8df0cc),
+          0 1px 3px rgba(0, 0, 0, 0.55);
+      }
+
+      /* Card effects: a particle layer over the whole alert (added by JS as .p spans).
+         Levitation = mint dots rising; stardust = mint meteors raining (like the donation FX). */
+      .card-fx {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        pointer-events: none;
+      }
+      .card-fx .p {
+        position: absolute;
+        opacity: 0;
+      }
+      .card-fx-levitation .p {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: #8df0cc;
+        box-shadow: 0 0 6px #8df0cc;
+        animation: cardfx-rise 3.4s linear infinite;
+      }
+      @keyframes cardfx-rise {
+        0% {
+          top: 100%;
+          opacity: 0;
+          transform: translateX(0) scale(var(--s, 1));
+        }
+        14% {
+          opacity: 0.85;
+        }
+        100% {
+          top: -6%;
+          opacity: 0;
+          transform: translateX(var(--drift, 0)) scale(calc(var(--s, 1) * 0.35));
+        }
+      }
+      .card-fx-stardust .p {
+        width: 2px;
+        height: 22px;
+        border-radius: 2px;
+        background: linear-gradient(to bottom, transparent, #8df0cc);
+        filter: drop-shadow(0 0 3px #8df0cc);
+        animation: cardfx-fall 2.6s linear infinite;
+      }
+      /* Meteors share one fixed direction; the bar's rotate matches the translate vector
+         (-24deg), so each star flies the way it points. Only spawn/speed/phase are random. */
+      @keyframes cardfx-fall {
+        0% {
+          opacity: 0;
+          transform: translate(0, 0) rotate(-24deg);
+        }
+        15% {
+          opacity: 0.9;
+        }
+        85% {
+          opacity: 0.9;
+        }
+        100% {
+          opacity: 0;
+          transform: translate(160px, 360px) rotate(-24deg);
+        }
       }
 
       /* Музыкальный плеер: пиксельная карточка с эквалайзером, прогрессом и временем.
@@ -80,75 +164,73 @@
         width: min(320px, 80vw);
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        padding: 12px 14px;
-        background: #16161a;
-        border: 3px solid #0e7490;
-        image-rendering: pixelated;
+        gap: 10px;
+        padding: 14px 16px;
+        background: rgba(13, 17, 17, 0.78);
+        -webkit-backdrop-filter: blur(12px);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(141, 240, 204, 0.2);
         box-shadow:
-          inset 0 3px 0 0 #22d3ee,
-          inset 0 0 0 2px #0c0c0f,
-          4px 4px 0 0 rgba(5, 5, 7, 0.85),
-          0 0 22px rgba(34, 211, 238, 0.45);
+          inset 0 1px 0 0 rgba(141, 240, 204, 0.5),
+          0 14px 40px -12px rgba(0, 0, 0, 0.65);
       }
       .music .progress {
-        height: 10px;
-        background: #202028;
-        border: 2px solid #33333d;
-        box-shadow: inset 2px 2px 0 0 #0c0c0f;
+        height: 8px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.1);
+        overflow: hidden;
       }
       .music .fill {
         height: 100%;
         width: 0;
-        background: #22d3ee;
-        box-shadow: inset -2px 0 0 0 #0e7490;
+        background: #8df0cc;
       }
       .music .time {
         display: flex;
         justify-content: space-between;
         font-family: 'JetBrains Mono', monospace;
-        font-size: 15px;
-        color: #f4f4f6;
-        text-shadow: 1px 1px 0 #050507;
+        font-size: 14px;
+        color: #b9c2c0;
       }
 
       /* Текст-онли: карточка-сообщение. Ширина — от настройки размера (--overlay-size). */
       .text-card {
         box-sizing: border-box;
         max-width: calc(var(--overlay-size, 80) * 1vw);
-        padding: 20px 24px;
-        background: #16161a;
-        border: 3px solid #0e7490;
-        color: #f4f4f6;
+        padding: 22px 26px;
+        background: rgba(13, 17, 17, 0.78);
+        -webkit-backdrop-filter: blur(12px);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(141, 240, 204, 0.2);
+        color: #ededec;
         font-family: 'JetBrains Mono', monospace;
         font-size: 30px;
         line-height: 1.4;
         text-align: center;
         white-space: pre-wrap;
         overflow-wrap: anywhere;
-        image-rendering: pixelated;
-        text-shadow: 2px 2px 0 #050507;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
         box-shadow:
-          inset 0 3px 0 0 #22d3ee,
-          inset 0 0 0 2px #0c0c0f,
-          4px 4px 0 0 rgba(5, 5, 7, 0.85),
-          0 0 22px rgba(34, 211, 238, 0.45);
+          inset 0 1px 0 0 rgba(141, 240, 204, 0.5),
+          0 16px 44px -12px rgba(0, 0, 0, 0.7);
       }
       /* Подпись под медиа — компактнее карточки. */
       .caption {
         box-sizing: border-box;
         max-width: calc(var(--overlay-size, 80) * 1vw);
-        padding: 8px 16px;
-        background: rgba(12, 12, 15, 0.85);
-        border: 2px solid #33333d;
-        color: #f4f4f6;
+        padding: 10px 18px;
+        background: rgba(13, 17, 17, 0.72);
+        -webkit-backdrop-filter: blur(10px);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        color: #ededec;
         font-family: 'JetBrains Mono', monospace;
-        font-size: 22px;
+        font-size: 21px;
         line-height: 1.35;
         text-align: center;
         white-space: pre-wrap;
         overflow-wrap: anywhere;
-        text-shadow: 1px 1px 0 #050507;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
       }
 
       @keyframes pop-in {

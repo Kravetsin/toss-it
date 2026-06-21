@@ -3,6 +3,7 @@ import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
 import { Tooltip } from '@/ui';
 import { PlatformIcon, UserBadges } from '@/components/UserMarks';
+import { nickProps } from '@/lib/nick';
 import { STATUS_ICON } from '../constants';
 
 /** Submission history table with status and ban button per sender (drawer UI). */
@@ -33,8 +34,8 @@ export function HistoryCard({
                 <td className="py-1.5 pr-3 align-middle">
                   <span className="flex items-center gap-1.5">
                     <b
-                      className="text-text"
-                      style={h.senderColor ? { color: h.senderColor } : undefined}
+                      className={`text-text ${nickProps(h.senderColor, h.senderEffect).className}`}
+                      style={nickProps(h.senderColor, h.senderEffect).style}
                     >
                       {h.senderName ?? t('common.anon')}
                     </b>

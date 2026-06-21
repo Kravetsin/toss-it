@@ -2,6 +2,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type { Server } from 'socket.io';
 import type {
+  EquippedCosmetics,
   LiveStatus,
   MediaPlayPayload,
   OverlayToServerEvents,
@@ -42,15 +43,30 @@ export function emitSubmissionStatus(
   io.to(submissionRoomOf(submissionId)).emit('submission:status', { submissionId, status });
 }
 
-export function toSummary(
-  sub: SubmissionRow,
-  senderColor: string | null = null,
-): SubmissionSummary {
+/** A sender's equipped cosmetics (nick color + nick effect + card effect) for rendering. */
+export interface NickMarks {
+  color: string | null;
+  nickEffect: string | null;
+  cardEffect: string | null;
+}
+const NO_MARKS: NickMarks = { color: null, nickEffect: null, cardEffect: null };
+
+function marksFromEquipped(equipped: EquippedCosmetics | null): NickMarks {
+  return {
+    color: equipped?.nickColor ?? null,
+    nickEffect: equipped?.nickEffect ?? null,
+    cardEffect: equipped?.cardEffect ?? null,
+  };
+}
+
+export function toSummary(sub: SubmissionRow, marks: NickMarks = NO_MARKS): SubmissionSummary {
   return {
     id: sub.id,
     senderUserId: sub.senderUserId,
     senderName: sub.senderName,
-    senderColor,
+    senderColor: marks.color,
+    senderEffect: marks.nickEffect,
+    senderCardEffect: marks.cardEffect,
     kind: sub.kind,
     mime: sub.mime,
     text: sub.text,
@@ -61,21 +77,23 @@ export function toSummary(
   };
 }
 
-/** Resolve a single sender's equipped nick color (null if anon/none). */
-export async function equippedColorOf(userId: string | null): Promise<string | null> {
-  if (!userId) return null;
+/** Resolve a single sender's equipped marks (empty if anon/none). */
+export async function equippedMarksOf(userId: string | null): Promise<NickMarks> {
+  if (!userId) return NO_MARKS;
   const row = await db
     .select({ equipped: users.equipped })
     .from(users)
     .where(eq(users.id, userId))
     .get();
-  return row?.equipped?.nickColor ?? null;
+  return marksFromEquipped(row?.equipped ?? null);
 }
 
-/** Batch-resolve equipped nick colors for a set of users (avoids N+1 in list endpoints). */
-export async function equippedColorsFor(userIds: (string | null)[]): Promise<Map<string, string>> {
+/** Batch-resolve equipped marks for a set of users (avoids N+1 in list endpoints). */
+export async function equippedMarksFor(
+  userIds: (string | null)[],
+): Promise<Map<string, NickMarks>> {
   const ids = [...new Set(userIds.filter((x): x is string => !!x))];
-  const out = new Map<string, string>();
+  const out = new Map<string, NickMarks>();
   if (ids.length === 0) return out;
   const rows = await db
     .select({ id: users.id, equipped: users.equipped })
@@ -83,15 +101,30 @@ export async function equippedColorsFor(userIds: (string | null)[]): Promise<Map
     .where(inArray(users.id, ids))
     .all();
   for (const r of rows) {
-    const c = r.equipped?.nickColor;
-    if (c) out.set(r.id, c);
+    const e = r.equipped;
+    if (e?.nickColor || e?.nickEffect || e?.cardEffect) out.set(r.id, marksFromEquipped(e));
   }
   return out;
 }
 
-/** toSummary with the sender's equipped nick color resolved (for live socket emits). */
+/** toSummary with the sender's equipped marks resolved (for live socket emits). */
 export async function toLiveSummary(sub: SubmissionRow): Promise<SubmissionSummary> {
-  return toSummary(sub, await equippedColorOf(sub.senderUserId));
+  return toSummary(sub, await equippedMarksOf(sub.senderUserId));
+}
+
+/** Sender's overlay marks — color + effects + badge ids (founder + future), one query. */
+export async function senderMarksOf(
+  userId: string | null,
+): Promise<NickMarks & { badges: string[] }> {
+  if (!userId) return { ...NO_MARKS, badges: [] };
+  const row = await db
+    .select({ equipped: users.equipped, founderSince: users.founderSince })
+    .from(users)
+    .where(eq(users.id, userId))
+    .get();
+  const badges: string[] = [];
+  if (row?.founderSince != null) badges.push('founder');
+  return { ...marksFromEquipped(row?.equipped ?? null), badges };
 }
 
 interface ChannelState {
@@ -266,8 +299,8 @@ export class PlaybackManager {
       .where(eq(channels.id, sub.channelId))
       .get();
     const showName = channel?.showSenderName ?? true;
-    // Color is pointless without the name; resolve only when the name is shown.
-    const senderColor = showName ? await equippedColorOf(sub.senderUserId) : null;
+    // Color/effects/badges are pointless without the name; resolve only when the name is shown.
+    const marks = showName ? await senderMarksOf(sub.senderUserId) : { ...NO_MARKS, badges: [] };
     return {
       submissionId: sub.id,
       url: `/api/media/${sub.id}`,
@@ -278,7 +311,10 @@ export class PlaybackManager {
       // TTS reads the name aloud; pointless if the name isn't shown.
       tts: (channel?.ttsName ?? false) && showName && sub.senderName !== null,
       senderName: showName ? (sub.senderName ?? undefined) : undefined,
-      senderColor: senderColor ?? undefined,
+      senderColor: marks.color ?? undefined,
+      senderEffect: marks.nickEffect ?? undefined,
+      senderCardEffect: marks.cardEffect ?? undefined,
+      senderBadges: marks.badges.length ? marks.badges : undefined,
       text: sub.text ?? undefined,
       ttsText: (channel?.ttsMessage ?? false) && !!sub.text,
       // Music may use its own layout; the server picks it by media type, so the

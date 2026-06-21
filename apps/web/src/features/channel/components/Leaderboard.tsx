@@ -3,6 +3,8 @@ import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
 import { Card } from '@/ui';
 import { PlatformIcon, UserBadges } from '@/components/UserMarks';
+import { CardEffect } from '@/components/CardEffect';
+import { nickProps } from '@/lib/nick';
 import { StarMark } from '@/components/StarMark';
 import { CosmosLegend } from '@/features/channel/components/CosmosLegend';
 
@@ -26,32 +28,34 @@ export function Leaderboard({ board, meId }: { board: LeaderboardEntry[]; meId: 
             {board.map((e, i) => {
               const isYou = e.userId === meId;
               return (
-                <li
-                  key={e.userId}
-                  className={`flex items-center gap-3 px-2 py-1 ${isYou ? 'bg-accent-soft' : ''}`}
-                >
-                  <span
-                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-sm font-semibold ${
-                      i < 3
-                        ? 'border-accent bg-accent text-accent-contrast'
-                        : 'border-border text-muted'
-                    }`}
+                <li key={e.userId} className="relative">
+                  <CardEffect effect={e.cardEffect} />
+                  <div
+                    className={`relative flex items-center gap-3 px-2 py-1 ${isYou ? 'bg-accent-soft' : ''}`}
                   >
-                    {i + 1}
-                  </span>
-                  <b
-                    className={isYou ? 'text-accent' : 'text-text'}
-                    style={e.nickColor ? { color: e.nickColor } : undefined}
-                  >
-                    {e.displayName}
-                  </b>
-                  <PlatformIcon userId={e.userId} size={13} />
-                  <UserBadges isFounder={e.isFounder} variant="icons" />
-                  {isYou && <span className="label-mono text-accent">{t('channel.you')}</span>}
-                  <span className="ml-auto flex items-center gap-1.5 text-muted">
-                    <StarMark size={13} className="text-accent" />
-                    {e.count}
-                  </span>
+                    <span
+                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-sm font-semibold ${
+                        i < 3
+                          ? 'border-accent bg-accent text-accent-contrast'
+                          : 'border-border text-muted'
+                      }`}
+                    >
+                      {i + 1}
+                    </span>
+                    <b
+                      className={`${isYou ? 'text-accent' : 'text-text'} ${nickProps(e.nickColor, e.nickEffect).className}`}
+                      style={nickProps(e.nickColor, e.nickEffect).style}
+                    >
+                      {e.displayName}
+                    </b>
+                    <PlatformIcon userId={e.userId} size={13} />
+                    <UserBadges isFounder={e.isFounder} variant="icons" />
+                    {isYou && <span className="label-mono text-accent">{t('channel.you')}</span>}
+                    <span className="ml-auto flex items-center gap-1.5 text-muted">
+                      <StarMark size={13} className="text-accent" />
+                      {e.count}
+                    </span>
+                  </div>
                 </li>
               );
             })}

@@ -35,8 +35,8 @@ import { decryptSecret, encryptSecret } from '../crypto';
 import {
   dashboardRoomOf,
   emitSubmissionStatus,
-  equippedColorOf,
-  equippedColorsFor,
+  equippedMarksFor,
+  equippedMarksOf,
   roomOf,
   toSummary,
   type PlaybackManager,
@@ -202,7 +202,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
       if (!channel) return;
       const current = playback.getCurrent(channel.id);
       return {
-        now: current ? toSummary(current, await equippedColorOf(current.senderUserId)) : null,
+        now: current ? toSummary(current, await equippedMarksOf(current.senderUserId)) : null,
       };
     },
   );
@@ -430,7 +430,11 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         .limit(50)
         .all();
       return rows.map((r) => ({
-        ...toSummary(r.sub, r.equipped?.nickColor ?? null),
+        ...toSummary(r.sub, {
+          color: r.equipped?.nickColor ?? null,
+          nickEffect: r.equipped?.nickEffect ?? null,
+          cardEffect: r.equipped?.cardEffect ?? null,
+        }),
         status: r.sub.status,
         isFounder: r.founderSince != null,
       }));
@@ -448,8 +452,8 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         .where(and(eq(submissions.channelId, channel.id), eq(submissions.status, 'pending')))
         .orderBy(asc(submissions.createdAt))
         .all();
-      const colors = await equippedColorsFor(rows.map((r) => r.senderUserId));
-      return rows.map((r) => toSummary(r, colors.get(r.senderUserId ?? '') ?? null));
+      const marks = await equippedMarksFor(rows.map((r) => r.senderUserId));
+      return rows.map((r) => toSummary(r, marks.get(r.senderUserId ?? '')));
     },
   );
 

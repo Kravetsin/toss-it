@@ -112,6 +112,8 @@ export function registerChannelRoutes(app: FastifyInstance): void {
       count: r.count,
       isFounder: r.founderSince != null,
       nickColor: r.equipped?.nickColor ?? null,
+      nickEffect: r.equipped?.nickEffect ?? null,
+      cardEffect: r.equipped?.cardEffect ?? null,
     }));
     return response;
   });

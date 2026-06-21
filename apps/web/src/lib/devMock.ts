@@ -3,16 +3,17 @@
  * OAuth callback fails on localhost, so this intercepts fetch('/api/*')
  * with fake responses—no component/hook changes needed.
  */
-import type {
-  AccessibleChannel,
-  ChannelSettings,
-  HistoryEntry,
-  LeaderboardEntry,
-  ListedUser,
-  MeResponse,
-  PublicChannelInfo,
-  ReputationStats,
-  SubmissionSummary,
+import {
+  COSMETICS,
+  type AccessibleChannel,
+  type ChannelSettings,
+  type HistoryEntry,
+  type LeaderboardEntry,
+  type ListedUser,
+  type MeResponse,
+  type PublicChannelInfo,
+  type ReputationStats,
+  type SubmissionSummary,
 } from '@tmw/shared';
 
 const FLAG_KEY = 'tmw_mock';
@@ -107,6 +108,8 @@ const sub = (
   senderUserId: null,
   senderName: null,
   senderColor: null,
+  senderEffect: null,
+  senderCardEffect: null,
   mime: 'text/plain',
   text: null,
   durationMs: 6000,
@@ -122,6 +125,8 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderUserId: 'twitch:v1',
     senderName: 'meme_lord',
     senderColor: '#ff6ad5',
+    senderEffect: 'nick-glow',
+    senderCardEffect: 'card-stardust',
     text: 'каеф, врубай этого на стрим 🔥🔥🔥',
     createdAt: t - 1 * min,
   }),
@@ -132,6 +137,7 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderUserId: 'google:v2',
     senderName: 'pixel_witch',
     senderColor: '#8df0cc',
+    senderCardEffect: 'card-levitation',
     text: 'смотри какой котик получился',
     url: IMG,
     durationMs: 8000,
@@ -292,6 +298,8 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     count: 12,
     isFounder: false,
     nickColor: '#ffb86c',
+    nickEffect: 'nick-glow',
+    cardEffect: 'card-levitation',
   },
   {
     userId: 'twitch:u_dev',
@@ -300,6 +308,8 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     count: 12,
     isFounder: true,
     nickColor: null,
+    nickEffect: null,
+    cardEffect: null,
   },
   {
     userId: 'twitch:other2',
@@ -308,6 +318,8 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     count: 6,
     isFounder: false,
     nickColor: '#8df0cc',
+    nickEffect: null,
+    cardEffect: 'card-stardust',
   },
   {
     userId: 'google:other3',
@@ -316,6 +328,8 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     count: 5,
     isFounder: false,
     nickColor: null,
+    nickEffect: null,
+    cardEffect: null,
   },
   {
     userId: 'google:other4',
@@ -324,6 +338,8 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     count: 2,
     isFounder: false,
     nickColor: null,
+    nickEffect: null,
+    cardEffect: null,
   },
 ];
 
@@ -346,18 +362,28 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
 
   if (pathname === '/api/cosmetics/buy') {
     const u = MOCK_ME.user!;
-    if (!u.ownedCosmetics.includes('nick-color')) {
-      u.ownedCosmetics = [...u.ownedCosmetics, 'nick-color'];
-      u.stardust -= 100;
+    const body = init?.body ? (JSON.parse(String(init.body)) as { itemId?: string }) : {};
+    const item = COSMETICS.find((c) => c.id === body.itemId);
+    if (item && !u.ownedCosmetics.includes(item.id)) {
+      u.ownedCosmetics = [...u.ownedCosmetics, item.id];
+      u.stardust -= item.costDust;
     }
     return cosmeticState();
   }
   if (pathname === '/api/cosmetics/equip') {
     const u = MOCK_ME.user!;
-    const body = init?.body ? (JSON.parse(String(init.body)) as { nickColor?: string | null }) : {};
-    if ('nickColor' in body) {
-      u.equipped = body.nickColor ? { nickColor: body.nickColor } : {};
-    }
+    const body = init?.body
+      ? (JSON.parse(String(init.body)) as {
+          nickColor?: string | null;
+          nickEffect?: string | null;
+          cardEffect?: string | null;
+        })
+      : {};
+    if ('nickColor' in body) u.equipped = { ...u.equipped, nickColor: body.nickColor || undefined };
+    if ('nickEffect' in body)
+      u.equipped = { ...u.equipped, nickEffect: body.nickEffect || undefined };
+    if ('cardEffect' in body)
+      u.equipped = { ...u.equipped, cardEffect: body.cardEffect || undefined };
     return cosmeticState();
   }
 

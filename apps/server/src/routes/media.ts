@@ -287,7 +287,11 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
         } else {
           io.to(dashboardRoomOf(channel.id)).emit(
             'moderation:new',
-            toSummary(row, user.equipped?.nickColor ?? null),
+            toSummary(row, {
+              color: user.equipped?.nickColor ?? null,
+              nickEffect: user.equipped?.nickEffect ?? null,
+              cardEffect: user.equipped?.cardEffect ?? null,
+            }),
           );
         }
 

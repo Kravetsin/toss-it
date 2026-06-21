@@ -10,8 +10,11 @@ export function buyCosmetic(itemId: string): Promise<CosmeticStateResponse> {
   }).then((r) => json<CosmeticStateResponse>(r));
 }
 
-/** Equip/unequip cosmetics. nickColor: #rrggbb to set, null to remove. */
-export function equipCosmetic(patch: { nickColor: string | null }): Promise<CosmeticStateResponse> {
+/** Equip/unequip cosmetics. nickColor/nickEffect: value to set, null to remove that slot. */
+export function equipCosmetic(patch: {
+  nickColor?: string | null;
+  nickEffect?: string | null;
+}): Promise<CosmeticStateResponse> {
   return fetch('/api/cosmetics/equip', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
