@@ -38,9 +38,9 @@ export function Leaderboard({ board, meId }: { board: LeaderboardEntry[]; meId: 
               const nick = nickProps(nickColor, nickEffect);
               return (
                 <li key={e.userId} className="relative">
-                  <CardEffect effect={cardEffect} />
+                  <CardEffect effect={cardEffect} compact />
                   <div
-                    className={`relative flex items-center gap-3 px-2 py-1 ${isYou ? 'bg-accent-soft' : ''}`}
+                    className={`relative flex items-center gap-3 px-2 py-2 ${isYou ? 'bg-accent-soft' : ''}`}
                   >
                     <span
                       className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-sm font-semibold ${

@@ -404,6 +404,51 @@ textarea {
   }
 }
 
+/* Compact (short leaderboard rows): the trajectory starts/ends OUTSIDE the row (the layer clips
+   it), so a whole particle is only seen while crossing — fast & smooth, confined to its row. */
+.card-fx-levitation.compact .p {
+  animation-name: cardfx-rise-compact;
+}
+@keyframes cardfx-rise-compact {
+  0% {
+    top: 135%;
+    opacity: 0;
+    transform: translateX(0) scale(var(--s, 1));
+  }
+  22% {
+    opacity: 0.9;
+  }
+  78% {
+    opacity: 0.9;
+  }
+  100% {
+    top: -35%;
+    opacity: 0;
+    transform: translateX(var(--drift, 0)) scale(calc(var(--s, 1) * 0.5));
+  }
+}
+.card-fx-stardust.compact .p {
+  animation-name: cardfx-fall-compact;
+}
+@keyframes cardfx-fall-compact {
+  0% {
+    top: -75%;
+    opacity: 0;
+    transform: translateX(0) rotate(-24deg);
+  }
+  22% {
+    opacity: 0.9;
+  }
+  78% {
+    opacity: 0.9;
+  }
+  100% {
+    top: 140%;
+    opacity: 0;
+    transform: translateX(40px) rotate(-24deg);
+  }
+}
+
 /* Legacy pixel-era utilities still used by un-migrated components
    (media players, loader, toasts, ScrollFlow). */
 @utility card-pixel {
