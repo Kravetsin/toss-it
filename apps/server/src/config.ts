@@ -49,8 +49,8 @@ export const config = {
 
   /** Media processing: limits against memory spikes (sharp/ffmpeg hold native RAM). */
   media: {
-    /** Concurrent heavy tasks (decode/transcode). 1 on 512MB. */
-    concurrency: Number(process.env.MEDIA_CONCURRENCY ?? 1),
+    /** Concurrent heavy tasks (decode/transcode). 3 on the 6-core / 8GB host. */
+    concurrency: Number(process.env.MEDIA_CONCURRENCY ?? 3),
     /** Budget for expanded animation: w*h*4*frames (raw RGBA in memory).
      *  Above it, gif/webp treated as single frame, not animated. Default ~96MB. */
     animatedPixelBudgetBytes: Number(process.env.ANIMATED_PIXEL_BUDGET_BYTES ?? 96 * 1024 * 1024),

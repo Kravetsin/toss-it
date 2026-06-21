@@ -10,7 +10,13 @@ import { TEXT_MAX_LEN, type MediaKind, type UploadResponse } from '@tmw/shared';
 import { db } from '../db/index';
 import { bans, channels, submissions, users, whitelist, type SubmissionRow } from '../db/schema';
 import { config } from '../config';
-import { probeDurationMs, processImage, transcodeAudio, transcodeVideo } from '../media/process';
+import {
+  MediaQueueFullError,
+  probeMedia,
+  processImage,
+  transcodeAudio,
+  transcodeVideo,
+} from '../media/process';
 import { parseYoutube, validateYoutube } from '../media/youtube';
 import { requireUser } from '../auth';
 import { dashboardRoomOf, toSummary, type PlaybackManager, type RealtimeServer } from '../playback';
@@ -190,24 +196,40 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
               outMime = 'image/webp';
               await processImage(uploadTmp, path.join(tmpDir, `${id}.${outExt}`));
             } else {
-              const probed = await probeDurationMs(uploadTmp);
-              if (probed === null) {
+              const info = await probeMedia(uploadTmp);
+              if (info === null) {
                 return reply.code(422).send({ error: 'Не удалось прочитать медиафайл (битый?)' });
               }
               // Audio has its own longer limit; music needs more than 60s.
               const limit = kind === 'audio' ? channel.maxAudioDurationMs : channel.maxDurationMs;
-              durationMs = Math.min(probed, limit);
+              durationMs = Math.min(info.durationMs, limit);
               if (kind === 'video') {
                 outExt = 'mp4';
                 outMime = 'video/mp4';
-                await transcodeVideo(uploadTmp, path.join(tmpDir, `${id}.${outExt}`), durationMs);
+                await transcodeVideo(
+                  uploadTmp,
+                  path.join(tmpDir, `${id}.${outExt}`),
+                  durationMs,
+                  info,
+                );
               } else {
                 outExt = 'mp3';
                 outMime = 'audio/mpeg';
-                await transcodeAudio(uploadTmp, path.join(tmpDir, `${id}.${outExt}`), durationMs);
+                await transcodeAudio(
+                  uploadTmp,
+                  path.join(tmpDir, `${id}.${outExt}`),
+                  durationMs,
+                  info,
+                );
               }
             }
           } catch (err) {
+            if (err instanceof MediaQueueFullError) {
+              return reply.code(503).send({
+                error: 'Сервер сейчас перегружен обработкой медиа — попробуй через минуту',
+                retryAfterSec: 30,
+              });
+            }
             req.log.warn({ err, submissionId: id }, 'media processing failed');
             return reply.code(422).send({ error: 'Не удалось обработать медиафайл' });
           }
