@@ -287,6 +287,9 @@ function mockPublicChannel(login: string): PublicChannelInfo {
     isFounder: true,
     description: MOCK_SETTINGS.description,
     links: MOCK_SETTINGS.links,
+    nickColor: '#ff9ed8',
+    nickEffect: 'nick-glow',
+    cardEffect: 'card-stardust',
   };
 }
 

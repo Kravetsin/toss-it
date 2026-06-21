@@ -62,14 +62,21 @@ export function registerChannelRoutes(app: FastifyInstance): void {
         description: channels.description,
         links: channels.links,
         founderSince: users.founderSince,
+        equipped: users.equipped,
       })
       .from(channels)
       .innerJoin(users, eq(users.id, channels.ownerUserId))
       .where(eq(users.login, req.params.login.toLowerCase()))
       .get();
     if (!row) return reply.code(404).send({ error: 'Канал не найден' });
-    const { founderSince, ...rest } = row;
-    const response: PublicChannelInfo = { ...rest, isFounder: founderSince != null };
+    const { founderSince, equipped, ...rest } = row;
+    const response: PublicChannelInfo = {
+      ...rest,
+      isFounder: founderSince != null,
+      nickColor: equipped?.nickColor ?? null,
+      nickEffect: equipped?.nickEffect ?? null,
+      cardEffect: equipped?.cardEffect ?? null,
+    };
     return response;
   });
 

@@ -1,5 +1,6 @@
 import type { LeaderboardEntry } from '@tmw/shared';
 import { useI18n } from '@/i18n';
+import { useMe } from '@/hooks/useMe';
 import { Icon } from '@/ui/icons';
 import { Card } from '@/ui';
 import { PlatformIcon, UserBadges } from '@/components/UserMarks';
@@ -10,6 +11,7 @@ import { CosmosLegend } from '@/features/channel/components/CosmosLegend';
 
 export function Leaderboard({ board, meId }: { board: LeaderboardEntry[]; meId: string | null }) {
   const { t } = useI18n();
+  const { me } = useMe();
   const totalShown = board.reduce((sum, e) => sum + e.count, 0);
   return (
     <div className="mt-8">
@@ -27,9 +29,16 @@ export function Leaderboard({ board, meId }: { board: LeaderboardEntry[]; meId: 
           <ol className="flex flex-col gap-1.5">
             {board.map((e, i) => {
               const isYou = e.userId === meId;
+              // Optimistic: your own row reflects your live equipped cosmetics (updated on equip)
+              // instead of the leaderboard snapshot fetched at page load — no refresh needed.
+              const mine = isYou ? me?.user?.equipped : undefined;
+              const nickColor = mine ? (mine.nickColor ?? null) : e.nickColor;
+              const nickEffect = mine ? (mine.nickEffect ?? null) : e.nickEffect;
+              const cardEffect = mine ? (mine.cardEffect ?? null) : e.cardEffect;
+              const nick = nickProps(nickColor, nickEffect);
               return (
                 <li key={e.userId} className="relative">
-                  <CardEffect effect={e.cardEffect} />
+                  <CardEffect effect={cardEffect} />
                   <div
                     className={`relative flex items-center gap-3 px-2 py-1 ${isYou ? 'bg-accent-soft' : ''}`}
                   >
@@ -43,8 +52,8 @@ export function Leaderboard({ board, meId }: { board: LeaderboardEntry[]; meId: 
                       {i + 1}
                     </span>
                     <b
-                      className={`${isYou ? 'text-accent' : 'text-text'} ${nickProps(e.nickColor, e.nickEffect).className}`}
-                      style={nickProps(e.nickColor, e.nickEffect).style}
+                      className={`${isYou ? 'text-accent' : 'text-text'} ${nick.className}`}
+                      style={nick.style}
                     >
                       {e.displayName}
                     </b>

@@ -398,6 +398,10 @@ export interface PublicChannelInfo {
   /** Streamer description; null = viewer sees default subtitle. */
   description: string | null;
   links: ChannelLink[];
+  /** Streamer's own equipped cosmetics, shown on their channel header. */
+  nickColor: string | null;
+  nickEffect: string | null;
+  cardEffect: string | null;
 }
 
 export interface PromoRedeemResult {
