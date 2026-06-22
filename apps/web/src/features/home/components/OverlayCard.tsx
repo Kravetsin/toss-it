@@ -16,9 +16,13 @@ export function OverlayCard({
   return (
     <Card>
       <h2 className="mb-1">{t('home.overlayTitle')}</h2>
-      <p className="mb-3 flex items-start gap-2 text-sm text-muted">
+      <p className="mb-2 flex items-start gap-2 text-sm text-muted">
         <Icon name="square-alert" size={16} className="mt-0.5 shrink-0 text-warn" />
         <span>{t('home.overlayDesc')}</span>
+      </p>
+      <p className="mb-3 flex items-start gap-2 text-sm text-muted">
+        <Icon name="monitor" size={16} className="mt-0.5 shrink-0 text-accent" />
+        <span>{t('home.overlayResTip')}</span>
       </p>
       <CopyableLinkBox
         value={overlayUrl}

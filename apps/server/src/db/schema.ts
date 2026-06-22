@@ -53,6 +53,8 @@ export const channels = sqliteTable('channels', {
     .default(50 * 1024 * 1024),
   volume: integer('volume').notNull().default(100),
   accepting: integer('accepting', { mode: 'boolean' }).notNull().default(true),
+  // Streamer opt-in: YouTube links bypass moderation (they're already moderated by YouTube).
+  autoApproveYoutube: integer('auto_approve_youtube', { mode: 'boolean' }).notNull().default(false),
   showSenderName: integer('show_sender_name', { mode: 'boolean' }).notNull().default(true),
   soundAlert: integer('sound_alert', { mode: 'boolean' }).notNull().default(false),
   ttsName: integer('tts_name', { mode: 'boolean' }).notNull().default(false),

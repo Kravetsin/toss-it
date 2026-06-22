@@ -1,0 +1,1 @@
+ALTER TABLE `channels` ADD `auto_approve_youtube` integer DEFAULT false NOT NULL;

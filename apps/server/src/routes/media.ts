@@ -273,6 +273,8 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
               .from(whitelist)
               .where(and(eq(whitelist.channelId, channel.id), eq(whitelist.userId, user.id)))
               .get()) !== undefined;
+        // Opt-in: YouTube bypasses moderation (already moderated by YouTube; streamer takes the risk).
+        const autoApproved = whitelisted || (kind === 'youtube' && channel.autoApproveYoutube);
 
         const now = new Date();
         const row: SubmissionRow = {
@@ -286,7 +288,7 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
           mime: outMime,
           kind,
           durationMs,
-          status: whitelisted ? 'approved' : 'pending',
+          status: autoApproved ? 'approved' : 'pending',
           createdAt: now,
           updatedAt: now,
           youtubeId,

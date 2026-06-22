@@ -83,6 +83,7 @@ const MOCK_SETTINGS: ChannelSettings = {
   maxFileSizeBytes: 50 * 1024 * 1024,
   volume: 70,
   accepting: true,
+  autoApproveYoutube: false,
   showSenderName: true,
   soundAlert: true,
   ttsName: false,

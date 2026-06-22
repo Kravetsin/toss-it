@@ -7,6 +7,7 @@ import { Card, Loader } from '@/ui';
 import { useChannels } from '@/features/dashboard/hooks/useChannels';
 import { useSettingsData } from '@/features/dashboard/hooks/useSettingsData';
 import { OverlaySettings } from '@/features/dashboard/components/OverlaySettings';
+import { ModerationSettings } from '@/features/dashboard/components/ModerationSettings';
 import { ChannelPageSettings } from '@/features/dashboard/components/ChannelPageSettings';
 import { IntegrationsCard } from '@/features/dashboard/components/IntegrationsCard';
 
@@ -14,8 +15,8 @@ function Content({ children }: { children: ReactNode }) {
   return <div className="mx-auto max-w-4xl px-4 py-6 lg:px-8">{children}</div>;
 }
 
-type Section = 'overlay' | 'channel' | 'integrations';
-const SECTIONS: Section[] = ['overlay', 'channel', 'integrations'];
+type Section = 'overlay' | 'moderation' | 'channel' | 'integrations';
+const SECTIONS: Section[] = ['overlay', 'moderation', 'channel', 'integrations'];
 
 /** Channel settings page with tabs: Overlay / Channel / Integrations (owner-only). */
 export function SettingsPage() {
@@ -37,6 +38,7 @@ export function SettingsPage() {
 
   const tabs: { key: Section; label: string }[] = [
     { key: 'overlay', label: t('settings.overlay') },
+    { key: 'moderation', label: t('settings.moderation') },
     { key: 'channel', label: t('settings.channel') },
     { key: 'integrations', label: t('settings.integrations') },
   ];
@@ -78,6 +80,8 @@ export function SettingsPage() {
         </Card>
       ) : section === 'overlay' ? (
         <OverlaySettings settings={settings} onSave={onSave} />
+      ) : section === 'moderation' ? (
+        <ModerationSettings settings={settings} onSave={onSave} />
       ) : section === 'channel' ? (
         <ChannelPageSettings settings={settings} onSave={onSave} />
       ) : (

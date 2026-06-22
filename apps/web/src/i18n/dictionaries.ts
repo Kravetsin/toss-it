@@ -67,10 +67,18 @@ export const en: Dict = {
   'nav.settings': 'Settings',
   'settings.title': 'Settings',
   'settings.overlay': 'Overlay',
+  'settings.moderation': 'Moderation',
   'settings.channel': 'Channel page',
   'settings.integrations': 'Integrations',
   'settings.ownerOnly': 'Settings are available to the channel owner.',
   'settings.loadError': "Couldn't load settings.",
+  'mod.ytAutoApprove': 'Skip moderation for YouTube',
+  'mod.ytAutoApproveNote':
+    'YouTube links go straight to the screen, skipping the moderation queue. YouTube already moderates its content — but you are responsible for what airs.',
+  'mod.ytConfirmTitle': 'Skip moderation for YouTube?',
+  'mod.ytConfirmMsg':
+    'Any YouTube link — together with its caption — will air without your review. Enable only if you trust your viewers.',
+  'mod.ytConfirmOk': 'Enable',
 
   'dur.sec': '{n}s',
   'dur.min': '{n} min',
@@ -98,6 +106,8 @@ export const en: Dict = {
   'home.overlayTitle': 'OBS overlay',
   'home.overlayDesc':
     'Add a Browser Source with this URL. The URL contains a secret token — don’t show it on stream.',
+  'home.overlayResTip':
+    'Tip: in the Browser Source properties, set the resolution to match your screen — it avoids artifacts and makes positioning via the overlay settings precise.',
   'home.rotate': 'Reissue token',
   'home.rotateConfirm': 'The old URL in OBS will stop working. Reissue?',
 
@@ -314,10 +324,18 @@ export const ru: Dict = {
   'nav.settings': 'Настройки',
   'settings.title': 'Настройки',
   'settings.overlay': 'Оверлей',
+  'settings.moderation': 'Модерация',
   'settings.channel': 'Страница канала',
   'settings.integrations': 'Интеграции',
   'settings.ownerOnly': 'Настройки доступны владельцу канала.',
   'settings.loadError': 'Не удалось загрузить настройки.',
+  'mod.ytAutoApprove': 'Пропускать YouTube без модерации',
+  'mod.ytAutoApproveNote':
+    'Ссылки на YouTube попадают сразу на экран, минуя очередь модерации. YouTube и так модерирует контент — но ответственность за то, что выйдет в эфир, на вас.',
+  'mod.ytConfirmTitle': 'Пропускать YouTube без модерации?',
+  'mod.ytConfirmMsg':
+    'Любая ссылка на YouTube — вместе с подписью к ней — выйдет в эфир без вашей проверки. Включайте, только если доверяете зрителям.',
+  'mod.ytConfirmOk': 'Включить',
 
   'dur.sec': '{n} с',
   'dur.min': '{n} мин',
@@ -346,6 +364,8 @@ export const ru: Dict = {
   'home.overlayTitle': 'Оверлей для OBS',
   'home.overlayDesc':
     'Добавь Browser Source с этим URL. URL содержит секретный токен — не показывай его на стриме.',
+  'home.overlayResTip':
+    'Совет: в свойствах Browser Source укажи разрешение, равное разрешению твоего экрана — так не будет артефактов, а позиционирование через настройки оверлея сработает точно.',
   'home.rotate': 'Перевыпустить токен',
   'home.rotateConfirm': 'Старый URL в OBS перестанет работать. Перевыпустить?',
 
@@ -561,10 +581,18 @@ export const uk: Dict = {
   'nav.settings': 'Налаштування',
   'settings.title': 'Налаштування',
   'settings.overlay': 'Оверлей',
+  'settings.moderation': 'Модерація',
   'settings.channel': 'Сторінка каналу',
   'settings.integrations': 'Інтеграції',
   'settings.ownerOnly': 'Налаштування доступні власнику каналу.',
   'settings.loadError': 'Не вдалося завантажити налаштування.',
+  'mod.ytAutoApprove': 'Пропускати YouTube без модерації',
+  'mod.ytAutoApproveNote':
+    'Посилання на YouTube потрапляють одразу на екран, оминаючи чергу модерації. YouTube і так модерує контент — але відповідальність за те, що вийде в ефір, на вас.',
+  'mod.ytConfirmTitle': 'Пропускати YouTube без модерації?',
+  'mod.ytConfirmMsg':
+    'Будь-яке посилання на YouTube — разом із підписом до нього — вийде в ефір без вашої перевірки. Вмикайте, лише якщо довіряєте глядачам.',
+  'mod.ytConfirmOk': 'Увімкнути',
 
   'dur.sec': '{n} с',
   'dur.min': '{n} хв',
@@ -593,6 +621,8 @@ export const uk: Dict = {
   'home.overlayTitle': 'Оверлей для OBS',
   'home.overlayDesc':
     'Додай Browser Source з цим URL. URL містить секретний токен — не показуй його на стрімі.',
+  'home.overlayResTip':
+    'Порада: у властивостях Browser Source вкажи роздільну здатність, що дорівнює роздільній здатності твого екрана — так не буде артефактів, а позиціювання через налаштування оверлея спрацює точно.',
   'home.rotate': 'Перевипустити токен',
   'home.rotateConfirm': 'Старий URL в OBS перестане працювати. Перевипустити?',
 

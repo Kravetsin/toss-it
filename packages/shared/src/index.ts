@@ -205,6 +205,8 @@ export interface ChannelSettings {
   volume: number;
   /** Kill switch: false = submissions paused. */
   accepting: boolean;
+  /** Streamer opt-in: YouTube submissions skip moderation (go straight to screen). */
+  autoApproveYoutube: boolean;
   showSenderName: boolean;
   soundAlert: boolean;
   ttsName: boolean;

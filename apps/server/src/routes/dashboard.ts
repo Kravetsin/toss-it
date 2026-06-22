@@ -138,6 +138,7 @@ function toSettings(ch: ChannelRow): ChannelSettings {
     maxFileSizeBytes: ch.maxFileSizeBytes,
     volume: ch.volume,
     accepting: ch.accepting,
+    autoApproveYoutube: ch.autoApproveYoutube,
     showSenderName: ch.showSenderName,
     soundAlert: ch.soundAlert,
     ttsName: ch.ttsName,
@@ -373,6 +374,10 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
             : channel.maxFileSizeBytes,
         volume: typeof b.volume === 'number' ? clamp(Math.round(b.volume), 0, 100) : channel.volume,
         accepting: typeof b.accepting === 'boolean' ? b.accepting : channel.accepting,
+        autoApproveYoutube:
+          typeof b.autoApproveYoutube === 'boolean'
+            ? b.autoApproveYoutube
+            : channel.autoApproveYoutube,
         showSenderName:
           typeof b.showSenderName === 'boolean' ? b.showSenderName : channel.showSenderName,
         soundAlert: typeof b.soundAlert === 'boolean' ? b.soundAlert : channel.soundAlert,
