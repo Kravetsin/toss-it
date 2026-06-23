@@ -13,6 +13,12 @@ WORKDIR /app
 COPY . .
 
 RUN pnpm install --frozen-lockfile
+
+# VITE_* vars are inlined into the web bundle at build time, not read at runtime.
+# Pass via --build-arg; the runtime --env-file only reaches the server (too late for the build).
+# The Giphy web key is a public client key (ships in the bundle), so a build-arg is fine.
+ARG VITE_GIPHY_KEY
+ENV VITE_GIPHY_KEY=$VITE_GIPHY_KEY
 RUN pnpm build
 
 ENV NODE_ENV=production
