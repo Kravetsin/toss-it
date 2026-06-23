@@ -17,9 +17,10 @@ RUN pnpm install --frozen-lockfile
 # VITE_* vars are inlined into the web bundle at build time, not read at runtime.
 # Pass via --build-arg; the runtime --env-file only reaches the server (too late for the build).
 # The Giphy web key is a public client key (ships in the bundle), so a build-arg is fine.
+# Strip stray whitespace/CR — Windows .env values are CRLF, and a trailing \r in the key
+# gets URL-encoded into the request (api_key=...%0D) and Giphy rejects it with 401.
 ARG VITE_GIPHY_KEY
-ENV VITE_GIPHY_KEY=$VITE_GIPHY_KEY
-RUN pnpm build
+RUN VITE_GIPHY_KEY="$(printf '%s' "$VITE_GIPHY_KEY" | tr -d '[:space:]')" pnpm build
 
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
