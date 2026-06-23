@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { SubmissionSummary } from '@tmw/shared';
+import { giphyGifUrl, type SubmissionSummary } from '@tmw/shared';
 import { youtubeThumbnail } from '@/lib/youtube';
 import { Icon } from '@/ui/icons';
 import { KIND_ICON } from '../constants';
@@ -15,7 +15,9 @@ export function SubmissionThumb({ s }: { s: SubmissionSummary }) {
       ? s.url
       : !imgError && s.kind === 'youtube' && s.youtubeId
         ? youtubeThumbnail(s.youtubeId)
-        : null;
+        : !imgError && s.kind === 'gif' && s.giphyId
+          ? giphyGifUrl(s.giphyId, '200w.gif')
+          : null;
 
   if (imgSrc) {
     return (

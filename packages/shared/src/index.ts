@@ -1,5 +1,14 @@
 export type MediaKind = 'image' | 'video' | 'audio' | 'text' | 'youtube' | 'gif';
 
+/**
+ * Direct Giphy CDN URL for a stored gif id (kind='gif'). Default rendition is the original;
+ * pass e.g. '200w.gif' for thumbnails. Uses media.giphy.com (serves proper image/gif) — the
+ * shorter i.giphy.com/{id}.gif form returns application/octet-stream and won't render in <img>.
+ */
+export function giphyGifUrl(id: string, rendition = 'giphy.gif'): string {
+  return `https://media.giphy.com/media/${id}/${rendition}`;
+}
+
 /** Max message/caption length; validated on both client and server. */
 export const TEXT_MAX_LEN = 280;
 

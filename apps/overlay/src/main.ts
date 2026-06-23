@@ -2,6 +2,7 @@ import '@fontsource/jetbrains-mono';
 import { io, type Socket } from 'socket.io-client';
 import {
   OVERLAY_POSITIONS,
+  giphyGifUrl,
   makeParticles,
   positionToFlex,
   type DonationFx,
@@ -189,7 +190,7 @@ function createMediaElement(payload: MediaPlayPayload, url: string): HTMLElement
   if (payload.kind === 'gif') {
     // No stored file: render the looping GIF straight from Giphy's CDN.
     const img = document.createElement('img');
-    img.src = `https://i.giphy.com/${payload.giphyId}.gif`;
+    if (payload.giphyId) img.src = giphyGifUrl(payload.giphyId);
     return img;
   }
 

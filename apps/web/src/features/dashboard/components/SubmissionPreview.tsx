@@ -1,4 +1,4 @@
-import type { SubmissionSummary } from '@tmw/shared';
+import { giphyGifUrl, type SubmissionSummary } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { AudioPlayer, ImageFrame, VideoThumb, YouTubeFrame } from '@/ui/media';
 
@@ -10,6 +10,16 @@ export function SubmissionPreview({ s }: { s: SubmissionSummary }) {
   const media =
     s.kind === 'image' ? (
       <ImageFrame src={s.url} alt={label} size="queue" zoomable className="max-w-sm" />
+    ) : s.kind === 'gif' ? (
+      s.giphyId ? (
+        <ImageFrame
+          src={giphyGifUrl(s.giphyId)}
+          alt={label}
+          size="queue"
+          zoomable
+          className="max-w-sm"
+        />
+      ) : null
     ) : s.kind === 'video' ? (
       <VideoThumb
         src={s.url}

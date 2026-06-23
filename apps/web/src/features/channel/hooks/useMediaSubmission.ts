@@ -1,6 +1,6 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { LiveStatus, PublicChannelInfo, UploadResponse } from '@tmw/shared';
-import { ApiRequestError, uploadMediaWithProgress } from '@/lib/api';
+import { ApiRequestError, getChannelCooldown, uploadMediaWithProgress } from '@/lib/api';
 import { useCountdown } from '@/hooks/useCountdown';
 import { useI18n } from '@/i18n';
 import { mb } from '@/lib/format';
@@ -36,6 +36,18 @@ export function useMediaSubmission(
   const [liveStatus, setLiveStatus] = useState<LiveStatus | null>(null);
   const [cooldownSec, setCooldownSec] = useCountdown();
   const previewUrl = useFilePreview(file);
+
+  // On load/refresh, surface any remaining cooldown proactively (server knows the last send),
+  // instead of only revealing it when the next send is rejected.
+  useEffect(() => {
+    let cancelled = false;
+    void getChannelCooldown(login).then((sec) => {
+      if (!cancelled && sec > 0) setCooldownSec(sec);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [login, setCooldownSec]);
 
   const pickFile = useCallback(
     (f: File | null) => {
