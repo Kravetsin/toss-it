@@ -13,6 +13,8 @@ interface VesselProps {
   phase: Phase;
   status: LiveStatus | null;
   cooldownSec: number;
+  /** Full cooldown window (sec) — normalizes the fill so a refresh shows the real fraction, not full. */
+  cooldownWindowSec?: number;
   /** Form substrate under the liquid. */
   children: ReactNode;
 }
@@ -22,7 +24,13 @@ interface VesselProps {
  * Upload/processing fills card over form; peak (result arrived) bloats, bursts, reopens form.
  * Status phase: frame color/glow; cooldown: frame fill level top-down with shimmer. Physics gated by useFidgetEnabled + prefers-reduced-motion.
  */
-export function Vessel({ phase, status, cooldownSec, children }: VesselProps) {
+export function Vessel({
+  phase,
+  status,
+  cooldownSec,
+  cooldownWindowSec = 0,
+  children,
+}: VesselProps) {
   const { t } = useI18n();
   const fidget = useFidgetEnabled();
 
@@ -35,10 +43,15 @@ export function Vessel({ phase, status, cooldownSec, children }: VesselProps) {
   // Peak state: liquid bloated solid (before burst).
   const [flooding, setFlooding] = useState(false);
 
-  // Cooldown window: frame divisor is max seen in this wait cycle (normalizes level 0..1).
+  // Cooldown window: divisor normalizes level 0..1. Prefer the real window (so a refresh with
+  // partial time left renders the right fraction); else fall back to max seen this wait cycle.
   const cdWindow = useRef(0);
-  if (cooldownSec > cdWindow.current) cdWindow.current = cooldownSec;
-  if (cooldownSec === 0) cdWindow.current = 0;
+  if (cooldownSec === 0) {
+    cdWindow.current = 0;
+  } else {
+    if (cooldownWindowSec > cdWindow.current) cdWindow.current = cooldownWindowSec;
+    if (cooldownSec > cdWindow.current) cdWindow.current = cooldownSec;
+  }
   const cdLevel = cdWindow.current > 0 ? cooldownSec / cdWindow.current : 0;
 
   const progress = phase.name === 'uploading' && phase.progress !== null ? phase.progress : 0;

@@ -85,10 +85,18 @@ export function getLeaderboard(login: string): Promise<LeaderboardEntry[]> {
   );
 }
 
-/** Remaining viewer cooldown (seconds) for the current user; 0 on any error/logged out. */
-export function getChannelCooldown(login: string): Promise<number> {
+/**
+ * Remaining viewer cooldown for the current user plus the full cooldown window (so the UI can
+ * show the fill at the right fraction after a refresh). Zeroes on any error/logged out.
+ */
+export function getChannelCooldown(
+  login: string,
+): Promise<{ cooldownSec: number; windowSec: number }> {
   return fetch(`/api/c/${encodeURIComponent(login)}/cooldown`)
-    .then((r) => (r.ok ? (r.json() as Promise<{ cooldownSec: number }>) : { cooldownSec: 0 }))
-    .then((d) => d.cooldownSec)
-    .catch(() => 0);
+    .then((r) =>
+      r.ok
+        ? (r.json() as Promise<{ cooldownSec: number; windowSec: number }>)
+        : { cooldownSec: 0, windowSec: 0 },
+    )
+    .catch(() => ({ cooldownSec: 0, windowSec: 0 }));
 }

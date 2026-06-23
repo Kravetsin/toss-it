@@ -35,14 +35,18 @@ export function useMediaSubmission(
   const [phase, setPhase] = useState<Phase>({ name: 'idle' });
   const [liveStatus, setLiveStatus] = useState<LiveStatus | null>(null);
   const [cooldownSec, setCooldownSec] = useCountdown();
+  // Full cooldown window — lets the Vessel fill render at the right fraction on refresh.
+  const [cooldownWindowSec, setCooldownWindowSec] = useState(0);
   const previewUrl = useFilePreview(file);
 
   // On load/refresh, surface any remaining cooldown proactively (server knows the last send),
   // instead of only revealing it when the next send is rejected.
   useEffect(() => {
     let cancelled = false;
-    void getChannelCooldown(login).then((sec) => {
-      if (!cancelled && sec > 0) setCooldownSec(sec);
+    void getChannelCooldown(login).then(({ cooldownSec: sec, windowSec }) => {
+      if (cancelled) return;
+      if (windowSec > 0) setCooldownWindowSec(windowSec);
+      if (sec > 0) setCooldownSec(sec);
     });
     return () => {
       cancelled = true;
@@ -87,7 +91,10 @@ export function useMediaSubmission(
       setLiveStatus(result.status);
       setPhase({ name: 'done', result });
       // Start cooldown proactively after successful send, not on retry-after error. 0 (channel owner) = no cooldown.
-      if (result.cooldownSec > 0) setCooldownSec(result.cooldownSec);
+      if (result.cooldownSec > 0) {
+        setCooldownWindowSec(result.cooldownSec); // fresh send = full window
+        setCooldownSec(result.cooldownSec);
+      }
       setFile(null);
       setGif(null);
       setText('');
@@ -126,6 +133,7 @@ export function useMediaSubmission(
     phase,
     previewUrl,
     cooldownSec,
+    cooldownWindowSec,
     status,
     pickFile,
     pickGif,

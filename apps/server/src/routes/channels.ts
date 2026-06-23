@@ -85,24 +85,26 @@ export function registerChannelRoutes(app: FastifyInstance): void {
   // Remaining viewer cooldown so the page can show the timer right after a refresh,
   // instead of only discovering it on the next (rejected) send. 0 if owner/none/logged out.
   app.get<{ Params: { login: string } }>('/api/c/:login/cooldown', async (req) => {
+    // windowSec = full cooldown, so the client can show the fill at the right fraction on refresh.
+    const windowSec = Math.round(config.moderation.viewerCooldownMs / 1000);
     const user = await getSessionUser(req);
-    if (!user) return { cooldownSec: 0 };
+    if (!user) return { cooldownSec: 0, windowSec };
     const channel = await db
       .select({ id: channels.id, ownerUserId: channels.ownerUserId })
       .from(channels)
       .innerJoin(users, eq(users.id, channels.ownerUserId))
       .where(eq(users.login, req.params.login.toLowerCase()))
       .get();
-    if (!channel || channel.ownerUserId === user.id) return { cooldownSec: 0 };
+    if (!channel || channel.ownerUserId === user.id) return { cooldownSec: 0, windowSec };
     const last = await db
       .select({ createdAt: submissions.createdAt })
       .from(submissions)
       .where(and(eq(submissions.channelId, channel.id), eq(submissions.senderUserId, user.id)))
       .orderBy(desc(submissions.createdAt))
       .get();
-    if (!last) return { cooldownSec: 0 };
+    if (!last) return { cooldownSec: 0, windowSec };
     const remaining = config.moderation.viewerCooldownMs - (Date.now() - last.createdAt.getTime());
-    return { cooldownSec: remaining > 0 ? Math.ceil(remaining / 1000) : 0 };
+    return { cooldownSec: remaining > 0 ? Math.ceil(remaining / 1000) : 0, windowSec };
   });
 
   app.get<{ Params: { login: string } }>('/api/c/:login/leaderboard', async (req, reply) => {

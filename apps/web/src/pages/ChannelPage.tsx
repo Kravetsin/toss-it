@@ -107,7 +107,12 @@ export function ChannelPage() {
             <AuthButtons returnTo={`/c/${login}`} />
           </Card>
         ) : (
-          <Vessel phase={sub.phase} status={sub.status} cooldownSec={sub.cooldownSec}>
+          <Vessel
+            phase={sub.phase}
+            status={sub.status}
+            cooldownSec={sub.cooldownSec}
+            cooldownWindowSec={sub.cooldownWindowSec}
+          >
             <ComposeForm
               file={sub.file}
               gif={sub.gif}

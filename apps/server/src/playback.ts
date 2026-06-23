@@ -252,8 +252,9 @@ export class PlaybackManager {
         .from(submissions)
         .where(eq(submissions.id, candidate.id))
         .get();
-      // Text and YouTube have no on-disk file (filePath=null), which is normal for them.
-      const fileless = fresh?.kind === 'text' || fresh?.kind === 'youtube';
+      // Text, YouTube and GIF have no on-disk file (filePath=null) — that's normal for them
+      // (GIF/YouTube render from a remote CDN, text has no media). Don't drop them as "fileless".
+      const fileless = fresh?.kind === 'text' || fresh?.kind === 'youtube' || fresh?.kind === 'gif';
       if (!fresh || fresh.status !== 'approved' || (!fresh.filePath && !fileless)) continue;
       // Another tryNext call may have grabbed the slot during the DB round-trip.
       if (st.current) {
