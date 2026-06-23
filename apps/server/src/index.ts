@@ -40,7 +40,9 @@ await app.register(fastifyRateLimit, {
 });
 await app.register(fastifyCookie, { secret: config.cookieSecret });
 await app.register(fastifyMultipart, {
-  limits: { fileSize: config.maxFileSizeBytes, files: 1 },
+  // fieldSize caps the raw text field in memory before it's clamped to TEXT_MAX_LEN (280);
+  // 4 KB is ample for a UTF-8 caption + a link. fields caps non-file parts (we read text + giphyId).
+  limits: { fileSize: config.maxFileSizeBytes, files: 1, fields: 4, fieldSize: 4096 },
 });
 // serve:false — media served only via GET /api/media/:id (reply.sendFile).
 await app.register(fastifyStatic, { root: storage.root, serve: false });
