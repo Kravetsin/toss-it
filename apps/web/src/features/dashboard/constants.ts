@@ -8,6 +8,7 @@ export const KIND_ICON: Record<MediaKind, IconName> = {
   audio: 'volume-2',
   text: 'send',
   youtube: 'play',
+  gif: 'image',
 };
 
 export const STATUS_ICON: Record<HistoryEntry['status'], { icon: IconName; cls: string }> = {

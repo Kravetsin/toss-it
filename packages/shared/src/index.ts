@@ -1,4 +1,4 @@
-export type MediaKind = 'image' | 'video' | 'audio' | 'text' | 'youtube';
+export type MediaKind = 'image' | 'video' | 'audio' | 'text' | 'youtube' | 'gif';
 
 /** Max message/caption length; validated on both client and server. */
 export const TEXT_MAX_LEN = 280;
@@ -115,6 +115,8 @@ export interface MediaPlayPayload {
   youtubeStartSeconds?: number;
   /** YouTube Music: render as compact player rather than fullscreen. */
   youtubeMusic?: boolean;
+  /** Giphy id (kind='gif'); overlay renders the remote GIF from Giphy's CDN. */
+  giphyId?: string;
 }
 
 /** Live status for viewer indicator ('playing' is transient, not persisted). */
@@ -185,6 +187,8 @@ export interface SubmissionSummary {
   url: string;
   /** YouTube video id for preview (kind='youtube'), else null/absent. */
   youtubeId?: string | null;
+  /** Giphy id for preview (kind='gif'), else null/absent. */
+  giphyId?: string | null;
 }
 
 export interface ServerToDashboardEvents {
@@ -207,6 +211,8 @@ export interface ChannelSettings {
   accepting: boolean;
   /** Streamer opt-in: YouTube submissions skip moderation (go straight to screen). */
   autoApproveYoutube: boolean;
+  /** Streamer opt-in: GIFs with a safe Giphy rating skip moderation (risky ones still queue). */
+  autoApproveGifs: boolean;
   showSenderName: boolean;
   soundAlert: boolean;
   ttsName: boolean;
@@ -396,6 +402,8 @@ export interface PublicChannelInfo {
   maxDurationMs: number;
   maxAudioDurationMs: number;
   maxFileSizeBytes: number;
+  /** Whether safe-rated GIFs skip moderation here — viewer page shows honest "instant vs review" copy. */
+  autoApproveGifs: boolean;
   isFounder: boolean;
   /** Streamer description; null = viewer sees default subtitle. */
   description: string | null;

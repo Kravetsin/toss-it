@@ -5,6 +5,7 @@ export * from './IconButton';
 export * from './Surface';
 export * from './Drawer';
 export * from './Card';
+export * from './Accordion';
 export * from './Alert';
 export * from './Badge';
 export * from './ProgressBar';

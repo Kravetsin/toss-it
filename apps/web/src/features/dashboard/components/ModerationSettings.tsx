@@ -16,6 +16,7 @@ export function ModerationSettings({
   const { t } = useI18n();
   const confirm = useConfirm();
   const [ytAuto, setYtAuto] = useState(settings.autoApproveYoutube);
+  const [gifAuto, setGifAuto] = useState(settings.autoApproveGifs);
 
   // Enabling skips moderation — gate it behind a risk reminder; disabling is instant.
   const toggleYt = async (next: boolean) => {
@@ -32,9 +33,30 @@ export function ModerationSettings({
     onSave({ autoApproveYoutube: next });
   };
 
+  const toggleGif = (next: boolean) => {
+    setGifAuto(next);
+    onSave({ autoApproveGifs: next });
+  };
+
   return (
-    <Card>
+    <Card className="flex flex-col gap-4">
       <label className="flex cursor-pointer items-start gap-3">
+        <input
+          type="checkbox"
+          checked={gifAuto}
+          onChange={(e) => toggleGif(e.target.checked)}
+          className="mt-0.5 accent-[var(--color-accent)]"
+        />
+        <span>
+          <span className="flex items-center gap-1.5 text-sm text-text">
+            <Icon name="image" size={15} />
+            {t('mod.gifAutoApprove')}
+          </span>
+          <span className="mt-1 block text-xs text-muted">{t('mod.gifAutoApproveNote')}</span>
+        </span>
+      </label>
+
+      <label className="flex cursor-pointer items-start gap-3 border-t border-border pt-4">
         <input
           type="checkbox"
           checked={ytAuto}

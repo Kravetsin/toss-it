@@ -139,6 +139,7 @@ function toSettings(ch: ChannelRow): ChannelSettings {
     volume: ch.volume,
     accepting: ch.accepting,
     autoApproveYoutube: ch.autoApproveYoutube,
+    autoApproveGifs: ch.autoApproveGifs,
     showSenderName: ch.showSenderName,
     soundAlert: ch.soundAlert,
     ttsName: ch.ttsName,
@@ -378,6 +379,8 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
           typeof b.autoApproveYoutube === 'boolean'
             ? b.autoApproveYoutube
             : channel.autoApproveYoutube,
+        autoApproveGifs:
+          typeof b.autoApproveGifs === 'boolean' ? b.autoApproveGifs : channel.autoApproveGifs,
         showSenderName:
           typeof b.showSenderName === 'boolean' ? b.showSenderName : channel.showSenderName,
         soundAlert: typeof b.soundAlert === 'boolean' ? b.soundAlert : channel.soundAlert,

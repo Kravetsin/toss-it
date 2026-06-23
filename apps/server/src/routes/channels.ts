@@ -59,6 +59,7 @@ export function registerChannelRoutes(app: FastifyInstance): void {
         maxDurationMs: channels.maxDurationMs,
         maxAudioDurationMs: channels.maxAudioDurationMs,
         maxFileSizeBytes: channels.maxFileSizeBytes,
+        autoApproveGifs: channels.autoApproveGifs,
         description: channels.description,
         links: channels.links,
         founderSince: users.founderSince,

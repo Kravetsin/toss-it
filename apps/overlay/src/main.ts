@@ -186,6 +186,13 @@ function createMediaElement(payload: MediaPlayPayload, url: string): HTMLElement
     return img;
   }
 
+  if (payload.kind === 'gif') {
+    // No stored file: render the looping GIF straight from Giphy's CDN.
+    const img = document.createElement('img');
+    img.src = `https://i.giphy.com/${payload.giphyId}.gif`;
+    return img;
+  }
+
   if (payload.kind === 'video') {
     const video = document.createElement('video');
     video.src = url;

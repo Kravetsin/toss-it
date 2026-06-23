@@ -74,6 +74,7 @@ export function toSummary(sub: SubmissionRow, marks: NickMarks = NO_MARKS): Subm
     createdAt: sub.createdAt.getTime(),
     url: `/api/media/${sub.id}`,
     youtubeId: sub.youtubeId,
+    giphyId: sub.giphyId,
   };
 }
 
@@ -323,6 +324,7 @@ export class PlaybackManager {
       youtubeId: sub.youtubeId ?? undefined,
       youtubeStartSeconds: sub.youtubeStart,
       youtubeMusic: sub.mime === 'audio/youtube',
+      giphyId: sub.giphyId ?? undefined,
     };
   }
 

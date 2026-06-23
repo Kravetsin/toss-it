@@ -127,6 +127,13 @@
       "when": 1782136100917,
       "tag": "0017_melodic_thing",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1782205282418,
+      "tag": "0018_spicy_star_brand",
+      "breakpoints": true
     }
   ]
 }

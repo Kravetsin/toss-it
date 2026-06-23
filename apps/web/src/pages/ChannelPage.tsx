@@ -110,6 +110,8 @@ export function ChannelPage() {
           <Vessel phase={sub.phase} status={sub.status} cooldownSec={sub.cooldownSec}>
             <ComposeForm
               file={sub.file}
+              gif={sub.gif}
+              gifAutoApprove={loadedChannel?.autoApproveGifs ?? true}
               previewUrl={sub.previewUrl}
               text={sub.text}
               senderName={me.user.displayName}
@@ -117,6 +119,8 @@ export function ChannelPage() {
               cooldownSec={sub.cooldownSec}
               onPickFile={sub.pickFile}
               onRemoveFile={sub.removeFile}
+              onPickGif={sub.pickGif}
+              onRemoveGif={sub.removeGif}
               onTextChange={sub.setText}
               onSend={() => void sub.send()}
             />

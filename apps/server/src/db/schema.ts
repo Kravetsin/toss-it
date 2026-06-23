@@ -55,6 +55,8 @@ export const channels = sqliteTable('channels', {
   accepting: integer('accepting', { mode: 'boolean' }).notNull().default(true),
   // Streamer opt-in: YouTube links bypass moderation (they're already moderated by YouTube).
   autoApproveYoutube: integer('auto_approve_youtube', { mode: 'boolean' }).notNull().default(false),
+  // Streamer opt-in (default on): GIFs with a safe Giphy rating bypass moderation.
+  autoApproveGifs: integer('auto_approve_gifs', { mode: 'boolean' }).notNull().default(true),
   showSenderName: integer('show_sender_name', { mode: 'boolean' }).notNull().default(true),
   soundAlert: integer('sound_alert', { mode: 'boolean' }).notNull().default(false),
   ttsName: integer('tts_name', { mode: 'boolean' }).notNull().default(false),
@@ -208,6 +210,8 @@ export const submissions = sqliteTable(
     youtubeId: text('youtube_id'),
     /** YouTube start second from the link timecode. */
     youtubeStart: integer('youtube_start').notNull().default(0),
+    /** Giphy id (kind='gif'), else null. No file; rendered from Giphy's CDN. */
+    giphyId: text('giphy_id'),
   },
   (t) => [index('idx_submissions_channel_status').on(t.channelId, t.status)],
 );

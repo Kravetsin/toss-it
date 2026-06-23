@@ -79,6 +79,9 @@ export const en: Dict = {
   'mod.ytConfirmMsg':
     'Any YouTube link — together with its caption — will air without your review. Enable only if you trust your viewers.',
   'mod.ytConfirmOk': 'Enable',
+  'mod.gifAutoApprove': 'Skip moderation for safe GIFs',
+  'mod.gifAutoApproveNote':
+    'GIFs with a safe Giphy rating go straight to the screen; riskier ones still go to your queue.',
 
   'dur.sec': '{n}s',
   'dur.min': '{n} min',
@@ -126,6 +129,13 @@ export const en: Dict = {
   'channel.sendingAs': 'Sending as {name}',
   'channel.tooBig': 'File too large: channel limit is {mb} MB',
   'channel.send': 'Send to stream',
+  'channel.gifButton': 'Pick a GIF',
+  'channel.gifSearch': 'Search GIFs…',
+  'channel.gifInstant': 'These GIFs appear on stream instantly.',
+  'channel.gifAllReviewed': 'GIFs appear after the streamer reviews them.',
+  'channel.gifRemove': 'Remove GIF',
+  'channel.gifModerationNotice': 'This GIF will go to the streamer for approval first.',
+  'channel.gifUnavailable': 'GIFs are unavailable right now.',
   'channel.removeFile': 'Remove',
   'channel.processing': 'The server is processing your file (trimming and transcoding)…',
   'channel.processingShort': 'Processing',
@@ -336,6 +346,9 @@ export const ru: Dict = {
   'mod.ytConfirmMsg':
     'Любая ссылка на YouTube — вместе с подписью к ней — выйдет в эфир без вашей проверки. Включайте, только если доверяете зрителям.',
   'mod.ytConfirmOk': 'Включить',
+  'mod.gifAutoApprove': 'Пропускать безопасные GIF без модерации',
+  'mod.gifAutoApproveNote':
+    'Гифки с безопасным рейтингом Giphy идут сразу на экран; рискованные всё равно попадают в очередь.',
 
   'dur.sec': '{n} с',
   'dur.min': '{n} мин',
@@ -384,6 +397,13 @@ export const ru: Dict = {
   'channel.sendingAs': 'Отправляешь как {name}',
   'channel.tooBig': 'Файл слишком большой: лимит канала {mb} МБ',
   'channel.send': 'Отправить на стрим',
+  'channel.gifButton': 'Выбрать GIF',
+  'channel.gifSearch': 'Поиск GIF…',
+  'channel.gifInstant': 'Эти гифки появятся на стриме сразу.',
+  'channel.gifAllReviewed': 'Гифки появятся после проверки стримером.',
+  'channel.gifRemove': 'Убрать GIF',
+  'channel.gifModerationNotice': 'Эта гифка сначала уйдёт стримеру на проверку.',
+  'channel.gifUnavailable': 'GIF сейчас недоступны.',
   'channel.removeFile': 'Убрать',
   'channel.processing': 'Сервер обрабатывает файл (обрезка и перекодирование)…',
   'channel.processingShort': 'Обработка',
@@ -593,6 +613,9 @@ export const uk: Dict = {
   'mod.ytConfirmMsg':
     'Будь-яке посилання на YouTube — разом із підписом до нього — вийде в ефір без вашої перевірки. Вмикайте, лише якщо довіряєте глядачам.',
   'mod.ytConfirmOk': 'Увімкнути',
+  'mod.gifAutoApprove': 'Пропускати безпечні GIF без модерації',
+  'mod.gifAutoApproveNote':
+    'Гіфки з безпечним рейтингом Giphy йдуть одразу на екран; ризиковані все одно потрапляють у чергу.',
 
   'dur.sec': '{n} с',
   'dur.min': '{n} хв',
@@ -641,6 +664,13 @@ export const uk: Dict = {
   'channel.sendingAs': 'Надсилаєш як {name}',
   'channel.tooBig': 'Файл завеликий: ліміт каналу {mb} МБ',
   'channel.send': 'Надіслати на стрім',
+  'channel.gifButton': 'Обрати GIF',
+  'channel.gifSearch': 'Пошук GIF…',
+  'channel.gifInstant': 'Ці гіфки з’являться на стрімі одразу.',
+  'channel.gifAllReviewed': 'Гіфки з’являться після перевірки стримером.',
+  'channel.gifRemove': 'Прибрати GIF',
+  'channel.gifModerationNotice': 'Ця гіфка спершу піде стримеру на перевірку.',
+  'channel.gifUnavailable': 'GIF зараз недоступні.',
   'channel.removeFile': 'Прибрати',
   'channel.processing': 'Сервер обробляє файл (обрізка та перекодування)…',
   'channel.processingShort': 'Обробка',

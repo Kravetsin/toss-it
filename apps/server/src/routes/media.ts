@@ -18,6 +18,7 @@ import {
   transcodeVideo,
 } from '../media/process';
 import { parseYoutube, validateYoutube } from '../media/youtube';
+import { isGiphyId } from '../media/giphy';
 import { requireUser } from '../auth';
 import { dashboardRoomOf, toSummary, type PlaybackManager, type RealtimeServer } from '../playback';
 import type { Storage } from '../storage';
@@ -130,6 +131,7 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
         let truncated = false;
         let originalName = 'unknown';
         let text: string | undefined;
+        let giphyIdField: string | undefined;
         for await (const part of req.parts()) {
           if (part.type === 'file') {
             if (hasFile) {
@@ -143,6 +145,8 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
             truncated = part.file.truncated;
           } else if (part.fieldname === 'text' && typeof part.value === 'string') {
             text = part.value;
+          } else if (part.fieldname === 'giphyId' && typeof part.value === 'string') {
+            giphyIdField = part.value.trim() || undefined;
           }
         }
 
@@ -151,7 +155,7 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
         const fullText = text?.trim() || undefined;
         text = fullText?.slice(0, TEXT_MAX_LEN) || undefined;
 
-        if (!hasFile && !text) {
+        if (!hasFile && !text && !giphyIdField) {
           return reply.code(400).send({ error: 'Пустая отправка: нужен файл или текст' });
         }
         if (hasFile && truncated) {
@@ -166,6 +170,7 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
         let outMime: string;
         let youtubeId: string | null = null;
         let youtubeStart = 0;
+        let giphyId: string | null = null;
 
         if (hasFile) {
           // Global limit is enforced by multipart; per-channel limit checked here.
@@ -237,6 +242,17 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
           const finalTmp = path.join(tmpDir, `${id}.${outExt}`);
           filePath = `${channel.id}/${id}.${outExt}`;
           await storage.putFile(filePath, finalTmp);
+        } else if (giphyIdField) {
+          // GIF: nothing stored; keep the Giphy id, overlay renders from Giphy's CDN.
+          // Format check only — content is always Giphy-hosted (its own moderation is the gate).
+          if (!isGiphyId(giphyIdField)) {
+            return reply.code(422).send({ error: 'Некорректная GIF-ссылка' });
+          }
+          kind = 'gif';
+          outMime = 'image/gif';
+          giphyId = giphyIdField;
+          // GIFs loop briefly like images; reuse the image display window.
+          durationMs = Math.min(config.imageDurationMs, channel.maxDurationMs);
         } else {
           const yt = parseYoutube(fullText!);
           if (yt) {
@@ -273,8 +289,11 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
               .from(whitelist)
               .where(and(eq(whitelist.channelId, channel.id), eq(whitelist.userId, user.id)))
               .get()) !== undefined;
-        // Opt-in: YouTube bypasses moderation (already moderated by YouTube; streamer takes the risk).
-        const autoApproved = whitelisted || (kind === 'youtube' && channel.autoApproveYoutube);
+        // Opt-in bypasses: YouTube and GIFs (both moderated by their source platform).
+        const autoApproved =
+          whitelisted ||
+          (kind === 'youtube' && channel.autoApproveYoutube) ||
+          (kind === 'gif' && channel.autoApproveGifs);
 
         const now = new Date();
         const row: SubmissionRow = {
@@ -293,6 +312,7 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
           updatedAt: now,
           youtubeId,
           youtubeStart,
+          giphyId,
         };
         await db.insert(submissions).values(row);
 
