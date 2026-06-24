@@ -31,6 +31,9 @@ createRoot(document.getElementById('root')!).render(
                 {/* Streamer routes inside persistent AppShell (sidebar). */}
                 <Route element={<AppShell />}>
                   <Route path="/" element={<HomePage />} />
+                  {/* Localized landing entry URLs (SEO + hreflang); language picked in detectInitial. */}
+                  <Route path="/ru" element={<HomePage />} />
+                  <Route path="/uk" element={<HomePage />} />
                   <Route path="/dashboard" element={<DashboardPage />} />
                   <Route path="/dashboard/settings" element={<SettingsPage />} />
                   <Route path="/dashboard/settings/:section" element={<SettingsPage />} />

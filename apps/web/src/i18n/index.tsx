@@ -19,6 +19,10 @@ interface I18nValue {
 const I18nContext = createContext<I18nValue | null>(null);
 
 function detectInitial(): Lang {
+  // Localized entry URLs (/ru, /uk) pin the language so it matches server-rendered meta.
+  const p = location.pathname;
+  if (p === '/uk' || p.startsWith('/uk/')) return 'uk';
+  if (p === '/ru' || p.startsWith('/ru/')) return 'ru';
   const saved = localStorage.getItem(STORAGE_KEY);
   if (saved === 'ru' || saved === 'uk' || saved === 'en') return saved;
   // First visit: match browser language (uk/ru), else English.

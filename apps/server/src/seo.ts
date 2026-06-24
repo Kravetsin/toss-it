@@ -18,6 +18,51 @@ const DEFAULT_TITLE = 'Tossit — submissions inbox for streamers';
 const DEFAULT_DESC =
   'Tossit — a submissions inbox for streamers. Viewers send images, GIFs, videos and sounds straight to your stream, with moderation, a whitelist and limits.';
 
+type Lang = 'en' | 'ru' | 'uk';
+
+// Localized home pages live at distinct URLs (/, /ru, /uk) so each is crawlable and hreflang-linked
+// — Google indexes that far better than Accept-Language dynamic serving. Copy is data, like i18n.
+const LOCALES: Record<
+  Lang,
+  { path: string; ogLocale: string; title: string; desc: string; tagline: string; how: string }
+> = {
+  en: {
+    path: '/',
+    ogLocale: 'en_US',
+    title: DEFAULT_TITLE,
+    desc: DEFAULT_DESC,
+    tagline:
+      'Viewers send images, GIFs, videos and sounds straight to your stream — with moderation, a whitelist and limits.',
+    how: 'How it works: upload → processing → moderation → on stream',
+  },
+  ru: {
+    path: '/ru',
+    ogLocale: 'ru_RU',
+    title: 'Tossit — предложка для стримеров',
+    desc: 'Tossit — предложка для стримеров: зрители отправляют картинки, гифки, видео и звуки прямо на твой стрим, с модерацией, белым списком и лимитами.',
+    tagline:
+      'Зрители отправляют картинки, гифки, видео и звуки прямо на твой стрим — с модерацией, белым списком и лимитами.',
+    how: 'Как это работает: загрузка → обработка → модерация → на стриме',
+  },
+  uk: {
+    path: '/uk',
+    ogLocale: 'uk_UA',
+    title: 'Tossit — предложка для стрімерів',
+    desc: 'Tossit — предложка для стрімерів: глядачі надсилають картинки, GIF, відео та звуки прямо на твій стрім, з модерацією, білим списком і лімітами.',
+    tagline:
+      'Глядачі надсилають картинки, GIF, відео та звуки прямо на твій стрім — з модерацією, білим списком і лімітами.',
+    how: 'Як це працює: завантаження → обробка → модерація → у ефірі',
+  },
+};
+
+// Reciprocal hreflang cluster for the home pages (x-default → English).
+const HOME_HREFLANG: ReadonlyArray<{ lang: string; path: string }> = [
+  { lang: 'en', path: '/' },
+  { lang: 'ru', path: '/ru' },
+  { lang: 'uk', path: '/uk' },
+  { lang: 'x-default', path: '/' },
+];
+
 /** Marker block in index.html, replaced wholesale with the route's meta. */
 const SEO_BLOCK = /<!--SEO-->[\s\S]*?<!--\/SEO-->/;
 const ROOT_DIV = '<div id="root"></div>';
@@ -45,6 +90,11 @@ interface PageMeta {
   bodyHtml?: string;
   /** HTTP status (404 for a missing channel, else soft-404). */
   status?: number;
+  /** Page language for <html lang> and og:locale; defaults to en. */
+  lang?: Lang;
+  ogLocale?: string;
+  /** hreflang alternates to emit (home pages). */
+  alternates?: ReadonlyArray<{ lang: string; path: string }>;
 }
 
 /** Global brand entity. No user data, so safe to emit as ld+json. */
@@ -105,6 +155,10 @@ function buildHead(m: PageMeta): string {
     `<meta name="twitter:description" content="${d}" />`,
     `<meta name="twitter:image" content="${ogImage}" />`,
   ];
+  if (m.ogLocale) lines.push(`<meta property="og:locale" content="${m.ogLocale}" />`);
+  for (const a of m.alternates ?? []) {
+    lines.push(`<link rel="alternate" hreflang="${a.lang}" href="${esc(base() + a.path)}" />`);
+  }
   if (m.index) lines.push(jsonLd());
   return lines.join('\n    ');
 }
@@ -112,13 +166,14 @@ function buildHead(m: PageMeta): string {
 const FALLBACK_WRAP =
   'min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#0d1111;color:#e6edf0;font-family:system-ui,-apple-system,sans-serif;text-align:center;padding:40px;box-sizing:border-box';
 
-function homeBody(): string {
+function homeBody(lang: Lang): string {
+  const L = LOCALES[lang];
   return (
     `<div style="${FALLBACK_WRAP}">` +
     `<img src="/favicon.svg" width="72" height="72" alt="Tossit logo" />` +
     `<h1 style="font-size:40px;margin:0">Tossit</h1>` +
-    `<p style="max-width:520px;color:#9fb0b5;margin:0;line-height:1.5">Viewers send images, GIFs, videos and sounds straight to your stream — with moderation, a whitelist and limits.</p>` +
-    `<p style="color:#5b6b70;font-size:14px;margin:0">How it works: upload → processing → moderation → on stream</p>` +
+    `<p style="max-width:520px;color:#9fb0b5;margin:0;line-height:1.5">${esc(L.tagline)}</p>` +
+    `<p style="color:#5b6b70;font-size:14px;margin:0">${esc(L.how)}</p>` +
     `</div>`
   );
 }
@@ -137,15 +192,23 @@ function channelBody(name: string): string {
 async function resolve(url: string): Promise<PageMeta> {
   const pathname = url.split('?')[0]!.split('#')[0]!;
 
-  if (pathname === '/' || pathname === '') {
+  const homeFor = (lang: Lang): PageMeta => {
+    const L = LOCALES[lang];
     return {
-      title: DEFAULT_TITLE,
-      description: DEFAULT_DESC,
-      path: '/',
+      title: L.title,
+      description: L.desc,
+      path: L.path,
       index: true,
-      bodyHtml: homeBody(),
+      bodyHtml: homeBody(lang),
+      lang,
+      ogLocale: L.ogLocale,
+      alternates: HOME_HREFLANG,
     };
-  }
+  };
+
+  if (pathname === '/' || pathname === '') return homeFor('en');
+  if (pathname === '/ru' || pathname === '/ru/') return homeFor('ru');
+  if (pathname === '/uk' || pathname === '/uk/') return homeFor('uk');
 
   const ch = pathname.match(/^\/c\/([^/]+)\/?$/);
   if (ch) {
@@ -184,6 +247,7 @@ function render(template: string, m: PageMeta): string {
   let html = SEO_BLOCK.test(template)
     ? template.replace(SEO_BLOCK, head)
     : template.replace(/<title>[\s\S]*?<\/title>/, head);
+  if (m.lang && m.lang !== 'en') html = html.replace(/<html lang="[^"]*">/, `<html lang="${m.lang}">`);
   if (m.bodyHtml) html = html.replace(ROOT_DIV, `<div id="root">${m.bodyHtml}</div>`);
   return html;
 }
@@ -215,7 +279,12 @@ async function sitemapXml(): Promise<string> {
     .from(channels)
     .innerJoin(users, eq(users.id, channels.ownerUserId))
     .all();
-  const locs = [base() + '/', ...rows.map((r) => `${base()}/c/${r.login}`)];
+  const locs = [
+    base() + '/',
+    base() + '/ru',
+    base() + '/uk',
+    ...rows.map((r) => `${base()}/c/${r.login}`),
+  ];
   const xml =
     '<?xml version="1.0" encoding="UTF-8"?>\n' +
     '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
