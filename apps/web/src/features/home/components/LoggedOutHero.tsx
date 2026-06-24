@@ -22,8 +22,8 @@ export function LoggedOutHero() {
               </Button>
             </a>
             <Tooltip content={t('home.loginOther')} focusable={false}>
-              <a href="/api/auth/login?returnTo=/&switch=1" aria-label={t('home.loginOther')}>
-                <Button variant="secondary" className="px-3 py-3">
+              <a href="/api/auth/login?returnTo=/&switch=1" tabIndex={-1}>
+                <Button variant="secondary" className="px-3 py-3" aria-label={t('home.loginOther')}>
                   <Icon name="swap" size={18} />
                 </Button>
               </a>

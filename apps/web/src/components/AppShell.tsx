@@ -218,7 +218,7 @@ function FeedbackModal({ open, onClose }: { open: boolean; onClose: () => void }
 
   return (
     <div
-      aria-hidden={!open}
+      inert={!open}
       className={`fixed inset-0 z-[70] flex items-center justify-center p-4 ${open ? '' : 'pointer-events-none'}`}
     >
       <div
@@ -391,7 +391,7 @@ function MobileSidebar({
 
   return (
     <div
-      aria-hidden={!open}
+      inert={!open}
       className={`fixed inset-0 z-[60] md:hidden ${open ? '' : 'pointer-events-none'}`}
     >
       <div
@@ -500,9 +500,9 @@ export function AppShell() {
               onToggle={onToggleSidebar}
             />
           )}
-          <div className="min-w-0 flex-1">
+          <main className="min-w-0 flex-1">
             <Outlet />
-          </div>
+          </main>
         </div>
       </div>
       {user && (

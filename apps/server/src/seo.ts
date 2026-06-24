@@ -268,6 +268,27 @@ function robotsTxt(): string {
   ].join('\n');
 }
 
+// llms.txt (llmstxt.org): a Markdown brief for AI agents — needs an H1 and links.
+function llmsTxt(): string {
+  const b = base();
+  return [
+    '# Tossit',
+    '',
+    '> A submissions inbox for streamers (a "предложка"): viewers send images, GIFs, videos and sounds straight to a streamer\'s stream, with moderation, a whitelist and limits. Platform-agnostic — Twitch, Kick, YouTube.',
+    '',
+    '## Pages',
+    '',
+    `- [Home](${b}/): what Tossit is and how to get started.`,
+    `- [Главная — RU](${b}/ru): предложка для стримеров.`,
+    `- [Головна — UK](${b}/uk): предложка для стрімерів.`,
+    '',
+    '## How it works',
+    '',
+    "- A viewer opens a streamer's link (/c/<login>), uploads media, it passes moderation, then plays in the streamer's OBS overlay.",
+    '',
+  ].join('\n');
+}
+
 /** Sitemap cache: channel list rarely changes, avoid a DB hit per crawler request. */
 let sitemapCache: { xml: string; at: number } = { xml: '', at: 0 };
 
@@ -303,6 +324,10 @@ export function registerSeo(app: FastifyInstance, webDist: string): void {
 
   app.get('/robots.txt', async (_req, reply) =>
     reply.type('text/plain; charset=utf-8').send(robotsTxt()),
+  );
+
+  app.get('/llms.txt', async (_req, reply) =>
+    reply.type('text/markdown; charset=utf-8').send(llmsTxt()),
   );
 
   app.get('/sitemap.xml', async (_req, reply) =>
