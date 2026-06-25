@@ -322,16 +322,20 @@ async function sitemapXml(): Promise<string> {
 export function registerSeo(app: FastifyInstance, webDist: string): void {
   const template = fs.readFileSync(path.join(webDist, 'index.html'), 'utf8');
 
+  // Cache-Control lets Cloudflare cache these at the edge, so a brief origin (laptop)
+  // outage doesn't make Googlebot's fetch fail. Needs a Cloudflare cache rule too.
+  const CACHE = 'public, max-age=3600';
+
   app.get('/robots.txt', async (_req, reply) =>
-    reply.type('text/plain; charset=utf-8').send(robotsTxt()),
+    reply.header('cache-control', CACHE).type('text/plain; charset=utf-8').send(robotsTxt()),
   );
 
   app.get('/llms.txt', async (_req, reply) =>
-    reply.type('text/markdown; charset=utf-8').send(llmsTxt()),
+    reply.header('cache-control', CACHE).type('text/markdown; charset=utf-8').send(llmsTxt()),
   );
 
   app.get('/sitemap.xml', async (_req, reply) =>
-    reply.type('application/xml; charset=utf-8').send(await sitemapXml()),
+    reply.header('cache-control', CACHE).type('application/xml; charset=utf-8').send(await sitemapXml()),
   );
 
   const serve = async (reply: FastifyReply, url: string) => {
