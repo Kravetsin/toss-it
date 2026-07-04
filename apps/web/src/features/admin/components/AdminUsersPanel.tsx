@@ -1,12 +1,34 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { AdminUserRow } from '@tmw/shared';
+import type { AdminUserRow, AdminUsersSort } from '@tmw/shared';
 import { listAdminUsers, setUserStardust } from '@/lib/api';
 import { useApiAction } from '@/hooks/useApiAction';
 import { useI18n } from '@/i18n';
-import { Icon } from '@/ui/icons';
-import { Badge, Card, Input } from '@/ui';
+import { Icon, type IconName } from '@/ui/icons';
+import { Badge, Card, Input, Tooltip } from '@/ui';
 import { PlatformIcon, UserBadges } from '@/components/UserMarks';
 import { DustMark } from '@/components/DustMark';
+
+/** Icon + number with an explanatory tooltip (native title is too discoverable-hostile). */
+function StatChip({
+  icon,
+  value,
+  hint,
+  tone = 'text-muted',
+}: {
+  icon: IconName;
+  value: number;
+  hint: string;
+  tone?: string;
+}) {
+  return (
+    <Tooltip content={hint}>
+      <span className={`flex items-center gap-0.5 ${tone}`}>
+        <Icon name={icon} size={12} />
+        {value}
+      </span>
+    </Tooltip>
+  );
+}
 
 /** Inline stardust editor: click the value, Enter/blur saves, Escape cancels. */
 function DustCell({ user, onSaved }: { user: AdminUserRow; onSaved: (v: number) => void }) {
@@ -30,18 +52,19 @@ function DustCell({ user, onSaved }: { user: AdminUserRow; onSaved: (v: number) 
 
   if (!editing) {
     return (
-      <button
-        type="button"
-        onClick={() => {
-          setValue(String(user.stardust));
-          setEditing(true);
-        }}
-        title={t('admin.dustEditHint')}
-        className="inline-flex cursor-pointer items-center gap-1.5 rounded-[var(--radius-sm)] border border-transparent px-1.5 py-0.5 tabular-nums text-text transition-colors hover:border-border hover:text-accent"
-      >
-        <DustMark size={13} className="text-accent" />
-        {user.stardust}
-      </button>
+      <Tooltip content={t('admin.dustEditHint')} align="end" focusable={false}>
+        <button
+          type="button"
+          onClick={() => {
+            setValue(String(user.stardust));
+            setEditing(true);
+          }}
+          className="inline-flex cursor-pointer items-center gap-1.5 rounded-[var(--radius-sm)] border border-transparent px-1.5 py-0.5 tabular-nums text-text transition-colors hover:border-border hover:text-accent"
+        >
+          <DustMark size={13} className="text-accent" />
+          {user.stardust}
+        </button>
+      </Tooltip>
     );
   }
   return (
@@ -66,6 +89,7 @@ export function AdminUsersPanel() {
   const { t, lang } = useI18n();
   const [term, setTerm] = useState('');
   const [debounced, setDebounced] = useState('');
+  const [sort, setSort] = useState<AdminUsersSort>('created');
   const [rows, setRows] = useState<AdminUserRow[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -75,13 +99,13 @@ export function AdminUsersPanel() {
   }, [term]);
 
   const refresh = useCallback(() => {
-    void listAdminUsers(debounced)
+    void listAdminUsers(debounced, sort)
       .then((r) => {
         setRows(r);
         setLoaded(true);
       })
       .catch(() => {});
-  }, [debounced]);
+  }, [debounced, sort]);
 
   useEffect(() => {
     refresh();
@@ -94,11 +118,26 @@ export function AdminUsersPanel() {
     <div className="mt-8 flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
         <h2 className="font-display">{t('admin.usersTitle')}</h2>
+        <div className="ml-auto flex gap-1 border border-border bg-surface-2 p-1">
+          {(['created', 'stardust'] as const).map((s) => (
+            <button
+              key={s}
+              type="button"
+              aria-pressed={sort === s}
+              onClick={() => setSort(s)}
+              className={`rounded-none px-2.5 py-1 label-mono transition-colors duration-200 ease-out ${
+                sort === s ? 'bg-accent text-accent-contrast' : 'text-muted hover:text-text'
+              }`}
+            >
+              {t(s === 'created' ? 'admin.sortCreated' : 'admin.sortStardust')}
+            </button>
+          ))}
+        </div>
         <Input
           value={term}
           onChange={(e) => setTerm(e.target.value)}
           placeholder={t('admin.usersSearch')}
-          className="ml-auto w-56 text-sm"
+          className="w-56 text-sm"
         />
       </div>
       {rows.length === 0 ? (
@@ -122,10 +161,18 @@ export function AdminUsersPanel() {
                 ))}
                 <UserBadges isFounder={u.isFounder} variant="icons" />
                 {u.hasChannel && (
-                  <span title={t('admin.hasChannel')}>
-                    <Icon name="monitor" size={13} className="text-muted" />
-                  </span>
+                  <Tooltip content={t('admin.hasChannel')}>
+                    <span className="flex items-center">
+                      <Icon name="monitor" size={13} className="text-muted" />
+                    </span>
+                  </Tooltip>
                 )}
+                <span className="flex items-center gap-2 text-xs tabular-nums">
+                  <StatChip icon="check" value={u.accepted} hint={t('admin.accepted')} tone="text-ok" />
+                  <StatChip icon="close" value={u.rejected} hint={t('admin.rejected')} tone="text-danger" />
+                  <StatChip icon="shield" value={u.whitelistedIn} hint={t('admin.whitelistedIn')} />
+                  <StatChip icon="user-x" value={u.bannedIn} hint={t('admin.bannedIn')} />
+                </span>
                 {u.ownedCosmetics > 0 && (
                   <span className="text-xs text-muted">
                     {t('admin.cosmeticsCount', { n: u.ownedCosmetics })}

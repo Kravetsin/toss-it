@@ -4,12 +4,15 @@ import type { FastifyInstance } from 'fastify';
 import type { AdminBotStatus, AdminPromoCode, AdminUserRow } from '@tmw/shared';
 import { db } from '../db/index';
 import {
+  bans,
   channels,
   linkedIdentities,
   pendingDust,
   promoCodes,
+  submissions,
   userCosmetics,
   users,
+  whitelist,
 } from '../db/schema';
 import { buildAuthorizeUrl, requireAdmin } from '../auth';
 import { config } from '../config';
@@ -43,13 +46,14 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminRoutesDeps)
   });
 
   /** Support view: recent/matching users with balances and account details. */
-  app.get<{ Querystring: { q?: string } }>(
+  app.get<{ Querystring: { q?: string; sort?: string } }>(
     '/api/admin/users',
     async (req, reply): Promise<AdminUserRow[] | undefined> => {
       const admin = await requireAdmin(req, reply);
       if (!admin) return;
       const q = (req.query.q ?? '').trim();
       const pattern = `%${q}%`;
+      const order = req.query.sort === 'stardust' ? desc(users.stardust) : desc(users.createdAt);
       const rows = await db
         .select()
         .from(users)
@@ -58,7 +62,7 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminRoutesDeps)
             ? or(like(users.login, pattern), like(users.displayName, pattern), eq(users.id, q))
             : undefined,
         )
-        .orderBy(desc(users.createdAt))
+        .orderBy(order)
         .limit(50)
         .all();
       if (rows.length === 0) return [];
@@ -94,6 +98,29 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminRoutesDeps)
         .where(and(eq(pendingDust.platform, 'twitch'), inArray(linkedIdentities.userId, ids)))
         .all();
 
+      const submissionRows = await db
+        .select({
+          senderUserId: submissions.senderUserId,
+          status: submissions.status,
+          n: sql<number>`count(*)`,
+        })
+        .from(submissions)
+        .where(inArray(submissions.senderUserId, ids))
+        .groupBy(submissions.senderUserId, submissions.status)
+        .all();
+      const whitelistRows = await db
+        .select({ userId: whitelist.userId, n: sql<number>`count(*)` })
+        .from(whitelist)
+        .where(inArray(whitelist.userId, ids))
+        .groupBy(whitelist.userId)
+        .all();
+      const banRows = await db
+        .select({ userId: bans.userId, n: sql<number>`count(*)` })
+        .from(bans)
+        .where(inArray(bans.userId, ids))
+        .groupBy(bans.userId)
+        .all();
+
       const identsBy = new Map<string, string[]>();
       for (const r of identityRows) {
         identsBy.set(r.userId, [...(identsBy.get(r.userId) ?? []), r.provider]);
@@ -101,6 +128,19 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminRoutesDeps)
       const hasChannel = new Set(channelRows.map((r) => r.ownerUserId));
       const cosmeticsBy = new Map(cosmeticsRows.map((r) => [r.userId, r.n]));
       const pendingBy = new Map(pendingRows.map((r) => [r.userId, r.amount]));
+      // accepted = passed moderation (approved, incl. already played); expired counts as neither.
+      const acceptedBy = new Map<string, number>();
+      const rejectedBy = new Map<string, number>();
+      for (const r of submissionRows) {
+        if (!r.senderUserId) continue;
+        if (r.status === 'approved' || r.status === 'played') {
+          acceptedBy.set(r.senderUserId, (acceptedBy.get(r.senderUserId) ?? 0) + r.n);
+        } else if (r.status === 'rejected') {
+          rejectedBy.set(r.senderUserId, r.n);
+        }
+      }
+      const whitelistBy = new Map(whitelistRows.map((r) => [r.userId, r.n]));
+      const bansBy = new Map(banRows.map((r) => [r.userId, r.n]));
 
       return rows.map((u) => ({
         id: u.id,
@@ -114,6 +154,10 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminRoutesDeps)
         hasChannel: hasChannel.has(u.id),
         pendingDust: pendingBy.get(u.id) ?? 0,
         ownedCosmetics: cosmeticsBy.get(u.id) ?? 0,
+        accepted: acceptedBy.get(u.id) ?? 0,
+        rejected: rejectedBy.get(u.id) ?? 0,
+        whitelistedIn: whitelistBy.get(u.id) ?? 0,
+        bannedIn: bansBy.get(u.id) ?? 0,
       }));
     },
   );

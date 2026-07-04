@@ -1,9 +1,10 @@
-import type { AdminBotStatus, AdminUserRow } from '@tmw/shared';
+import type { AdminBotStatus, AdminUserRow, AdminUsersSort } from '@tmw/shared';
 import { json } from './http';
 
-export function listAdminUsers(q: string): Promise<AdminUserRow[]> {
-  const suffix = q ? `?q=${encodeURIComponent(q)}` : '';
-  return fetch(`/api/admin/users${suffix}`).then((r) => json<AdminUserRow[]>(r));
+export function listAdminUsers(q: string, sort: AdminUsersSort = 'created'): Promise<AdminUserRow[]> {
+  const params = new URLSearchParams({ sort });
+  if (q) params.set('q', q);
+  return fetch(`/api/admin/users?${params}`).then((r) => json<AdminUserRow[]>(r));
 }
 
 export function setUserStardust(

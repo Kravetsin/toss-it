@@ -5,7 +5,7 @@ import { listPromoCodes } from '@/lib/api';
 import { useMe } from '@/hooks/useMe';
 import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
-import { Loader, PageShell } from '@/ui';
+import { Accordion, Loader, PageShell } from '@/ui';
 import { StatusCard } from '@/components/StatusCard';
 import { PromoGenerateForm } from '@/features/admin/components/PromoGenerateForm';
 import { PromoCodeList } from '@/features/admin/components/PromoCodeList';
@@ -64,12 +64,15 @@ export function AdminPage() {
       </div>
 
       <AdminBotCard />
-      <AdminUsersPanel />
 
       <div className="mt-8">
-        <PromoGenerateForm onCreated={refresh} />
-        <PromoCodeList codes={codes} />
+        <Accordion title={t('admin.promoSection', { n: codes.length })} icon="gift">
+          <PromoGenerateForm onCreated={refresh} />
+          <PromoCodeList codes={codes} />
+        </Accordion>
       </div>
+
+      <AdminUsersPanel />
     </PageShell>
   );
 }

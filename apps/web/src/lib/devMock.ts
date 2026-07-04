@@ -384,6 +384,10 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
         hasChannel: true,
         pendingDust: 0,
         ownedCosmetics: 2,
+        accepted: 34,
+        rejected: 2,
+        whitelistedIn: 3,
+        bannedIn: 0,
       },
       {
         id: 'google:other3',
@@ -397,6 +401,10 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
         hasChannel: false,
         pendingDust: 17,
         ownedCosmetics: 0,
+        accepted: 5,
+        rejected: 4,
+        whitelistedIn: 0,
+        bannedIn: 1,
       },
     ];
   }

@@ -479,7 +479,17 @@ export interface AdminUserRow {
   pendingDust: number;
   /** Owned cosmetics count. */
   ownedCosmetics: number;
+  /** Submissions that passed moderation (approved + played). */
+  accepted: number;
+  /** Submissions rejected by moderators. */
+  rejected: number;
+  /** How many channels whitelisted this user. */
+  whitelistedIn: number;
+  /** How many channels banned this user. */
+  bannedIn: number;
 }
+
+export type AdminUsersSort = 'created' | 'stardust';
 
 /** Chat bot connection state (admin panel). */
 export interface AdminBotStatus {
