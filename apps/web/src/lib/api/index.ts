@@ -1,4 +1,5 @@
 export { ApiRequestError, json } from './http';
+export * from './admin';
 export * from './auth';
 export * from './channels';
 export * from './dashboard';

@@ -1,9 +1,16 @@
 import crypto from 'node:crypto';
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray, like, or, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
-import type { AdminBotStatus, AdminPromoCode } from '@tmw/shared';
+import type { AdminBotStatus, AdminPromoCode, AdminUserRow } from '@tmw/shared';
 import { db } from '../db/index';
-import { promoCodes, users } from '../db/schema';
+import {
+  channels,
+  linkedIdentities,
+  pendingDust,
+  promoCodes,
+  userCosmetics,
+  users,
+} from '../db/schema';
 import { buildAuthorizeUrl, requireAdmin } from '../auth';
 import { config } from '../config';
 import type { TwitchChatModule } from '../modules/twitch-chat/index';
@@ -34,6 +41,105 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminRoutesDeps)
     const s = deps.twitchChat.status();
     return { connected: s.connected, login: s.login };
   });
+
+  /** Support view: recent/matching users with balances and account details. */
+  app.get<{ Querystring: { q?: string } }>(
+    '/api/admin/users',
+    async (req, reply): Promise<AdminUserRow[] | undefined> => {
+      const admin = await requireAdmin(req, reply);
+      if (!admin) return;
+      const q = (req.query.q ?? '').trim();
+      const pattern = `%${q}%`;
+      const rows = await db
+        .select()
+        .from(users)
+        .where(
+          q
+            ? or(like(users.login, pattern), like(users.displayName, pattern), eq(users.id, q))
+            : undefined,
+        )
+        .orderBy(desc(users.createdAt))
+        .limit(50)
+        .all();
+      if (rows.length === 0) return [];
+      const ids = rows.map((u) => u.id);
+
+      const identityRows = await db
+        .select({ userId: linkedIdentities.userId, provider: linkedIdentities.provider })
+        .from(linkedIdentities)
+        .where(inArray(linkedIdentities.userId, ids))
+        .all();
+      const channelRows = await db
+        .select({ ownerUserId: channels.ownerUserId })
+        .from(channels)
+        .where(inArray(channels.ownerUserId, ids))
+        .all();
+      const cosmeticsRows = await db
+        .select({ userId: userCosmetics.userId, n: sql<number>`count(*)` })
+        .from(userCosmetics)
+        .where(inArray(userCosmetics.userId, ids))
+        .groupBy(userCosmetics.userId)
+        .all();
+      // Normally claimed at login/link — nonzero here means a claim never fired (support case).
+      const pendingRows = await db
+        .select({ userId: linkedIdentities.userId, amount: pendingDust.amount })
+        .from(pendingDust)
+        .innerJoin(
+          linkedIdentities,
+          and(
+            eq(linkedIdentities.provider, 'twitch'),
+            eq(linkedIdentities.providerId, pendingDust.platformUserId),
+          ),
+        )
+        .where(and(eq(pendingDust.platform, 'twitch'), inArray(linkedIdentities.userId, ids)))
+        .all();
+
+      const identsBy = new Map<string, string[]>();
+      for (const r of identityRows) {
+        identsBy.set(r.userId, [...(identsBy.get(r.userId) ?? []), r.provider]);
+      }
+      const hasChannel = new Set(channelRows.map((r) => r.ownerUserId));
+      const cosmeticsBy = new Map(cosmeticsRows.map((r) => [r.userId, r.n]));
+      const pendingBy = new Map(pendingRows.map((r) => [r.userId, r.amount]));
+
+      return rows.map((u) => ({
+        id: u.id,
+        login: u.login,
+        displayName: u.displayName,
+        avatarUrl: u.avatarUrl,
+        stardust: u.stardust,
+        isFounder: u.founderSince != null,
+        createdAt: u.createdAt.getTime(),
+        identities: identsBy.get(u.id) ?? [],
+        hasChannel: hasChannel.has(u.id),
+        pendingDust: pendingBy.get(u.id) ?? 0,
+        ownedCosmetics: cosmeticsBy.get(u.id) ?? 0,
+      }));
+    },
+  );
+
+  /** Support edit: set a user's stardust balance (audited in server logs). */
+  app.patch<{ Params: { id: string }; Body: { stardust?: number } | null }>(
+    '/api/admin/users/:id',
+    async (req, reply) => {
+      const admin = await requireAdmin(req, reply);
+      if (!admin) return;
+      const raw = req.body?.stardust;
+      if (typeof raw !== 'number' || !Number.isFinite(raw)) {
+        return reply.code(400).send({ error: 'stardust: число ≥ 0' });
+      }
+      const stardust = Math.min(1_000_000_000, Math.max(0, Math.round(raw)));
+      const res = await db.update(users).set({ stardust }).where(eq(users.id, req.params.id));
+      if (res.rowsAffected === 0) {
+        return reply.code(404).send({ error: 'Пользователь не найден' });
+      }
+      req.log.info(
+        { admin: admin.id, userId: req.params.id, stardust },
+        'admin: stardust set manually',
+      );
+      return { ok: true, stardust };
+    },
+  );
 
   /** One-time bot hookup: the admin logs in AS the bot account with chat-read scope. */
   app.get<{ Querystring: { returnTo?: string } }>(

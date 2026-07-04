@@ -9,6 +9,8 @@ import { Loader, PageShell } from '@/ui';
 import { StatusCard } from '@/components/StatusCard';
 import { PromoGenerateForm } from '@/features/admin/components/PromoGenerateForm';
 import { PromoCodeList } from '@/features/admin/components/PromoCodeList';
+import { AdminBotCard } from '@/features/admin/components/AdminBotCard';
+import { AdminUsersPanel } from '@/features/admin/components/AdminUsersPanel';
 
 /** Admin panel for promo codes (only for ADMIN_USER_IDS). */
 export function AdminPage() {
@@ -61,8 +63,13 @@ export function AdminPage() {
         </Link>
       </div>
 
-      <PromoGenerateForm onCreated={refresh} />
-      <PromoCodeList codes={codes} />
+      <AdminBotCard />
+      <AdminUsersPanel />
+
+      <div className="mt-8">
+        <PromoGenerateForm onCreated={refresh} />
+        <PromoCodeList codes={codes} />
+      </div>
     </PageShell>
   );
 }

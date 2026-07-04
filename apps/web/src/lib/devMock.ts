@@ -369,6 +369,38 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
     return {};
   }
   if (pathname === '/api/me/channels') return MOCK_CHANNELS;
+  if (pathname === '/api/admin/bot') return { connected: true, login: 'tossitbot' };
+  if (pathname === '/api/admin/users') {
+    return [
+      {
+        id: 'twitch:u_dev',
+        login: 'kravetsinside',
+        displayName: 'Kravets',
+        avatarUrl: null,
+        stardust: 250,
+        isFounder: true,
+        createdAt: Date.now() - 86_400_000 * 20,
+        identities: ['twitch', 'google'],
+        hasChannel: true,
+        pendingDust: 0,
+        ownedCosmetics: 2,
+      },
+      {
+        id: 'google:other3',
+        login: 'slava',
+        displayName: 'Слава Anfani',
+        avatarUrl: null,
+        stardust: 40,
+        isFounder: false,
+        createdAt: Date.now() - 86_400_000 * 3,
+        identities: ['google'],
+        hasChannel: false,
+        pendingDust: 17,
+        ownedCosmetics: 0,
+      },
+    ];
+  }
+  if (pathname.startsWith('/api/admin/users/')) return { ok: true, stardust: 999 };
   if (pathname === '/api/auth/link/pending') {
     return {
       current: {

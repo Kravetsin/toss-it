@@ -462,6 +462,25 @@ export interface AdminPromoCode {
   redeemedAt: number | null;
 }
 
+/** One user in the admin support panel. */
+export interface AdminUserRow {
+  id: string;
+  login: string;
+  displayName: string;
+  avatarUrl: string | null;
+  stardust: number;
+  isFounder: boolean;
+  /** epoch ms */
+  createdAt: number;
+  /** Providers that open this account ('twitch' | 'google' | 'fake'). */
+  identities: string[];
+  hasChannel: boolean;
+  /** Chat dust waiting in pending_dust for this user's twitch identity. */
+  pendingDust: number;
+  /** Owned cosmetics count. */
+  ownedCosmetics: number;
+}
+
 /** Chat bot connection state (admin panel). */
 export interface AdminBotStatus {
   connected: boolean;
