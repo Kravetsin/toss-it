@@ -11,6 +11,7 @@ import { PromoGenerateForm } from '@/features/admin/components/PromoGenerateForm
 import { PromoCodeList } from '@/features/admin/components/PromoCodeList';
 import { AdminBotCard } from '@/features/admin/components/AdminBotCard';
 import { AdminUsersPanel } from '@/features/admin/components/AdminUsersPanel';
+import { AdminExclusionsPanel } from '@/features/admin/components/AdminExclusionsPanel';
 
 /** Admin panel for promo codes (only for ADMIN_USER_IDS). */
 export function AdminPage() {
@@ -65,10 +66,13 @@ export function AdminPage() {
 
       <AdminBotCard />
 
-      <div className="mt-8">
+      <div className="mt-8 flex flex-col gap-3">
         <Accordion title={t('admin.promoSection', { n: codes.length })} icon="gift">
           <PromoGenerateForm onCreated={refresh} />
           <PromoCodeList codes={codes} />
+        </Accordion>
+        <Accordion title={t('excl.section')} icon="user-x">
+          <AdminExclusionsPanel />
         </Accordion>
       </div>
 

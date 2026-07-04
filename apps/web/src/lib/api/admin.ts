@@ -1,5 +1,23 @@
-import type { AdminBotStatus, AdminUserRow, AdminUsersSort } from '@tmw/shared';
+import type { AdminBotStatus, AdminExclusion, AdminUserRow, AdminUsersSort } from '@tmw/shared';
 import { json } from './http';
+
+export function listExclusions(): Promise<AdminExclusion[]> {
+  return fetch('/api/admin/leaderboard-exclusions').then((r) => json<AdminExclusion[]>(r));
+}
+
+export function addExclusion(login: string): Promise<{ ok: boolean; login: string }> {
+  return fetch('/api/admin/leaderboard-exclusions', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ login }),
+  }).then((r) => json<{ ok: boolean; login: string }>(r));
+}
+
+export function removeExclusion(login: string): Promise<{ ok: boolean }> {
+  return fetch(`/api/admin/leaderboard-exclusions/${encodeURIComponent(login)}`, {
+    method: 'DELETE',
+  }).then((r) => json<{ ok: boolean }>(r));
+}
 
 export function listAdminUsers(q: string, sort: AdminUsersSort = 'created'): Promise<AdminUserRow[]> {
   const params = new URLSearchParams({ sort });

@@ -1,11 +1,12 @@
 import crypto from 'node:crypto';
 import { and, desc, eq, inArray, like, or, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
-import type { AdminBotStatus, AdminPromoCode, AdminUserRow } from '@tmw/shared';
+import type { AdminBotStatus, AdminExclusion, AdminPromoCode, AdminUserRow } from '@tmw/shared';
 import { db } from '../db/index';
 import {
   bans,
   channels,
+  leaderboardExclusions,
   linkedIdentities,
   pendingDust,
   promoCodes,
@@ -17,6 +18,7 @@ import {
 import { buildAuthorizeUrl, requireAdmin } from '../auth';
 import { config } from '../config';
 import type { TwitchChatModule } from '../modules/twitch-chat/index';
+import { clearLeaderboardCaches } from './channels';
 import { isKnownGrant } from './promo';
 import { STATE_COOKIE, type OAuthState } from './auth';
 
@@ -182,6 +184,55 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminRoutesDeps)
         'admin: stardust set manually',
       );
       return { ok: true, stardust };
+    },
+  );
+
+  /** Global leaderboard exclusions (bots). */
+  app.get(
+    '/api/admin/leaderboard-exclusions',
+    async (req, reply): Promise<AdminExclusion[] | undefined> => {
+      const admin = await requireAdmin(req, reply);
+      if (!admin) return;
+      const rows = await db
+        .select()
+        .from(leaderboardExclusions)
+        .orderBy(desc(leaderboardExclusions.createdAt))
+        .all();
+      return rows.map((r) => ({ login: r.login, note: r.note, createdAt: r.createdAt.getTime() }));
+    },
+  );
+
+  app.post<{ Body: { login?: string } | null }>(
+    '/api/admin/leaderboard-exclusions',
+    async (req, reply) => {
+      const admin = await requireAdmin(req, reply);
+      if (!admin) return;
+      // Twitch logins are lowercase; accept a pasted "@Name" or display name too.
+      const login = (req.body?.login ?? '').trim().replace(/^@/, '').toLowerCase();
+      if (!/^[a-z0-9_]{2,25}$/.test(login)) {
+        return reply.code(400).send({ error: 'Некорректный логин Twitch' });
+      }
+      await db
+        .insert(leaderboardExclusions)
+        .values({ login, note: req.body?.login?.trim() ?? null, createdAt: new Date() })
+        .onConflictDoNothing();
+      clearLeaderboardCaches();
+      deps.twitchChat.reloadExclusions();
+      return { ok: true, login };
+    },
+  );
+
+  app.delete<{ Params: { login: string } }>(
+    '/api/admin/leaderboard-exclusions/:login',
+    async (req, reply) => {
+      const admin = await requireAdmin(req, reply);
+      if (!admin) return;
+      await db
+        .delete(leaderboardExclusions)
+        .where(eq(leaderboardExclusions.login, req.params.login.toLowerCase()));
+      clearLeaderboardCaches();
+      deps.twitchChat.reloadExclusions();
+      return { ok: true };
     },
   );
 

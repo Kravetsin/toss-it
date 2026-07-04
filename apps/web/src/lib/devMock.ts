@@ -370,6 +370,15 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
   }
   if (pathname === '/api/me/channels') return MOCK_CHANNELS;
   if (pathname === '/api/admin/bot') return { connected: true, login: 'tossitbot' };
+  if (pathname === '/api/admin/leaderboard-exclusions') {
+    if (init?.method === 'POST') return { ok: true, login: 'wizebot' };
+    if (init?.method === 'DELETE') return { ok: true };
+    return [
+      { login: 'wizebot', note: 'WizeBot', createdAt: Date.now() - 86_400_000 },
+      { login: 'tune2livebot', note: 'Tune2LiveBot', createdAt: Date.now() - 3_600_000 },
+    ];
+  }
+  if (pathname.startsWith('/api/admin/leaderboard-exclusions/')) return { ok: true };
   if (pathname === '/api/admin/users') {
     return [
       {

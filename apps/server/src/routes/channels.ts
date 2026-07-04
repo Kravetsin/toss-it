@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { and, count, desc, eq, gte, inArray, isNotNull, sql } from 'drizzle-orm';
+import { and, count, desc, eq, gte, inArray, isNotNull, notInArray, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type {
   ChannelSelf,
@@ -9,7 +9,14 @@ import type {
   PublicChannelInfo,
 } from '@tmw/shared';
 import { db } from '../db/index';
-import { channelActivity, channels, linkedIdentities, submissions, users } from '../db/schema';
+import {
+  channelActivity,
+  channels,
+  leaderboardExclusions,
+  linkedIdentities,
+  submissions,
+  users,
+} from '../db/schema';
 import { config } from '../config';
 import { getSessionUser, requireUser } from '../auth';
 
@@ -23,6 +30,21 @@ const LB_CACHE_MS = 30_000;
 /** The page polls every minute; cache keeps repeated public hits off the DB. */
 const lbCache = new Map<string, { at: number; entries: LeaderboardEntry[] }>();
 
+/** Global excluded logins (bots), cached briefly. All logins stored lowercase. */
+let exclCache: { at: number; logins: string[] } | null = null;
+async function excludedLogins(): Promise<string[]> {
+  if (exclCache && Date.now() - exclCache.at < LB_CACHE_MS) return exclCache.logins;
+  const rows = await db.select({ login: leaderboardExclusions.login }).from(leaderboardExclusions).all();
+  exclCache = { at: Date.now(), logins: rows.map((r) => r.login) };
+  return exclCache.logins;
+}
+
+/** Called by the admin routes after an exclusion changes, so the board updates at once. */
+export function clearLeaderboardCaches(): void {
+  lbCache.clear();
+  exclCache = null;
+}
+
 /** Level curve over XP = messages + watch minutes: early levels cheap, then slower.
  *  Never stored — retuning the formula recomputes history for free. */
 const levelOf = (xp: number) => Math.floor(Math.sqrt(xp / 25));
@@ -34,7 +56,11 @@ const monthStartUtc = () => {
 const currentMonth = () => new Date().toISOString().slice(0, 7);
 
 /** Top-10 by media that actually played (the original leaderboard). */
-async function sendsBoard(channelId: string, period: LeaderboardPeriod): Promise<LeaderboardEntry[]> {
+async function sendsBoard(
+  channelId: string,
+  period: LeaderboardPeriod,
+  excluded: string[],
+): Promise<LeaderboardEntry[]> {
   const rows = await db
     .select({
       userId: submissions.senderUserId,
@@ -52,6 +78,7 @@ async function sendsBoard(channelId: string, period: LeaderboardPeriod): Promise
         eq(submissions.status, 'played'),
         isNotNull(submissions.senderUserId),
         ...(period === 'month' ? [gte(submissions.createdAt, monthStartUtc())] : []),
+        ...(excluded.length ? [notInArray(users.login, excluded)] : []),
       ),
     )
     .groupBy(submissions.senderUserId)
@@ -76,6 +103,7 @@ async function chatBoard(
   channelId: string,
   metric: 'messages' | 'watch' | 'level',
   period: LeaderboardPeriod,
+  excluded: string[],
 ): Promise<LeaderboardEntry[]> {
   // SUM aggregates months for 'all'; for a single month it's a no-op.
   const valueExpr =
@@ -97,6 +125,7 @@ async function chatBoard(
         eq(channelActivity.channelId, channelId),
         eq(channelActivity.platform, 'twitch'),
         ...(period === 'month' ? [eq(channelActivity.month, currentMonth())] : []),
+        ...(excluded.length ? [notInArray(channelActivity.login, excluded)] : []),
       ),
     )
     .groupBy(channelActivity.platformUserId)
@@ -252,10 +281,11 @@ export function registerChannelRoutes(app: FastifyInstance): void {
       const hit = lbCache.get(cacheKey);
       if (hit && Date.now() - hit.at < LB_CACHE_MS) return hit.entries;
 
+      const excluded = await excludedLogins();
       const entries =
         metric === 'sends'
-          ? await sendsBoard(channel.id, period)
-          : await chatBoard(channel.id, metric, period);
+          ? await sendsBoard(channel.id, period, excluded)
+          : await chatBoard(channel.id, metric, period, excluded);
       lbCache.set(cacheKey, { at: Date.now(), entries });
       return entries;
     },

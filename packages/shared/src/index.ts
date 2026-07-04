@@ -491,6 +491,14 @@ export interface AdminUserRow {
 
 export type AdminUsersSort = 'created' | 'stardust';
 
+/** A twitch login excluded from every channel's leaderboard (bots). */
+export interface AdminExclusion {
+  login: string;
+  note: string | null;
+  /** epoch ms */
+  createdAt: number;
+}
+
 /** Chat bot connection state (admin panel). */
 export interface AdminBotStatus {
   connected: boolean;

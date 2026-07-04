@@ -165,6 +165,17 @@ export const channelModerators = sqliteTable(
   (t) => [primaryKey({ columns: [t.channelId, t.userId] })],
 );
 
+/**
+ * Global leaderboard exclusions (admin-managed): twitch logins hidden from every
+ * channel's leaderboard, and skipped by chat collection/dust. login is lowercase.
+ */
+export const leaderboardExclusions = sqliteTable('leaderboard_exclusions', {
+  login: text('login').primaryKey(),
+  /** Display name the admin typed / last seen — for the admin list only. */
+  note: text('note'),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+});
+
 /** One-time moderator invites (TTL ~1h; deleted on accept). */
 export const modInvites = sqliteTable('mod_invites', {
   token: text('token').primaryKey(),

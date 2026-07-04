@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm';
 import type { FastifyBaseLogger } from 'fastify';
 import { db } from '../../db/index';
-import { channels, linkedIdentities } from '../../db/schema';
+import { channels, leaderboardExclusions, linkedIdentities } from '../../db/schema';
 import { config } from '../../config';
 import { EventSubClient } from './eventsub';
 import { awardChatDust } from './accrual';
@@ -28,6 +28,8 @@ export interface TwitchChatModule {
   status(): { connected: boolean; login: string | null };
   /** Is the bot actually subscribed to this channel's chat right now? */
   readsChannel(channelId: string): boolean;
+  /** Admin edited the leaderboard exclusions — refresh the collection guard now. */
+  reloadExclusions(): void;
   stop(): void;
 }
 
@@ -44,6 +46,13 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
   let watchPollTimer: NodeJS.Timeout | null = null;
   /** broadcaster twitch id -> channel id, for enabled channels only. */
   let channelByBroadcaster = new Map<string, string>();
+  /** Excluded twitch logins (bots) — skip their messages entirely. Refreshed on reconcile. */
+  let excludedLogins = new Set<string>();
+
+  async function loadExclusions(): Promise<void> {
+    const rows = await db.select({ login: leaderboardExclusions.login }).from(leaderboardExclusions).all();
+    excludedLogins = new Set(rows.map((r) => r.login));
+  }
 
   async function getAccessToken(refresh = false): Promise<string | null> {
     if (!creds) return null;
@@ -69,6 +78,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     const channelId = channelByBroadcaster.get(ev.broadcasterId);
     if (!channelId) return;
     if (ev.chatterId === ev.broadcasterId) return; // own chat earns nothing (like sends)
+    if (excludedLogins.has(ev.chatterLogin)) return; // excluded bots earn/count nothing
     if (deps.overlayCount(channelId) === 0) return; // accrue only while live
     bumpMessage(channelId, ev.chatterId, ev.chatterLogin, ev.chatterName);
     awardChatDust(ev.chatterId).catch((err) =>
@@ -176,6 +186,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
         .filter(([broadcasterId]) => moderated.has(broadcasterId)),
     );
     client.setBroadcasters(new Set(channelByBroadcaster.keys()));
+    await loadExclusions();
   }
 
   function shutdownClient(): void {
@@ -212,6 +223,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     deps.log.info({ bot: creds.login }, 'twitch-chat: module started');
   }
 
+  void loadExclusions().catch(() => {});
   void boot().catch((err) => deps.log.error({ err }, 'twitch-chat: boot failed'));
 
   return {
@@ -228,6 +240,11 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
         if (chId === channelId) return client.isSubscribed(broadcasterId);
       }
       return false;
+    },
+    reloadExclusions() {
+      void loadExclusions().catch((err) =>
+        deps.log.warn({ err }, 'twitch-chat: exclusions reload failed'),
+      );
     },
     stop: shutdownClient,
   };
