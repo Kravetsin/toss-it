@@ -162,6 +162,13 @@
       "when": 1783162156247,
       "tag": "0022_wooden_masked_marvel",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1783165048666,
+      "tag": "0023_true_thunderbolts",
+      "breakpoints": true
     }
   ]
 }

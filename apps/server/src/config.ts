@@ -104,7 +104,9 @@ export const config = {
   },
 
   cleanup: {
-    intervalMs: 60_000,
+    /** Sweep cadence. Terminal files live terminalRetentionMs anyway — a coarse
+     *  grid is fine, and each sweep costs DB reads (Turso bills rows read). */
+    intervalMs: 5 * 60_000,
     /** How long to keep file after terminal status (slack for overlay reconnect). */
     terminalRetentionMs: 10 * 60_000,
     /** Sends not shown within this time expire. */

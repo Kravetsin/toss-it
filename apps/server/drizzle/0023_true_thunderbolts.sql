@@ -1,0 +1,2 @@
+CREATE INDEX `idx_submissions_status_created` ON `submissions` (`status`,`created_at`);--> statement-breakpoint
+CREATE INDEX `idx_submissions_files` ON `submissions` (`status`,`updated_at`) WHERE file_path IS NOT NULL;

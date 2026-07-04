@@ -271,7 +271,15 @@ export const submissions = sqliteTable(
     /** Giphy id (kind='gif'), else null. No file; rendered from Giphy's CDN. */
     giphyId: text('giphy_id'),
   },
-  (t) => [index('idx_submissions_channel_status').on(t.channelId, t.status)],
+  (t) => [
+    index('idx_submissions_channel_status').on(t.channelId, t.status),
+    // Cleanup sweep runs channel-agnostic queries; without these it full-scans
+    // the ever-growing history every cycle (Turso bills rows read).
+    index('idx_submissions_status_created').on(t.status, t.createdAt),
+    index('idx_submissions_files')
+      .on(t.status, t.updatedAt)
+      .where(sql`file_path IS NOT NULL`),
+  ],
 );
 
 export type UserRow = typeof users.$inferSelect;
