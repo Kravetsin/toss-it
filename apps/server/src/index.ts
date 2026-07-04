@@ -20,6 +20,7 @@ const { LocalDiskStorage } = await import('./storage');
 const { setupRealtime } = await import('./playback');
 const { registerRoutes } = await import('./routes/index');
 const { startCleanup } = await import('./cleanup');
+const { startBackups } = await import('./backup');
 const { registerSeo } = await import('./seo');
 
 await runMigrations();
@@ -87,6 +88,7 @@ const twitchChat = createTwitchChatModule({
 
 registerRoutes(app, { playback, storage, tmpDir, io, twitchChat });
 startCleanup(storage, app.log);
+startBackups(serverRoot, app.log);
 
 if (config.allowFakeAuth) {
   app.log.warn('Fake-авторизация ВКЛЮЧЕНА (нет TWITCH_CLIENT_ID): /api/auth/login?fake=<login>');
