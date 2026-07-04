@@ -28,6 +28,24 @@ export const users = sqliteTable('users', {
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 });
 
+/**
+ * Which provider identity opens which account. One user may have several rows
+ * (native + linked); a provider identity maps to exactly one user (PK).
+ * Backfilled from users.id ('provider:rest') in migration 0021.
+ */
+export const linkedIdentities = sqliteTable(
+  'linked_identities',
+  {
+    provider: text('provider').notNull(),
+    providerId: text('provider_id').notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.provider, t.providerId] })],
+);
+
 export const sessions = sqliteTable('sessions', {
   id: text('id').primaryKey(),
   userId: text('user_id')

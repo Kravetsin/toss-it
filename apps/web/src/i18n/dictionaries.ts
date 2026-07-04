@@ -31,7 +31,8 @@ export const en: Dict = {
   'wallet.stardust': 'Stardust',
   'wallet.about': 'Click to spend on cosmetics.',
   'wallet.howTitle': 'How to earn:',
-  'wallet.earnPost': '1 post = +1',
+  'wallet.earnPost': '1 post = +10',
+  'wallet.earnChat': '1 chat message = +1',
   'wallet.earnDonate': '1 ₴ donated = +1',
 
   'shop.open': 'Open cosmetics shop',
@@ -84,10 +85,23 @@ export const en: Dict = {
     'GIFs with a safe Giphy rating go straight to the screen; riskier ones still go to your queue.',
   'chatDust.title': 'Stardust for chat messages',
   'chatDust.note':
-    'While you are live, viewers earn 1 stardust per chat message (at most once a minute). Viewers without an account get their dust when they first sign in.',
+    'While you are live, viewers earn 1 stardust per chat message. Viewers without an account get their dust when they first sign in.',
   'chatDust.reading': 'The bot is reading your chat — dust is being earned',
   'chatDust.modHint': 'Type /mod {bot} in your chat — the bot connects within ~5 minutes.',
   'toast.dustClaimed': 'You found {n} stardust!',
+  'toast.twitchLinked': 'Twitch linked',
+  'link.bannerText': 'Earn stardust for every chat message — link your Twitch',
+  'link.bannerCta': 'Link Twitch',
+  'link.confirmTitle': 'This Twitch already opens another account',
+  'link.confirmSubtitle':
+    'Choose your primary account. The other one stays as is, but you will no longer be able to sign in to it — its stardust and cosmetics become unreachable.',
+  'link.loseChannelWarning':
+    'Careful: one of these accounts owns a channel. If it does not become primary, its overlay and settings become unreachable.',
+  'link.currentAccount': 'Current account',
+  'link.otherAccount': 'Twitch account',
+  'link.ownsChannel': 'owns a channel',
+  'link.choose': 'Make primary',
+  'link.noPending': 'No pending link. Start from the button in the stardust shop.',
 
   'dur.sec': '{n}s',
   'dur.min': '{n} min',
@@ -304,7 +318,8 @@ export const ru: Dict = {
   'wallet.stardust': 'Звёздная пыль',
   'wallet.about': 'Нажми, чтобы потратить на косметику.',
   'wallet.howTitle': 'Как заработать:',
-  'wallet.earnPost': '1 пост = +1',
+  'wallet.earnPost': '1 пост = +10',
+  'wallet.earnChat': '1 сообщение в чате = +1',
   'wallet.earnDonate': '1 ₴ доната = +1',
 
   'shop.open': 'Открыть магазин косметики',
@@ -357,10 +372,23 @@ export const ru: Dict = {
     'Гифки с безопасным рейтингом Giphy идут сразу на экран; рискованные всё равно попадают в очередь.',
   'chatDust.title': 'Звёздная пыль за сообщения в чате',
   'chatDust.note':
-    'Пока вы в эфире, зрители получают 1 пыль за сообщение в чате (не чаще раза в минуту). Зрителям без аккаунта пыль копится и выдаётся при первом входе.',
+    'Пока вы в эфире, зрители получают 1 пыль за каждое сообщение в чате. Зрителям без аккаунта пыль копится и выдаётся при первом входе.',
   'chatDust.reading': 'Бот читает ваш чат — пыль начисляется',
   'chatDust.modHint': 'Напишите /mod {bot} в чате своего канала — бот подключится в течение ~5 минут.',
   'toast.dustClaimed': 'Вы нашли {n} звёздной пыли!',
+  'toast.twitchLinked': 'Twitch привязан',
+  'link.bannerText': 'Получай пыль за каждое сообщение в чате — привяжи Twitch',
+  'link.bannerCta': 'Привязать Twitch',
+  'link.confirmTitle': 'Этот Twitch уже связан с другим аккаунтом',
+  'link.confirmSubtitle':
+    'Выберите основной аккаунт. Второй останется как есть, но войти в него будет нельзя — его пыль и косметика станут недоступны.',
+  'link.loseChannelWarning':
+    'Осторожно: один из аккаунтов владеет каналом. Если он не станет основным, его оверлей и настройки станут недоступны.',
+  'link.currentAccount': 'Текущий аккаунт',
+  'link.otherAccount': 'Аккаунт Twitch',
+  'link.ownsChannel': 'владеет каналом',
+  'link.choose': 'Сделать основным',
+  'link.noPending': 'Нет ожидающей привязки. Начните с кнопки в магазине пыли.',
 
   'dur.sec': '{n} с',
   'dur.min': '{n} мин',
@@ -577,7 +605,8 @@ export const uk: Dict = {
   'wallet.stardust': 'Зоряний пил',
   'wallet.about': 'Натисни, щоб витратити на косметику.',
   'wallet.howTitle': 'Як заробити:',
-  'wallet.earnPost': '1 пост = +1',
+  'wallet.earnPost': '1 пост = +10',
+  'wallet.earnChat': '1 повідомлення в чаті = +1',
   'wallet.earnDonate': '1 ₴ донату = +1',
 
   'shop.open': 'Відкрити магазин косметики',
@@ -630,10 +659,23 @@ export const uk: Dict = {
     'Гіфки з безпечним рейтингом Giphy йдуть одразу на екран; ризиковані все одно потрапляють у чергу.',
   'chatDust.title': 'Зоряний пил за повідомлення в чаті',
   'chatDust.note':
-    'Поки ви в ефірі, глядачі отримують 1 пил за повідомлення в чаті (не частіше разу на хвилину). Глядачам без акаунта пил накопичується і видається при першому вході.',
+    'Поки ви в ефірі, глядачі отримують 1 пил за кожне повідомлення в чаті. Глядачам без акаунта пил накопичується і видається при першому вході.',
   'chatDust.reading': 'Бот читає ваш чат — пил нараховується',
   'chatDust.modHint': 'Напишіть /mod {bot} у чаті свого каналу — бот підключиться протягом ~5 хвилин.',
   'toast.dustClaimed': 'Ви знайшли {n} зоряного пилу!',
+  'toast.twitchLinked': 'Twitch прив’язано',
+  'link.bannerText': 'Отримуй пил за кожне повідомлення в чаті — прив’яжи Twitch',
+  'link.bannerCta': 'Прив’язати Twitch',
+  'link.confirmTitle': 'Цей Twitch вже пов’язаний з іншим акаунтом',
+  'link.confirmSubtitle':
+    'Виберіть основний акаунт. Другий залишиться як є, але увійти в нього буде неможливо — його пил і косметика стануть недоступні.',
+  'link.loseChannelWarning':
+    'Обережно: один з акаунтів володіє каналом. Якщо він не стане основним, його оверлей і налаштування стануть недоступні.',
+  'link.currentAccount': 'Поточний акаунт',
+  'link.otherAccount': 'Акаунт Twitch',
+  'link.ownsChannel': 'володіє каналом',
+  'link.choose': 'Зробити основним',
+  'link.noPending': 'Немає очікуваної прив’язки. Почніть з кнопки в магазині пилу.',
 
   'dur.sec': '{n} с',
   'dur.min': '{n} хв',

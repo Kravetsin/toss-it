@@ -52,6 +52,7 @@ export function StardustWallet({ className = '' }: { className?: string }) {
             <span>{t('wallet.about')}</span>
             <span className="mt-0.5 text-faint">{t('wallet.howTitle')}</span>
             <span className="text-faint">{t('wallet.earnPost')}</span>
+            <span className="text-faint">{t('wallet.earnChat')}</span>
             <span className="text-faint">{t('wallet.earnDonate')}</span>
           </span>
         }

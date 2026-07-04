@@ -14,6 +14,7 @@ import { ChannelPage } from './pages/ChannelPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { ModInvitePage } from './pages/ModInvitePage';
+import { LinkConfirmPage } from './pages/LinkConfirmPage';
 import { PromoCodePage } from './pages/PromoCodePage';
 import { AdminPage } from './pages/AdminPage';
 import { GalleryPage } from './pages/GalleryPage';
@@ -42,6 +43,7 @@ createRoot(document.getElementById('root')!).render(
                 {/* Public routes: no AppShell. */}
                 <Route path="/c/:login" element={<ChannelPage />} />
                 <Route path="/mod-invite/:token" element={<ModInvitePage />} />
+                <Route path="/link/confirm" element={<LinkConfirmPage />} />
                 <Route path="/promo" element={<PromoCodePage />} />
                 <Route path="/admin" element={<AdminPage />} />
                 {import.meta.env.DEV && <Route path="/_gallery" element={<GalleryPage />} />}

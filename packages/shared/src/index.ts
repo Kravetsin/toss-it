@@ -295,12 +295,12 @@ export interface CosmeticItem {
   costDust: number;
 }
 
-/** Single source of truth for buyable cosmetics. */
+/** Single source of truth for buyable cosmetics. Prices assume 1 chat msg = 1 dust, send = 10. */
 export const COSMETICS: CosmeticItem[] = [
-  { id: 'nick-color', type: 'nick_color', costDust: 100 },
-  { id: 'nick-glow', type: 'nick_effect', costDust: 150 },
-  { id: 'card-levitation', type: 'card_effect', costDust: 250 },
-  { id: 'card-stardust', type: 'card_effect', costDust: 350 },
+  { id: 'nick-color', type: 'nick_color', costDust: 1000 },
+  { id: 'nick-glow', type: 'nick_effect', costDust: 1500 },
+  { id: 'card-levitation', type: 'card_effect', costDust: 2500 },
+  { id: 'card-stardust', type: 'card_effect', costDust: 3500 },
 ];
 
 /** What a user currently has equipped (one slot per category). */
@@ -378,6 +378,25 @@ export interface SessionUser {
   ownedCosmetics: string[];
   /** Currently equipped cosmetics (nick color, etc.). */
   equipped: EquippedCosmetics;
+  /** A Twitch identity opens this account (native or linked) — chat dust reaches it. */
+  hasTwitch: boolean;
+}
+
+/** One account's card on the "choose primary" page (/link/confirm). */
+export interface LinkAccountCard {
+  login: string;
+  displayName: string;
+  avatarUrl: string | null;
+  stardust: number;
+  ownsChannel: boolean;
+}
+
+/** Payload of GET /api/auth/link/pending. */
+export interface LinkPendingInfo {
+  /** The account of the current session (the one that initiated linking). */
+  current: LinkAccountCard;
+  /** The account the Twitch identity currently opens. */
+  other: LinkAccountCard;
 }
 
 /** Logged-in streamer's own channel (overlayToken is secret, never expose). */

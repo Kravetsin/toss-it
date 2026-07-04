@@ -6,6 +6,7 @@ import { useMe } from '@/hooks/useMe';
 import { useApiAction } from '@/hooks/useApiAction';
 import { useConfirm } from '@/providers/ConfirmProvider';
 import { Badge, Button, Card, Drawer } from '@/ui';
+import { Icon } from '@/ui/icons';
 import { DustMark } from '@/components/DustMark';
 import { CardEffect } from '@/components/CardEffect';
 import { buyCosmetic, equipCosmetic } from '@/lib/api/shop';
@@ -157,6 +158,25 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
             <span className="tabular-nums">{balance}</span>
           </span>
         </div>
+
+        {user && !user.hasTwitch && (
+          <Card className="flex flex-col gap-2 border-accent/40">
+            <span className="flex items-center gap-1.5 text-sm text-text">
+              <Icon name="sparkles" size={15} className="text-accent" />
+              {t('link.bannerText')}
+            </span>
+            <a
+              href={`/api/auth/link/twitch?returnTo=${encodeURIComponent(
+                window.location.pathname + window.location.search,
+              )}`}
+              className="self-start"
+            >
+              <Button variant="primary" size="sm">
+                {t('link.bannerCta')}
+              </Button>
+            </a>
+          </Card>
+        )}
 
         {section(
           t('shop.nickColor'),

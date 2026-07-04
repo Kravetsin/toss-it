@@ -1,28 +1,32 @@
 import { and, eq, sql } from 'drizzle-orm';
 import { db } from '../../db/index';
-import { pendingDust, users } from '../../db/schema';
-
-/** Same anti-farm convention as sends: at most 1 dust per minute per chatter per channel. */
-const COOLDOWN_MS = 60_000;
-const lastAward = new Map<string, number>();
+import { linkedIdentities, pendingDust, users } from '../../db/schema';
 
 /**
- * +1 stardust to a chatter, by raw Twitch id. Existing users get it on the balance
- * directly; unknown ids accumulate in pending_dust until they first log in.
+ * +1 stardust to a chatter, by raw Twitch id. Identity lookup covers both native
+ * Twitch accounts and Google accounts with a linked Twitch; unknown ids accumulate
+ * in pending_dust until they first log in.
+ * No cooldown by design (economy: 1 msg = 1 dust, send = 10) — Twitch's own chat
+ * rate limits and the live-gate are the spam ceiling.
  */
-export async function awardChatDust(channelId: string, chatterTwitchId: string): Promise<void> {
-  const key = `${channelId}:${chatterTwitchId}`;
-  const now = Date.now();
-  const last = lastAward.get(key);
-  if (last !== undefined && now - last < COOLDOWN_MS) return;
-  lastAward.set(key, now);
-  pruneCooldowns(now);
-
-  const res = await db
-    .update(users)
-    .set({ stardust: sql`${users.stardust} + 1` })
-    .where(eq(users.id, `twitch:${chatterTwitchId}`));
-  if (res.rowsAffected > 0) return;
+export async function awardChatDust(chatterTwitchId: string): Promise<void> {
+  const identity = await db
+    .select({ userId: linkedIdentities.userId })
+    .from(linkedIdentities)
+    .where(
+      and(
+        eq(linkedIdentities.provider, 'twitch'),
+        eq(linkedIdentities.providerId, chatterTwitchId),
+      ),
+    )
+    .get();
+  if (identity) {
+    await db
+      .update(users)
+      .set({ stardust: sql`${users.stardust} + 1` })
+      .where(eq(users.id, identity.userId));
+    return;
+  }
 
   await db
     .insert(pendingDust)
@@ -54,12 +58,4 @@ export async function claimPendingDust(
     .set({ stardust: sql`${users.stardust} + ${amount}` })
     .where(eq(users.id, creditUserId));
   return amount;
-}
-
-// Entries older than the window are dead weight; keep the map bounded.
-function pruneCooldowns(now: number): void {
-  if (lastAward.size < 10_000) return;
-  for (const [key, t] of lastAward) {
-    if (now - t >= COOLDOWN_MS) lastAward.delete(key);
-  }
 }

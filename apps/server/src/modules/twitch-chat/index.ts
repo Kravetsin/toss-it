@@ -1,7 +1,7 @@
-import { like } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import type { FastifyBaseLogger } from 'fastify';
 import { db } from '../../db/index';
-import { channels } from '../../db/schema';
+import { channels, linkedIdentities } from '../../db/schema';
 import { config } from '../../config';
 import { EventSubClient } from './eventsub';
 import { awardChatDust } from './accrual';
@@ -57,7 +57,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     if (!channelId) return;
     if (ev.chatterId === ev.broadcasterId) return; // own chat earns nothing (like sends)
     if (deps.overlayCount(channelId) === 0) return; // accrue only while live
-    awardChatDust(channelId, ev.chatterId).catch((err) =>
+    awardChatDust(ev.chatterId).catch((err) =>
       deps.log.warn({ err }, 'twitch-chat: accrual failed'),
     );
   }
@@ -103,14 +103,21 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     if (!client) return;
     const moderated = await fetchModeratedBroadcasterIds();
     if (!moderated) return; // transient failure — keep the current subscription set
+    // Owner's twitch identity may be native OR linked to a Google account.
     const rows = await db
-      .select({ id: channels.id, ownerUserId: channels.ownerUserId })
+      .select({ id: channels.id, broadcasterId: linkedIdentities.providerId })
       .from(channels)
-      .where(like(channels.ownerUserId, 'twitch:%'))
+      .innerJoin(
+        linkedIdentities,
+        and(
+          eq(linkedIdentities.userId, channels.ownerUserId),
+          eq(linkedIdentities.provider, 'twitch'),
+        ),
+      )
       .all();
     channelByBroadcaster = new Map(
       rows
-        .map((r) => [r.ownerUserId.slice('twitch:'.length), r.id] as const)
+        .map((r) => [r.broadcasterId, r.id] as const)
         .filter(([broadcasterId]) => moderated.has(broadcasterId)),
     );
     client.setBroadcasters(new Set(channelByBroadcaster.keys()));

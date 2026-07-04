@@ -63,6 +63,8 @@ const MOCK_ME: MeResponse = {
     stardust: 250,
     ownedCosmetics: [],
     equipped: {},
+    // false so the "link Twitch" shop banner is visible in mock previews.
+    hasTwitch: false,
   },
   channel: { id: 'ch_dev', overlayToken: 'dev-overlay-token-7f3a91' },
 };
@@ -367,6 +369,24 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
     return {};
   }
   if (pathname === '/api/me/channels') return MOCK_CHANNELS;
+  if (pathname === '/api/auth/link/pending') {
+    return {
+      current: {
+        login: 'kravetsinside',
+        displayName: 'Kravets',
+        avatarUrl: null,
+        stardust: 250,
+        ownsChannel: true,
+      },
+      other: {
+        login: 'kravets_twitch',
+        displayName: 'KravetsTwitch',
+        avatarUrl: null,
+        stardust: 1200,
+        ownsChannel: false,
+      },
+    };
+  }
 
   if (pathname === '/api/cosmetics/buy') {
     const u = MOCK_ME.user!;

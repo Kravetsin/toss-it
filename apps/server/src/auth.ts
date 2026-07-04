@@ -1,8 +1,8 @@
 import crypto from 'node:crypto';
-import { eq, lt } from 'drizzle-orm';
+import { and, eq, lt } from 'drizzle-orm';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { db } from './db/index';
-import { sessions, users, type UserRow } from './db/schema';
+import { linkedIdentities, sessions, users, type UserRow } from './db/schema';
 import { config } from './config';
 
 const SESSION_COOKIE = 'sid';
@@ -162,6 +162,44 @@ export async function ensureUniqueLogin(base: string): Promise<string> {
     candidate = `${clean}_${crypto.randomBytes(2).toString('hex')}`;
   }
   return `${clean}_${crypto.randomBytes(4).toString('hex')}`;
+}
+
+/**
+ * Which user does this provider identity open? Identities are the login source
+ * of truth: linking repoints them, so any provider can open any account.
+ * Self-heals legacy user rows that predate the identities backfill.
+ */
+export async function resolveIdentity(provider: string, providerId: string): Promise<UserRow | null> {
+  const row = await db
+    .select({ user: users })
+    .from(linkedIdentities)
+    .innerJoin(users, eq(users.id, linkedIdentities.userId))
+    .where(
+      and(eq(linkedIdentities.provider, provider), eq(linkedIdentities.providerId, providerId)),
+    )
+    .get();
+  if (row) return row.user;
+  const legacy = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, `${provider}:${providerId}`))
+    .get();
+  if (legacy) {
+    await addIdentity(provider, providerId, legacy.id);
+    return legacy;
+  }
+  return null;
+}
+
+export async function addIdentity(
+  provider: string,
+  providerId: string,
+  userId: string,
+): Promise<void> {
+  await db
+    .insert(linkedIdentities)
+    .values({ provider, providerId, userId, createdAt: new Date() })
+    .onConflictDoNothing();
 }
 
 export async function upsertUser(info: OAuthUserInfo): Promise<UserRow> {

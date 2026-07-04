@@ -23,6 +23,7 @@ import {
   channelIntegrations,
   channelModerators,
   channels,
+  linkedIdentities,
   modInvites,
   submissions,
   users,
@@ -164,10 +165,23 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
   const { playback, io } = deps;
 
   /** Chat-dust indicator: /mod state on Twitch is the only source of truth, no toggle. */
-  const chatBotInfo = (ch: ChannelRow): { login: string | null; reading: boolean } => {
+  const chatBotInfo = async (ch: ChannelRow): Promise<{ login: string | null; reading: boolean }> => {
     const s = deps.twitchChat.status();
+    // Owner's twitch identity may be native or linked to a Google account.
+    const twitchIdentity = s.connected
+      ? await db
+          .select({ providerId: linkedIdentities.providerId })
+          .from(linkedIdentities)
+          .where(
+            and(
+              eq(linkedIdentities.userId, ch.ownerUserId),
+              eq(linkedIdentities.provider, 'twitch'),
+            ),
+          )
+          .get()
+      : undefined;
     return {
-      login: s.connected && ch.ownerUserId.startsWith('twitch:') ? s.login : null,
+      login: s.connected && twitchIdentity ? s.login : null,
       reading: deps.twitchChat.readsChannel(ch.id),
     };
   };
@@ -362,7 +376,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
     async (req, reply): Promise<ChannelSettings | undefined> => {
       const channel = await requireOwnerOf(req, reply, req.params.channelId);
       if (!channel) return;
-      return toSettings(channel, chatBotInfo(channel));
+      return toSettings(channel, await chatBotInfo(channel));
     },
   );
 
@@ -427,7 +441,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         links: 'links' in b ? sanitizeLinks(b.links) : channel.links,
       };
       await db.update(channels).set(patch).where(eq(channels.id, channel.id));
-      return toSettings({ ...channel, ...patch }, chatBotInfo(channel));
+      return toSettings({ ...channel, ...patch }, await chatBotInfo(channel));
     },
   );
 

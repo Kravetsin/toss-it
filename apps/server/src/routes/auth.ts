@@ -1,11 +1,12 @@
 import crypto from 'node:crypto';
-import { eq } from 'drizzle-orm';
-import type { FastifyInstance } from 'fastify';
-import type { MeResponse } from '@tmw/shared';
+import { and, eq } from 'drizzle-orm';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { LinkAccountCard, LinkPendingInfo, MeResponse } from '@tmw/shared';
 import { db } from '../db/index';
-import { channels, userCosmetics, users } from '../db/schema';
+import { channels, linkedIdentities, sessions, userCosmetics, users, type UserRow } from '../db/schema';
 import { config } from '../config';
 import {
+  addIdentity,
   buildAuthorizeUrl,
   buildGoogleAuthorizeUrl,
   createSession,
@@ -18,6 +19,8 @@ import {
   getSessionUser,
   isAdmin,
   requireAdmin,
+  requireUser,
+  resolveIdentity,
   upsertUser,
 } from '../auth';
 import { claimPendingDust } from '../modules/twitch-chat/accrual';
@@ -25,13 +28,44 @@ import { saveBotCredentials } from '../modules/twitch-chat/token';
 import type { TwitchChatModule } from '../modules/twitch-chat/index';
 
 export const STATE_COOKIE = 'oauth_state';
+/** Pending "choose primary account" conflict, set by the link callback. */
+const LINK_COOKIE = 'link_pending';
 const FAKE_LOGIN_RE = /^[a-z0-9_]{2,25}$/i;
 
-/** OAuth state cookie payload. bot=true marks the admin's bot-connect flow. */
+/** OAuth state cookie payload. bot = admin's bot-connect; link = attach Twitch to session user. */
 export interface OAuthState {
   state: string;
   returnTo: string;
   bot?: boolean;
+  link?: boolean;
+}
+
+interface LinkPending {
+  twitchId: string;
+  otherUserId: string;
+}
+
+/** Append query params to a relative returnTo path. */
+function withParams(returnTo: string, params: Record<string, string | number>): string {
+  const entries = Object.entries(params);
+  if (entries.length === 0) return returnTo;
+  const qs = entries.map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+  return returnTo + (returnTo.includes('?') ? '&' : '?') + qs;
+}
+
+function readLinkPending(req: FastifyRequest): LinkPending | null {
+  const raw = req.cookies[LINK_COOKIE];
+  if (!raw) return null;
+  const unsigned = req.unsignCookie(raw);
+  if (!unsigned.valid || !unsigned.value) return null;
+  try {
+    const parsed = JSON.parse(unsigned.value) as LinkPending;
+    return typeof parsed.twitchId === 'string' && typeof parsed.otherUserId === 'string'
+      ? parsed
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 /** returnTo must be a relative path — open-redirect guard. */
@@ -61,12 +95,16 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
         if (!FAKE_LOGIN_RE.test(login)) {
           return reply.code(400).send({ error: 'Некорректный fake-логин' });
         }
-        const user = await upsertUser({
-          id: `fake:${login}`,
-          login,
-          displayName: login,
-          avatarUrl: null,
-        });
+        let user = await resolveIdentity('fake', login);
+        if (!user) {
+          user = await upsertUser({
+            id: `fake:${login}`,
+            login,
+            displayName: login,
+            avatarUrl: null,
+          });
+          await addIdentity('fake', login, user.id);
+        }
         await createSession(reply, user.id);
         return reply.redirect(config.webUrl + returnTo);
       }
@@ -125,16 +163,143 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
       }
 
       const info = await exchangeCodeForUser(req.query.code);
-      const user = await upsertUser(info);
+      const twitchId = info.id.slice('twitch:'.length);
+      const returnTo = safeReturnTo(saved.returnTo);
+
+      // Link flow: attach this Twitch identity to the logged-in (Google) account.
+      if (saved.link) {
+        const current = await requireUser(req, reply);
+        if (!current) return;
+        const owner = await resolveIdentity('twitch', twitchId);
+        if (!owner) {
+          await addIdentity('twitch', twitchId, current.id);
+          const claimed = await claimPendingDust('twitch', twitchId, current.id);
+          return reply.redirect(
+            config.webUrl +
+              withParams(returnTo, claimed > 0 ? { twitchLinked: 1, dustClaimed: claimed } : { twitchLinked: 1 }),
+          );
+        }
+        if (owner.id === current.id) {
+          return reply.redirect(config.webUrl + withParams(returnTo, { twitchLinked: 1 }));
+        }
+        // This Twitch already opens another account — let the person choose the primary.
+        reply.setCookie(
+          LINK_COOKIE,
+          JSON.stringify({ twitchId, otherUserId: owner.id } satisfies LinkPending),
+          {
+            signed: true,
+            httpOnly: true,
+            sameSite: 'lax',
+            secure: config.isProd,
+            path: '/api/auth',
+            maxAge: 600,
+          },
+        );
+        return reply.redirect(config.webUrl + '/link/confirm');
+      }
+
+      let user = await resolveIdentity('twitch', twitchId);
+      if (!user) {
+        user = await upsertUser(info);
+        await addIdentity('twitch', twitchId, user.id);
+      } else if (user.id === info.id) {
+        // Native login refreshes the profile; a linked login must not touch it.
+        user = await upsertUser(info);
+      }
       await createSession(reply, user.id);
       // Dust the chat bot accrued for this Twitch id before the account existed.
-      const claimed = await claimPendingDust('twitch', info.id.slice('twitch:'.length), user.id);
-      const returnTo = safeReturnTo(saved.returnTo);
-      const suffix =
-        claimed > 0 ? `${returnTo.includes('?') ? '&' : '?'}dustClaimed=${claimed}` : '';
-      return reply.redirect(config.webUrl + returnTo + suffix);
+      const claimed = await claimPendingDust('twitch', twitchId, user.id);
+      return reply.redirect(
+        config.webUrl + withParams(returnTo, claimed > 0 ? { dustClaimed: claimed } : {}),
+      );
     },
   );
+
+  /** Attach a Twitch identity to the current session's account (shop banner CTA). */
+  app.get<{ Querystring: { returnTo?: string } }>('/api/auth/link/twitch', async (req, reply) => {
+    const user = await requireUser(req, reply);
+    if (!user) return;
+    if (!config.twitch.clientId) {
+      return reply.code(503).send({ error: 'TWITCH_CLIENT_ID не настроен' });
+    }
+    const returnTo = safeReturnTo(req.query.returnTo);
+    const state = crypto.randomBytes(16).toString('hex');
+    const payload: OAuthState = { state, returnTo, link: true };
+    reply.setCookie(STATE_COOKIE, JSON.stringify(payload), {
+      signed: true,
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: config.isProd,
+      path: '/api/auth',
+      maxAge: 600,
+    });
+    // force_verify: the person must pick WHICH Twitch to attach, not a silent session.
+    return reply.redirect(buildAuthorizeUrl(state, true));
+  });
+
+  /** Data for the /link/confirm chooser page. */
+  app.get('/api/auth/link/pending', async (req, reply): Promise<LinkPendingInfo | undefined> => {
+    const user = await requireUser(req, reply);
+    if (!user) return;
+    const pending = readLinkPending(req);
+    if (!pending) {
+      return reply.code(404).send({ error: 'Нет ожидающей привязки' });
+    }
+    const other = await db.select().from(users).where(eq(users.id, pending.otherUserId)).get();
+    if (!other) {
+      reply.clearCookie(LINK_COOKIE, { path: '/api/auth' });
+      return reply.code(404).send({ error: 'Аккаунт не найден' });
+    }
+    const card = async (u: UserRow): Promise<LinkAccountCard> => ({
+      login: u.login,
+      displayName: u.displayName,
+      avatarUrl: u.avatarUrl,
+      stardust: u.stardust,
+      ownsChannel: !!(await db
+        .select({ id: channels.id })
+        .from(channels)
+        .where(eq(channels.ownerUserId, u.id))
+        .get()),
+    });
+    return { current: await card(user), other: await card(other) };
+  });
+
+  /**
+   * The primary-account choice. Nothing is merged or transferred: identities are
+   * repointed at the chosen account, the losing account just becomes unreachable.
+   */
+  app.post<{ Body: { primary?: string } | null }>('/api/auth/link/resolve', async (req, reply) => {
+    const user = await requireUser(req, reply);
+    if (!user) return;
+    const pending = readLinkPending(req);
+    if (!pending) {
+      return reply.code(400).send({ error: 'Привязка истекла — начните заново' });
+    }
+    const primary = req.body?.primary;
+    if (primary !== 'current' && primary !== 'other') {
+      return reply.code(400).send({ error: 'primary: current | other' });
+    }
+    reply.clearCookie(LINK_COOKIE, { path: '/api/auth' });
+
+    if (primary === 'current') {
+      await db
+        .update(linkedIdentities)
+        .set({ userId: user.id })
+        .where(eq(linkedIdentities.userId, pending.otherUserId));
+      await db.delete(sessions).where(eq(sessions.userId, pending.otherUserId));
+      await claimPendingDust('twitch', pending.twitchId, user.id);
+      return { ok: true, switched: false };
+    }
+    // The other (Twitch-native) account wins: move this account's doors there and re-login.
+    await db
+      .update(linkedIdentities)
+      .set({ userId: pending.otherUserId })
+      .where(eq(linkedIdentities.userId, user.id));
+    await db.delete(sessions).where(eq(sessions.userId, user.id));
+    await claimPendingDust('twitch', pending.twitchId, pending.otherUserId);
+    await createSession(reply, pending.otherUserId);
+    return { ok: true, switched: true };
+  });
 
   app.get<{ Querystring: { returnTo?: string; switch?: string } }>(
     '/api/auth/google/login',
@@ -175,14 +340,17 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
       }
 
       const info = await exchangeGoogleCodeForUser(req.query.code);
-      // Public login is stable: keep existing user's login, pick a free one for new users.
-      const existing = await db
-        .select({ login: users.login })
-        .from(users)
-        .where(eq(users.id, info.id))
-        .get();
-      const login = existing ? existing.login : await ensureUniqueLogin(info.login);
-      const user = await upsertUser({ ...info, login });
+      const sub = info.id.slice('google:'.length);
+      let user = await resolveIdentity('google', sub);
+      if (!user) {
+        // Public login is stable: pick a free one once, at signup.
+        const login = await ensureUniqueLogin(info.login);
+        user = await upsertUser({ ...info, login });
+        await addIdentity('google', sub, user.id);
+      } else if (user.id === info.id) {
+        // Native login refreshes name/avatar but keeps the site-wide login handle.
+        user = await upsertUser({ ...info, login: user.login });
+      }
       await createSession(reply, user.id);
       return reply.redirect(config.webUrl + safeReturnTo(saved.returnTo));
     },
@@ -197,6 +365,11 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
       .from(userCosmetics)
       .where(eq(userCosmetics.userId, user.id))
       .all();
+    const twitchIdentity = await db
+      .select({ providerId: linkedIdentities.providerId })
+      .from(linkedIdentities)
+      .where(and(eq(linkedIdentities.userId, user.id), eq(linkedIdentities.provider, 'twitch')))
+      .get();
     return {
       user: {
         id: user.id,
@@ -208,6 +381,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
         stardust: user.stardust,
         ownedCosmetics: owned.map((o) => o.itemId),
         equipped: user.equipped ?? {},
+        hasTwitch: !!twitchIdentity,
       },
       channel: channel ? { id: channel.id, overlayToken: channel.overlayToken } : null,
     };

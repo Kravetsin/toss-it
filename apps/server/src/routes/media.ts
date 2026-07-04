@@ -316,13 +316,14 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
         };
         await db.insert(submissions).values(row);
 
-        // Stardust: +1 sender and +1 owner per incoming send (even unpublished).
+        // Stardust: +10 sender and +10 owner per incoming send (even unpublished);
+        // a send is worth 10 chat messages (1 msg = 1 dust, no chat cooldown).
         // Owner's own test sends earn nothing (anti self-farm).
         let stardustBalance = user.stardust;
         if (!isOwner) {
-          await addStardust(user.id, 1);
-          await addStardust(channel.ownerUserId, 1);
-          stardustBalance = user.stardust + 1;
+          await addStardust(user.id, 10);
+          await addStardust(channel.ownerUserId, 10);
+          stardustBalance = user.stardust + 10;
         }
 
         let queuePosition = 0;
