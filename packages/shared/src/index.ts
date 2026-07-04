@@ -222,6 +222,10 @@ export interface ChannelSettings {
   autoApproveYoutube: boolean;
   /** Streamer opt-in: GIFs with a safe Giphy rating skip moderation (risky ones still queue). */
   autoApproveGifs: boolean;
+  /** Read-only: chat bot login to /mod, or null when unavailable for this channel. */
+  chatBotLogin: string | null;
+  /** Read-only: the bot is currently subscribed to this channel's chat. */
+  chatBotReading: boolean;
   showSenderName: boolean;
   soundAlert: boolean;
   ttsName: boolean;
@@ -437,6 +441,13 @@ export interface AdminPromoCode {
   /** Redeemer's login, or null if code unused. */
   redeemedByLogin: string | null;
   redeemedAt: number | null;
+}
+
+/** Chat bot connection state (admin panel). */
+export interface AdminBotStatus {
+  connected: boolean;
+  /** Twitch login of the bot account, when connected. */
+  login: string | null;
 }
 
 export interface LeaderboardEntry {

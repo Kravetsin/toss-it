@@ -1,0 +1,1 @@
+ALTER TABLE `channels` DROP COLUMN `chat_dust_enabled`;

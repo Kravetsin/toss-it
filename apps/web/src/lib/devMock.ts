@@ -85,6 +85,8 @@ const MOCK_SETTINGS: ChannelSettings = {
   accepting: true,
   autoApproveYoutube: false,
   autoApproveGifs: true,
+  chatBotLogin: 'tossitbot',
+  chatBotReading: false,
   showSenderName: true,
   soundAlert: true,
   ttsName: false,

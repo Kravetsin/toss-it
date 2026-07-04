@@ -277,7 +277,8 @@ export class PlaybackManager {
     }
   }
 
-  private overlayCount(channelId: string): number {
+  /** Connected OBS overlays for a channel; >0 doubles as our "stream is live" signal. */
+  overlayCount(channelId: string): number {
     return this.io.sockets.adapter.rooms.get(roomOf(channelId))?.size ?? 0;
   }
 

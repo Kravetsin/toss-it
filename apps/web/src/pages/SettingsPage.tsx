@@ -8,6 +8,7 @@ import { useChannels } from '@/features/dashboard/hooks/useChannels';
 import { useSettingsData } from '@/features/dashboard/hooks/useSettingsData';
 import { OverlaySettings } from '@/features/dashboard/components/OverlaySettings';
 import { ModerationSettings } from '@/features/dashboard/components/ModerationSettings';
+import { ChatDustSettings } from '@/features/dashboard/components/ChatDustSettings';
 import { ChannelPageSettings } from '@/features/dashboard/components/ChannelPageSettings';
 import { IntegrationsCard } from '@/features/dashboard/components/IntegrationsCard';
 
@@ -83,7 +84,10 @@ export function SettingsPage() {
       ) : section === 'moderation' ? (
         <ModerationSettings settings={settings} onSave={onSave} />
       ) : section === 'channel' ? (
-        <ChannelPageSettings settings={settings} onSave={onSave} />
+        <div className="flex flex-col gap-4">
+          <ChannelPageSettings settings={settings} onSave={onSave} />
+          <ChatDustSettings settings={settings} />
+        </div>
       ) : (
         <IntegrationsCard
           channelId={channelId}

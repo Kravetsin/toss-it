@@ -82,6 +82,12 @@ export const en: Dict = {
   'mod.gifAutoApprove': 'Skip moderation for safe GIFs',
   'mod.gifAutoApproveNote':
     'GIFs with a safe Giphy rating go straight to the screen; riskier ones still go to your queue.',
+  'chatDust.title': 'Stardust for chat messages',
+  'chatDust.note':
+    'While you are live, viewers earn 1 stardust per chat message (at most once a minute). Viewers without an account get their dust when they first sign in.',
+  'chatDust.reading': 'The bot is reading your chat — dust is being earned',
+  'chatDust.modHint': 'Type /mod {bot} in your chat — the bot connects within ~5 minutes.',
+  'toast.dustClaimed': 'You found {n} stardust!',
 
   'dur.sec': '{n}s',
   'dur.min': '{n} min',
@@ -349,6 +355,12 @@ export const ru: Dict = {
   'mod.gifAutoApprove': 'Пропускать безопасные GIF без модерации',
   'mod.gifAutoApproveNote':
     'Гифки с безопасным рейтингом Giphy идут сразу на экран; рискованные всё равно попадают в очередь.',
+  'chatDust.title': 'Звёздная пыль за сообщения в чате',
+  'chatDust.note':
+    'Пока вы в эфире, зрители получают 1 пыль за сообщение в чате (не чаще раза в минуту). Зрителям без аккаунта пыль копится и выдаётся при первом входе.',
+  'chatDust.reading': 'Бот читает ваш чат — пыль начисляется',
+  'chatDust.modHint': 'Напишите /mod {bot} в чате своего канала — бот подключится в течение ~5 минут.',
+  'toast.dustClaimed': 'Вы нашли {n} звёздной пыли!',
 
   'dur.sec': '{n} с',
   'dur.min': '{n} мин',
@@ -616,6 +628,12 @@ export const uk: Dict = {
   'mod.gifAutoApprove': 'Пропускати безпечні GIF без модерації',
   'mod.gifAutoApproveNote':
     'Гіфки з безпечним рейтингом Giphy йдуть одразу на екран; ризиковані все одно потрапляють у чергу.',
+  'chatDust.title': 'Зоряний пил за повідомлення в чаті',
+  'chatDust.note':
+    'Поки ви в ефірі, глядачі отримують 1 пил за повідомлення в чаті (не частіше разу на хвилину). Глядачам без акаунта пил накопичується і видається при першому вході.',
+  'chatDust.reading': 'Бот читає ваш чат — пил нараховується',
+  'chatDust.modHint': 'Напишіть /mod {bot} у чаті свого каналу — бот підключиться протягом ~5 хвилин.',
+  'toast.dustClaimed': 'Ви знайшли {n} зоряного пилу!',
 
   'dur.sec': '{n} с',
   'dur.min': '{n} хв',

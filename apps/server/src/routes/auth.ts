@@ -13,13 +13,26 @@ import {
   ensureUniqueLogin,
   exchangeCodeForUser,
   exchangeGoogleCodeForUser,
+  exchangeTwitchCode,
+  fetchTwitchUser,
   getSessionUser,
   isAdmin,
+  requireAdmin,
   upsertUser,
 } from '../auth';
+import { claimPendingDust } from '../modules/twitch-chat/accrual';
+import { saveBotCredentials } from '../modules/twitch-chat/token';
+import type { TwitchChatModule } from '../modules/twitch-chat/index';
 
-const STATE_COOKIE = 'oauth_state';
+export const STATE_COOKIE = 'oauth_state';
 const FAKE_LOGIN_RE = /^[a-z0-9_]{2,25}$/i;
+
+/** OAuth state cookie payload. bot=true marks the admin's bot-connect flow. */
+export interface OAuthState {
+  state: string;
+  returnTo: string;
+  bot?: boolean;
+}
 
 /** returnTo must be a relative path — open-redirect guard. */
 function safeReturnTo(value: unknown): string {
@@ -28,7 +41,11 @@ function safeReturnTo(value: unknown): string {
     : '/';
 }
 
-export function registerAuthRoutes(app: FastifyInstance): void {
+export interface AuthRoutesDeps {
+  twitchChat: TwitchChatModule;
+}
+
+export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): void {
   app.get<{ Querystring: { fake?: string; returnTo?: string; switch?: string } }>(
     '/api/auth/login',
     async (req, reply) => {
@@ -83,17 +100,39 @@ export function registerAuthRoutes(app: FastifyInstance): void {
       if (!unsigned?.valid) {
         return reply.code(400).send({ error: 'Потерян state (куки). Попробуй войти ещё раз.' });
       }
-      const saved = JSON.parse(unsigned.value) as { state: string; returnTo: string };
+      const saved = JSON.parse(unsigned.value) as OAuthState;
       if (req.query.error || !req.query.code || req.query.state !== saved.state) {
         return reply
           .code(400)
           .send({ error: `Авторизация не удалась: ${req.query.error ?? 'bad state'}` });
       }
 
+      // Bot connect (admin-initiated, see /api/admin/bot/connect): store the bot
+      // account's tokens instead of logging anyone in.
+      if (saved.bot) {
+        const admin = await requireAdmin(req, reply);
+        if (!admin) return;
+        const tokens = await exchangeTwitchCode(req.query.code);
+        const bot = await fetchTwitchUser(tokens.accessToken);
+        await saveBotCredentials({
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+          userId: bot.id,
+          login: bot.login,
+        });
+        deps.twitchChat.credentialsChanged();
+        return reply.redirect(config.webUrl + safeReturnTo(saved.returnTo));
+      }
+
       const info = await exchangeCodeForUser(req.query.code);
       const user = await upsertUser(info);
       await createSession(reply, user.id);
-      return reply.redirect(config.webUrl + safeReturnTo(saved.returnTo));
+      // Dust the chat bot accrued for this Twitch id before the account existed.
+      const claimed = await claimPendingDust('twitch', info.id.slice('twitch:'.length), user.id);
+      const returnTo = safeReturnTo(saved.returnTo);
+      const suffix =
+        claimed > 0 ? `${returnTo.includes('?') ? '&' : '?'}dustClaimed=${claimed}` : '';
+      return reply.redirect(config.webUrl + returnTo + suffix);
     },
   );
 

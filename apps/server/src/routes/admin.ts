@@ -1,11 +1,14 @@
 import crypto from 'node:crypto';
 import { desc, eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
-import type { AdminPromoCode } from '@tmw/shared';
+import type { AdminBotStatus, AdminPromoCode } from '@tmw/shared';
 import { db } from '../db/index';
 import { promoCodes, users } from '../db/schema';
-import { requireAdmin } from '../auth';
+import { buildAuthorizeUrl, requireAdmin } from '../auth';
+import { config } from '../config';
+import type { TwitchChatModule } from '../modules/twitch-chat/index';
 import { isKnownGrant } from './promo';
+import { STATE_COOKIE, type OAuthState } from './auth';
 
 // No ambiguous chars (0/O/1/I) so codes are easy to dictate.
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -20,7 +23,49 @@ function genCode(): string {
   return `FND-${randomChunk(4)}-${randomChunk(4)}`;
 }
 
-export function registerAdminRoutes(app: FastifyInstance): void {
+export interface AdminRoutesDeps {
+  twitchChat: TwitchChatModule;
+}
+
+export function registerAdminRoutes(app: FastifyInstance, deps: AdminRoutesDeps): void {
+  app.get('/api/admin/bot', async (req, reply): Promise<AdminBotStatus | undefined> => {
+    const admin = await requireAdmin(req, reply);
+    if (!admin) return;
+    const s = deps.twitchChat.status();
+    return { connected: s.connected, login: s.login };
+  });
+
+  /** One-time bot hookup: the admin logs in AS the bot account with chat-read scope. */
+  app.get<{ Querystring: { returnTo?: string } }>(
+    '/api/admin/bot/connect',
+    async (req, reply) => {
+      const admin = await requireAdmin(req, reply);
+      if (!admin) return;
+      if (!config.twitch.clientId) {
+        return reply.code(503).send({ error: 'TWITCH_CLIENT_ID не настроен' });
+      }
+      const returnTo =
+        typeof req.query.returnTo === 'string' && req.query.returnTo.startsWith('/')
+          ? req.query.returnTo
+          : '/';
+      const state = crypto.randomBytes(16).toString('hex');
+      const payload: OAuthState = { state, returnTo, bot: true };
+      reply.setCookie(STATE_COOKIE, JSON.stringify(payload), {
+        signed: true,
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: config.isProd,
+        path: '/api/auth',
+        maxAge: 600,
+      });
+      // force_verify so the admin can pick the bot account, not their own session.
+      // moderated_channels: the /mod list is the opt-in signal for chat-dust channels.
+      return reply.redirect(
+        buildAuthorizeUrl(state, true, 'user:read:chat user:read:moderated_channels'),
+      );
+    },
+  );
+
   app.post<{ Body: { count?: number; note?: string; grant?: string } }>(
     '/api/admin/promo',
     async (req, reply): Promise<{ codes: string[] } | undefined> => {

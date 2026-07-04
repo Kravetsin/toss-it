@@ -78,7 +78,14 @@ const io: import('./playback').RealtimeServer = new Server(app.server, {
 const playback = setupRealtime(io, app);
 await playback.recoverFromDb();
 
-registerRoutes(app, { playback, storage, tmpDir, io });
+// Optional Twitch chat module: dormant unless bot credentials exist in app_meta.
+const { createTwitchChatModule } = await import('./modules/twitch-chat/index');
+const twitchChat = createTwitchChatModule({
+  overlayCount: (channelId) => playback.overlayCount(channelId),
+  log: app.log,
+});
+
+registerRoutes(app, { playback, storage, tmpDir, io, twitchChat });
 startCleanup(storage, app.log);
 
 if (config.allowFakeAuth) {
@@ -86,6 +93,7 @@ if (config.allowFakeAuth) {
 }
 
 app.addHook('onClose', async () => {
+  twitchChat.stop();
   await io.close();
 });
 

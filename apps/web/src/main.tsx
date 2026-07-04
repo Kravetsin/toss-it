@@ -7,6 +7,7 @@ import { ConfirmProvider } from '@/providers/ConfirmProvider';
 import { ToastProvider } from '@/providers/ToastProvider';
 import { MeProvider } from '@/providers/MeProvider';
 import { AppShell } from '@/components/AppShell';
+import { DustClaimedToast } from '@/components/DustClaimedToast';
 import { I18nProvider, LanguageSwitcher } from './i18n';
 import { HomePage } from './pages/HomePage';
 import { ChannelPage } from './pages/ChannelPage';
@@ -46,6 +47,7 @@ createRoot(document.getElementById('root')!).render(
                 {import.meta.env.DEV && <Route path="/_gallery" element={<GalleryPage />} />}
               </Routes>
               <LanguageSwitcher />
+              <DustClaimedToast />
             </BrowserRouter>
           </MeProvider>
         </ConfirmProvider>

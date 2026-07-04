@@ -15,12 +15,12 @@ export interface OAuthUserInfo {
   avatarUrl: string | null;
 }
 
-export function buildAuthorizeUrl(state: string, forceVerify = false): string {
+export function buildAuthorizeUrl(state: string, forceVerify = false, scope = ''): string {
   const params = new URLSearchParams({
     client_id: config.twitch.clientId,
     redirect_uri: config.twitch.redirectUri,
     response_type: 'code',
-    scope: '', // identity only
+    scope, // login uses '' (identity only); bot connect asks for user:read:chat
     state,
   });
   // force_verify shows the auth screen even with a live session; otherwise
@@ -29,8 +29,10 @@ export function buildAuthorizeUrl(state: string, forceVerify = false): string {
   return `https://id.twitch.tv/oauth2/authorize?${params}`;
 }
 
-/** Exchange authorization code -> access token -> Helix user data. */
-export async function exchangeCodeForUser(code: string): Promise<OAuthUserInfo> {
+/** Exchange authorization code -> tokens. refreshToken matters for the chat bot module. */
+export async function exchangeTwitchCode(
+  code: string,
+): Promise<{ accessToken: string; refreshToken: string }> {
   const tokenRes = await fetch('https://id.twitch.tv/oauth2/token', {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
@@ -45,11 +47,17 @@ export async function exchangeCodeForUser(code: string): Promise<OAuthUserInfo> 
   if (!tokenRes.ok) {
     throw new Error(`twitch token exchange failed: ${tokenRes.status}`);
   }
-  const { access_token } = (await tokenRes.json()) as { access_token: string };
+  const body = (await tokenRes.json()) as { access_token: string; refresh_token?: string };
+  return { accessToken: body.access_token, refreshToken: body.refresh_token ?? '' };
+}
 
+/** Helix profile of the token's owner. id is the raw numeric Twitch id (no prefix). */
+export async function fetchTwitchUser(
+  accessToken: string,
+): Promise<{ id: string; login: string; displayName: string; avatarUrl: string | null }> {
   const userRes = await fetch('https://api.twitch.tv/helix/users', {
     headers: {
-      Authorization: `Bearer ${access_token}`,
+      Authorization: `Bearer ${accessToken}`,
       'Client-Id': config.twitch.clientId,
     },
   });
@@ -62,10 +70,22 @@ export async function exchangeCodeForUser(code: string): Promise<OAuthUserInfo> 
   const u = body.data[0];
   if (!u) throw new Error('twitch returned no user');
   return {
-    id: `twitch:${u.id}`,
+    id: u.id,
     login: u.login,
     displayName: u.display_name,
     avatarUrl: u.profile_image_url || null,
+  };
+}
+
+/** Exchange authorization code -> access token -> Helix user data. */
+export async function exchangeCodeForUser(code: string): Promise<OAuthUserInfo> {
+  const { accessToken } = await exchangeTwitchCode(code);
+  const u = await fetchTwitchUser(accessToken);
+  return {
+    id: `twitch:${u.id}`,
+    login: u.login,
+    displayName: u.displayName,
+    avatarUrl: u.avatarUrl,
   };
 }
 

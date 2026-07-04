@@ -31,6 +31,7 @@ import {
 } from '../db/schema';
 import { config } from '../config';
 import { requireUser } from '../auth';
+import type { TwitchChatModule } from '../modules/twitch-chat/index';
 import { decryptSecret, encryptSecret } from '../crypto';
 import {
   dashboardRoomOf,
@@ -46,6 +47,7 @@ import {
 export interface DashboardRoutesDeps {
   playback: PlaybackManager;
   io: RealtimeServer;
+  twitchChat: TwitchChatModule;
 }
 
 /** Public Donatello callback URL for a channel (where the provider POSTs donations). */
@@ -131,8 +133,10 @@ function sanitizeLinks(input: unknown): ChannelLink[] {
   return out;
 }
 
-function toSettings(ch: ChannelRow): ChannelSettings {
+function toSettings(ch: ChannelRow, chatBot: { login: string | null; reading: boolean }): ChannelSettings {
   return {
+    chatBotLogin: chatBot.login,
+    chatBotReading: chatBot.reading,
     maxDurationMs: ch.maxDurationMs,
     maxAudioDurationMs: ch.maxAudioDurationMs,
     maxFileSizeBytes: ch.maxFileSizeBytes,
@@ -158,6 +162,15 @@ function toSettings(ch: ChannelRow): ChannelSettings {
 
 export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRoutesDeps): void {
   const { playback, io } = deps;
+
+  /** Chat-dust indicator: /mod state on Twitch is the only source of truth, no toggle. */
+  const chatBotInfo = (ch: ChannelRow): { login: string | null; reading: boolean } => {
+    const s = deps.twitchChat.status();
+    return {
+      login: s.connected && ch.ownerUserId.startsWith('twitch:') ? s.login : null,
+      reading: deps.twitchChat.readsChannel(ch.id),
+    };
+  };
 
   /** Channels the user can access (owned + where they moderate). */
   app.get('/api/me/channels', async (req, reply): Promise<AccessibleChannel[] | undefined> => {
@@ -349,7 +362,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
     async (req, reply): Promise<ChannelSettings | undefined> => {
       const channel = await requireOwnerOf(req, reply, req.params.channelId);
       if (!channel) return;
-      return toSettings(channel);
+      return toSettings(channel, chatBotInfo(channel));
     },
   );
 
@@ -414,7 +427,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         links: 'links' in b ? sanitizeLinks(b.links) : channel.links,
       };
       await db.update(channels).set(patch).where(eq(channels.id, channel.id));
-      return toSettings({ ...channel, ...patch });
+      return toSettings({ ...channel, ...patch }, chatBotInfo(channel));
     },
   );
 

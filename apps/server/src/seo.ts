@@ -166,6 +166,15 @@ function buildHead(m: PageMeta): string {
 const FALLBACK_WRAP =
   'min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#0d1111;color:#e6edf0;font-family:system-ui,-apple-system,sans-serif;text-align:center;padding:40px;box-sizing:border-box';
 
+// Crawlable internal links to the language variants: gives Googlebot a path to /ru and /uk
+// from the homepage (the page it actually crawls), independent of the sitemap.
+const LANG_LINKS =
+  `<p style="margin:0;color:#5b6b70;font-size:13px">` +
+  `<a href="/" style="color:#8df0cc">English</a> · ` +
+  `<a href="/ru" style="color:#8df0cc">Русский</a> · ` +
+  `<a href="/uk" style="color:#8df0cc">Українська</a>` +
+  `</p>`;
+
 function homeBody(lang: Lang): string {
   const L = LOCALES[lang];
   return (
@@ -174,6 +183,7 @@ function homeBody(lang: Lang): string {
     `<h1 style="font-size:40px;margin:0">Tossit</h1>` +
     `<p style="max-width:520px;color:#9fb0b5;margin:0;line-height:1.5">${esc(L.tagline)}</p>` +
     `<p style="color:#5b6b70;font-size:14px;margin:0">${esc(L.how)}</p>` +
+    LANG_LINKS +
     `</div>`
   );
 }

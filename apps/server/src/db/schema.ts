@@ -174,6 +174,21 @@ export const promoCodes = sqliteTable('promo_codes', {
   redeemedAt: integer('redeemed_at', { mode: 'timestamp_ms' }),
 });
 
+/**
+ * Stardust earned by a platform identity (chat bot) with no user row yet.
+ * Claimed and deleted at first login with that identity. platform: 'twitch' | ...
+ */
+export const pendingDust = sqliteTable(
+  'pending_dust',
+  {
+    platform: text('platform').notNull(),
+    platformUserId: text('platform_user_id').notNull(),
+    amount: integer('amount').notNull().default(0),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.platform, t.platformUserId] })],
+);
+
 /** Cosmetics a user owns (bought with stardust). itemId = catalog id from COSMETICS. */
 export const userCosmetics = sqliteTable(
   'user_cosmetics',
