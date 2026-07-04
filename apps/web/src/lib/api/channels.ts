@@ -2,6 +2,8 @@ import type {
   AccessibleChannel,
   ChannelSelf,
   LeaderboardEntry,
+  LeaderboardMetric,
+  LeaderboardPeriod,
   PublicChannelInfo,
   UploadResponse,
   ApiError,
@@ -79,10 +81,14 @@ export function getMyChannels(): Promise<AccessibleChannel[]> {
   return fetch('/api/me/channels').then((r) => json<AccessibleChannel[]>(r));
 }
 
-export function getLeaderboard(login: string): Promise<LeaderboardEntry[]> {
-  return fetch(`/api/c/${encodeURIComponent(login)}/leaderboard`).then((r) =>
-    json<LeaderboardEntry[]>(r),
-  );
+export function getLeaderboard(
+  login: string,
+  metric: LeaderboardMetric = 'sends',
+  period: LeaderboardPeriod = 'all',
+): Promise<LeaderboardEntry[]> {
+  return fetch(
+    `/api/c/${encodeURIComponent(login)}/leaderboard?metric=${metric}&period=${period}`,
+  ).then((r) => json<LeaderboardEntry[]>(r));
 }
 
 /**

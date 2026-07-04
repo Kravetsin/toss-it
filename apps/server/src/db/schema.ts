@@ -193,6 +193,31 @@ export const promoCodes = sqliteTable('promo_codes', {
 });
 
 /**
+ * Per-channel chat activity counters (leaderboard: messages / watch time),
+ * keyed by platform identity — chatters often have no Tossit account.
+ * month = 'YYYY-MM' (UTC); "all time" is summed across months at query time.
+ */
+export const channelActivity = sqliteTable(
+  'channel_activity',
+  {
+    channelId: text('channel_id').notNull(),
+    platform: text('platform').notNull(),
+    platformUserId: text('platform_user_id').notNull(),
+    month: text('month').notNull(),
+    /** Last seen chatter name/login — render without extra provider lookups. */
+    displayName: text('display_name').notNull(),
+    login: text('login').notNull(),
+    messages: integer('messages').notNull().default(0),
+    watchMinutes: integer('watch_minutes').notNull().default(0),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.channelId, t.platform, t.platformUserId, t.month] }),
+    index('idx_channel_activity_top').on(t.channelId, t.month),
+  ],
+);
+
+/**
  * Stardust earned by a platform identity (chat bot) with no user row yet.
  * Claimed and deleted at first login with that identity. platform: 'twitch' | ...
  */

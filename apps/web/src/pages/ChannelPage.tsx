@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import type { LeaderboardEntry, PublicChannelInfo } from '@tmw/shared';
+import type { PublicChannelInfo } from '@tmw/shared';
 import { getChannel, getLeaderboard } from '@/lib/api';
 import { useMe } from '@/hooks/useMe';
 import { useI18n } from '@/i18n';
@@ -21,22 +21,18 @@ export function ChannelPage() {
   const { login = '' } = useParams();
   const { me, refresh } = useMe();
   const [channel, setChannel] = useState<PublicChannelInfo | null | 'loading'>('loading');
-  const [board, setBoard] = useState<LeaderboardEntry[]>([]);
+  // Leaderboard fetches itself (tabs/periods); the key just tells it "you sent something".
+  const [boardRefresh, setBoardRefresh] = useState(0);
   const composeRef = useRef<HTMLDivElement>(null);
   const firedRef = useRef<string | null>(null);
 
-  const loadBoard = useCallback(() => {
-    void getLeaderboard(login)
-      .then(setBoard)
-      .catch(() => {});
-  }, [login]);
+  const bumpBoard = useCallback(() => setBoardRefresh((k) => k + 1), []);
 
   useEffect(() => {
     void getChannel(login)
       .then(setChannel)
       .catch(() => setChannel(null));
-    loadBoard();
-  }, [login, loadBoard]);
+  }, [login]);
 
   // On mount: populate sky with stars based on total visible posts from all contributors.
   // Channel cosmos incentivizes quality submissions. Stars animate in with fade/twinkle.
@@ -47,7 +43,7 @@ export function ChannelPage() {
     void getLeaderboard(login)
       .then((b) => {
         if (cancelled) return;
-        const total = b.reduce((sum, e) => sum + e.count, 0);
+        const total = b.reduce((sum, e) => sum + e.value, 0);
         if (total > 0) timer = window.setTimeout(() => populateCosmos(total), 500);
       })
       .catch(() => {});
@@ -58,7 +54,7 @@ export function ChannelPage() {
   }, [login]);
 
   const loadedChannel = channel !== 'loading' ? channel : null;
-  const sub = useMediaSubmission(loadedChannel, login, loadBoard);
+  const sub = useMediaSubmission(loadedChannel, login, bumpBoard);
 
   // On successful submission: animate stardust fragment to sender's wallet, update balance, refresh user state.
   useEffect(() => {
@@ -133,7 +129,7 @@ export function ChannelPage() {
         )}
       </div>
 
-      <Leaderboard board={board} meId={me?.user?.id ?? null} />
+      <Leaderboard login={login} meId={me?.user?.id ?? null} refreshKey={boardRefresh} />
     </ChannelShell>
   );
 }

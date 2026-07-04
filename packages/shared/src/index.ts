@@ -469,12 +469,19 @@ export interface AdminBotStatus {
   login: string | null;
 }
 
+export type LeaderboardMetric = 'sends' | 'messages' | 'watch' | 'level';
+export type LeaderboardPeriod = 'month' | 'all';
+
 export interface LeaderboardEntry {
+  /**
+   * Tossit account id when known; chatters without an account get the synthetic
+   * 'twitch:<id>' (their future native id — platform glyph and "you" highlight work).
+   */
   userId: string;
   login: string;
   displayName: string;
-  /** How many of this viewer's media actually played on stream. */
-  count: number;
+  /** Metric value: plays / messages / watch minutes / level. */
+  value: number;
   isFounder: boolean;
   /** Equipped nickname color (#rrggbb), null if none. */
   nickColor: string | null;

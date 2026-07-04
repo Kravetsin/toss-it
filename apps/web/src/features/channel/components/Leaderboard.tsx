@@ -1,7 +1,9 @@
-import type { LeaderboardEntry } from '@tmw/shared';
+import { useCallback, useEffect, useState } from 'react';
+import type { LeaderboardEntry, LeaderboardMetric, LeaderboardPeriod } from '@tmw/shared';
+import { getLeaderboard } from '@/lib/api';
 import { useI18n } from '@/i18n';
 import { useMe } from '@/hooks/useMe';
-import { Icon } from '@/ui/icons';
+import { Icon, type IconName } from '@/ui/icons';
 import { Card } from '@/ui';
 import { PlatformIcon, UserBadges } from '@/components/UserMarks';
 import { CardEffect } from '@/components/CardEffect';
@@ -9,10 +11,78 @@ import { nickProps } from '@/lib/nick';
 import { StarMark } from '@/components/StarMark';
 import { CosmosLegend } from '@/features/channel/components/CosmosLegend';
 
-export function Leaderboard({ board, meId }: { board: LeaderboardEntry[]; meId: string | null }) {
+const METRIC_TABS: { key: LeaderboardMetric; icon: IconName; label: string }[] = [
+  { key: 'sends', icon: 'send', label: 'lb.sends' },
+  { key: 'messages', icon: 'message-circle', label: 'lb.messages' },
+  { key: 'watch', icon: 'clock', label: 'lb.watch' },
+  { key: 'level', icon: 'star', label: 'lb.level' },
+];
+
+function TabBtn({
+  active,
+  onClick,
+  icon,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: IconName;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`flex flex-1 items-center justify-center gap-1.5 rounded-none px-2 py-1.5 label-mono transition-colors duration-200 ease-out ${
+        active ? 'bg-accent text-accent-contrast' : 'text-muted hover:text-text'
+      }`}
+    >
+      <Icon name={icon} size={14} />
+      <span className="hidden sm:inline">{label}</span>
+    </button>
+  );
+}
+
+/** Per-channel leaderboard: sends / chat messages / watch time / level, month or all-time. */
+export function Leaderboard({
+  login,
+  meId,
+  refreshKey,
+}: {
+  login: string;
+  meId: string | null;
+  refreshKey: number;
+}) {
   const { t } = useI18n();
   const { me } = useMe();
-  const totalShown = board.reduce((sum, e) => sum + e.count, 0);
+  const [metric, setMetric] = useState<LeaderboardMetric>('sends');
+  const [period, setPeriod] = useState<LeaderboardPeriod>('all');
+  const [board, setBoard] = useState<LeaderboardEntry[]>([]);
+
+  const load = useCallback(() => {
+    void getLeaderboard(login, metric, period)
+      .then(setBoard)
+      .catch(() => {});
+  }, [login, metric, period]);
+
+  // refreshKey bumps after the viewer's own send; the interval beats WizeBot's 15 min.
+  useEffect(() => {
+    load();
+  }, [load, refreshKey]);
+  useEffect(() => {
+    const timer = window.setInterval(load, 60_000);
+    return () => window.clearInterval(timer);
+  }, [load]);
+
+  const formatValue = (value: number): string => {
+    if (metric !== 'watch') return String(value);
+    const h = Math.floor(value / 60);
+    const m = value % 60;
+    return h > 0 ? t('dur.hourMin', { h, m }) : t('dur.min', { n: m });
+  };
+
+  const totalShown = board.reduce((sum, e) => sum + e.value, 0);
   return (
     <div className="mt-8">
       <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -20,10 +90,43 @@ export function Leaderboard({ board, meId }: { board: LeaderboardEntry[]; meId: 
           <Icon name="trophy" size={16} className="text-warn" />
           {t('channel.leaderboard')}
         </h2>
-        <CosmosLegend count={totalShown} className="ml-auto" />
+        {/* Cosmos stars mirror shows on stream — only the sends metric. */}
+        {metric === 'sends' && <CosmosLegend count={totalShown} className="ml-auto" />}
       </div>
+
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="flex flex-1 gap-1 border border-border bg-surface-2 p-1">
+          {METRIC_TABS.map((tab) => (
+            <TabBtn
+              key={tab.key}
+              active={metric === tab.key}
+              onClick={() => setMetric(tab.key)}
+              icon={tab.icon}
+              label={t(tab.label)}
+            />
+          ))}
+        </div>
+        <div className="flex gap-1 border border-border bg-surface-2 p-1">
+          {(['month', 'all'] as const).map((p) => (
+            <button
+              key={p}
+              type="button"
+              aria-pressed={period === p}
+              onClick={() => setPeriod(p)}
+              className={`rounded-none px-2.5 py-1.5 label-mono transition-colors duration-200 ease-out ${
+                period === p ? 'bg-accent text-accent-contrast' : 'text-muted hover:text-text'
+              }`}
+            >
+              {t(p === 'month' ? 'lb.month' : 'lb.all')}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {board.length === 0 ? (
-        <p className="text-muted">{t('channel.leaderboardEmpty')}</p>
+        <p className="text-muted">
+          {t(metric === 'sends' ? 'channel.leaderboardEmpty' : 'lb.empty')}
+        </p>
       ) : (
         <Card>
           <ol className="flex flex-col gap-1.5">
@@ -60,9 +163,17 @@ export function Leaderboard({ board, meId }: { board: LeaderboardEntry[]; meId: 
                     <PlatformIcon userId={e.userId} size={13} />
                     <UserBadges isFounder={e.isFounder} variant="icons" />
                     {isYou && <span className="label-mono text-accent">{t('channel.you')}</span>}
-                    <span className="ml-auto flex items-center gap-1.5 text-muted">
-                      <StarMark size={13} className="text-accent" />
-                      {e.count}
+                    <span className="ml-auto flex items-center gap-1.5 whitespace-nowrap text-muted">
+                      {metric === 'sends' ? (
+                        <StarMark size={13} className="text-accent" />
+                      ) : (
+                        <Icon
+                          name={METRIC_TABS.find((m) => m.key === metric)!.icon}
+                          size={13}
+                          className="text-accent"
+                        />
+                      )}
+                      {formatValue(e.value)}
                     </span>
                   </div>
                 </li>

@@ -10,6 +10,8 @@ const RECONNECT_MAX_MS = 60_000;
 export interface ChatMessageEvent {
   broadcasterId: string;
   chatterId: string;
+  chatterLogin: string;
+  chatterName: string;
 }
 
 export interface EventSubDeps {
@@ -26,7 +28,12 @@ interface EventSubMessage {
   payload?: {
     session?: { id: string; keepalive_timeout_seconds: number | null; reconnect_url?: string };
     subscription?: { id: string; type: string; condition?: { broadcaster_user_id?: string } };
-    event?: { broadcaster_user_id?: string; chatter_user_id?: string };
+    event?: {
+      broadcaster_user_id?: string;
+      chatter_user_id?: string;
+      chatter_user_login?: string;
+      chatter_user_name?: string;
+    };
   };
 }
 
@@ -139,6 +146,8 @@ export class EventSubClient {
         this.deps.onChatMessage({
           broadcasterId: ev.broadcaster_user_id,
           chatterId: ev.chatter_user_id,
+          chatterLogin: ev.chatter_user_login ?? ev.chatter_user_id,
+          chatterName: ev.chatter_user_name ?? ev.chatter_user_login ?? ev.chatter_user_id,
         });
       }
       return;

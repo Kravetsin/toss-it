@@ -1,14 +1,137 @@
 import crypto from 'node:crypto';
-import { and, count, desc, eq, isNotNull } from 'drizzle-orm';
+import { and, count, desc, eq, gte, inArray, isNotNull, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
-import type { ChannelSelf, LeaderboardEntry, PublicChannelInfo } from '@tmw/shared';
+import type {
+  ChannelSelf,
+  LeaderboardEntry,
+  LeaderboardMetric,
+  LeaderboardPeriod,
+  PublicChannelInfo,
+} from '@tmw/shared';
 import { db } from '../db/index';
-import { channels, submissions, users } from '../db/schema';
+import { channelActivity, channels, linkedIdentities, submissions, users } from '../db/schema';
 import { config } from '../config';
 import { getSessionUser, requireUser } from '../auth';
 
 function newOverlayToken(): string {
   return crypto.randomBytes(24).toString('hex');
+}
+
+const LB_METRICS: readonly string[] = ['sends', 'messages', 'watch', 'level'];
+const LB_PERIODS: readonly string[] = ['month', 'all'];
+const LB_CACHE_MS = 30_000;
+/** The page polls every minute; cache keeps repeated public hits off the DB. */
+const lbCache = new Map<string, { at: number; entries: LeaderboardEntry[] }>();
+
+/** Level curve over XP = messages + watch minutes: early levels cheap, then slower.
+ *  Never stored — retuning the formula recomputes history for free. */
+const levelOf = (xp: number) => Math.floor(Math.sqrt(xp / 25));
+
+const monthStartUtc = () => {
+  const d = new Date();
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
+};
+const currentMonth = () => new Date().toISOString().slice(0, 7);
+
+/** Top-10 by media that actually played (the original leaderboard). */
+async function sendsBoard(channelId: string, period: LeaderboardPeriod): Promise<LeaderboardEntry[]> {
+  const rows = await db
+    .select({
+      userId: submissions.senderUserId,
+      login: users.login,
+      displayName: users.displayName,
+      founderSince: users.founderSince,
+      equipped: users.equipped,
+      value: count(),
+    })
+    .from(submissions)
+    .innerJoin(users, eq(users.id, submissions.senderUserId))
+    .where(
+      and(
+        eq(submissions.channelId, channelId),
+        eq(submissions.status, 'played'),
+        isNotNull(submissions.senderUserId),
+        ...(period === 'month' ? [gte(submissions.createdAt, monthStartUtc())] : []),
+      ),
+    )
+    .groupBy(submissions.senderUserId)
+    .orderBy(desc(count()))
+    .limit(10)
+    .all();
+
+  return rows.map((r) => ({
+    userId: r.userId!,
+    login: r.login,
+    displayName: r.displayName,
+    value: r.value,
+    isFounder: r.founderSince != null,
+    nickColor: r.equipped?.nickColor ?? null,
+    nickEffect: r.equipped?.nickEffect ?? null,
+    cardEffect: r.equipped?.cardEffect ?? null,
+  }));
+}
+
+/** Top-10 by chat activity (bot counters), bridged to Tossit accounts where linked. */
+async function chatBoard(
+  channelId: string,
+  metric: 'messages' | 'watch' | 'level',
+  period: LeaderboardPeriod,
+): Promise<LeaderboardEntry[]> {
+  // SUM aggregates months for 'all'; for a single month it's a no-op.
+  const valueExpr =
+    metric === 'messages'
+      ? sql<number>`sum(${channelActivity.messages})`
+      : metric === 'watch'
+        ? sql<number>`sum(${channelActivity.watchMinutes})`
+        : sql<number>`sum(${channelActivity.messages}) + sum(${channelActivity.watchMinutes})`;
+  const rows = await db
+    .select({
+      platformUserId: channelActivity.platformUserId,
+      displayName: sql<string>`max(${channelActivity.displayName})`,
+      login: sql<string>`max(${channelActivity.login})`,
+      value: valueExpr,
+    })
+    .from(channelActivity)
+    .where(
+      and(
+        eq(channelActivity.channelId, channelId),
+        eq(channelActivity.platform, 'twitch'),
+        ...(period === 'month' ? [eq(channelActivity.month, currentMonth())] : []),
+      ),
+    )
+    .groupBy(channelActivity.platformUserId)
+    .orderBy(desc(valueExpr))
+    .limit(10)
+    .all();
+
+  // Linked/native accounts get their Tossit nick, colors and badge — same perks
+  // as the sends board (and one more reason to link Twitch).
+  const ids = rows.map((r) => r.platformUserId);
+  const identityRows = ids.length
+    ? await db
+        .select({ providerId: linkedIdentities.providerId, user: users })
+        .from(linkedIdentities)
+        .innerJoin(users, eq(users.id, linkedIdentities.userId))
+        .where(
+          and(eq(linkedIdentities.provider, 'twitch'), inArray(linkedIdentities.providerId, ids)),
+        )
+        .all()
+    : [];
+  const accountByTwitchId = new Map(identityRows.map((r) => [r.providerId, r.user]));
+
+  return rows.map((r) => {
+    const u = accountByTwitchId.get(r.platformUserId);
+    return {
+      userId: u?.id ?? `twitch:${r.platformUserId}`,
+      login: u?.login ?? r.login,
+      displayName: u?.displayName ?? r.displayName,
+      value: metric === 'level' ? levelOf(r.value) : r.value,
+      isFounder: u?.founderSince != null,
+      nickColor: u?.equipped?.nickColor ?? null,
+      nickEffect: u?.equipped?.nickEffect ?? null,
+      cardEffect: u?.equipped?.cardEffect ?? null,
+    };
+  });
 }
 
 export function registerChannelRoutes(app: FastifyInstance): void {
@@ -107,48 +230,34 @@ export function registerChannelRoutes(app: FastifyInstance): void {
     return { cooldownSec: remaining > 0 ? Math.ceil(remaining / 1000) : 0, windowSec };
   });
 
-  app.get<{ Params: { login: string } }>('/api/c/:login/leaderboard', async (req, reply) => {
-    const channel = await db
-      .select({ id: channels.id })
-      .from(channels)
-      .innerJoin(users, eq(users.id, channels.ownerUserId))
-      .where(eq(users.login, req.params.login.toLowerCase()))
-      .get();
-    if (!channel) return reply.code(404).send({ error: 'Канал не найден' });
+  app.get<{ Params: { login: string }; Querystring: { metric?: string; period?: string } }>(
+    '/api/c/:login/leaderboard',
+    async (req, reply) => {
+      // Unknown values fall back to the defaults — the URL is public input.
+      const metric = (
+        LB_METRICS.includes(req.query.metric ?? '') ? req.query.metric : 'sends'
+      ) as LeaderboardMetric;
+      const period = (
+        LB_PERIODS.includes(req.query.period ?? '') ? req.query.period : 'all'
+      ) as LeaderboardPeriod;
+      const channel = await db
+        .select({ id: channels.id })
+        .from(channels)
+        .innerJoin(users, eq(users.id, channels.ownerUserId))
+        .where(eq(users.login, req.params.login.toLowerCase()))
+        .get();
+      if (!channel) return reply.code(404).send({ error: 'Канал не найден' });
 
-    const rows = await db
-      .select({
-        userId: submissions.senderUserId,
-        login: users.login,
-        displayName: users.displayName,
-        founderSince: users.founderSince,
-        equipped: users.equipped,
-        count: count(),
-      })
-      .from(submissions)
-      .innerJoin(users, eq(users.id, submissions.senderUserId))
-      .where(
-        and(
-          eq(submissions.channelId, channel.id),
-          eq(submissions.status, 'played'),
-          isNotNull(submissions.senderUserId),
-        ),
-      )
-      .groupBy(submissions.senderUserId)
-      .orderBy(desc(count()))
-      .limit(10)
-      .all();
+      const cacheKey = `${channel.id}:${metric}:${period}`;
+      const hit = lbCache.get(cacheKey);
+      if (hit && Date.now() - hit.at < LB_CACHE_MS) return hit.entries;
 
-    const response: LeaderboardEntry[] = rows.map((r) => ({
-      userId: r.userId!,
-      login: r.login,
-      displayName: r.displayName,
-      count: r.count,
-      isFounder: r.founderSince != null,
-      nickColor: r.equipped?.nickColor ?? null,
-      nickEffect: r.equipped?.nickEffect ?? null,
-      cardEffect: r.equipped?.cardEffect ?? null,
-    }));
-    return response;
-  });
+      const entries =
+        metric === 'sends'
+          ? await sendsBoard(channel.id, period)
+          : await chatBoard(channel.id, metric, period);
+      lbCache.set(cacheKey, { at: Date.now(), entries });
+      return entries;
+    },
+  );
 }

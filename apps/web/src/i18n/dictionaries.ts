@@ -106,6 +106,15 @@ export const en: Dict = {
   'dur.sec': '{n}s',
   'dur.min': '{n} min',
   'dur.minSec': '{m} min {s}s',
+  'dur.hourMin': '{h}h {m}m',
+
+  'lb.sends': 'Shows',
+  'lb.messages': 'Messages',
+  'lb.watch': 'Watch time',
+  'lb.level': 'Level',
+  'lb.month': 'Month',
+  'lb.all': 'All time',
+  'lb.empty': 'Nothing yet — the bot is still collecting stats.',
 
   'home.tagline':
     'Viewers send images, GIFs, videos and sounds straight to your stream — with moderation, a whitelist and limits.',
@@ -392,6 +401,15 @@ export const ru: Dict = {
 
   'dur.sec': '{n} с',
   'dur.min': '{n} мин',
+  'dur.hourMin': '{h} ч {m} м',
+
+  'lb.sends': 'Показы',
+  'lb.messages': 'Сообщения',
+  'lb.watch': 'Аптайм',
+  'lb.level': 'Уровень',
+  'lb.month': 'Месяц',
+  'lb.all': 'Всё время',
+  'lb.empty': 'Пока пусто — бот ещё собирает статистику.',
   'dur.minSec': '{m} мин {s} с',
 
   'home.tagline':
@@ -679,6 +697,15 @@ export const uk: Dict = {
 
   'dur.sec': '{n} с',
   'dur.min': '{n} хв',
+  'dur.hourMin': '{h} год {m} хв',
+
+  'lb.sends': 'Покази',
+  'lb.messages': 'Повідомлення',
+  'lb.watch': 'Аптайм',
+  'lb.level': 'Рівень',
+  'lb.month': 'Місяць',
+  'lb.all': 'Увесь час',
+  'lb.empty': 'Поки порожньо — бот ще збирає статистику.',
   'dur.minSec': '{m} хв {s} с',
 
   'home.tagline':
