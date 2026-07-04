@@ -10,8 +10,9 @@ import { loadBotCredentials, refreshBotCredentials, type BotCredentials } from '
 
 const RECONCILE_INTERVAL_MS = 5 * 60_000;
 const STATS_FLUSH_MS = 30_000;
-/** Watch-time granularity; Twitch's chatters list itself lags minutes, finer is illusory. */
-const WATCH_POLL_MS = 5 * 60_000;
+/** Watch-time granularity: +1 min per poll. Twitch's chatters list lags a couple of
+ *  minutes on join/leave, so this only blurs session edges, not the middle. */
+const WATCH_POLL_MS = 60_000;
 const MODERATED_CHANNELS_URL = 'https://api.twitch.tv/helix/moderation/channels';
 const CHATTERS_URL = 'https://api.twitch.tv/helix/chat/chatters';
 
