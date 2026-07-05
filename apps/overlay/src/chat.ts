@@ -207,8 +207,6 @@ if (DEMO) {
     },
   ];
   demo.forEach(renderMessage);
-  // Dev-only: lets a preview eval trigger a config change to test rescheduling.
-  (window as unknown as { __applyConfig?: typeof applyConfig }).__applyConfig = applyConfig;
 } else {
   const socket: Socket<ServerToOverlayEvents, OverlayToServerEvents> = io(SERVER_URL, {
     query: { role: 'overlay', token: token ?? '' },
