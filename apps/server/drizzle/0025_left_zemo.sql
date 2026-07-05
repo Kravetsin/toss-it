@@ -1,0 +1,1 @@
+ALTER TABLE `channels` ADD `chat_overlay_enabled` integer DEFAULT true NOT NULL;

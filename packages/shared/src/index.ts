@@ -159,11 +159,38 @@ export interface IntegrationStatus {
   key: string | null;
 }
 
+/** One piece of a chat message: plain text or a native Twitch emote. */
+export type ChatFragment = { type: 'text'; text: string } | { type: 'emote'; id: string; text: string };
+
+/** A chat message forwarded to the chat overlay (twitch-chat module → overlay). */
+export interface ChatOverlayMessage {
+  /** Twitch message id (for targeted deletion). */
+  id: string;
+  /** Twitch user id of the author (for clear-user). */
+  userId: string;
+  name: string;
+  /** Twitch name color (#rrggbb), fallback when no Tossit nick color. */
+  twitchColor: string | null;
+  /** Author's equipped Tossit cosmetics, if their Twitch is linked. */
+  cosmetics: EquippedCosmetics | null;
+  /** True if the author is a Tossit founder (badge). */
+  isFounder: boolean;
+  fragments: ChatFragment[];
+}
+
 export interface ServerToOverlayEvents {
   'media:play': (payload: MediaPlayPayload) => void;
   'media:skip': (submissionId: string) => void;
   /** Channel donation → fullscreen burst FX over media display. */
   'donation:fx': (fx: DonationFx) => void;
+  /** New chat line for the chat overlay source. */
+  'chat:message': (msg: ChatOverlayMessage) => void;
+  /** A single message was deleted on Twitch (by id). */
+  'chat:delete': (messageId: string) => void;
+  /** All of a user's messages were removed (timeout/ban) — by twitch user id. */
+  'chat:clearUser': (userId: string) => void;
+  /** Whole chat was cleared. */
+  'chat:clear': () => void;
 }
 
 export interface ServerToViewerEvents {
@@ -230,6 +257,8 @@ export interface ChannelSettings {
   soundAlert: boolean;
   ttsName: boolean;
   ttsMessage: boolean;
+  /** Show the Twitch chat (with Tossit cosmetics) in the chat overlay source. */
+  chatOverlayEnabled: boolean;
   /** Media anchor (shared for images/video; music inherits unless musicSeparate). */
   overlayPosition: OverlayPosition;
   /** Max media size, % of viewport (10-100). */

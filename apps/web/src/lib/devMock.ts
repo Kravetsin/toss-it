@@ -93,6 +93,7 @@ const MOCK_SETTINGS: ChannelSettings = {
   soundAlert: true,
   ttsName: false,
   ttsMessage: false,
+  chatOverlayEnabled: true,
   overlayPosition: 'bottom-right',
   overlaySize: 40,
   overlayMargin: 5,

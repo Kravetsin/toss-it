@@ -76,6 +76,8 @@ export const channels = sqliteTable('channels', {
   // Streamer opt-in (default on): GIFs with a safe Giphy rating bypass moderation.
   autoApproveGifs: integer('auto_approve_gifs', { mode: 'boolean' }).notNull().default(true),
   showSenderName: integer('show_sender_name', { mode: 'boolean' }).notNull().default(true),
+  // Streamer opt-out: render the Twitch chat (with Tossit cosmetics) in the chat overlay source.
+  chatOverlayEnabled: integer('chat_overlay_enabled', { mode: 'boolean' }).notNull().default(true),
   soundAlert: integer('sound_alert', { mode: 'boolean' }).notNull().default(false),
   ttsName: integer('tts_name', { mode: 'boolean' }).notNull().default(false),
   ttsMessage: integer('tts_message', { mode: 'boolean' }).notNull().default(false),

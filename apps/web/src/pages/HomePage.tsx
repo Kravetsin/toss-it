@@ -38,6 +38,9 @@ export function HomePage() {
   }
 
   const overlayUrl = me.channel ? `${OVERLAY_BASE_URL}/?token=${me.channel.overlayToken}` : null;
+  const chatUrl = me.channel
+    ? `${OVERLAY_BASE_URL}/chat.html?token=${me.channel.overlayToken}`
+    : null;
   const viewerUrl = `${window.location.origin}/c/${me.user.login}`;
 
   const rotateToken = () =>
@@ -64,7 +67,7 @@ export function HomePage() {
       ) : (
         <div className="flex flex-col gap-4">
           <ViewerLinkCard login={me.user.login} viewerUrl={viewerUrl} />
-          <OverlayCard overlayUrl={overlayUrl!} onRotate={rotateToken} />
+          <OverlayCard overlayUrl={overlayUrl!} chatUrl={chatUrl!} onRotate={rotateToken} />
           <TeamCard channelId={me.channel.id} />
         </div>
       )}

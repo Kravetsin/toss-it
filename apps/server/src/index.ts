@@ -83,6 +83,7 @@ await playback.recoverFromDb();
 const { createTwitchChatModule } = await import('./modules/twitch-chat/index');
 const twitchChat = createTwitchChatModule({
   overlayCount: (channelId) => playback.overlayCount(channelId),
+  io,
   log: app.log,
 });
 

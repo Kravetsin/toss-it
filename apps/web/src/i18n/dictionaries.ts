@@ -140,6 +140,8 @@ export const en: Dict = {
     'Add a Browser Source with this URL. The URL contains a secret token — don’t show it on stream.',
   'home.overlayResTip':
     'Tip: in the Browser Source properties, set the resolution to match your screen — it avoids artifacts and makes positioning via the overlay settings precise.',
+  'home.chatOverlayDesc':
+    'Chat overlay: add this as a SECOND Browser Source (a vertical strip) — it shows your Twitch chat with Tossit cosmetics. Optional; toggle it in overlay settings.',
   'home.rotate': 'Reissue token',
   'home.rotateConfirm': 'The old URL in OBS will stop working. Reissue?',
 
@@ -225,6 +227,8 @@ export const en: Dict = {
   'dash.soundAlert': 'play a sound when media appears',
   'dash.tts': 'read the sender’s name aloud (TTS)',
   'dash.ttsMessage': 'read the message text aloud (TTS)',
+  'dash.chatOverlay': 'Show Twitch chat in the chat overlay',
+  'dash.chatOverlayNote': 'Requires the chat bot as a moderator. Add the chat source URL in OBS.',
   'dash.description': 'Description',
   'dash.descriptionPlaceholder': 'Tell viewers what to send…',
   'dash.links': 'Social links',
@@ -468,6 +472,8 @@ export const ru: Dict = {
     'Добавь Browser Source с этим URL. URL содержит секретный токен — не показывай его на стриме.',
   'home.overlayResTip':
     'Совет: в свойствах Browser Source укажи разрешение, равное разрешению твоего экрана — так не будет артефактов, а позиционирование через настройки оверлея сработает точно.',
+  'home.chatOverlayDesc':
+    'Оверлей чата: добавь как ВТОРОЙ Browser Source (полоса сбоку) — он показывает твой чат Twitch с косметикой Tossit. Необязательно; включается в настройках оверлея.',
   'home.rotate': 'Перевыпустить токен',
   'home.rotateConfirm': 'Старый URL в OBS перестанет работать. Перевыпустить?',
 
@@ -552,6 +558,8 @@ export const ru: Dict = {
   'dash.soundAlert': 'звук при появлении медиа',
   'dash.tts': 'озвучивать имя отправителя (TTS)',
   'dash.ttsMessage': 'озвучивать текст сообщения (TTS)',
+  'dash.chatOverlay': 'Показывать чат Twitch в оверлее чата',
+  'dash.chatOverlayNote': 'Нужен чат-бот как модератор. Добавь URL оверлея чата в OBS.',
   'dash.description': 'Описание',
   'dash.descriptionPlaceholder': 'Расскажи зрителям, что отправлять…',
   'dash.links': 'Соц-ссылки',
@@ -795,6 +803,8 @@ export const uk: Dict = {
     'Додай Browser Source з цим URL. URL містить секретний токен — не показуй його на стрімі.',
   'home.overlayResTip':
     'Порада: у властивостях Browser Source вкажи роздільну здатність, що дорівнює роздільній здатності твого екрана — так не буде артефактів, а позиціювання через налаштування оверлея спрацює точно.',
+  'home.chatOverlayDesc':
+    'Оверлей чату: додай як ДРУГИЙ Browser Source (смуга збоку) — він показує твій чат Twitch з косметикою Tossit. Необовʼязково; вмикається в налаштуваннях оверлея.',
   'home.rotate': 'Перевипустити токен',
   'home.rotateConfirm': 'Старий URL в OBS перестане працювати. Перевипустити?',
 
@@ -880,6 +890,8 @@ export const uk: Dict = {
   'dash.soundAlert': 'звук при появі медіа',
   'dash.tts': 'озвучувати ім’я відправника (TTS)',
   'dash.ttsMessage': 'озвучувати текст повідомлення (TTS)',
+  'dash.chatOverlay': 'Показувати чат Twitch в оверлеї чату',
+  'dash.chatOverlayNote': 'Потрібен чат-бот як модератор. Додай URL оверлея чату в OBS.',
   'dash.description': 'Опис',
   'dash.descriptionPlaceholder': 'Розкажи глядачам, що надсилати…',
   'dash.links': 'Соц-посилання',

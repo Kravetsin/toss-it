@@ -149,6 +149,7 @@ function toSettings(ch: ChannelRow, chatBot: { login: string | null; reading: bo
     soundAlert: ch.soundAlert,
     ttsName: ch.ttsName,
     ttsMessage: ch.ttsMessage,
+    chatOverlayEnabled: ch.chatOverlayEnabled,
     overlayPosition: ch.overlayPosition,
     overlaySize: ch.overlaySize,
     overlayMargin: ch.overlayMargin,
@@ -413,6 +414,10 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         soundAlert: typeof b.soundAlert === 'boolean' ? b.soundAlert : channel.soundAlert,
         ttsName: typeof b.ttsName === 'boolean' ? b.ttsName : channel.ttsName,
         ttsMessage: typeof b.ttsMessage === 'boolean' ? b.ttsMessage : channel.ttsMessage,
+        chatOverlayEnabled:
+          typeof b.chatOverlayEnabled === 'boolean'
+            ? b.chatOverlayEnabled
+            : channel.chatOverlayEnabled,
         overlayPosition: OVERLAY_POSITIONS.includes(b.overlayPosition as never)
           ? (b.overlayPosition as (typeof OVERLAY_POSITIONS)[number])
           : channel.overlayPosition,

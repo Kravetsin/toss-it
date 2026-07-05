@@ -1,8 +1,10 @@
 import { and, eq } from 'drizzle-orm';
 import type { FastifyBaseLogger } from 'fastify';
+import type { ChatFragment, EquippedCosmetics } from '@tmw/shared';
 import { db } from '../../db/index';
-import { channels, leaderboardExclusions, linkedIdentities } from '../../db/schema';
+import { channels, leaderboardExclusions, linkedIdentities, users } from '../../db/schema';
 import { config } from '../../config';
+import { roomOf, type RealtimeServer } from '../../playback';
 import { EventSubClient } from './eventsub';
 import { awardChatDust } from './accrual';
 import { bumpMessage, bumpWatch, flushActivity } from './stats';
@@ -15,10 +17,13 @@ const STATS_FLUSH_MS = 30_000;
 const WATCH_POLL_MS = 60_000;
 const MODERATED_CHANNELS_URL = 'https://api.twitch.tv/helix/moderation/channels';
 const CHATTERS_URL = 'https://api.twitch.tv/helix/chat/chatters';
+const COSMETICS_TTL_MS = 60_000;
 
 export interface TwitchChatDeps {
   /** Live signal: the streamer's OBS overlay is connected (platform-agnostic). */
   overlayCount(channelId: string): number;
+  /** Emit chat events to a channel's overlay sockets. */
+  io: RealtimeServer;
   log: FastifyBaseLogger;
 }
 
@@ -48,10 +53,40 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
   let channelByBroadcaster = new Map<string, string>();
   /** Excluded twitch logins (bots) — skip their messages entirely. Refreshed on reconcile. */
   let excludedLogins = new Set<string>();
+  /** Channel ids whose streamer left the chat overlay enabled. Refreshed on reconcile. */
+  let chatEnabledChannels = new Set<string>();
+  /** twitch id -> Tossit cosmetics, short-lived cache (chat volume; avoid a DB read per msg). */
+  const cosmeticsCache = new Map<
+    string,
+    { cosmetics: EquippedCosmetics | null; isFounder: boolean; at: number }
+  >();
 
   async function loadExclusions(): Promise<void> {
     const rows = await db.select({ login: leaderboardExclusions.login }).from(leaderboardExclusions).all();
     excludedLogins = new Set(rows.map((r) => r.login));
+  }
+
+  /** Author's equipped Tossit cosmetics by twitch id (null if not linked), cached ~60s. */
+  async function lookupCosmetics(
+    twitchId: string,
+  ): Promise<{ cosmetics: EquippedCosmetics | null; isFounder: boolean }> {
+    const hit = cosmeticsCache.get(twitchId);
+    if (hit && Date.now() - hit.at < COSMETICS_TTL_MS) return hit;
+    const row = await db
+      .select({ equipped: users.equipped, founderSince: users.founderSince })
+      .from(linkedIdentities)
+      .innerJoin(users, eq(users.id, linkedIdentities.userId))
+      .where(
+        and(eq(linkedIdentities.provider, 'twitch'), eq(linkedIdentities.providerId, twitchId)),
+      )
+      .get();
+    const value = {
+      cosmetics: row?.equipped ?? null,
+      isFounder: row?.founderSince != null,
+      at: Date.now(),
+    };
+    cosmeticsCache.set(twitchId, value);
+    return value;
   }
 
   async function getAccessToken(refresh = false): Promise<string | null> {
@@ -74,16 +109,44 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     chatterId: string;
     chatterLogin: string;
     chatterName: string;
+    messageId: string;
+    color: string | null;
+    fragments: ChatFragment[];
   }): void {
     const channelId = channelByBroadcaster.get(ev.broadcasterId);
     if (!channelId) return;
-    if (ev.chatterId === ev.broadcasterId) return; // own chat earns nothing (like sends)
-    if (excludedLogins.has(ev.chatterLogin)) return; // excluded bots earn/count nothing
-    if (deps.overlayCount(channelId) === 0) return; // accrue only while live
-    bumpMessage(channelId, ev.chatterId, ev.chatterLogin, ev.chatterName);
-    awardChatDust(ev.chatterId).catch((err) =>
-      deps.log.warn({ err }, 'twitch-chat: accrual failed'),
-    );
+    const excluded = excludedLogins.has(ev.chatterLogin);
+    const live = deps.overlayCount(channelId) > 0;
+
+    // Accrual: not the broadcaster's own chat, not an excluded bot, only while live.
+    if (!excluded && ev.chatterId !== ev.broadcasterId && live) {
+      bumpMessage(channelId, ev.chatterId, ev.chatterLogin, ev.chatterName);
+      awardChatDust(ev.chatterId).catch((err) =>
+        deps.log.warn({ err }, 'twitch-chat: accrual failed'),
+      );
+    }
+
+    // Chat overlay: show everyone INCLUDING the streamer (but not excluded bots),
+    // only when the channel enabled it and an overlay is actually listening.
+    if (excluded || !chatEnabledChannels.has(channelId) || !live) return;
+    void lookupCosmetics(ev.chatterId)
+      .then(({ cosmetics, isFounder }) => {
+        deps.io.to(roomOf(channelId)).emit('chat:message', {
+          id: ev.messageId,
+          userId: ev.chatterId,
+          name: ev.chatterName,
+          twitchColor: ev.color,
+          cosmetics,
+          isFounder,
+          fragments: ev.fragments,
+        });
+      })
+      .catch((err) => deps.log.warn({ err }, 'twitch-chat: chat emit failed'));
+  }
+
+  function forwardToOverlay(broadcasterId: string, emit: (channelId: string) => void): void {
+    const channelId = channelByBroadcaster.get(broadcasterId);
+    if (channelId) emit(channelId);
   }
 
   /** Helix GET with the bot token; retries once through a token refresh on 401. */
@@ -170,7 +233,11 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     if (!moderated) return; // transient failure — keep the current subscription set
     // Owner's twitch identity may be native OR linked to a Google account.
     const rows = await db
-      .select({ id: channels.id, broadcasterId: linkedIdentities.providerId })
+      .select({
+        id: channels.id,
+        broadcasterId: linkedIdentities.providerId,
+        chatEnabled: channels.chatOverlayEnabled,
+      })
       .from(channels)
       .innerJoin(
         linkedIdentities,
@@ -180,11 +247,9 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
         ),
       )
       .all();
-    channelByBroadcaster = new Map(
-      rows
-        .map((r) => [r.broadcasterId, r.id] as const)
-        .filter(([broadcasterId]) => moderated.has(broadcasterId)),
-    );
+    const modded = rows.filter((r) => moderated.has(r.broadcasterId));
+    channelByBroadcaster = new Map(modded.map((r) => [r.broadcasterId, r.id]));
+    chatEnabledChannels = new Set(modded.filter((r) => r.chatEnabled).map((r) => r.id));
     client.setBroadcasters(new Set(channelByBroadcaster.keys()));
     await loadExclusions();
   }
@@ -210,6 +275,12 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
       botUserId: creds.userId,
       getAccessToken,
       onChatMessage,
+      onChatDelete: (bid, messageId) =>
+        forwardToOverlay(bid, (chId) => deps.io.to(roomOf(chId)).emit('chat:delete', messageId)),
+      onChatClearUser: (bid, userId) =>
+        forwardToOverlay(bid, (chId) => deps.io.to(roomOf(chId)).emit('chat:clearUser', userId)),
+      onChatClear: (bid) =>
+        forwardToOverlay(bid, (chId) => deps.io.to(roomOf(chId)).emit('chat:clear')),
       log: deps.log,
     });
     client.start();

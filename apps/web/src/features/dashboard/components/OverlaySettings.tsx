@@ -28,6 +28,7 @@ export function OverlaySettings({
   const [soundAlert, setSoundAlert] = useState(settings.soundAlert);
   const [ttsName, setTtsName] = useState(settings.ttsName);
   const [ttsMessage, setTtsMessage] = useState(settings.ttsMessage);
+  const [chatOverlay, setChatOverlay] = useState(settings.chatOverlayEnabled);
   const [position, setPosition] = useState<OverlayPosition>(settings.overlayPosition);
   const [mediaSize, setMediaSize] = useState(settings.overlaySize);
   const [margin, setMargin] = useState(settings.overlayMargin);
@@ -149,6 +150,8 @@ export function OverlaySettings({
         <Toggle checked={soundAlert} onChange={setSoundAlert} label={t('dash.soundAlert')} />
         <Toggle checked={ttsName} onChange={setTtsName} label={t('dash.tts')} />
         <Toggle checked={ttsMessage} onChange={setTtsMessage} label={t('dash.ttsMessage')} />
+        <Toggle checked={chatOverlay} onChange={setChatOverlay} label={t('dash.chatOverlay')} />
+        <p className="pl-6 text-xs text-muted">{t('dash.chatOverlayNote')}</p>
       </div>
 
       <div className="mt-4 flex justify-end">
@@ -164,6 +167,7 @@ export function OverlaySettings({
               soundAlert,
               ttsName,
               ttsMessage,
+              chatOverlayEnabled: chatOverlay,
               overlayPosition: position,
               overlaySize: mediaSize,
               overlayMargin: margin,

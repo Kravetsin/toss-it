@@ -6,9 +6,12 @@ import { Button, Card, CopyableLinkBox } from '@/ui';
 /** OBS overlay card: URL holds a secret token (masked); supports copy and rotation. */
 export function OverlayCard({
   overlayUrl,
+  chatUrl,
   onRotate,
 }: {
   overlayUrl: string;
+  /** Separate chat overlay browser source (same token). */
+  chatUrl: string;
   onRotate: () => void;
 }) {
   const { t } = useI18n();
@@ -31,6 +34,19 @@ export function OverlayCard({
         copied={copiedKey === 'overlay'}
         onCopy={() => copy(overlayUrl, 'overlay')}
       />
+
+      <p className="mb-2 mt-4 flex items-start gap-2 text-sm text-muted">
+        <Icon name="message-circle" size={16} className="mt-0.5 shrink-0 text-accent" />
+        <span>{t('home.chatOverlayDesc')}</span>
+      </p>
+      <CopyableLinkBox
+        value={chatUrl}
+        secret
+        size="sm"
+        copied={copiedKey === 'chat'}
+        onCopy={() => copy(chatUrl, 'chat')}
+      />
+
       <div className="mt-3">
         <Button variant="danger" onClick={onRotate}>
           <Icon name="reload" size={16} />
