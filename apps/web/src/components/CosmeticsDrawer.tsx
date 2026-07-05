@@ -84,7 +84,11 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     return (
       <div
         key={e.id}
-        className="relative min-h-[5.5rem] border-t border-border pt-3 first:border-t-0 first:pt-0"
+        // Card effects get extra bottom padding so their liquid/drift base sits in a clear strip
+        // below the button instead of overlapping it.
+        className={`relative min-h-[5.5rem] border-t border-border pt-3 first:border-t-0 first:pt-0 ${
+          isCard ? 'pb-6' : ''
+        }`}
       >
         {isCard && <CardEffect effect={e.id} />}
         <div className="relative flex flex-col gap-2">

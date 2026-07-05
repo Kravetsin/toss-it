@@ -3,6 +3,7 @@ import { io, type Socket } from 'socket.io-client';
 import {
   cardEffectClass,
   injectCosmeticsStyles,
+  makeGroundGlows,
   makeParticles,
   nickEffectClass,
   particleCount,
@@ -69,14 +70,25 @@ function addCardEffect(row: HTMLElement, effect: string): void {
   // `compact`: pills are short, so use the compact trajectory (crosses the row, clipped outside).
   const layer = document.createElement('div');
   layer.className = `card-fx ${cls} compact`;
-  for (const ps of makeParticles(effect, count)) {
+  const applyStyles = (el: HTMLElement, styles: Record<string, string>) => {
+    for (const [k, v] of Object.entries(styles)) {
+      if (k.startsWith('--')) el.style.setProperty(k, v);
+      else (el.style as unknown as Record<string, string>)[k] = v;
+    }
+  };
+  const particles = makeParticles(effect, count);
+  for (const ps of particles) {
     const p = document.createElement('span');
     p.className = 'p';
-    for (const [k, v] of Object.entries(ps)) {
-      if (k.startsWith('--')) p.style.setProperty(k, v);
-      else (p.style as unknown as Record<string, string>)[k] = v;
-    }
+    applyStyles(p, ps);
     layer.appendChild(p);
+  }
+  // Ground glows: thin lines phased to each particle's bottom-crossing (compact keyframes).
+  for (const gs of makeGroundGlows(effect, particles)) {
+    const g = document.createElement('span');
+    g.className = 'g';
+    applyStyles(g, gs);
+    layer.appendChild(g);
   }
   row.appendChild(layer);
 }

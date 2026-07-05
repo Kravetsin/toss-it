@@ -1,10 +1,10 @@
 import type { CardEffectModule } from '../types';
 
 /**
- * Mint dots drifting upward across the whole card, out of a shallow liquid pool at the bottom (a
- * CSS-only nod to the viewer-page vessel). The `.compact` variant (leaderboard rows, chat pills)
- * flies a trajectory that starts/ends OUTSIDE the row and drops the pool — a whole dot is only seen
- * while crossing, fast & smooth, confined to its row.
+ * Mint dots drifting upward across the card, each rising out of a soft glow that blooms at its
+ * origin on the bottom edge. The `.compact` variant (leaderboard rows, chat pills) flies a
+ * trajectory that starts/ends OUTSIDE the row and drops the glows — a whole dot is only seen while
+ * crossing, fast & smooth, confined to its row.
  */
 export const cardLevitation: CardEffectModule = {
   id: 'card-levitation',
@@ -19,10 +19,16 @@ export const cardLevitation: CardEffectModule = {
       left: `${rnd(2, 98).toFixed(1)}%`,
       '--drift': `${rnd(-18, 18).toFixed(0)}px`,
       '--s': rnd(0.65, 1.35).toFixed(2),
-      animationDuration: `${dur.toFixed(2)}s`,
-      animationDelay: `${(-rnd(0, dur)).toFixed(2)}s`,
+      '--dur': `${dur.toFixed(2)}s`,
+      '--delay': `${(-rnd(0, dur)).toFixed(2)}s`,
     };
   },
+  // Glow sits at the dot's spawn column and blooms as the dot emerges from the bottom.
+  groundGlow: (p) => ({
+    left: p.left ?? '50%',
+    '--dur': p['--dur'] ?? '3.4s',
+    '--delay': p['--delay'] ?? '0s',
+  }),
   css: `
 .card-fx-levitation .p {
   width: 4px;
@@ -30,8 +36,7 @@ export const cardLevitation: CardEffectModule = {
   border-radius: 50%;
   background: var(--color-accent, #8df0cc);
   box-shadow: 0 0 6px var(--color-accent, #8df0cc);
-  /* duration + delay are randomized inline per particle (see particle()). */
-  animation: cardfx-rise 3.4s linear infinite;
+  animation: cardfx-rise var(--dur, 3.4s) linear var(--delay, 0s) infinite;
 }
 @keyframes cardfx-rise {
   0% {
@@ -69,39 +74,55 @@ export const cardLevitation: CardEffectModule = {
     transform: translateX(var(--drift, 0)) scale(calc(var(--s, 1) * 0.5));
   }
 }
-/* Thin animated liquid border at the very bottom the dots rise from: a solid base line (::before)
-   plus a few big waves (::after) scrolling sideways — reads like a slightly thick wavy border, not
-   a deep pool. Hidden on .compact. */
-.card-fx-levitation::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+.card-fx-levitation .g {
+  width: 26px;
   height: 2px;
-  background: rgba(141, 240, 204, 0.55);
+  margin-left: -13px;
+  border-radius: 2px;
+  background: linear-gradient(to right, transparent, var(--color-accent, #8df0cc), transparent);
+  box-shadow: 0 0 6px var(--color-accent, #8df0cc);
+  animation: cardfx-levitation-glow var(--dur, 3.4s) ease-out var(--delay, 0s) infinite;
 }
-.card-fx-levitation::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 7px;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='130' height='7' viewBox='0 0 130 7'%3E%3Cpath d='M0 3 Q32.5 0 65 3 T130 3 V7 H0 Z' fill='%238df0cc'/%3E%3C/svg%3E")
-    repeat-x;
-  background-size: 130px 7px;
-  opacity: 0.7;
-  animation: cardfx-levitation-wave 3s linear infinite;
-}
-@keyframes cardfx-levitation-wave {
-  to {
-    background-position-x: -130px;
+@keyframes cardfx-levitation-glow {
+  0% {
+    opacity: 0;
+    transform: scaleX(0.4);
+  }
+  8% {
+    opacity: 0.5;
+    transform: scaleX(1);
+  }
+  34% {
+    opacity: 0;
+    transform: scaleX(1.25);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleX(1.25);
   }
 }
-.card-fx-levitation.compact::before,
-.card-fx-levitation.compact::after {
-  display: none;
+/* Compact rows: the dot enters from below at 20.6% of the timeline ((135-100)/170), not at 0%. */
+.card-fx-levitation.compact .g {
+  animation-name: cardfx-levitation-glow-compact;
+}
+@keyframes cardfx-levitation-glow-compact {
+  0%,
+  15% {
+    opacity: 0;
+    transform: scaleX(0.4);
+  }
+  22% {
+    opacity: 0.5;
+    transform: scaleX(1);
+  }
+  46% {
+    opacity: 0;
+    transform: scaleX(1.25);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleX(1.25);
+  }
 }
 `,
 };

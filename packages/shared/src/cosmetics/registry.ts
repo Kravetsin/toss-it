@@ -32,6 +32,15 @@ const BASE_CSS = `
   position: absolute;
   opacity: 0;
 }
+/* Ground glow: a fixed element pinned to the bottom at a particle's origin/impact column (see
+   groundGlow). Each effect sets its size/look/keyframe; left is inline. */
+.card-fx .g {
+  position: absolute;
+  bottom: 0;
+  opacity: 0;
+  pointer-events: none;
+  transform-origin: center bottom;
+}
 `;
 
 /**
@@ -101,6 +110,19 @@ export function makeParticles(id: string, count: number): Record<string, string>
   const m = asCardEffect(id);
   if (!m) return [];
   return Array.from({ length: count }, () => m.particle(rnd));
+}
+
+/**
+ * Ground-glow styles paired 1:1 with the given particles — a fixed bloom at each particle's
+ * origin/impact column (see CardEffectModule.groundGlow). Returns [] if the effect has none.
+ * Render only on non-compact surfaces (a glow strip would clutter a leaderboard row / chat pill).
+ */
+export function makeGroundGlows(
+  id: string,
+  particles: Record<string, string>[],
+): Record<string, string>[] {
+  const glow = asCardEffect(id)?.groundGlow;
+  return glow ? particles.map((p) => glow(p)) : [];
 }
 
 /** Concatenated CSS for the whole catalog (base layer + every module's css). */

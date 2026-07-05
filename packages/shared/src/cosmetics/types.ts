@@ -63,12 +63,21 @@ export interface CardEffectModule extends BaseModule {
   /** Particle count per surface (small pills need fewer than a full-screen alert). */
   counts: Record<Surface, number>;
   /**
-   * Inline style for ONE randomized particle. Randomize spawn/size/speed and use a NEGATIVE
-   * animationDelay so particles start mid-flight (desynced) and the swarm doesn't loop like a GIF.
-   * Keys are camelCase CSS props or `--custom` properties, usable as a React style object or via
-   * element.style in the overlay.
+   * Inline style for ONE randomized particle. Randomize spawn/size/speed and set the animation
+   * timing through the `--dur`/`--delay` custom properties (NEGATIVE delay so particles start
+   * mid-flight, desynced) — the css should read `animation: <name> var(--dur) linear var(--delay)`
+   * so a paired ground glow can inherit the same timing and bloom in sync. Keys are camelCase CSS
+   * props or `--custom` properties, usable as a React style object or via element.style.
    */
   particle: (rnd: Rnd) => Record<string, string>;
+  /**
+   * Optional: given a particle's generated style, return the style for a fixed "ground glow"
+   * element (class `g`) pinned to the bottom of the card at that particle's origin (rising effects)
+   * or impact column (falling effects). Copy `--dur`/`--delay` from the particle so the glow blooms
+   * in sync; the module's css styles `.card-fx-<x> .g` + a keyframe. Consumers render one `g` per
+   * particle (non-compact surfaces only). Omit for effects with no ground glow.
+   */
+  groundGlow?: (particle: Record<string, string>) => Record<string, string>;
 }
 
 export type CosmeticModule = ColorModule | NickEffectModule | CardEffectModule;

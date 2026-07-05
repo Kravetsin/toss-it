@@ -1,11 +1,11 @@
 import type { CardEffectModule } from '../types';
 
 /**
- * Soft white flakes falling slowly down the whole card onto a static, lumpy snowdrift at the
- * bottom — reads as calm "snow", distinct from levitation's fast upward rise. Fixed white color
- * (not the accent) so it reads as snow regardless of nick/theme. Unlike the levitation/rain pools
- * the drift does NOT wave — it's settled snow. The `.compact` variant (leaderboard rows, chat
- * pills) flies a trajectory that starts/ends OUTSIDE the row and drops the drift.
+ * Soft white flakes falling down the card, each leaving a faint line of light where it settles on
+ * the bottom edge — reads as calm "snow", distinct from levitation's fast upward rise. Fixed white
+ * color (not the accent). Falls via `top` at a moderate speed (like levitation) so it reaches the
+ * bottom for the settle glow while staying smooth; the sideways sway returns to the spawn column at
+ * the end so the flake and its glow line up. Glows are dropped on `.compact`.
  */
 export const cardSnow: CardEffectModule = {
   id: 'card-snow',
@@ -15,15 +15,22 @@ export const cardSnow: CardEffectModule = {
   counts: { web: 12, overlayCard: 16, overlayChat: 8 },
   labels: { name: 'shop.cardSnow', desc: 'shop.cardSnowDesc' },
   particle: (rnd) => {
-    const dur = rnd(4, 8);
+    // Moderate speed (not the old 5-9s): fast enough that top-based falling stays smooth.
+    const dur = rnd(3.5, 5.5);
     return {
       left: `${rnd(2, 98).toFixed(1)}%`,
-      '--drift': `${rnd(-30, 30).toFixed(0)}px`,
+      '--drift': `${rnd(-22, 22).toFixed(0)}px`,
       '--s': rnd(0.5, 1.4).toFixed(2),
-      animationDuration: `${dur.toFixed(2)}s`,
-      animationDelay: `${(-rnd(0, dur)).toFixed(2)}s`,
+      '--dur': `${dur.toFixed(2)}s`,
+      '--delay': `${(-rnd(0, dur)).toFixed(2)}s`,
     };
   },
+  // Faint line at the flake's column, blooming as it settles at the bottom (drift returns to 0 there).
+  groundGlow: (p) => ({
+    left: p.left ?? '50%',
+    '--dur': p['--dur'] ?? '4.5s',
+    '--delay': p['--delay'] ?? '0s',
+  }),
   css: `
 .card-fx-snow .p {
   width: 3px;
@@ -31,77 +38,52 @@ export const cardSnow: CardEffectModule = {
   border-radius: 50%;
   background: #ffffff;
   box-shadow: 0 0 4px rgba(255, 255, 255, 0.75);
-  /* duration + delay are randomized inline per particle (see particle()). */
-  animation: cardfx-snow-fall 6s linear infinite;
+  animation: cardfx-snow-fall var(--dur, 4.5s) linear var(--delay, 0s) infinite;
 }
 @keyframes cardfx-snow-fall {
   0% {
-    top: -10%;
+    top: -8%;
     opacity: 0;
     transform: translateX(0) scale(var(--s, 1));
   }
   12% {
-    opacity: 0.75;
+    opacity: 0.8;
   }
   50% {
     transform: translateX(var(--drift, 0)) scale(var(--s, 1));
   }
   88% {
-    opacity: 0.75;
+    opacity: 0.8;
   }
   100% {
-    top: 110%;
+    top: 104%;
     opacity: 0;
     transform: translateX(0) scale(var(--s, 1));
   }
 }
-.card-fx-snow.compact .p {
-  animation-name: cardfx-snow-compact;
-}
-@keyframes cardfx-snow-compact {
-  0% {
-    top: -35%;
-    opacity: 0;
-    transform: translateX(0) scale(var(--s, 1));
-  }
-  20% {
-    opacity: 0.85;
-  }
-  80% {
-    opacity: 0.85;
-  }
-  100% {
-    top: 135%;
-    opacity: 0;
-    transform: translateX(var(--drift, 0)) scale(var(--s, 1));
-  }
-}
-/* Thin settled snowdrift at the very bottom: a solid base line (::before) plus a few big rounded
-   mounds (::after) — static, since it's accumulated snow, not liquid. Hidden on .compact. */
-.card-fx-snow::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+.card-fx-snow .g {
+  width: 16px;
   height: 2px;
-  background: rgba(255, 255, 255, 0.6);
+  margin-left: -8px;
+  border-radius: 2px;
+  background: linear-gradient(to right, transparent, #ffffff, transparent);
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.85);
+  animation: cardfx-snow-settle var(--dur, 4.5s) ease-out var(--delay, 0s) infinite;
 }
-.card-fx-snow::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 8px;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='8' viewBox='0 0 150 8'%3E%3Cpath d='M0 8 V6 Q37.5 1 75 6 Q112.5 1 150 6 V8 Z' fill='%23ffffff'/%3E%3C/svg%3E")
-    repeat-x;
-  background-size: 150px 8px;
-  opacity: 0.75;
-}
-.card-fx-snow.compact::before,
-.card-fx-snow.compact::after {
-  display: none;
+@keyframes cardfx-snow-settle {
+  0%,
+  86% {
+    opacity: 0;
+    transform: scaleX(0.4);
+  }
+  94% {
+    opacity: 0.3;
+    transform: scaleX(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleX(1.4);
+  }
 }
 `,
 };

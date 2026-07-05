@@ -6,6 +6,7 @@ import {
   cardEffectClass,
   giphyGifUrl,
   injectCosmeticsStyles,
+  makeGroundGlows,
   makeParticles,
   nickEffectClass,
   particleCount,
@@ -167,14 +168,25 @@ function addCardEffect(alert: HTMLElement, effect: string): void {
   if (!cls || !count) return;
   const layer = document.createElement('div');
   layer.className = `card-fx ${cls}`;
-  for (const ps of makeParticles(effect, count)) {
+  const applyStyles = (el: HTMLElement, styles: Record<string, string>) => {
+    for (const [k, v] of Object.entries(styles)) {
+      if (k.startsWith('--')) el.style.setProperty(k, v);
+      else (el.style as unknown as Record<string, string>)[k] = v;
+    }
+  };
+  const particles = makeParticles(effect, count);
+  for (const ps of particles) {
     const p = document.createElement('span');
     p.className = 'p';
-    for (const [k, v] of Object.entries(ps)) {
-      if (k.startsWith('--')) p.style.setProperty(k, v);
-      else (p.style as unknown as Record<string, string>)[k] = v;
-    }
+    applyStyles(p, ps);
     layer.appendChild(p);
+  }
+  // Ground glows: a bloom at each particle's origin/impact column, pinned to the bottom.
+  for (const gs of makeGroundGlows(effect, particles)) {
+    const g = document.createElement('span');
+    g.className = 'g';
+    applyStyles(g, gs);
+    layer.appendChild(g);
   }
   alert.appendChild(layer);
 }

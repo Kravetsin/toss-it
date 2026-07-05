@@ -60,9 +60,11 @@ const MOCK_ME: MeResponse = {
     avatarUrl: null,
     isFounder: true,
     isAdmin: true,
-    stardust: 250,
-    ownedCosmetics: [],
-    equipped: {},
+    stardust: 999_999,
+    // Own everything + equip a combo so the shop shows all cosmetics equippable and the signed-in
+    // user's own nick/cards demo the effects live (dev preview only).
+    ownedCosmetics: COSMETICS.map((c) => c.id),
+    equipped: { nickColor: '#8df0cc', nickEffect: 'nick-pulse', cardEffect: 'card-levitation' },
     // false so the "link Twitch" shop banner is visible in mock previews.
     hasTwitch: false,
   },
@@ -146,6 +148,7 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderUserId: 'google:v2',
     senderName: 'pixel_witch',
     senderColor: '#8df0cc',
+    senderEffect: 'nick-pulse',
     senderCardEffect: 'card-levitation',
     text: 'смотри какой котик получился',
     url: IMG,
@@ -158,6 +161,9 @@ const MOCK_PENDING: SubmissionSummary[] = [
     mime: 'video/mp4',
     senderUserId: 'twitch:v7',
     senderName: 'clip_gremlin',
+    senderColor: '#ffb86c',
+    senderEffect: 'nick-glow',
+    senderCardEffect: 'card-embers',
     text: 'зацени нарезку, го на стрим',
     url: '/mock-video.mp4',
     durationMs: 12_000,
@@ -169,6 +175,9 @@ const MOCK_PENDING: SubmissionSummary[] = [
     mime: 'video/youtube',
     senderUserId: 'twitch:v3',
     senderName: 'dj_summer',
+    senderColor: '#a5b4fc',
+    senderEffect: 'nick-pulse',
+    senderCardEffect: 'card-rain',
     youtubeId: 'dQw4w9WgXcQ',
     text: 'трек на фон, зайдёт',
     durationMs: 20_000,
@@ -187,6 +196,8 @@ const MOCK_PENDING: SubmissionSummary[] = [
     kind: 'text',
     senderUserId: 'google:v5',
     senderName: 'newbie123',
+    senderColor: '#b0f5c0',
+    senderCardEffect: 'card-snow',
     text: 'превед :)',
     createdAt: t - 18 * min,
   }),
@@ -198,6 +209,9 @@ const MOCK_NOW: SubmissionSummary | null = sub({
   mime: 'image/svg+xml',
   senderUserId: 'twitch:v9',
   senderName: 'streamfan',
+  senderColor: '#ffd36e',
+  senderEffect: 'nick-glow',
+  senderCardEffect: 'card-levitation',
   text: 'на удачу',
   url: IMG,
   durationMs: 8000,
@@ -312,7 +326,7 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     isFounder: false,
     nickColor: '#ffb86c',
     nickEffect: 'nick-glow',
-    cardEffect: 'card-levitation',
+    cardEffect: 'card-stardust',
   },
   {
     userId: 'twitch:u_dev',
@@ -330,9 +344,9 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     displayName: 'Kravetsin',
     value: 6,
     isFounder: false,
-    nickColor: '#8df0cc',
-    nickEffect: null,
-    cardEffect: 'card-stardust',
+    nickColor: '#a5b4fc',
+    nickEffect: 'nick-pulse',
+    cardEffect: 'card-embers',
   },
   {
     userId: 'google:other3',
@@ -340,9 +354,9 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     displayName: 'Слава Anfani',
     value: 5,
     isFounder: false,
-    nickColor: null,
-    nickEffect: null,
-    cardEffect: null,
+    nickColor: '#ffd36e',
+    nickEffect: 'nick-glow',
+    cardEffect: 'card-rain',
   },
   {
     userId: 'google:other4',
@@ -350,9 +364,9 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     displayName: 'Дмитриева Дарина',
     value: 2,
     isFounder: false,
-    nickColor: null,
+    nickColor: '#b0f5c0',
     nickEffect: null,
-    cardEffect: null,
+    cardEffect: 'card-snow',
   },
 ];
 
@@ -374,9 +388,7 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
   if (pathname === '/api/me/channels') return MOCK_CHANNELS;
   if (pathname === '/api/admin/bot') return { connected: true, login: 'tossitbot' };
   if (pathname === '/api/admin/live-channels') {
-    return [
-      { login: 'kravetsinside', displayName: 'Kravets', avatarUrl: null, overlays: 1 },
-    ];
+    return [{ login: 'kravetsinside', displayName: 'Kravets', avatarUrl: null, overlays: 1 }];
   }
   if (pathname === '/api/admin/leaderboard-exclusions') {
     if (init?.method === 'POST') return { ok: true, login: 'wizebot' };
