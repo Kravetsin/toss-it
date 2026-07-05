@@ -1,6 +1,6 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { COSMETICS, type CosmeticItem } from '@tmw/shared';
+import { COSMETICS, cosmeticModule, nickEffectClass, type CosmeticItem } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { useMe } from '@/hooks/useMe';
 import { useApiAction } from '@/hooks/useApiAction';
@@ -13,13 +13,6 @@ import { buyCosmetic, equipCosmetic } from '@/lib/api/shop';
 
 const DEFAULT_COLOR = '#8df0cc';
 const NICK_COLOR_ID = 'nick-color';
-
-/** i18n keys per effect id (nick + card effects). */
-const EFFECT_LABELS: Record<string, { name: string; desc: string }> = {
-  'nick-glow': { name: 'shop.nickGlow', desc: 'shop.nickGlowDesc' },
-  'card-levitation': { name: 'shop.cardLevitation', desc: 'shop.cardLevitationDesc' },
-  'card-stardust': { name: 'shop.cardStardust', desc: 'shop.cardStardustDesc' },
-};
 
 /** Cosmetics shop, opened from the stardust wallet. Everything is bought with stardust, never money. */
 export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -84,9 +77,10 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   ) => {
     const owned = user?.ownedCosmetics.includes(e.id) ?? false;
     const on = equippedId === e.id;
-    const labels = EFFECT_LABELS[e.id];
+    const labels = cosmeticModule(e.id)?.labels;
     if (!labels) return null;
     const isCard = e.type === 'card_effect';
+    const isNick = e.type === 'nick_effect';
     return (
       <div
         key={e.id}
@@ -96,8 +90,8 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
         <div className="relative flex flex-col gap-2">
           <div className="flex items-center justify-between gap-2">
             <span
-              className={`font-medium text-text ${e.id === 'nick-glow' ? 'nick-glow' : ''}`}
-              style={e.id === 'nick-glow' ? glowVar : undefined}
+              className={`font-medium text-text ${isNick ? nickEffectClass(e.id) : ''}`}
+              style={isNick ? glowVar : undefined}
             >
               {t(labels.name)}
             </span>

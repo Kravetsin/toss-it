@@ -1,9 +1,14 @@
 import '@fontsource/jetbrains-mono';
 import { io, type Socket } from 'socket.io-client';
 import {
+  COSMETICS,
   OVERLAY_POSITIONS,
+  cardEffectClass,
   giphyGifUrl,
+  injectCosmeticsStyles,
   makeParticles,
+  nickEffectClass,
+  particleCount,
   positionToFlex,
   type DonationFx,
   type MediaKind,
@@ -12,6 +17,9 @@ import {
   type OverlayToServerEvents,
   type ServerToOverlayEvents,
 } from '@tmw/shared';
+
+// Cosmetic effect CSS is injected from the shared registry (single source across web + overlay).
+injectCosmeticsStyles();
 
 // Minimal YouTube IFrame API types (avoids @types/youtube dependency).
 interface YTPlayer {
@@ -130,10 +138,11 @@ function show(payload: MediaPlayPayload): void {
       badges.innerHTML = badgeSvgs.map((svg) => `<span class="badge">${svg}</span>`).join('');
       banner.appendChild(badges);
     }
-    // Nick effect: glow halo in the nick color.
-    if (payload.senderEffect === 'nick-glow') {
-      banner.classList.add('fx-glow');
-      banner.style.setProperty('--nick-glow', payload.senderColor || '#8df0cc');
+    // Nick effect: a class on the name element (glow, …); --nick-glow carries the nick color.
+    const nickFx = payload.senderEffect ? nickEffectClass(payload.senderEffect) : '';
+    if (nickFx) {
+      nameEl.classList.add(nickFx);
+      nameEl.style.setProperty('--nick-glow', payload.senderColor || '#8df0cc');
     }
     alert.appendChild(banner);
   }
@@ -151,13 +160,13 @@ function show(payload: MediaPlayPayload): void {
   }
 }
 
-/** Add a card-effect particle layer (levitation / stardust) over the whole alert. */
+/** Add a card-effect particle layer over the whole alert (effect looked up in the registry). */
 function addCardEffect(alert: HTMLElement, effect: string): void {
-  if (effect !== 'card-levitation' && effect !== 'card-stardust') return;
+  const cls = cardEffectClass(effect);
+  const count = particleCount(effect, 'overlayCard');
+  if (!cls || !count) return;
   const layer = document.createElement('div');
-  layer.className =
-    effect === 'card-levitation' ? 'card-fx card-fx-levitation' : 'card-fx card-fx-stardust';
-  const count = effect === 'card-levitation' ? 14 : 10;
+  layer.className = `card-fx ${cls}`;
   for (const ps of makeParticles(effect, count)) {
     const p = document.createElement('span');
     p.className = 'p';
@@ -777,11 +786,13 @@ function mountDemoPanel(): void {
   section('эффект карточки');
   const fxRow = document.createElement('div');
   fxRow.className = 'row';
+  // Registry-driven: every card effect gets a preview button (id sans 'card-' prefix as label).
   const fxButtons = (
     [
       ['none', 'Нет'],
-      ['card-levitation', 'Левитация'],
-      ['card-stardust', 'Пыль'],
+      ...COSMETICS.filter((c) => c.type === 'card_effect').map(
+        (c) => [c.id, c.id.replace(/^card-/, '')] as [string, string],
+      ),
     ] as [string, string][]
   ).map(([val, label]) => {
     const b = btn(label, () => {

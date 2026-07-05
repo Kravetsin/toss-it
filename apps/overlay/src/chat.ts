@@ -1,12 +1,19 @@
 import '@fontsource/jetbrains-mono';
 import { io, type Socket } from 'socket.io-client';
 import {
+  cardEffectClass,
+  injectCosmeticsStyles,
   makeParticles,
+  nickEffectClass,
+  particleCount,
   type ChatFragment,
   type ChatOverlayMessage,
   type OverlayToServerEvents,
   type ServerToOverlayEvents,
 } from '@tmw/shared';
+
+// Cosmetic effect CSS is injected from the shared registry (single source across web + overlay).
+injectCosmeticsStyles();
 
 // Founder = sparkles glyph before the name (matches web UserBadges / the media overlay).
 const FOUNDER_SVG =
@@ -55,12 +62,13 @@ function renderFragments(parent: HTMLElement, fragments: ChatFragment[]): void {
 
 /** Particle layer for card cosmetics; rendered behind the text, clipped to the pill. */
 function addCardEffect(row: HTMLElement, effect: string): void {
-  if (effect !== 'card-levitation' && effect !== 'card-stardust') return;
-  const layer = document.createElement('div');
-  layer.className =
-    effect === 'card-levitation' ? 'card-fx card-fx-levitation' : 'card-fx card-fx-stardust';
+  const cls = cardEffectClass(effect);
   // Fewer particles than the full media card — chat pills are small.
-  const count = effect === 'card-levitation' ? 8 : 6;
+  const count = particleCount(effect, 'overlayChat');
+  if (!cls || !count) return;
+  // `compact`: pills are short, so use the compact trajectory (crosses the row, clipped outside).
+  const layer = document.createElement('div');
+  layer.className = `card-fx ${cls} compact`;
   for (const ps of makeParticles(effect, count)) {
     const p = document.createElement('span');
     p.className = 'p';
@@ -99,8 +107,9 @@ function renderMessage(msg: ChatOverlayMessage): void {
   name.textContent = msg.name;
   const color = msg.cosmetics?.nickColor ?? msg.twitchColor ?? DEFAULT_COLOR;
   name.style.color = color;
-  if (msg.cosmetics?.nickEffect === 'nick-glow') {
-    name.classList.add('fx-glow');
+  const nickFx = msg.cosmetics?.nickEffect ? nickEffectClass(msg.cosmetics.nickEffect) : '';
+  if (nickFx) {
+    name.classList.add(nickFx);
     name.style.setProperty('--nick-glow', color);
   }
   head.appendChild(name);
@@ -135,7 +144,10 @@ function scheduleFade(row: HTMLElement): void {
   if (fadeSeconds <= 0 || row.classList.contains('leaving')) return;
   const age = (Date.now() - Number(row.dataset.ts ?? Date.now())) / 1000;
   const remaining = Math.max(0, fadeSeconds - age);
-  fadeTimers.set(row, window.setTimeout(() => fadeOut(row), remaining * 1000));
+  fadeTimers.set(
+    row,
+    window.setTimeout(() => fadeOut(row), remaining * 1000),
+  );
 }
 
 function fadeOut(row: HTMLElement): void {

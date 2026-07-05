@@ -70,13 +70,6 @@
         opacity: 0.7;
         margin-right: 6px;
       }
-      /* Nick glow: halo in the nick colour (--nick-glow, falls back to mint). */
-      .msg .name.fx-glow {
-        text-shadow:
-          0 0 7px var(--nick-glow, #8df0cc),
-          0 0 16px var(--nick-glow, #8df0cc),
-          0 1px 3px rgba(0, 0, 0, 0.55);
-      }
       .msg .badge {
         display: inline-block;
         vertical-align: middle;
@@ -94,73 +87,10 @@
         margin: 0 1px;
       }
 
-      /* Card effects: particle layer BEHIND the text, clipped to the message pill. */
-      .card-fx {
-        position: absolute;
-        inset: 0;
-        z-index: 0;
-        overflow: hidden;
-        pointer-events: none;
-      }
-      .card-fx .p {
-        position: absolute;
-        opacity: 0;
-      }
-      /* Chat pills are short like leaderboard rows, so use the COMPACT trajectories:
-         the particle starts/ends OUTSIDE the pill (clipped), fully visible only while
-         crossing — otherwise a comet would only appear mid-card and barely show. */
-      .card-fx-levitation .p {
-        width: 5px;
-        height: 5px;
-        border-radius: 50%;
-        background: #8df0cc;
-        box-shadow: 0 0 6px #8df0cc;
-        animation: cardfx-rise-compact 3.4s linear infinite;
-      }
-      @keyframes cardfx-rise-compact {
-        0% {
-          top: 135%;
-          opacity: 0;
-          transform: translateX(0) scale(var(--s, 1));
-        }
-        22% {
-          opacity: 0.9;
-        }
-        78% {
-          opacity: 0.9;
-        }
-        100% {
-          top: -35%;
-          opacity: 0;
-          transform: translateX(var(--drift, 0)) scale(calc(var(--s, 1) * 0.5));
-        }
-      }
-      .card-fx-stardust .p {
-        width: 2px;
-        height: 22px;
-        border-radius: 2px;
-        background: linear-gradient(to bottom, transparent, #8df0cc);
-        filter: drop-shadow(0 0 3px #8df0cc);
-        animation: cardfx-fall-compact 2.6s linear infinite;
-      }
-      @keyframes cardfx-fall-compact {
-        0% {
-          top: -75%;
-          opacity: 0;
-          transform: translateX(0) rotate(-24deg);
-        }
-        22% {
-          opacity: 0.9;
-        }
-        78% {
-          opacity: 0.9;
-        }
-        100% {
-          top: 140%;
-          opacity: 0;
-          transform: translateX(40px) rotate(-24deg);
-        }
-      }
+      /* Card effects (.card-fx*) and nick effects (.nick-glow) are injected at boot from the
+         shared cosmetics registry (injectCosmeticsStyles). Chat pills add the `.compact` class
+         (see chat.ts) so particles use the short-row trajectory. Text stays above via
+         `.msg .content { z-index: 1 }` (the injected .card-fx layer has no z-index). */
       @keyframes msg-in {
         0% {
           opacity: 0;

@@ -1,3 +1,6 @@
+// Local binding for use in the interfaces below; also re-exported for consumers (see `export *`).
+import type { EquippedCosmetics } from './cosmetics';
+
 export type MediaKind = 'image' | 'video' | 'audio' | 'text' | 'youtube' | 'gif';
 
 /**
@@ -160,7 +163,9 @@ export interface IntegrationStatus {
 }
 
 /** One piece of a chat message: plain text or a native Twitch emote. */
-export type ChatFragment = { type: 'text'; text: string } | { type: 'emote'; id: string; text: string };
+export type ChatFragment =
+  | { type: 'text'; text: string }
+  | { type: 'emote'; id: string; text: string };
 
 /** A chat message forwarded to the chat overlay (twitch-chat module → overlay). */
 export interface ChatOverlayMessage {
@@ -321,89 +326,15 @@ export interface UploadResponse {
 }
 
 /**
- * Cosmetics bought with stardust (never with money — see CLAUDE.md / product notes).
- * Catalog lives here in code; the DB stores only ownership + equip state.
+ * Cosmetics bought with stardust (never with money — see CLAUDE.md / product notes). The catalog
+ * and its module system live in ./cosmetics; this re-export keeps `@tmw/shared` the single import
+ * for COSMETICS, makeParticles, the effect helpers, and the cosmetic types.
  */
-/**
- * Cosmetic categories: nick color, nick effects (glow on the name), and card effects
- * (animation across the whole submission card / leaderboard row).
- */
-export type CosmeticType = 'nick_color' | 'nick_effect' | 'card_effect';
-
-export interface CosmeticItem {
-  /** Stable catalog id; stored in user_cosmetics. */
-  id: string;
-  type: CosmeticType;
-  /** Price in stardust. */
-  costDust: number;
-}
-
-/** Single source of truth for buyable cosmetics. Prices assume 1 chat msg = 1 dust, send = 10. */
-export const COSMETICS: CosmeticItem[] = [
-  { id: 'nick-color', type: 'nick_color', costDust: 1000 },
-  { id: 'nick-glow', type: 'nick_effect', costDust: 1500 },
-  { id: 'card-levitation', type: 'card_effect', costDust: 2500 },
-  { id: 'card-stardust', type: 'card_effect', costDust: 3500 },
-];
-
-/** What a user currently has equipped (one slot per category). */
-export interface EquippedCosmetics {
-  /** Free-form #rrggbb nickname color; requires owning the 'nick-color' item. */
-  nickColor?: string | null;
-  /** Equipped nick effect item id (e.g. 'nick-glow'); requires owning it. */
-  nickEffect?: string | null;
-  /** Equipped card effect item id (e.g. 'card-levitation', 'card-stardust'); requires owning it. */
-  cardEffect?: string | null;
-}
+export * from './cosmetics';
 
 /** Validate a #rrggbb hex color (exactly 6 hex digits, no alpha). */
 export function isHexColor(v: string): boolean {
   return /^#[0-9a-fA-F]{6}$/.test(v);
-}
-
-/** Whether an id is a buyable cosmetic of the given type. */
-export function isCosmeticOfType(id: string, type: CosmeticType): boolean {
-  return COSMETICS.some((c) => c.id === id && c.type === type);
-}
-
-/**
- * Inline styles for one card-effect particle, randomized so the swarm looks organic instead
- * of a looped GIF: random column, speed, size, drift/angle, and a NEGATIVE delay so each
- * particle starts mid-flight (desynced from the others). Keys are camelCase / CSS custom
- * properties, usable directly as a React style object or via element.style in the overlay.
- * Generate once per mount (the values are random each call).
- */
-export function makeParticles(effect: string, count: number): Record<string, string>[] {
-  const rnd = (a: number, b: number) => a + Math.random() * (b - a);
-  return Array.from({ length: count }, (): Record<string, string> => {
-    if (effect === 'card-stardust') {
-      // Meteors share one fixed direction (set in CSS so the streak points the way it flies);
-      // only the spawn point, length, speed and phase are random.
-      const dur = rnd(1.8, 3.0);
-      return {
-        left: `${rnd(-10, 92).toFixed(1)}%`,
-        top: `${rnd(-25, 35).toFixed(1)}%`,
-        height: `${rnd(16, 28).toFixed(0)}px`,
-        animationDuration: `${dur.toFixed(2)}s`,
-        animationDelay: `${(-rnd(0, dur)).toFixed(2)}s`,
-      };
-    }
-    const dur = rnd(2.8, 4.6);
-    return {
-      left: `${rnd(2, 98).toFixed(1)}%`,
-      '--drift': `${rnd(-18, 18).toFixed(0)}px`,
-      '--s': rnd(0.65, 1.35).toFixed(2),
-      animationDuration: `${dur.toFixed(2)}s`,
-      animationDelay: `${(-rnd(0, dur)).toFixed(2)}s`,
-    };
-  });
-}
-
-/** Returned by /api/cosmetics/buy and /equip — the user's post-mutation cosmetic state. */
-export interface CosmeticStateResponse {
-  stardust: number;
-  ownedCosmetics: string[];
-  equipped: EquippedCosmetics;
 }
 
 export interface SessionUser {
