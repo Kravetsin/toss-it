@@ -178,11 +178,21 @@ export interface ChatOverlayMessage {
   fragments: ChatFragment[];
 }
 
+/** Display config for the chat overlay (font size, auto-hide). */
+export interface ChatOverlayConfig {
+  /** Message font size in px. */
+  fontSize: number;
+  /** Seconds a message stays before fading out; 0 = keep until pushed off. */
+  fadeSeconds: number;
+}
+
 export interface ServerToOverlayEvents {
   'media:play': (payload: MediaPlayPayload) => void;
   'media:skip': (submissionId: string) => void;
   /** Channel donation → fullscreen burst FX over media display. */
   'donation:fx': (fx: DonationFx) => void;
+  /** Chat display config, sent on connect and whenever settings change. */
+  'chat:config': (cfg: ChatOverlayConfig) => void;
   /** New chat line for the chat overlay source. */
   'chat:message': (msg: ChatOverlayMessage) => void;
   /** A single message was deleted on Twitch (by id). */
@@ -259,6 +269,10 @@ export interface ChannelSettings {
   ttsMessage: boolean;
   /** Show the Twitch chat (with Tossit cosmetics) in the chat overlay source. */
   chatOverlayEnabled: boolean;
+  /** Chat overlay message font size, px. */
+  chatFontSize: number;
+  /** Chat overlay: seconds before a message fades out; 0 = keep until pushed off. */
+  chatFadeSeconds: number;
   /** Media anchor (shared for images/video; music inherits unless musicSeparate). */
   overlayPosition: OverlayPosition;
   /** Max media size, % of viewport (10-100). */

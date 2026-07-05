@@ -29,6 +29,8 @@ export function OverlaySettings({
   const [ttsName, setTtsName] = useState(settings.ttsName);
   const [ttsMessage, setTtsMessage] = useState(settings.ttsMessage);
   const [chatOverlay, setChatOverlay] = useState(settings.chatOverlayEnabled);
+  const [chatFont, setChatFont] = useState(settings.chatFontSize);
+  const [chatFade, setChatFade] = useState(settings.chatFadeSeconds);
   const [position, setPosition] = useState<OverlayPosition>(settings.overlayPosition);
   const [mediaSize, setMediaSize] = useState(settings.overlaySize);
   const [margin, setMargin] = useState(settings.overlayMargin);
@@ -152,6 +154,28 @@ export function OverlaySettings({
         <Toggle checked={ttsMessage} onChange={setTtsMessage} label={t('dash.ttsMessage')} />
         <Toggle checked={chatOverlay} onChange={setChatOverlay} label={t('dash.chatOverlay')} />
         <p className="pl-6 text-xs text-muted">{t('dash.chatOverlayNote')}</p>
+        {chatOverlay && (
+          <div className="mt-2 grid gap-4 border-l border-accent/40 pl-4 sm:grid-cols-2">
+            <Slider
+              icon="message-circle"
+              label={t('dash.chatFont', { n: chatFont })}
+              min={12}
+              max={40}
+              value={chatFont}
+              onChange={setChatFont}
+            />
+            <Slider
+              icon="clock"
+              label={
+                chatFade === 0 ? t('dash.chatFadeOff') : t('dash.chatFade', { n: chatFade })
+              }
+              min={0}
+              max={120}
+              value={chatFade}
+              onChange={setChatFade}
+            />
+          </div>
+        )}
       </div>
 
       <div className="mt-4 flex justify-end">
@@ -168,6 +192,8 @@ export function OverlaySettings({
               ttsName,
               ttsMessage,
               chatOverlayEnabled: chatOverlay,
+              chatFontSize: chatFont,
+              chatFadeSeconds: chatFade,
               overlayPosition: position,
               overlaySize: mediaSize,
               overlayMargin: margin,

@@ -14,7 +14,8 @@
         height: 100vh;
         font-family: 'JetBrains Mono', monospace;
       }
-      /* Chat column anchored bottom; newest at the bottom, older scroll up off-screen. */
+      /* Chat column anchored bottom; newest at the bottom, older scroll up off-screen.
+         --chat-font is set from channel settings via the chat:config socket event. */
       #chat {
         position: fixed;
         inset: 0;
@@ -24,14 +25,16 @@
         gap: 8px;
         padding: 12px;
         box-sizing: border-box;
+        font-size: var(--chat-font, 19px);
       }
       .msg {
+        position: relative;
         align-self: flex-start;
         max-width: 100%;
         box-sizing: border-box;
         padding: 7px 14px;
-        font-size: 19px;
-        line-height: 1.35;
+        font-size: inherit;
+        line-height: 1.4;
         color: #ededec;
         background: rgba(13, 17, 17, 0.72);
         -webkit-backdrop-filter: blur(10px);
@@ -41,8 +44,22 @@
         box-shadow:
           inset 0 1px 0 0 rgba(141, 240, 204, 0.35),
           0 8px 24px -10px rgba(0, 0, 0, 0.6);
+        overflow: hidden;
         overflow-wrap: anywhere;
-        animation: msg-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+        animation: msg-in 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+      }
+      /* Auto-hide: JS adds .leaving after the fade delay, then removes on animationend. */
+      .msg.leaving {
+        animation: msg-out 0.45s ease forwards;
+      }
+      /* Text sits above the card-effect particle layer. */
+      .msg .content {
+        position: relative;
+        z-index: 1;
+      }
+      /* Keep the founder icon + name + colon together, always on the name's line. */
+      .msg .head {
+        white-space: nowrap;
       }
       .msg .name {
         font-weight: 700;
@@ -61,15 +78,88 @@
           0 1px 3px rgba(0, 0, 0, 0.55);
       }
       .msg .badge {
-        display: inline-flex;
+        display: inline-block;
         vertical-align: middle;
         color: #8df0cc;
         margin-right: 4px;
+      }
+      .msg .badge svg {
+        display: block;
+        width: 1em;
+        height: 1em;
       }
       .msg .emote {
         height: 1.5em;
         vertical-align: middle;
         margin: 0 1px;
+      }
+
+      /* Card effects: particle layer BEHIND the text, clipped to the message pill. */
+      .card-fx {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        overflow: hidden;
+        pointer-events: none;
+      }
+      .card-fx .p {
+        position: absolute;
+        opacity: 0;
+      }
+      /* Chat pills are short like leaderboard rows, so use the COMPACT trajectories:
+         the particle starts/ends OUTSIDE the pill (clipped), fully visible only while
+         crossing — otherwise a comet would only appear mid-card and barely show. */
+      .card-fx-levitation .p {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: #8df0cc;
+        box-shadow: 0 0 6px #8df0cc;
+        animation: cardfx-rise-compact 3.4s linear infinite;
+      }
+      @keyframes cardfx-rise-compact {
+        0% {
+          top: 135%;
+          opacity: 0;
+          transform: translateX(0) scale(var(--s, 1));
+        }
+        22% {
+          opacity: 0.9;
+        }
+        78% {
+          opacity: 0.9;
+        }
+        100% {
+          top: -35%;
+          opacity: 0;
+          transform: translateX(var(--drift, 0)) scale(calc(var(--s, 1) * 0.5));
+        }
+      }
+      .card-fx-stardust .p {
+        width: 2px;
+        height: 22px;
+        border-radius: 2px;
+        background: linear-gradient(to bottom, transparent, #8df0cc);
+        filter: drop-shadow(0 0 3px #8df0cc);
+        animation: cardfx-fall-compact 2.6s linear infinite;
+      }
+      @keyframes cardfx-fall-compact {
+        0% {
+          top: -75%;
+          opacity: 0;
+          transform: translateX(0) rotate(-24deg);
+        }
+        22% {
+          opacity: 0.9;
+        }
+        78% {
+          opacity: 0.9;
+        }
+        100% {
+          top: 140%;
+          opacity: 0;
+          transform: translateX(40px) rotate(-24deg);
+        }
       }
       @keyframes msg-in {
         0% {
@@ -79,6 +169,16 @@
         100% {
           opacity: 1;
           transform: translateX(0);
+        }
+      }
+      @keyframes msg-out {
+        0% {
+          opacity: 1;
+          transform: translateX(0);
+        }
+        100% {
+          opacity: 0;
+          transform: translateX(-10px);
         }
       }
     </style>

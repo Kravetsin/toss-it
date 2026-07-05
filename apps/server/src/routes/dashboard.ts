@@ -150,6 +150,8 @@ function toSettings(ch: ChannelRow, chatBot: { login: string | null; reading: bo
     ttsName: ch.ttsName,
     ttsMessage: ch.ttsMessage,
     chatOverlayEnabled: ch.chatOverlayEnabled,
+    chatFontSize: ch.chatFontSize,
+    chatFadeSeconds: ch.chatFadeSeconds,
     overlayPosition: ch.overlayPosition,
     overlaySize: ch.overlaySize,
     overlayMargin: ch.overlayMargin,
@@ -418,6 +420,14 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
           typeof b.chatOverlayEnabled === 'boolean'
             ? b.chatOverlayEnabled
             : channel.chatOverlayEnabled,
+        chatFontSize:
+          typeof b.chatFontSize === 'number'
+            ? clamp(Math.round(b.chatFontSize), 12, 40)
+            : channel.chatFontSize,
+        chatFadeSeconds:
+          typeof b.chatFadeSeconds === 'number'
+            ? clamp(Math.round(b.chatFadeSeconds), 0, 600)
+            : channel.chatFadeSeconds,
         overlayPosition: OVERLAY_POSITIONS.includes(b.overlayPosition as never)
           ? (b.overlayPosition as (typeof OVERLAY_POSITIONS)[number])
           : channel.overlayPosition,
@@ -446,6 +456,11 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         links: 'links' in b ? sanitizeLinks(b.links) : channel.links,
       };
       await db.update(channels).set(patch).where(eq(channels.id, channel.id));
+      // Push chat display config live so the OBS chat source updates without a reload.
+      io.to(roomOf(channel.id)).emit('chat:config', {
+        fontSize: patch.chatFontSize,
+        fadeSeconds: patch.chatFadeSeconds,
+      });
       return toSettings({ ...channel, ...patch }, await chatBotInfo(channel));
     },
   );

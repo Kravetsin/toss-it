@@ -1,10 +1,11 @@
 import '@fontsource/jetbrains-mono';
 import { io, type Socket } from 'socket.io-client';
-import type {
-  ChatFragment,
-  ChatOverlayMessage,
-  OverlayToServerEvents,
-  ServerToOverlayEvents,
+import {
+  makeParticles,
+  type ChatFragment,
+  type ChatOverlayMessage,
+  type OverlayToServerEvents,
+  type ServerToOverlayEvents,
 } from '@tmw/shared';
 
 // Founder = sparkles glyph before the name (matches web UserBadges / the media overlay).
@@ -17,8 +18,14 @@ const MAX_MESSAGES = 40;
 const emoteUrl = (id: string) =>
   `https://static-cdn.jtvnw.net/emoticons/v2/${encodeURIComponent(id)}/default/dark/1.0`;
 
+/** Fade-out animation length (keep in sync with .msg.leaving in chat.html). */
+const FADE_ANIM_MS = 450;
+
 const SERVER_URL = import.meta.env.DEV ? 'http://127.0.0.1:3000' : window.location.origin;
 const chat = document.getElementById('chat')!;
+
+// Seconds a message lives before fading; 0 = keep. Updated by chat:config.
+let fadeSeconds = 0;
 
 const DEMO = import.meta.env.DEV && new URLSearchParams(window.location.search).has('demo');
 const token = new URLSearchParams(window.location.search).get('token');
@@ -44,19 +51,47 @@ function renderFragments(parent: HTMLElement, fragments: ChatFragment[]): void {
   }
 }
 
+/** Particle layer for card cosmetics; rendered behind the text, clipped to the pill. */
+function addCardEffect(row: HTMLElement, effect: string): void {
+  if (effect !== 'card-levitation' && effect !== 'card-stardust') return;
+  const layer = document.createElement('div');
+  layer.className =
+    effect === 'card-levitation' ? 'card-fx card-fx-levitation' : 'card-fx card-fx-stardust';
+  // Fewer particles than the full media card — chat pills are small.
+  const count = effect === 'card-levitation' ? 8 : 6;
+  for (const ps of makeParticles(effect, count)) {
+    const p = document.createElement('span');
+    p.className = 'p';
+    for (const [k, v] of Object.entries(ps)) {
+      if (k.startsWith('--')) p.style.setProperty(k, v);
+      else (p.style as unknown as Record<string, string>)[k] = v;
+    }
+    layer.appendChild(p);
+  }
+  row.appendChild(layer);
+}
+
 function renderMessage(msg: ChatOverlayMessage): void {
   const row = document.createElement('div');
   row.className = 'msg';
   row.dataset.id = msg.id;
   row.dataset.user = msg.userId;
 
+  // Card effect first: it's the background particle layer, under .content.
+  if (msg.cosmetics?.cardEffect) addCardEffect(row, msg.cosmetics.cardEffect);
+
+  const content = document.createElement('span');
+  content.className = 'content';
+
+  // Founder icon + name + colon stay together on the name's line (nowrap head).
+  const head = document.createElement('span');
+  head.className = 'head';
   if (msg.isFounder) {
     const badge = document.createElement('span');
     badge.className = 'badge';
     badge.innerHTML = FOUNDER_SVG; // constant, trusted markup — not user input
-    row.appendChild(badge);
+    head.appendChild(badge);
   }
-
   const name = document.createElement('span');
   name.className = 'name';
   name.textContent = msg.name;
@@ -66,20 +101,37 @@ function renderMessage(msg: ChatOverlayMessage): void {
     name.classList.add('fx-glow');
     name.style.setProperty('--nick-glow', color);
   }
-  row.appendChild(name);
-
+  head.appendChild(name);
   const sep = document.createElement('span');
   sep.className = 'sep';
   sep.textContent = ':';
-  row.appendChild(sep);
+  head.appendChild(sep);
+  content.appendChild(head);
 
   const body = document.createElement('span');
   renderFragments(body, msg.fragments);
-  row.appendChild(body);
+  content.appendChild(body);
 
+  row.appendChild(content);
   chat.appendChild(row);
   // Cap the DOM: drop the oldest messages from the top.
   while (chat.children.length > MAX_MESSAGES) chat.firstElementChild?.remove();
+
+  // Auto-hide: fade the message out after the configured delay.
+  if (fadeSeconds > 0) {
+    window.setTimeout(() => fadeOut(row), fadeSeconds * 1000);
+  }
+}
+
+function fadeOut(row: HTMLElement): void {
+  if (!row.isConnected || row.classList.contains('leaving')) return;
+  row.classList.add('leaving');
+  window.setTimeout(() => row.remove(), FADE_ANIM_MS);
+}
+
+function applyConfig(cfg: { fontSize: number; fadeSeconds: number }): void {
+  chat.style.setProperty('--chat-font', `${cfg.fontSize}px`);
+  fadeSeconds = cfg.fadeSeconds;
 }
 
 function removeMessage(messageId: string): void {
@@ -93,6 +145,12 @@ function clearAll(): void {
 }
 
 if (DEMO) {
+  // ?font= / ?fade= let us exercise config without a server.
+  const q = new URLSearchParams(window.location.search);
+  applyConfig({
+    fontSize: Number(q.get('font')) || 19,
+    fadeSeconds: Number(q.get('fade')) || 0,
+  });
   const demo: ChatOverlayMessage[] = [
     {
       id: '1',
@@ -108,11 +166,25 @@ if (DEMO) {
       userId: 'u2',
       name: 'Kravets',
       twitchColor: null,
-      cosmetics: { nickColor: '#8df0cc', nickEffect: 'nick-glow' },
+      cosmetics: { nickColor: '#8df0cc', nickEffect: 'nick-glow', cardEffect: 'card-stardust' },
       isFounder: true,
       fragments: [
         { type: 'text', text: 'смотри какой эмоут ' },
         { type: 'emote', id: '25', text: 'Kappa' },
+      ],
+    },
+    {
+      id: '3',
+      userId: 'u3',
+      name: 'Kravetsin',
+      twitchColor: '#c9a0ff',
+      cosmetics: { cardEffect: 'card-levitation' },
+      isFounder: true,
+      fragments: [
+        {
+          type: 'text',
+          text: 'а это длинное сообщение чтобы проверить как ведёт себя иконка и текст когда всё переносится на несколько строк подряд ',
+        },
       ],
     },
   ];
@@ -122,6 +194,7 @@ if (DEMO) {
     query: { role: 'overlay', token: token ?? '' },
   });
   socket.on('connect', () => console.log('[chat-overlay] connected'));
+  socket.on('chat:config', applyConfig);
   socket.on('chat:message', renderMessage);
   socket.on('chat:delete', removeMessage);
   socket.on('chat:clearUser', removeUser);

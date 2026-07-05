@@ -466,7 +466,11 @@ export function setupRealtime(io: RealtimeServer, app: FastifyInstance): Playbac
             return;
           }
           const channel = await db
-            .select({ id: channels.id })
+            .select({
+              id: channels.id,
+              chatFontSize: channels.chatFontSize,
+              chatFadeSeconds: channels.chatFadeSeconds,
+            })
             .from(channels)
             .where(eq(channels.overlayToken, token))
             .get();
@@ -475,6 +479,11 @@ export function setupRealtime(io: RealtimeServer, app: FastifyInstance): Playbac
             return;
           }
           void socket.join(roomOf(channel.id));
+          // The chat overlay reads this on connect; the media overlay ignores it.
+          socket.emit('chat:config', {
+            fontSize: channel.chatFontSize,
+            fadeSeconds: channel.chatFadeSeconds,
+          });
           socket.on('playback:done', (submissionId) => {
             if (typeof submissionId === 'string') void playback.onDone(channel.id, submissionId);
           });

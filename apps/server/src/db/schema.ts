@@ -78,6 +78,9 @@ export const channels = sqliteTable('channels', {
   showSenderName: integer('show_sender_name', { mode: 'boolean' }).notNull().default(true),
   // Streamer opt-out: render the Twitch chat (with Tossit cosmetics) in the chat overlay source.
   chatOverlayEnabled: integer('chat_overlay_enabled', { mode: 'boolean' }).notNull().default(true),
+  chatFontSize: integer('chat_font_size').notNull().default(19),
+  // Seconds before a chat message fades out; 0 = keep until pushed off by newer ones.
+  chatFadeSeconds: integer('chat_fade_seconds').notNull().default(0),
   soundAlert: integer('sound_alert', { mode: 'boolean' }).notNull().default(false),
   ttsName: integer('tts_name', { mode: 'boolean' }).notNull().default(false),
   ttsMessage: integer('tts_message', { mode: 'boolean' }).notNull().default(false),

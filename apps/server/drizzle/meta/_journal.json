@@ -183,6 +183,13 @@
       "when": 1783255380115,
       "tag": "0025_left_zemo",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1783257626290,
+      "tag": "0026_bored_manta",
+      "breakpoints": true
     }
   ]
 }
