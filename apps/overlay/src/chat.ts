@@ -26,6 +26,8 @@ const chat = document.getElementById('chat')!;
 
 // Seconds a message lives before fading; 0 = keep. Updated by chat:config.
 let fadeSeconds = 0;
+// Pending fade timer per message, so a config change can reschedule/cancel them.
+const fadeTimers = new WeakMap<HTMLElement, number>();
 
 const DEMO = import.meta.env.DEV && new URLSearchParams(window.location.search).has('demo');
 const token = new URLSearchParams(window.location.search).get('token');
@@ -113,17 +115,31 @@ function renderMessage(msg: ChatOverlayMessage): void {
   content.appendChild(body);
 
   row.appendChild(content);
+  row.dataset.ts = String(Date.now());
   chat.appendChild(row);
   // Cap the DOM: drop the oldest messages from the top.
   while (chat.children.length > MAX_MESSAGES) chat.firstElementChild?.remove();
 
-  // Auto-hide: fade the message out after the configured delay.
-  if (fadeSeconds > 0) {
-    window.setTimeout(() => fadeOut(row), fadeSeconds * 1000);
+  scheduleFade(row);
+}
+
+/** (Re)schedule a message's fade from the CURRENT fadeSeconds, accounting for its age.
+ *  Called on render and whenever the config changes — so toggling the slider adapts
+ *  messages that were shown while auto-hide was off. */
+function scheduleFade(row: HTMLElement): void {
+  const existing = fadeTimers.get(row);
+  if (existing !== undefined) {
+    clearTimeout(existing);
+    fadeTimers.delete(row);
   }
+  if (fadeSeconds <= 0 || row.classList.contains('leaving')) return;
+  const age = (Date.now() - Number(row.dataset.ts ?? Date.now())) / 1000;
+  const remaining = Math.max(0, fadeSeconds - age);
+  fadeTimers.set(row, window.setTimeout(() => fadeOut(row), remaining * 1000));
 }
 
 function fadeOut(row: HTMLElement): void {
+  fadeTimers.delete(row);
   if (!row.isConnected || row.classList.contains('leaving')) return;
   row.classList.add('leaving');
   window.setTimeout(() => row.remove(), FADE_ANIM_MS);
@@ -132,6 +148,8 @@ function fadeOut(row: HTMLElement): void {
 function applyConfig(cfg: { fontSize: number; fadeSeconds: number }): void {
   chat.style.setProperty('--chat-font', `${cfg.fontSize}px`);
   fadeSeconds = cfg.fadeSeconds;
+  // Adapt already-visible messages to the new setting (schedule, cancel, or hide overdue).
+  for (const row of Array.from(chat.children)) scheduleFade(row as HTMLElement);
 }
 
 function removeMessage(messageId: string): void {
@@ -189,6 +207,8 @@ if (DEMO) {
     },
   ];
   demo.forEach(renderMessage);
+  // Dev-only: lets a preview eval trigger a config change to test rescheduling.
+  (window as unknown as { __applyConfig?: typeof applyConfig }).__applyConfig = applyConfig;
 } else {
   const socket: Socket<ServerToOverlayEvents, OverlayToServerEvents> = io(SERVER_URL, {
     query: { role: 'overlay', token: token ?? '' },
