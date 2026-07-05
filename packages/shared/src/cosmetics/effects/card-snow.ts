@@ -1,10 +1,11 @@
 import type { CardEffectModule } from '../types';
 
 /**
- * Soft white flakes falling slowly down the whole card while swaying sideways — reads as calm
- * "snow", distinct from levitation's fast upward rise. Fixed white color (not the accent) so it
- * reads as snow regardless of nick/theme. The `.compact` variant (leaderboard rows, chat pills)
- * flies a trajectory that starts/ends OUTSIDE the row so a whole flake is only seen while crossing.
+ * Soft white flakes falling slowly down the whole card onto a static, lumpy snowdrift at the
+ * bottom — reads as calm "snow", distinct from levitation's fast upward rise. Fixed white color
+ * (not the accent) so it reads as snow regardless of nick/theme. Unlike the levitation/rain pools
+ * the drift does NOT wave — it's settled snow. The `.compact` variant (leaderboard rows, chat
+ * pills) flies a trajectory that starts/ends OUTSIDE the row and drops the drift.
  */
 export const cardSnow: CardEffectModule = {
   id: 'card-snow',
@@ -74,6 +75,33 @@ export const cardSnow: CardEffectModule = {
     opacity: 0;
     transform: translateX(var(--drift, 0)) scale(var(--s, 1));
   }
+}
+/* Thin settled snowdrift at the very bottom: a solid base line (::before) plus a few big rounded
+   mounds (::after) — static, since it's accumulated snow, not liquid. Hidden on .compact. */
+.card-fx-snow::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.6);
+}
+.card-fx-snow::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 8px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='8' viewBox='0 0 150 8'%3E%3Cpath d='M0 8 V6 Q37.5 1 75 6 Q112.5 1 150 6 V8 Z' fill='%23ffffff'/%3E%3C/svg%3E")
+    repeat-x;
+  background-size: 150px 8px;
+  opacity: 0.75;
+}
+.card-fx-snow.compact::before,
+.card-fx-snow.compact::after {
+  display: none;
 }
 `,
 };
