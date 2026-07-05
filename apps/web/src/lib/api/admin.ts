@@ -1,5 +1,15 @@
-import type { AdminBotStatus, AdminExclusion, AdminUserRow, AdminUsersSort } from '@tmw/shared';
+import type {
+  AdminBotStatus,
+  AdminExclusion,
+  AdminLiveChannel,
+  AdminUserRow,
+  AdminUsersSort,
+} from '@tmw/shared';
 import { json } from './http';
+
+export function listLiveChannels(): Promise<AdminLiveChannel[]> {
+  return fetch('/api/admin/live-channels').then((r) => json<AdminLiveChannel[]>(r));
+}
 
 export function listExclusions(): Promise<AdminExclusion[]> {
   return fetch('/api/admin/leaderboard-exclusions').then((r) => json<AdminExclusion[]>(r));

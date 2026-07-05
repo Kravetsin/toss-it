@@ -370,6 +370,11 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
   }
   if (pathname === '/api/me/channels') return MOCK_CHANNELS;
   if (pathname === '/api/admin/bot') return { connected: true, login: 'tossitbot' };
+  if (pathname === '/api/admin/live-channels') {
+    return [
+      { login: 'kravetsinside', displayName: 'Kravets', avatarUrl: null, overlays: 1 },
+    ];
+  }
   if (pathname === '/api/admin/leaderboard-exclusions') {
     if (init?.method === 'POST') return { ok: true, login: 'wizebot' };
     if (init?.method === 'DELETE') return { ok: true };
@@ -397,6 +402,7 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
         rejected: 2,
         whitelistedIn: 3,
         bannedIn: 0,
+        isLive: true,
       },
       {
         id: 'google:other3',
@@ -414,6 +420,7 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
         rejected: 4,
         whitelistedIn: 0,
         bannedIn: 1,
+        isLive: false,
       },
     ];
   }

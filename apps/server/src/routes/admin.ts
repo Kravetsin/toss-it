@@ -1,7 +1,13 @@
 import crypto from 'node:crypto';
 import { and, desc, eq, inArray, like, or, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
-import type { AdminBotStatus, AdminExclusion, AdminPromoCode, AdminUserRow } from '@tmw/shared';
+import type {
+  AdminBotStatus,
+  AdminExclusion,
+  AdminLiveChannel,
+  AdminPromoCode,
+  AdminUserRow,
+} from '@tmw/shared';
 import { db } from '../db/index';
 import {
   bans,
@@ -18,6 +24,7 @@ import {
 import { buildAuthorizeUrl, requireAdmin } from '../auth';
 import { config } from '../config';
 import type { TwitchChatModule } from '../modules/twitch-chat/index';
+import type { PlaybackManager } from '../playback';
 import { clearLeaderboardCaches } from './channels';
 import { isKnownGrant } from './promo';
 import { STATE_COOKIE, type OAuthState } from './auth';
@@ -37,9 +44,37 @@ function genCode(): string {
 
 export interface AdminRoutesDeps {
   twitchChat: TwitchChatModule;
+  playback: PlaybackManager;
 }
 
 export function registerAdminRoutes(app: FastifyInstance, deps: AdminRoutesDeps): void {
+  /** Channels with a connected OBS overlay right now (≈ live). */
+  app.get('/api/admin/live-channels', async (req, reply): Promise<AdminLiveChannel[] | undefined> => {
+    const admin = await requireAdmin(req, reply);
+    if (!admin) return;
+    const live = deps.playback.liveChannels();
+    if (live.size === 0) return [];
+    const rows = await db
+      .select({
+        id: channels.id,
+        login: users.login,
+        displayName: users.displayName,
+        avatarUrl: users.avatarUrl,
+      })
+      .from(channels)
+      .innerJoin(users, eq(users.id, channels.ownerUserId))
+      .where(inArray(channels.id, [...live.keys()]))
+      .all();
+    return rows
+      .map((r) => ({
+        login: r.login,
+        displayName: r.displayName,
+        avatarUrl: r.avatarUrl,
+        overlays: live.get(r.id) ?? 0,
+      }))
+      .sort((a, b) => a.displayName.localeCompare(b.displayName));
+  });
+
   app.get('/api/admin/bot', async (req, reply): Promise<AdminBotStatus | undefined> => {
     const admin = await requireAdmin(req, reply);
     if (!admin) return;
@@ -76,7 +111,7 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminRoutesDeps)
         .where(inArray(linkedIdentities.userId, ids))
         .all();
       const channelRows = await db
-        .select({ ownerUserId: channels.ownerUserId })
+        .select({ id: channels.id, ownerUserId: channels.ownerUserId })
         .from(channels)
         .where(inArray(channels.ownerUserId, ids))
         .all();
@@ -128,6 +163,11 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminRoutesDeps)
         identsBy.set(r.userId, [...(identsBy.get(r.userId) ?? []), r.provider]);
       }
       const hasChannel = new Set(channelRows.map((r) => r.ownerUserId));
+      // Owner ids whose channel overlay is connected right now.
+      const liveChannelIds = deps.playback.liveChannels();
+      const liveOwnerIds = new Set(
+        channelRows.filter((r) => liveChannelIds.has(r.id)).map((r) => r.ownerUserId),
+      );
       const cosmeticsBy = new Map(cosmeticsRows.map((r) => [r.userId, r.n]));
       const pendingBy = new Map(pendingRows.map((r) => [r.userId, r.amount]));
       // accepted = passed moderation (approved, incl. already played); expired counts as neither.
@@ -160,6 +200,7 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminRoutesDeps)
         rejected: rejectedBy.get(u.id) ?? 0,
         whitelistedIn: whitelistBy.get(u.id) ?? 0,
         bannedIn: bansBy.get(u.id) ?? 0,
+        isLive: liveOwnerIds.has(u.id),
       }));
     },
   );

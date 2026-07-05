@@ -487,9 +487,20 @@ export interface AdminUserRow {
   whitelistedIn: number;
   /** How many channels banned this user. */
   bannedIn: number;
+  /** Their channel's overlay is connected right now (≈ streaming). */
+  isLive: boolean;
 }
 
 export type AdminUsersSort = 'created' | 'stardust';
+
+/** A channel whose OBS overlay is connected right now (admin "who's live" view). */
+export interface AdminLiveChannel {
+  login: string;
+  displayName: string;
+  avatarUrl: string | null;
+  /** Connected overlay sockets (usually 1). */
+  overlays: number;
+}
 
 /** A twitch login excluded from every channel's leaderboard (bots). */
 export interface AdminExclusion {

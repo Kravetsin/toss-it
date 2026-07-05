@@ -30,6 +30,89 @@ function StatChip({
   );
 }
 
+/** One user: collapsed shows the essentials; click to reveal the support details. */
+function UserRow({
+  u,
+  lang,
+  onSaved,
+}: {
+  u: AdminUserRow;
+  lang: string;
+  onSaved: (v: number) => void;
+}) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+
+  return (
+    <li className="flex flex-col gap-1.5 border-b border-border pb-2 last:border-0 last:pb-0">
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), setOpen((o) => !o))}
+        className="flex cursor-pointer items-center gap-2"
+      >
+        <Icon
+          name="chevron-down"
+          size={14}
+          className={`shrink-0 text-muted transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+        />
+        {u.avatarUrl ? (
+          <img src={u.avatarUrl} alt="" className="h-6 w-6 shrink-0 rounded-full" />
+        ) : (
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-2 text-xs">
+            {u.displayName.slice(0, 1).toUpperCase()}
+          </span>
+        )}
+        <b className="truncate">{u.displayName}</b>
+        <span className="truncate text-muted">@{u.login}</span>
+        {u.isLive && (
+          <Tooltip content={t('live.badge')}>
+            <span className="flex shrink-0 items-center gap-1 text-xs text-ok">
+              <span className="inline-flex h-1.5 w-1.5 rounded-full bg-ok" />
+              LIVE
+            </span>
+          </Tooltip>
+        )}
+        <span className="ml-auto shrink-0 text-xs text-faint">
+          {new Date(u.createdAt).toLocaleDateString(lang)}
+        </span>
+        {/* Stop propagation so editing the balance doesn't toggle the row. */}
+        <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
+          <DustCell user={u} onSaved={onSaved} />
+        </span>
+      </div>
+
+      {open && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 pl-8 text-xs">
+          {u.identities.map((p) => (
+            <PlatformIcon key={p} userId={`${p}:x`} size={13} />
+          ))}
+          <UserBadges isFounder={u.isFounder} variant="icons" />
+          {u.hasChannel && (
+            <Tooltip content={t('admin.hasChannel')}>
+              <span className="flex items-center">
+                <Icon name="monitor" size={13} className="text-muted" />
+              </span>
+            </Tooltip>
+          )}
+          <span className="flex items-center gap-2 tabular-nums">
+            <StatChip icon="check" value={u.accepted} hint={t('admin.accepted')} tone="text-ok" />
+            <StatChip icon="close" value={u.rejected} hint={t('admin.rejected')} tone="text-danger" />
+            <StatChip icon="shield" value={u.whitelistedIn} hint={t('admin.whitelistedIn')} />
+            <StatChip icon="user-x" value={u.bannedIn} hint={t('admin.bannedIn')} />
+          </span>
+          {u.ownedCosmetics > 0 && (
+            <span className="text-muted">{t('admin.cosmeticsCount', { n: u.ownedCosmetics })}</span>
+          )}
+          {u.pendingDust > 0 && <Badge>{t('admin.pendingDust', { n: u.pendingDust })}</Badge>}
+        </div>
+      )}
+    </li>
+  );
+}
+
 /** Inline stardust editor: click the value, Enter/blur saves, Escape cancels. */
 function DustCell({ user, onSaved }: { user: AdminUserRow; onSaved: (v: number) => void }) {
   const { t } = useI18n();
@@ -146,48 +229,7 @@ export function AdminUsersPanel() {
         <Card>
           <ul className="flex flex-col gap-2 text-sm">
             {rows.map((u) => (
-              <li key={u.id} className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                {u.avatarUrl ? (
-                  <img src={u.avatarUrl} alt="" className="h-6 w-6 rounded-full" />
-                ) : (
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-surface-2 text-xs">
-                    {u.displayName.slice(0, 1).toUpperCase()}
-                  </span>
-                )}
-                <b>{u.displayName}</b>
-                <span className="text-muted">@{u.login}</span>
-                {u.identities.map((p) => (
-                  <PlatformIcon key={p} userId={`${p}:x`} size={13} />
-                ))}
-                <UserBadges isFounder={u.isFounder} variant="icons" />
-                {u.hasChannel && (
-                  <Tooltip content={t('admin.hasChannel')}>
-                    <span className="flex items-center">
-                      <Icon name="monitor" size={13} className="text-muted" />
-                    </span>
-                  </Tooltip>
-                )}
-                <span className="flex items-center gap-2 text-xs tabular-nums">
-                  <StatChip icon="check" value={u.accepted} hint={t('admin.accepted')} tone="text-ok" />
-                  <StatChip icon="close" value={u.rejected} hint={t('admin.rejected')} tone="text-danger" />
-                  <StatChip icon="shield" value={u.whitelistedIn} hint={t('admin.whitelistedIn')} />
-                  <StatChip icon="user-x" value={u.bannedIn} hint={t('admin.bannedIn')} />
-                </span>
-                {u.ownedCosmetics > 0 && (
-                  <span className="text-xs text-muted">
-                    {t('admin.cosmeticsCount', { n: u.ownedCosmetics })}
-                  </span>
-                )}
-                {u.pendingDust > 0 && (
-                  <Badge>{t('admin.pendingDust', { n: u.pendingDust })}</Badge>
-                )}
-                <span className="text-xs text-faint">
-                  {new Date(u.createdAt).toLocaleDateString(lang)}
-                </span>
-                <span className="ml-auto">
-                  <DustCell user={u} onSaved={(v) => patchRow(u.id, v)} />
-                </span>
-              </li>
+              <UserRow key={u.id} u={u} lang={lang} onSaved={(v) => patchRow(u.id, v)} />
             ))}
           </ul>
         </Card>

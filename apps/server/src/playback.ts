@@ -282,6 +282,18 @@ export class PlaybackManager {
     return this.io.sockets.adapter.rooms.get(roomOf(channelId))?.size ?? 0;
   }
 
+  /** All channels with at least one overlay connected right now → channelId -> overlay count. */
+  liveChannels(): Map<string, number> {
+    const prefix = roomOf('');
+    const out = new Map<string, number>();
+    for (const [room, sockets] of this.io.sockets.adapter.rooms) {
+      // Skip per-socket rooms (name === a socket id) and non-overlay rooms.
+      if (!room.startsWith(prefix)) continue;
+      out.set(room.slice(prefix.length), sockets.size);
+    }
+    return out;
+  }
+
   private async buildPayload(sub: SubmissionRow): Promise<MediaPlayPayload> {
     const channel = await db
       .select({

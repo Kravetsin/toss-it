@@ -12,6 +12,7 @@ import { PromoCodeList } from '@/features/admin/components/PromoCodeList';
 import { AdminBotCard } from '@/features/admin/components/AdminBotCard';
 import { AdminUsersPanel } from '@/features/admin/components/AdminUsersPanel';
 import { AdminExclusionsPanel } from '@/features/admin/components/AdminExclusionsPanel';
+import { AdminLivePanel } from '@/features/admin/components/AdminLivePanel';
 
 /** Admin panel for promo codes (only for ADMIN_USER_IDS). */
 export function AdminPage() {
@@ -64,7 +65,10 @@ export function AdminPage() {
         </Link>
       </div>
 
-      <AdminBotCard />
+      <div className="flex flex-col gap-3">
+        <AdminBotCard />
+        <AdminLivePanel />
+      </div>
 
       <div className="mt-8 flex flex-col gap-3">
         <Accordion title={t('admin.promoSection', { n: codes.length })} icon="gift">

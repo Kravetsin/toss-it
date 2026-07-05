@@ -106,6 +106,12 @@
   --shadow-inset-hair: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 18%, transparent);
 }
 
+/* Reserve the scrollbar gutter so content doesn't jump sideways when a page
+   grows past the viewport (e.g. expanding admin cards toggles the scrollbar). */
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   background-color: var(--color-bg);
   color: var(--color-text);

@@ -40,5 +40,5 @@ export function registerRoutes(
   });
   registerDonationRoutes(app, deps.io);
   registerPromoRoutes(app);
-  registerAdminRoutes(app, { twitchChat: deps.twitchChat });
+  registerAdminRoutes(app, { twitchChat: deps.twitchChat, playback: deps.playback });
 }

@@ -94,8 +94,10 @@ export function Leaderboard({
         {metric === 'sends' && <CosmosLegend count={totalShown} className="ml-auto" />}
       </div>
 
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <div className="flex flex-1 gap-1 border border-border bg-surface-2 p-1">
+      {/* Tabs span the full width on their own row; the period switch sits below —
+          consistent across languages (longer EN labels used to wrap unevenly). */}
+      <div className="mb-3 flex flex-col gap-2">
+        <div className="flex gap-1 border border-border bg-surface-2 p-1">
           {METRIC_TABS.map((tab) => (
             <TabBtn
               key={tab.key}
@@ -106,7 +108,7 @@ export function Leaderboard({
             />
           ))}
         </div>
-        <div className="flex gap-1 border border-border bg-surface-2 p-1">
+        <div className="flex gap-1 self-start border border-border bg-surface-2 p-1">
           {(['month', 'all'] as const).map((p) => (
             <button
               key={p}
