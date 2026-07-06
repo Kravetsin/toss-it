@@ -34,6 +34,7 @@ import { config } from '../config';
 import { requireUser } from '../auth';
 import type { TwitchChatModule } from '../modules/twitch-chat/index';
 import { decryptSecret, encryptSecret } from '../crypto';
+import { levelForSender, levelsForSenders } from '../level';
 import {
   dashboardRoomOf,
   emitSubmissionStatus,
@@ -134,7 +135,10 @@ function sanitizeLinks(input: unknown): ChannelLink[] {
   return out;
 }
 
-function toSettings(ch: ChannelRow, chatBot: { login: string | null; reading: boolean }): ChannelSettings {
+function toSettings(
+  ch: ChannelRow,
+  chatBot: { login: string | null; reading: boolean },
+): ChannelSettings {
   return {
     chatBotLogin: chatBot.login,
     chatBotReading: chatBot.reading,
@@ -168,7 +172,9 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
   const { playback, io } = deps;
 
   /** Chat-dust indicator: /mod state on Twitch is the only source of truth, no toggle. */
-  const chatBotInfo = async (ch: ChannelRow): Promise<{ login: string | null; reading: boolean }> => {
+  const chatBotInfo = async (
+    ch: ChannelRow,
+  ): Promise<{ login: string | null; reading: boolean }> => {
     const s = deps.twitchChat.status();
     // Owner's twitch identity may be native or linked to a Google account.
     const twitchIdentity = s.connected
@@ -234,7 +240,13 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
       if (!channel) return;
       const current = playback.getCurrent(channel.id);
       return {
-        now: current ? toSummary(current, await equippedMarksOf(current.senderUserId)) : null,
+        now: current
+          ? toSummary(
+              current,
+              await equippedMarksOf(current.senderUserId),
+              await levelForSender(channel.id, current.senderUserId),
+            )
+          : null,
       };
     },
   );
@@ -484,12 +496,20 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         .orderBy(desc(submissions.updatedAt))
         .limit(50)
         .all();
+      const levels = await levelsForSenders(
+        channel.id,
+        rows.map((r) => r.sub.senderUserId),
+      );
       return rows.map((r) => ({
-        ...toSummary(r.sub, {
-          color: r.equipped?.nickColor ?? null,
-          nickEffect: r.equipped?.nickEffect ?? null,
-          cardEffect: r.equipped?.cardEffect ?? null,
-        }),
+        ...toSummary(
+          r.sub,
+          {
+            color: r.equipped?.nickColor ?? null,
+            nickEffect: r.equipped?.nickEffect ?? null,
+            cardEffect: r.equipped?.cardEffect ?? null,
+          },
+          levels.get(r.sub.senderUserId ?? '') ?? 0,
+        ),
         status: r.sub.status,
         isFounder: r.founderSince != null,
       }));
@@ -507,8 +527,14 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         .where(and(eq(submissions.channelId, channel.id), eq(submissions.status, 'pending')))
         .orderBy(asc(submissions.createdAt))
         .all();
-      const marks = await equippedMarksFor(rows.map((r) => r.senderUserId));
-      return rows.map((r) => toSummary(r, marks.get(r.senderUserId ?? '')));
+      const ids = rows.map((r) => r.senderUserId);
+      const [marks, levels] = await Promise.all([
+        equippedMarksFor(ids),
+        levelsForSenders(channel.id, ids),
+      ]);
+      return rows.map((r) =>
+        toSummary(r, marks.get(r.senderUserId ?? ''), levels.get(r.senderUserId ?? '') ?? 0),
+      );
     },
   );
 

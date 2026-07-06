@@ -70,6 +70,30 @@
         opacity: 0.7;
         margin-right: 6px;
       }
+      /* Level: rarity-colored rail on the left edge (--tier), mirroring card effects on the bottom.
+         Glow only from level 6 up (--tier-glow is the color there, transparent below). Plus the
+         Roman-numeral rank before the name — readable at any chat font size, unlike a tiny badge. */
+      .msg[data-tier]::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        background: var(--tier);
+        box-shadow: 0 0 7px var(--tier-glow, transparent);
+        z-index: 1;
+      }
+      .msg .lvl-num {
+        color: var(--tier);
+        font-weight: 700;
+        font-size: 0.82em;
+        letter-spacing: 0.04em;
+        margin-right: 5px;
+        text-shadow:
+          0 0 6px var(--tier-glow, transparent),
+          0 1px 2px rgba(0, 0, 0, 0.5);
+      }
       .msg .badge {
         display: inline-block;
         vertical-align: middle;

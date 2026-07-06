@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import type { SubmissionSummary } from '@tmw/shared';
+import { LEVEL_GLOW_FROM, levelTier, toRoman, type SubmissionSummary } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
 import { Button, Card } from '@/ui';
@@ -22,6 +22,8 @@ export function NowPlayingCard({
   const { t } = useI18n();
   const [testFile, setTestFile] = useState<File | null>(null);
   const [testOpen, setTestOpen] = useState(false);
+  const tier = now?.senderLevel ? levelTier(now.senderLevel) : null;
+  const levelGlow = !!tier && (now?.senderLevel ?? 0) >= LEVEL_GLOW_FROM;
 
   async function submitTest(e: FormEvent) {
     e.preventDefault();
@@ -34,12 +36,33 @@ export function NowPlayingCard({
   return (
     <Card>
       <CardEffect effect={now?.senderCardEffect} />
+      {tier && (
+        <span
+          aria-hidden
+          className={`pointer-events-none absolute inset-y-0 left-0 z-[1] w-[3px] ${tier.iris ? 'lvl-iris' : ''}`}
+          style={{
+            background: tier.color,
+            boxShadow: levelGlow ? `0 0 7px ${tier.color}` : undefined,
+          }}
+        />
+      )}
       <div className="relative">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <h2 className="label-mono text-muted">{t('dash.nowPlaying')}</h2>
             {now ? (
               <div className="mt-1 flex items-center gap-1.5 text-sm text-muted">
+                {tier && (
+                  <span
+                    className={`shrink-0 text-xs font-bold ${tier.iris ? 'lvl-iris' : ''}`}
+                    style={{
+                      color: tier.color,
+                      textShadow: levelGlow ? `0 0 6px ${tier.color}` : undefined,
+                    }}
+                  >
+                    {toRoman(now.senderLevel!)}
+                  </span>
+                )}
                 <b
                   className={`truncate text-text ${nickProps(now.senderColor, now.senderEffect).className}`}
                   style={nickProps(now.senderColor, now.senderEffect).style}

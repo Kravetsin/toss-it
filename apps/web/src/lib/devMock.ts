@@ -135,6 +135,7 @@ const MOCK_PENDING: SubmissionSummary[] = [
     kind: 'text',
     senderUserId: 'twitch:v1',
     senderName: 'meme_lord',
+    senderLevel: 7,
     senderColor: '#ff6ad5',
     senderEffect: 'nick-glow',
     senderCardEffect: 'card-stardust',
@@ -147,6 +148,7 @@ const MOCK_PENDING: SubmissionSummary[] = [
     mime: 'image/svg+xml',
     senderUserId: 'google:v2',
     senderName: 'pixel_witch',
+    senderLevel: 4,
     senderColor: '#8df0cc',
     senderEffect: 'nick-pulse',
     senderCardEffect: 'card-levitation',
@@ -161,6 +163,7 @@ const MOCK_PENDING: SubmissionSummary[] = [
     mime: 'video/mp4',
     senderUserId: 'twitch:v7',
     senderName: 'clip_gremlin',
+    senderLevel: 2,
     senderColor: '#ffb86c',
     senderEffect: 'nick-glow',
     senderCardEffect: 'card-embers',
@@ -175,6 +178,7 @@ const MOCK_PENDING: SubmissionSummary[] = [
     mime: 'video/youtube',
     senderUserId: 'twitch:v3',
     senderName: 'dj_summer',
+    senderLevel: 9,
     senderColor: '#a5b4fc',
     senderEffect: 'nick-pulse',
     senderCardEffect: 'card-rain',
@@ -196,6 +200,7 @@ const MOCK_PENDING: SubmissionSummary[] = [
     kind: 'text',
     senderUserId: 'google:v5',
     senderName: 'newbie123',
+    senderLevel: 1,
     senderColor: '#b0f5c0',
     senderCardEffect: 'card-snow',
     text: 'превед :)',
@@ -209,6 +214,7 @@ const MOCK_NOW: SubmissionSummary | null = sub({
   mime: 'image/svg+xml',
   senderUserId: 'twitch:v9',
   senderName: 'streamfan',
+  senderLevel: 6,
   senderColor: '#ffd36e',
   senderEffect: 'nick-glow',
   senderCardEffect: 'card-levitation',
@@ -327,6 +333,7 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     nickColor: '#ffb86c',
     nickEffect: 'nick-glow',
     cardEffect: 'card-stardust',
+    level: 8,
   },
   {
     userId: 'twitch:u_dev',
@@ -337,6 +344,7 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     nickColor: null,
     nickEffect: null,
     cardEffect: null,
+    level: 4,
   },
   {
     userId: 'twitch:other2',
@@ -347,6 +355,7 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     nickColor: '#a5b4fc',
     nickEffect: 'nick-pulse',
     cardEffect: 'card-embers',
+    level: 10,
   },
   {
     userId: 'google:other3',
@@ -357,6 +366,7 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     nickColor: '#ffd36e',
     nickEffect: 'nick-glow',
     cardEffect: 'card-rain',
+    level: 6,
   },
   {
     userId: 'google:other4',
@@ -367,6 +377,7 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     nickColor: '#b0f5c0',
     nickEffect: null,
     cardEffect: 'card-snow',
+    level: 2,
   },
 ];
 

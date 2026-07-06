@@ -111,6 +111,8 @@ export interface MediaPlayPayload {
   senderEffect?: string;
   /** Sender's equipped card effect id (e.g. 'card-levitation', 'card-stardust'); absent if none. */
   senderCardEffect?: string;
+  /** Sender's per-channel level 0–10 (0/absent = no rank) — rarity rail + Roman numeral. */
+  senderLevel?: number;
   /** Sender's badge ids (e.g. 'founder', future cosmetic badges); absent if none. */
   senderBadges?: string[];
   /** Caption for a file, or body of text-only submission (kind='text'). */
@@ -180,6 +182,8 @@ export interface ChatOverlayMessage {
   cosmetics: EquippedCosmetics | null;
   /** True if the author is a Tossit founder (badge). */
   isFounder: boolean;
+  /** Author's per-channel level 0–10 (0 = no badge); drives the rarity badge + left border. */
+  level?: number;
   fragments: ChatFragment[];
 }
 
@@ -228,6 +232,8 @@ export interface SubmissionSummary {
   senderEffect: string | null;
   /** Sender's equipped card effect id, null if none. */
   senderCardEffect: string | null;
+  /** Sender's per-channel level 0–10 (0/absent = no rank) — drives the curation rail + numeral. */
+  senderLevel?: number;
   kind: MediaKind;
   mime: string;
   /** Caption for a file, or body of text-only submission. */
@@ -331,6 +337,7 @@ export interface UploadResponse {
  * for COSMETICS, makeParticles, the effect helpers, and the cosmetic types.
  */
 export * from './cosmetics';
+export * from './level';
 
 /** Validate a #rrggbb hex color (exactly 6 hex digits, no alpha). */
 export function isHexColor(v: string): boolean {
@@ -511,6 +518,8 @@ export interface LeaderboardEntry {
   nickEffect: string | null;
   /** Equipped card effect id, null if none. */
   cardEffect: string | null;
+  /** Per-channel level 0–10 (0/absent = no rank) — the rarity rail + Roman numeral. */
+  level?: number;
 }
 
 /** Cross-channel user reputation — aggregates across all channels. */

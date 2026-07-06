@@ -14,6 +14,7 @@ import type {
 import { db } from './db/index';
 import { channelModerators, channels, submissions, users, type SubmissionRow } from './db/schema';
 import { config } from './config';
+import { levelForSender } from './level';
 import { getUserFromCookieHeader } from './auth';
 
 export type RealtimeServer = Server<
@@ -59,7 +60,11 @@ function marksFromEquipped(equipped: EquippedCosmetics | null): NickMarks {
   };
 }
 
-export function toSummary(sub: SubmissionRow, marks: NickMarks = NO_MARKS): SubmissionSummary {
+export function toSummary(
+  sub: SubmissionRow,
+  marks: NickMarks = NO_MARKS,
+  senderLevel = 0,
+): SubmissionSummary {
   return {
     id: sub.id,
     senderUserId: sub.senderUserId,
@@ -67,6 +72,7 @@ export function toSummary(sub: SubmissionRow, marks: NickMarks = NO_MARKS): Subm
     senderColor: marks.color,
     senderEffect: marks.nickEffect,
     senderCardEffect: marks.cardEffect,
+    senderLevel,
     kind: sub.kind,
     mime: sub.mime,
     text: sub.text,
@@ -108,9 +114,13 @@ export async function equippedMarksFor(
   return out;
 }
 
-/** toSummary with the sender's equipped marks resolved (for live socket emits). */
+/** toSummary with the sender's equipped marks + level resolved (for live socket emits). */
 export async function toLiveSummary(sub: SubmissionRow): Promise<SubmissionSummary> {
-  return toSummary(sub, await equippedMarksOf(sub.senderUserId));
+  const [marks, senderLevel] = await Promise.all([
+    equippedMarksOf(sub.senderUserId),
+    levelForSender(sub.channelId, sub.senderUserId),
+  ]);
+  return toSummary(sub, marks, senderLevel);
 }
 
 /** Sender's overlay marks — color + effects + badge ids (founder + future), one query. */
@@ -314,8 +324,9 @@ export class PlaybackManager {
       .where(eq(channels.id, sub.channelId))
       .get();
     const showName = channel?.showSenderName ?? true;
-    // Color/effects/badges are pointless without the name; resolve only when the name is shown.
+    // Color/effects/badges/level are pointless without the name; resolve only when the name is shown.
     const marks = showName ? await senderMarksOf(sub.senderUserId) : { ...NO_MARKS, badges: [] };
+    const senderLevel = showName ? await levelForSender(sub.channelId, sub.senderUserId) : 0;
     return {
       submissionId: sub.id,
       url: `/api/media/${sub.id}`,
@@ -329,6 +340,7 @@ export class PlaybackManager {
       senderColor: marks.color ?? undefined,
       senderEffect: marks.nickEffect ?? undefined,
       senderCardEffect: marks.cardEffect ?? undefined,
+      senderLevel: senderLevel || undefined,
       senderBadges: marks.badges.length ? marks.badges : undefined,
       text: sub.text ?? undefined,
       ttsText: (channel?.ttsMessage ?? false) && !!sub.text,

@@ -1,4 +1,4 @@
-import type { HistoryEntry } from '@tmw/shared';
+import { LEVEL_GLOW_FROM, levelTier, toRoman, type HistoryEntry } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
 import { Tooltip } from '@/ui';
@@ -26,6 +26,8 @@ export function HistoryCard({
         <tbody>
           {history.map((h) => {
             const si = STATUS_ICON[h.status];
+            const tier = h.senderLevel ? levelTier(h.senderLevel) : null;
+            const levelGlow = !!tier && (h.senderLevel ?? 0) >= LEVEL_GLOW_FROM;
             return (
               <tr key={h.id} className="border-t border-border first:border-t-0">
                 <td className="py-1.5 pr-2 align-middle">
@@ -33,6 +35,17 @@ export function HistoryCard({
                 </td>
                 <td className="py-1.5 pr-3 align-middle">
                   <span className="flex items-center gap-1.5">
+                    {tier && (
+                      <span
+                        className={`shrink-0 text-xs font-bold ${tier.iris ? 'lvl-iris' : ''}`}
+                        style={{
+                          color: tier.color,
+                          textShadow: levelGlow ? `0 0 6px ${tier.color}` : undefined,
+                        }}
+                      >
+                        {toRoman(h.senderLevel!)}
+                      </span>
+                    )}
                     <b
                       className={`text-text ${nickProps(h.senderColor, h.senderEffect).className}`}
                       style={nickProps(h.senderColor, h.senderEffect).style}

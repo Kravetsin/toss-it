@@ -1,12 +1,16 @@
 import '@fontsource/jetbrains-mono';
 import { io, type Socket } from 'socket.io-client';
 import {
+  LEVEL_GLOW_FROM,
   cardEffectClass,
   injectCosmeticsStyles,
+  injectLevelStyles,
+  levelTier,
   makeGroundGlows,
   makeParticles,
   nickEffectClass,
   particleCount,
+  toRoman,
   type ChatFragment,
   type ChatOverlayMessage,
   type OverlayToServerEvents,
@@ -15,6 +19,7 @@ import {
 
 // Cosmetic effect CSS is injected from the shared registry (single source across web + overlay).
 injectCosmeticsStyles();
+injectLevelStyles();
 
 // Founder = sparkles glyph before the name (matches web UserBadges / the media overlay).
 const FOUNDER_SVG =
@@ -99,6 +104,19 @@ function renderMessage(msg: ChatOverlayMessage): void {
   row.dataset.id = msg.id;
   row.dataset.user = msg.userId;
 
+  // Level: rarity color on the left border (mirrors card effects on the bottom edge); the border
+  // + numeral glow only from level 6 up. The exact level shows as a Roman numeral before the name.
+  const tier = msg.level ? levelTier(msg.level) : null;
+  if (tier) {
+    row.dataset.tier = '';
+    if (tier.iris) row.dataset.iris = ''; // Eternal (10): iridescent shimmer on rail + numeral.
+    row.style.setProperty('--tier', tier.color);
+    row.style.setProperty(
+      '--tier-glow',
+      msg.level! >= LEVEL_GLOW_FROM ? tier.color : 'transparent',
+    );
+  }
+
   // Card effect first: it's the background particle layer, under .content.
   if (msg.cosmetics?.cardEffect) addCardEffect(row, msg.cosmetics.cardEffect);
 
@@ -108,6 +126,12 @@ function renderMessage(msg: ChatOverlayMessage): void {
   // Founder icon + name + colon stay together on the name's line (nowrap head).
   const head = document.createElement('span');
   head.className = 'head';
+  if (tier) {
+    const ln = document.createElement('span');
+    ln.className = 'lvl-num';
+    ln.textContent = toRoman(msg.level!);
+    head.appendChild(ln);
+  }
   if (msg.isFounder) {
     const badge = document.createElement('span');
     badge.className = 'badge';
@@ -197,37 +221,60 @@ if (DEMO) {
     {
       id: '1',
       userId: 'u1',
-      name: 'darkblane',
-      twitchColor: '#ff7ac6',
+      name: 'newbie_guy',
+      twitchColor: '#9ab0ad',
       cosmetics: null,
       isFounder: false,
-      fragments: [{ type: 'text', text: 'привет всем!' }],
+      level: 1,
+      fragments: [{ type: 'text', text: 'привет, впервые тут' }],
     },
     {
       id: '2',
       userId: 'u2',
+      name: 'darkblane',
+      twitchColor: '#ff7ac6',
+      cosmetics: null,
+      isFounder: false,
+      level: 3,
+      fragments: [{ type: 'text', text: 'незарег, но уже с бейджем 👀' }],
+    },
+    {
+      id: '3',
+      userId: 'u3',
       name: 'Kravets',
       twitchColor: null,
       cosmetics: { nickColor: '#8df0cc', nickEffect: 'nick-glow', cardEffect: 'card-stardust' },
       isFounder: true,
+      level: 8,
       fragments: [
         { type: 'text', text: 'смотри какой эмоут ' },
         { type: 'emote', id: '25', text: 'Kappa' },
       ],
     },
     {
-      id: '3',
-      userId: 'u3',
+      id: '4',
+      userId: 'u4',
       name: 'Kravetsin',
       twitchColor: '#c9a0ff',
       cosmetics: { cardEffect: 'card-levitation' },
       isFounder: true,
+      level: 5,
       fragments: [
         {
           type: 'text',
           text: 'а это длинное сообщение чтобы проверить как ведёт себя иконка и текст когда всё переносится на несколько строк подряд ',
         },
       ],
+    },
+    {
+      id: '5',
+      userId: 'u5',
+      name: 'oldtimer',
+      twitchColor: '#f5d76e',
+      cosmetics: null,
+      isFounder: false,
+      level: 10,
+      fragments: [{ type: 'text', text: 'на этом канале с самого начала' }],
     },
   ];
   demo.forEach(renderMessage);

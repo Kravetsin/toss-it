@@ -8,7 +8,13 @@ import {
   useTransform,
   type PanInfo,
 } from 'motion/react';
-import type { ReputationStats, SubmissionSummary } from '@tmw/shared';
+import {
+  LEVEL_GLOW_FROM,
+  levelTier,
+  toRoman,
+  type ReputationStats,
+  type SubmissionSummary,
+} from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { useFidgetEnabled } from '@/hooks/useFidgetEnabled';
 import { disintegrate } from '@/lib/burst';
@@ -46,6 +52,9 @@ export function SubmissionCard({
   onBan: () => void;
 }) {
   const { t } = useI18n();
+  // Sender's per-channel rank: color rail on the left edge + Roman numeral by the name (glow from 6).
+  const tier = s.senderLevel ? levelTier(s.senderLevel) : null;
+  const levelGlow = !!tier && (s.senderLevel ?? 0) >= LEVEL_GLOW_FROM;
   const { fillRef, handlers: fillHandlers } = useFillEffect();
   const [expanded, setExpanded] = useState(false);
   const [fx, setFx] = useState<'approve' | 'reject' | null>(null);
@@ -124,6 +133,16 @@ export function SubmissionCard({
           style={{ backgroundColor: 'rgba(255,255,255,0.05)', clipPath: 'circle(0% at 50% 50%)' }}
         />
         <CardEffect effect={s.senderCardEffect} />
+        {tier && (
+          <span
+            aria-hidden
+            className={`pointer-events-none absolute inset-y-0 left-0 z-[1] w-[3px] ${tier.iris ? 'lvl-iris' : ''}`}
+            style={{
+              background: tier.color,
+              boxShadow: levelGlow ? `0 0 7px ${tier.color}` : undefined,
+            }}
+          />
+        )}
         <button
           type="button"
           onClick={() => {
@@ -136,6 +155,17 @@ export function SubmissionCard({
           <SubmissionThumb s={s} />
           <span className="min-w-0 flex-1">
             <span className="flex items-center gap-1.5">
+              {tier && (
+                <span
+                  className={`shrink-0 text-xs font-bold ${tier.iris ? 'lvl-iris' : ''}`}
+                  style={{
+                    color: tier.color,
+                    textShadow: levelGlow ? `0 0 6px ${tier.color}` : undefined,
+                  }}
+                >
+                  {toRoman(s.senderLevel!)}
+                </span>
+              )}
               <b
                 className={`truncate text-sm text-text ${nickProps(s.senderColor, s.senderEffect).className}`}
                 style={nickProps(s.senderColor, s.senderEffect).style}

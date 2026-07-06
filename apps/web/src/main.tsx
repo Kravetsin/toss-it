@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
-import { injectCosmeticsStyles } from '@tmw/shared';
+import { injectCosmeticsStyles, injectLevelStyles } from '@tmw/shared';
 import './index.css';
 import { installDevMock } from '@/lib/devMock';
 import { ConfirmProvider } from '@/providers/ConfirmProvider';
@@ -26,6 +26,7 @@ installDevMock();
 // Cosmetic effect styles (card/nick effects) are injected from the shared registry so the CSS
 // lives with each effect module and isn't duplicated across web + overlay.
 injectCosmeticsStyles();
+injectLevelStyles();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

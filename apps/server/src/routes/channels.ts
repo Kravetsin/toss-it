@@ -18,6 +18,7 @@ import {
   users,
 } from '../db/schema';
 import { config } from '../config';
+import { levelsForKeys } from '../level';
 import { getSessionUser, requireUser } from '../auth';
 
 function newOverlayToken(): string {
@@ -34,7 +35,10 @@ const lbCache = new Map<string, { at: number; entries: LeaderboardEntry[] }>();
 let exclCache: { at: number; logins: string[] } | null = null;
 async function excludedLogins(): Promise<string[]> {
   if (exclCache && Date.now() - exclCache.at < LB_CACHE_MS) return exclCache.logins;
-  const rows = await db.select({ login: leaderboardExclusions.login }).from(leaderboardExclusions).all();
+  const rows = await db
+    .select({ login: leaderboardExclusions.login })
+    .from(leaderboardExclusions)
+    .all();
   exclCache = { at: Date.now(), logins: rows.map((r) => r.login) };
   return exclCache.logins;
 }
@@ -44,10 +48,6 @@ export function clearLeaderboardCaches(): void {
   lbCache.clear();
   exclCache = null;
 }
-
-/** Level curve over XP = messages + watch minutes: early levels cheap, then slower.
- *  Never stored — retuning the formula recomputes history for free. */
-const levelOf = (xp: number) => Math.floor(Math.sqrt(xp / 25));
 
 const monthStartUtc = () => {
   const d = new Date();
@@ -86,7 +86,11 @@ async function sendsBoard(
     .limit(10)
     .all();
 
-  return rows.map((r) => ({
+  const levels = await levelsForKeys(
+    channelId,
+    rows.map((r) => ({ userId: r.userId, twitchId: null })),
+  );
+  return rows.map((r, i) => ({
     userId: r.userId!,
     login: r.login,
     displayName: r.displayName,
@@ -95,6 +99,7 @@ async function sendsBoard(
     nickColor: r.equipped?.nickColor ?? null,
     nickEffect: r.equipped?.nickEffect ?? null,
     cardEffect: r.equipped?.cardEffect ?? null,
+    level: levels[i] ?? 0,
   }));
 }
 
@@ -148,19 +153,33 @@ async function chatBoard(
     : [];
   const accountByTwitchId = new Map(identityRows.map((r) => [r.providerId, r.user]));
 
-  return rows.map((r) => {
+  const levels = await levelsForKeys(
+    channelId,
+    rows.map((r) => ({
+      userId: accountByTwitchId.get(r.platformUserId)?.id ?? null,
+      twitchId: r.platformUserId,
+    })),
+  );
+  const entries = rows.map((r, i) => {
     const u = accountByTwitchId.get(r.platformUserId);
+    const level = levels[i] ?? 0;
     return {
       userId: u?.id ?? `twitch:${r.platformUserId}`,
       login: u?.login ?? r.login,
       displayName: u?.displayName ?? r.displayName,
-      value: metric === 'level' ? levelOf(r.value) : r.value,
+      // The 'level' metric now shows the full level (same value the rank badge uses).
+      value: metric === 'level' ? level : r.value,
       isFounder: u?.founderSince != null,
       nickColor: u?.equipped?.nickColor ?? null,
       nickEffect: u?.equipped?.nickEffect ?? null,
       cardEffect: u?.equipped?.cardEffect ?? null,
+      level,
     };
   });
+  // The Level tab is the overall-rank board: order by the level itself (the base query orders by
+  // chat XP, which aired submissions can nudge — re-sort so the ranks are exactly descending).
+  if (metric === 'level') entries.sort((a, b) => b.level! - a.level!);
+  return entries;
 }
 
 export function registerChannelRoutes(app: FastifyInstance): void {

@@ -1,8 +1,15 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import type { FastifyBaseLogger } from 'fastify';
-import type { ChatFragment, EquippedCosmetics } from '@tmw/shared';
+import { LEVEL_POINTS, xpToLevel, type ChatFragment, type EquippedCosmetics } from '@tmw/shared';
 import { db } from '../../db/index';
-import { channels, leaderboardExclusions, linkedIdentities, users } from '../../db/schema';
+import {
+  channelActivity,
+  channels,
+  leaderboardExclusions,
+  linkedIdentities,
+  submissions,
+  users,
+} from '../../db/schema';
 import { config } from '../../config';
 import { roomOf, type RealtimeServer } from '../../playback';
 import { EventSubClient } from './eventsub';
@@ -12,6 +19,7 @@ import { loadBotCredentials, refreshBotCredentials, type BotCredentials } from '
 
 const RECONCILE_INTERVAL_MS = 5 * 60_000;
 const STATS_FLUSH_MS = 30_000;
+const LEVEL_TTL_MS = 60_000;
 /** Watch-time granularity: +1 min per poll. Twitch's chatters list lags a couple of
  *  minutes on join/leave, so this only blurs session edges, not the middle. */
 const WATCH_POLL_MS = 60_000;
@@ -60,9 +68,64 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     string,
     { cosmetics: EquippedCosmetics | null; isFounder: boolean; at: number }
   >();
+  /** `${channelId} ${twitchId}` -> per-channel level, short-lived cache (chat volume). */
+  const levelCache = new Map<string, { level: number; at: number }>();
+
+  /**
+   * Sender's all-time per-channel level (0–10): chat messages + watch-minutes (from
+   * channel_activity, by twitch id — works for unregistered chatters) + 10× aired submissions
+   * (played, by linked userId). Cached ~60s to survive chat volume.
+   */
+  async function lookupLevel(channelId: string, twitchId: string): Promise<number> {
+    const key = `${channelId} ${twitchId}`;
+    const hit = levelCache.get(key);
+    if (hit && Date.now() - hit.at < LEVEL_TTL_MS) return hit.level;
+    const act = await db
+      .select({
+        msg: sql<number>`coalesce(sum(${channelActivity.messages}), 0)`,
+        watch: sql<number>`coalesce(sum(${channelActivity.watchMinutes}), 0)`,
+      })
+      .from(channelActivity)
+      .where(
+        and(
+          eq(channelActivity.channelId, channelId),
+          eq(channelActivity.platform, 'twitch'),
+          eq(channelActivity.platformUserId, twitchId),
+        ),
+      )
+      .get();
+    let xp = (act?.msg ?? 0) + (act?.watch ?? 0);
+    const identity = await db
+      .select({ userId: linkedIdentities.userId })
+      .from(linkedIdentities)
+      .where(
+        and(eq(linkedIdentities.provider, 'twitch'), eq(linkedIdentities.providerId, twitchId)),
+      )
+      .get();
+    if (identity) {
+      const aired = await db
+        .select({ n: sql<number>`count(*)` })
+        .from(submissions)
+        .where(
+          and(
+            eq(submissions.channelId, channelId),
+            eq(submissions.senderUserId, identity.userId),
+            eq(submissions.status, 'played'),
+          ),
+        )
+        .get();
+      xp += (aired?.n ?? 0) * LEVEL_POINTS.airedSend;
+    }
+    const level = xpToLevel(xp);
+    levelCache.set(key, { level, at: Date.now() });
+    return level;
+  }
 
   async function loadExclusions(): Promise<void> {
-    const rows = await db.select({ login: leaderboardExclusions.login }).from(leaderboardExclusions).all();
+    const rows = await db
+      .select({ login: leaderboardExclusions.login })
+      .from(leaderboardExclusions)
+      .all();
     excludedLogins = new Set(rows.map((r) => r.login));
   }
 
@@ -164,8 +227,8 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     // Chat overlay: show everyone INCLUDING the streamer (but not excluded bots),
     // only when the channel enabled it and an overlay is actually listening.
     if (excluded || !chatEnabledChannels.has(channelId) || !live) return;
-    void lookupCosmetics(ev.chatterId)
-      .then(({ cosmetics, isFounder }) => {
+    void Promise.all([lookupCosmetics(ev.chatterId), lookupLevel(channelId, ev.chatterId)])
+      .then(([{ cosmetics, isFounder }, level]) => {
         deps.io.to(roomOf(channelId)).emit('chat:message', {
           id: ev.messageId,
           userId: ev.chatterId,
@@ -173,6 +236,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
           twitchColor: ev.color,
           cosmetics,
           isFounder,
+          level,
           fragments: ev.fragments,
         });
       })
@@ -348,7 +412,8 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     );
     statsFlushTimer = setInterval(() => void flushActivity(deps.log), STATS_FLUSH_MS);
     watchPollTimer = setInterval(
-      () => pollChatters().catch((err) => deps.log.warn({ err }, 'twitch-chat: chatters poll failed')),
+      () =>
+        pollChatters().catch((err) => deps.log.warn({ err }, 'twitch-chat: chatters poll failed')),
       WATCH_POLL_MS,
     );
     deps.log.info({ bot: creds.login }, 'twitch-chat: module started');

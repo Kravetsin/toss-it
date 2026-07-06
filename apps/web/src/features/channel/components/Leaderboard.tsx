@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { LeaderboardEntry, LeaderboardMetric, LeaderboardPeriod } from '@tmw/shared';
+import {
+  LEVEL_GLOW_FROM,
+  levelTier,
+  toRoman,
+  type LeaderboardEntry,
+  type LeaderboardMetric,
+  type LeaderboardPeriod,
+} from '@tmw/shared';
 import { getLeaderboard } from '@/lib/api';
 import { useI18n } from '@/i18n';
 import { useMe } from '@/hooks/useMe';
@@ -141,9 +148,21 @@ export function Leaderboard({
               const nickEffect = mine ? (mine.nickEffect ?? null) : e.nickEffect;
               const cardEffect = mine ? (mine.cardEffect ?? null) : e.cardEffect;
               const nick = nickProps(nickColor, nickEffect);
+              const tier = e.level ? levelTier(e.level) : null;
+              const levelGlow = !!tier && (e.level ?? 0) >= LEVEL_GLOW_FROM;
               return (
                 <li key={e.userId} className="relative">
                   <CardEffect effect={cardEffect} compact />
+                  {tier && (
+                    <span
+                      aria-hidden
+                      className={`pointer-events-none absolute inset-y-0 left-0 z-[1] w-[3px] ${tier.iris ? 'lvl-iris' : ''}`}
+                      style={{
+                        background: tier.color,
+                        boxShadow: levelGlow ? `0 0 7px ${tier.color}` : undefined,
+                      }}
+                    />
+                  )}
                   <div
                     className={`relative flex items-center gap-3 px-2 py-2 ${isYou ? 'bg-accent-soft' : ''}`}
                   >
@@ -156,6 +175,17 @@ export function Leaderboard({
                     >
                       {i + 1}
                     </span>
+                    {tier && (
+                      <span
+                        className={`shrink-0 text-xs font-bold ${tier.iris ? 'lvl-iris' : ''}`}
+                        style={{
+                          color: tier.color,
+                          textShadow: levelGlow ? `0 0 6px ${tier.color}` : undefined,
+                        }}
+                      >
+                        {toRoman(e.level!)}
+                      </span>
+                    )}
                     <b
                       className={`${isYou ? 'text-accent' : 'text-text'} ${nick.className}`}
                       style={nick.style}
@@ -165,18 +195,21 @@ export function Leaderboard({
                     <PlatformIcon userId={e.userId} size={13} />
                     <UserBadges isFounder={e.isFounder} variant="icons" />
                     {isYou && <span className="label-mono text-accent">{t('channel.you')}</span>}
-                    <span className="ml-auto flex items-center gap-1.5 whitespace-nowrap text-muted">
-                      {metric === 'sends' ? (
-                        <StarMark size={13} className="text-accent" />
-                      ) : (
-                        <Icon
-                          name={METRIC_TABS.find((m) => m.key === metric)!.icon}
-                          size={13}
-                          className="text-accent"
-                        />
-                      )}
-                      {formatValue(e.value)}
-                    </span>
+                    {/* Level tab: the rank rail + Roman numeral already show the level — no value. */}
+                    {metric !== 'level' && (
+                      <span className="ml-auto flex items-center gap-1.5 whitespace-nowrap text-muted">
+                        {metric === 'sends' ? (
+                          <StarMark size={13} className="text-accent" />
+                        ) : (
+                          <Icon
+                            name={METRIC_TABS.find((m) => m.key === metric)!.icon}
+                            size={13}
+                            className="text-accent"
+                          />
+                        )}
+                        {formatValue(e.value)}
+                      </span>
+                    )}
                   </div>
                 </li>
               );

@@ -84,6 +84,27 @@
       .sender .badge {
         color: #8df0cc;
       }
+      /* Level: rarity rail on the banner's left edge (--tier) + Roman numeral rank; glow from lvl 6
+         via --tier-glow (transparent below). Mirrors the chat overlay + dashboard. */
+      .sender.has-level::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        background: var(--tier);
+        box-shadow: 0 0 7px var(--tier-glow, transparent);
+      }
+      .sender .lvl-num {
+        color: var(--tier);
+        font-weight: 700;
+        font-size: 0.8em;
+        letter-spacing: 0.04em;
+        text-shadow:
+          0 0 6px var(--tier-glow, transparent),
+          0 1px 3px rgba(0, 0, 0, 0.55);
+      }
 
       /* Nick effects (.nick-glow on the name) and card effects (.card-fx*) are injected at boot
          from the shared cosmetics registry (injectCosmeticsStyles) — single source with the web. */

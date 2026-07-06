@@ -2,15 +2,19 @@ import '@fontsource/jetbrains-mono';
 import { io, type Socket } from 'socket.io-client';
 import {
   COSMETICS,
+  LEVEL_GLOW_FROM,
   OVERLAY_POSITIONS,
   cardEffectClass,
   giphyGifUrl,
   injectCosmeticsStyles,
+  injectLevelStyles,
+  levelTier,
   makeGroundGlows,
   makeParticles,
   nickEffectClass,
   particleCount,
   positionToFlex,
+  toRoman,
   type DonationFx,
   type MediaKind,
   type MediaPlayPayload,
@@ -21,6 +25,7 @@ import {
 
 // Cosmetic effect CSS is injected from the shared registry (single source across web + overlay).
 injectCosmeticsStyles();
+injectLevelStyles();
 
 // Minimal YouTube IFrame API types (avoids @types/youtube dependency).
 interface YTPlayer {
@@ -123,6 +128,21 @@ function show(payload: MediaPlayPayload): void {
     const banner = document.createElement('div');
     banner.className = 'sender';
     banner.innerHTML = `<span class="glyph">${GIFT_SVG}</span>`;
+    // Level: rarity rail on the banner's left edge + Roman numeral rank before the name (glow from 6).
+    const tier = payload.senderLevel ? levelTier(payload.senderLevel) : null;
+    if (tier) {
+      banner.classList.add('has-level');
+      if (tier.iris) banner.dataset.iris = ''; // Eternal (10): iridescent shimmer on rail + numeral.
+      banner.style.setProperty('--tier', tier.color);
+      banner.style.setProperty(
+        '--tier-glow',
+        payload.senderLevel! >= LEVEL_GLOW_FROM ? tier.color : 'transparent',
+      );
+      const ln = document.createElement('span');
+      ln.className = 'lvl-num';
+      ln.textContent = toRoman(payload.senderLevel!);
+      banner.appendChild(ln);
+    }
     // Wrap the name so an equipped nick color tints only the name, not the glyph/badges.
     const nameEl = document.createElement('span');
     nameEl.className = 'name';
@@ -671,6 +691,7 @@ function demoPayload(kind: MediaKind, st: DemoState): MediaPlayPayload {
     senderName: st.sender ? 'demo_viewer' : undefined,
     // Sample cosmetics so the demo shows nick color + effects + badges on stream.
     senderColor: st.sender ? '#ff9ed8' : undefined,
+    senderLevel: st.sender ? 7 : undefined,
     senderEffect: st.sender && st.nickGlow ? 'nick-glow' : undefined,
     senderCardEffect: st.cardEffect !== 'none' ? st.cardEffect : undefined,
     senderBadges: st.sender && st.founder ? ['founder'] : undefined,
