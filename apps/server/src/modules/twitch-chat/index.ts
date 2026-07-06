@@ -89,17 +89,52 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     return value;
   }
 
+  /** Single-flight guard: concurrent 401s must share one refresh, because Twitch
+   *  rotates refresh tokens and a second concurrent attempt would consume a dead one. */
+  let refreshing: Promise<BotCredentials | null> | null = null;
+
+  async function doRefresh(): Promise<BotCredentials | null> {
+    const current = creds;
+    if (!current) return null;
+    try {
+      const next = await refreshBotCredentials(current);
+      if (next) {
+        creds = next;
+        return next;
+      }
+    } catch (err) {
+      deps.log.warn({ err }, 'twitch-chat: token refresh failed, will retry');
+      return current; // transient (network/5xx) — keep the old token, retry later
+    }
+    // Definitive rejection. The in-memory refresh token may be a stale pre-rotation
+    // copy while the DB holds the good one — try that before declaring the bot dead.
+    const fromDb = await loadBotCredentials().catch(() => null);
+    if (fromDb && fromDb.refreshToken !== current.refreshToken) {
+      try {
+        const next = await refreshBotCredentials(fromDb);
+        if (next) {
+          creds = next;
+          return next;
+        }
+      } catch {
+        creds = fromDb;
+        return fromDb;
+      }
+    }
+    deps.log.error('twitch-chat: bot refresh token invalid — reconnect the bot via admin');
+    shutdownClient();
+    creds = null;
+    return null;
+  }
+
   async function getAccessToken(refresh = false): Promise<string | null> {
     if (!creds) return null;
     if (refresh) {
-      const next = await refreshBotCredentials(creds);
-      if (!next) {
-        deps.log.error('twitch-chat: bot refresh token invalid — reconnect the bot via admin');
-        shutdownClient();
-        creds = null;
-        return null;
-      }
-      creds = next;
+      refreshing ??= doRefresh().finally(() => {
+        refreshing = null;
+      });
+      const next = await refreshing;
+      return next?.accessToken ?? null;
     }
     return creds.accessToken;
   }
@@ -229,6 +264,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
 
   async function reconcile(): Promise<void> {
     if (!client) return;
+    await client.verify(); // heal ghost subscriptions before diffing
     const moderated = await fetchModeratedBroadcasterIds();
     if (!moderated) return; // transient failure — keep the current subscription set
     // Owner's twitch identity may be native OR linked to a Google account.
@@ -254,15 +290,35 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     await loadExclusions();
   }
 
+  function readsChannel(channelId: string): boolean {
+    if (!client) return false;
+    for (const [broadcasterId, chId] of channelByBroadcaster) {
+      if (chId === channelId) return client.isSubscribed(broadcasterId);
+    }
+    return false;
+  }
+
+  let quickReconcileTimer: NodeJS.Timeout | null = null;
+  /** Debounced out-of-schedule reconcile, for "overlay is up but bot is not reading". */
+  function scheduleQuickReconcile(): void {
+    if (!client || quickReconcileTimer) return;
+    quickReconcileTimer = setTimeout(() => {
+      quickReconcileTimer = null;
+      reconcile().catch((err) => deps.log.warn({ err }, 'twitch-chat: quick reconcile failed'));
+    }, 2_000);
+  }
+
   function shutdownClient(): void {
     client?.stop();
     client = null;
     if (reconcileTimer) clearInterval(reconcileTimer);
     if (statsFlushTimer) clearInterval(statsFlushTimer);
     if (watchPollTimer) clearInterval(watchPollTimer);
+    if (quickReconcileTimer) clearTimeout(quickReconcileTimer);
     reconcileTimer = null;
     statsFlushTimer = null;
     watchPollTimer = null;
+    quickReconcileTimer = null;
     // Don't lose buffered counters on shutdown/restart.
     void flushActivity(deps.log);
   }
@@ -285,7 +341,11 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     });
     client.start();
     await reconcile();
-    reconcileTimer = setInterval(() => void reconcile(), RECONCILE_INTERVAL_MS);
+    // An uncaught rejection here would crash the whole server (unhandledRejection).
+    reconcileTimer = setInterval(
+      () => reconcile().catch((err) => deps.log.warn({ err }, 'twitch-chat: reconcile failed')),
+      RECONCILE_INTERVAL_MS,
+    );
     statsFlushTimer = setInterval(() => void flushActivity(deps.log), STATS_FLUSH_MS);
     watchPollTimer = setInterval(
       () => pollChatters().catch((err) => deps.log.warn({ err }, 'twitch-chat: chatters poll failed')),
@@ -293,6 +353,14 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     );
     deps.log.info({ bot: creds.login }, 'twitch-chat: module started');
   }
+
+  // Self-heal at the moment it matters most: an overlay just connected (stream is
+  // going live) for a channel the bot is not reading — reconcile now, not in ≤5 min.
+  deps.io.of('/').adapter.on('join-room', (room: string) => {
+    const prefix = roomOf('');
+    if (!client || !room.startsWith(prefix)) return;
+    if (!readsChannel(room.slice(prefix.length))) scheduleQuickReconcile();
+  });
 
   void loadExclusions().catch(() => {});
   void boot().catch((err) => deps.log.error({ err }, 'twitch-chat: boot failed'));
@@ -305,13 +373,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     status() {
       return { connected: client != null && creds != null, login: creds?.login ?? null };
     },
-    readsChannel(channelId) {
-      if (!client) return false;
-      for (const [broadcasterId, chId] of channelByBroadcaster) {
-        if (chId === channelId) return client.isSubscribed(broadcasterId);
-      }
-      return false;
-    },
+    readsChannel,
     reloadExclusions() {
       void loadExclusions().catch((err) =>
         deps.log.warn({ err }, 'twitch-chat: exclusions reload failed'),

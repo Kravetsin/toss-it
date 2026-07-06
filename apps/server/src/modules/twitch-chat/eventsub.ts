@@ -7,6 +7,10 @@ const HELIX_SUBS_URL = 'https://api.twitch.tv/helix/eventsub/subscriptions';
 /** Slack on top of Twitch's announced keepalive interval before we declare the socket dead. */
 const KEEPALIVE_GRACE_MS = 10_000;
 const RECONNECT_MAX_MS = 60_000;
+/** A connection attempt that got no session_welcome by then is treated as failed. */
+const WELCOME_TIMEOUT_MS = 15_000;
+/** Last-resort self-heal: revive the client if it is dead with nothing scheduled. */
+const WATCHDOG_MS = 30_000;
 
 // All chat-read scoped (user:read:chat), same condition; v1. Ordered: primary first.
 const CHAT_SUB_TYPES = [
@@ -84,13 +88,17 @@ function toFragments(raw: EventFragment[] | undefined, fallbackText: string): Ch
  */
 export class EventSubClient {
   private ws: WebSocket | null = null;
+  /** In-flight connection attempt: created but no session_welcome yet. */
+  private pending: WebSocket | null = null;
   private sessionId: string | null = null;
   private wanted = new Set<string>();
   /** broadcasterId -> all its subscription ids (chat + moderation), for DELETE on removal. */
   private subs = new Map<string, string[]>();
   private keepaliveMs = 60_000;
   private keepaliveTimer: NodeJS.Timeout | null = null;
+  private welcomeTimer: NodeJS.Timeout | null = null;
   private reconnectTimer: NodeJS.Timeout | null = null;
+  private watchdogTimer: NodeJS.Timeout | null = null;
   private reconnectDelayMs = 1_000;
   private stopped = false;
 
@@ -99,14 +107,26 @@ export class EventSubClient {
   start(): void {
     this.stopped = false;
     this.connect(EVENTSUB_WS_URL);
+    this.watchdogTimer = setInterval(() => {
+      if (!this.ws && !this.pending && !this.reconnectTimer) {
+        this.deps.log.warn('twitch-chat: watchdog found dead client, reconnecting');
+        this.connect(EVENTSUB_WS_URL);
+      }
+    }, WATCHDOG_MS);
   }
 
   stop(): void {
     this.stopped = true;
-    if (this.keepaliveTimer) clearTimeout(this.keepaliveTimer);
-    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    for (const t of [this.keepaliveTimer, this.welcomeTimer, this.reconnectTimer]) {
+      if (t) clearTimeout(t);
+    }
+    if (this.watchdogTimer) clearInterval(this.watchdogTimer);
     this.keepaliveTimer = null;
+    this.welcomeTimer = null;
     this.reconnectTimer = null;
+    this.watchdogTimer = null;
+    this.pending?.close();
+    this.pending = null;
     this.ws?.close();
     this.ws = null;
     this.sessionId = null;
@@ -119,7 +139,9 @@ export class EventSubClient {
     // failed subscribe is retried on the next reconcile. Duplicate POSTs are
     // impossible outside a reconcile overlap, and Twitch answers those with 409.
     const added = [...ids].filter((id) => !this.subs.has(id));
-    const removed = [...this.wanted].filter((id) => !ids.has(id));
+    const removed = [...new Set([...this.wanted, ...this.subs.keys()])].filter(
+      (id) => !ids.has(id),
+    );
     this.wanted = new Set(ids);
     if (!this.sessionId) return; // welcome handler will subscribe everything wanted
     for (const id of added) void this.subscribe(id);
@@ -130,9 +152,61 @@ export class EventSubClient {
     return this.subs.has(broadcasterId);
   }
 
+  /**
+   * Anti-entropy: reconcile the local `subs` view with what Twitch actually holds
+   * for the current session, so ghost entries (session died, sub silently dropped)
+   * get resubscribed on the next setBroadcasters diff instead of lingering forever.
+   */
+  async verify(): Promise<void> {
+    const session = this.sessionId;
+    if (!session) return;
+    const confirmed = new Map<string, { ids: string[]; primary: boolean }>();
+    let cursor: string | undefined;
+    do {
+      const url = new URL(HELIX_SUBS_URL);
+      url.searchParams.set('status', 'enabled');
+      if (cursor) url.searchParams.set('after', cursor);
+      const res = await this.helix('GET', url.toString());
+      if (!res?.ok) return; // transient — keep the local view
+      const body = (await res.json()) as {
+        data?: {
+          id: string;
+          type: string;
+          condition?: { broadcaster_user_id?: string };
+          transport?: { session_id?: string };
+        }[];
+        pagination?: { cursor?: string };
+      };
+      for (const s of body.data ?? []) {
+        if (s.transport?.session_id !== session) continue;
+        const bid = s.condition?.broadcaster_user_id;
+        if (!bid) continue;
+        const entry = confirmed.get(bid) ?? { ids: [], primary: false };
+        entry.ids.push(s.id);
+        if (s.type === 'channel.chat.message') entry.primary = true;
+        confirmed.set(bid, entry);
+      }
+      cursor = body.pagination?.cursor;
+    } while (cursor);
+    if (this.sessionId !== session) return; // session changed mid-verify
+    for (const bid of [...this.subs.keys()]) {
+      if (!confirmed.get(bid)?.primary) {
+        this.subs.delete(bid);
+        this.deps.log.warn({ broadcasterId: bid }, 'twitch-chat: ghost subscription healed');
+      }
+    }
+  }
+
   private connect(url: string, handoffFrom?: WebSocket): void {
     if (this.stopped) return;
+    this.pending?.close();
     const ws = new WebSocket(url);
+    this.pending = ws;
+    if (this.welcomeTimer) clearTimeout(this.welcomeTimer);
+    this.welcomeTimer = setTimeout(() => {
+      // No welcome in time (hung handshake / half-open socket) — fail the attempt.
+      if (this.pending === ws) ws.close();
+    }, WELCOME_TIMEOUT_MS);
     ws.onmessage = (e) => {
       try {
         this.handleMessage(JSON.parse(String(e.data)) as EventSubMessage, ws, handoffFrom);
@@ -141,8 +215,12 @@ export class EventSubClient {
       }
     };
     ws.onclose = () => {
+      const wasPending = this.pending === ws;
+      if (wasPending) this.pending = null;
+      // Retry when the active socket dies OR an attempt fails before welcome —
+      // otherwise a single failed connect strands the client forever.
       // A handoff socket replaced by a new welcome closes on purpose — ignore that one.
-      if (this.ws === ws && !this.stopped) this.scheduleReconnect();
+      if ((this.ws === ws || wasPending) && !this.stopped) this.scheduleReconnect();
     };
     ws.onerror = () => {
       /* onclose follows; logging happens there */
@@ -152,6 +230,9 @@ export class EventSubClient {
   private handleMessage(msg: EventSubMessage, ws: WebSocket, handoffFrom?: WebSocket): void {
     const type = msg.metadata?.message_type;
     if (type === 'session_welcome') {
+      if (this.pending === ws) this.pending = null;
+      if (this.welcomeTimer) clearTimeout(this.welcomeTimer);
+      this.welcomeTimer = null;
       this.ws = ws;
       this.sessionId = msg.payload?.session?.id ?? null;
       const keepaliveSec = msg.payload?.session?.keepalive_timeout_seconds;
@@ -203,8 +284,17 @@ export class EventSubClient {
     }
     if (type === 'revocation') {
       const broadcasterId = msg.payload?.subscription?.condition?.broadcaster_user_id;
-      if (broadcasterId) this.subs.delete(broadcasterId);
-      this.deps.log.warn({ broadcasterId }, 'twitch-chat: subscription revoked');
+      this.deps.log.warn(
+        { broadcasterId, subType: msg.payload?.subscription?.type },
+        'twitch-chat: subscription revoked',
+      );
+      if (broadcasterId && this.subs.has(broadcasterId)) {
+        // Drop remnants and retry now — waiting for the next reconcile would leave
+        // the channel dark for up to 5 minutes.
+        void this.unsubscribe(broadcasterId).then(() => {
+          if (this.wanted.has(broadcasterId)) void this.subscribe(broadcasterId);
+        });
+      }
     }
   }
 
@@ -217,8 +307,10 @@ export class EventSubClient {
   }
 
   private scheduleReconnect(): void {
+    const old = this.ws;
     this.ws = null;
     this.sessionId = null;
+    old?.close();
     if (this.keepaliveTimer) clearTimeout(this.keepaliveTimer);
     if (this.reconnectTimer || this.stopped) return;
     this.reconnectTimer = setTimeout(() => {
@@ -229,7 +321,7 @@ export class EventSubClient {
   }
 
   private async helix(
-    method: 'POST' | 'DELETE',
+    method: 'GET' | 'POST' | 'DELETE',
     url: string,
     body?: unknown,
   ): Promise<Response | null> {
