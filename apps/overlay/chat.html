@@ -30,6 +30,9 @@
       .msg {
         position: relative;
         align-self: flex-start;
+        /* Keep natural height: without this, an overflowing flex column shrinks each
+           row to fit (squishing the text) instead of letting old ones scroll off-screen. */
+        flex: 0 0 auto;
         max-width: 100%;
         box-sizing: border-box;
         padding: 7px 14px;
