@@ -165,6 +165,7 @@ export const en: Dict = {
   'home.manage': 'Manage',
   'home.dashboardBtn': 'Moderation dashboard',
   'home.viewerPageBtn': 'Viewer page',
+  'home.viewerPageSettingsBtn': 'Page settings',
   'home.viewerLinkLabel': 'Viewer link — drop it in chat or pin it in your stream description:',
   'home.overlayTitle': 'OBS overlay',
   'home.overlayDesc':
@@ -543,6 +544,7 @@ export const ru: Dict = {
   'home.manage': 'Управление',
   'home.dashboardBtn': 'Дашборд модерации',
   'home.viewerPageBtn': 'Страница зрителя',
+  'home.viewerPageSettingsBtn': 'Настройки страницы',
   'home.viewerLinkLabel': 'Ссылка для зрителей — отправь её в чат или закрепи в описании стрима:',
   'home.overlayTitle': 'Оверлей для OBS',
   'home.overlayDesc':
@@ -920,6 +922,7 @@ export const uk: Dict = {
   'home.manage': 'Керування',
   'home.dashboardBtn': 'Дашборд модерації',
   'home.viewerPageBtn': 'Сторінка глядача',
+  'home.viewerPageSettingsBtn': 'Налаштування сторінки',
   'home.viewerLinkLabel': 'Посилання для глядачів — кинь у чат або закріпи в описі стріму:',
   'home.overlayTitle': 'Оверлей для OBS',
   'home.overlayDesc':

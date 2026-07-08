@@ -23,6 +23,12 @@ export function ViewerLinkCard({ login, viewerUrl }: { login: string; viewerUrl:
             {t('home.viewerPageBtn')}
           </Button>
         </Link>
+        <Link to="/dashboard/settings/channel">
+          <Button variant="secondary">
+            <Icon name="settings" size={16} />
+            {t('home.viewerPageSettingsBtn')}
+          </Button>
+        </Link>
       </div>
       <p className="mb-2 mt-4 text-sm text-muted">{t('home.viewerLinkLabel')}</p>
       <CopyableLinkBox
