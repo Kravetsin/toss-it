@@ -13,7 +13,7 @@ import { config } from './config';
  */
 
 const serverRoot = path.resolve(import.meta.dirname, '..');
-const piperDir = path.join(serverRoot, 'data', 'piper');
+const piperDir = config.tts.piperDir ?? path.join(serverRoot, 'data', 'piper');
 const binPath = path.join(piperDir, 'bin', process.platform === 'win32' ? 'piper.exe' : 'piper');
 const voicesDir = path.join(piperDir, 'voices');
 const cacheDir = path.join(serverRoot, 'data', 'tts-cache');

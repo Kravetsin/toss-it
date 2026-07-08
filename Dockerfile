@@ -1,10 +1,26 @@
 # Один сервис: Fastify раздаёт API, Socket.IO и собранные фронты (web + overlay).
 FROM node:24-slim
 
-# ffmpeg/ffprobe нужны для валидации и обрезки медиа.
+# ffmpeg/ffprobe нужны для валидации и обрезки медиа; curl fetches Piper below.
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ffmpeg \
+  && apt-get install -y --no-install-recommends ffmpeg ca-certificates curl \
   && rm -rf /var/lib/apt/lists/*
+
+# Piper TTS (linux x86_64) + voices: own layer BEFORE COPY so code changes
+# don't re-download ~200MB. Voice list must match TTS_VOICES in tts.ts.
+ENV PIPER_DIR=/opt/piper
+RUN set -e; \
+  mkdir -p $PIPER_DIR/voices; cd $PIPER_DIR; \
+  curl -fsSL -o piper.tgz https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_linux_x86_64.tar.gz; \
+  tar -xzf piper.tgz && mv piper bin && rm piper.tgz; \
+  cd voices; \
+  for v in ru/ru_RU/irina/medium/ru_RU-irina-medium \
+           uk/uk_UA/ukrainian_tts/medium/uk_UA-ukrainian_tts-medium \
+           en/en_US/amy/medium/en_US-amy-medium; do \
+    n=$(basename $v); \
+    curl -fsSL -o $n.onnx "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/$v.onnx?download=true"; \
+    curl -fsSL -o $n.onnx.json "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/$v.onnx.json?download=true"; \
+  done
 
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable

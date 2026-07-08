@@ -87,6 +87,8 @@ export const config = {
   tts: {
     /** Forced voice language (en/ru/uk); defaults to detection by text. */
     lang: process.env.TTS_LANG,
+    /** Piper install dir override; in Docker it's baked into /opt/piper. */
+    piperDir: process.env.PIPER_DIR,
   },
 
   rateLimit: {

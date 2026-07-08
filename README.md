@@ -88,7 +88,8 @@ the box. To exercise the real OAuth flow, set `TWITCH_CLIENT_ID`, `TWITCH_CLIENT
 
 TTS uses a local [Piper](https://github.com/rhasspy/piper) install — run
 `pnpm --filter @tmw/server piper:setup` once to download the binary and voices (~200 MB); until
-then the server falls back to the Google Translate TTS proxy.
+then the server falls back to the Google Translate TTS proxy. The Docker image bakes Piper in
+(`PIPER_DIR=/opt/piper`, see Dockerfile), so the setup script is only needed for local dev.
 
 Useful scripts (from the repo root):
 
