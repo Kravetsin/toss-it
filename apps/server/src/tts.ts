@@ -74,32 +74,39 @@ export async function synthesize(text: string): Promise<Buffer | null> {
 
   const pending = inFlight.get(key);
   if (pending) return pending;
-  const task = runPiper(modelPath, text)
-    .then(async (wav) => {
-      if (wav) await cachePut(cacheFile, wav);
+  // Piper writes to a file, not stdout: on Windows its stdout is in text mode
+  // and CRLF translation corrupts the PCM data (loud static over the voice).
+  const tmpFile = `${cacheFile}.${process.pid}.tmp`;
+  const task = (async () => {
+    await fsp.mkdir(cacheDir, { recursive: true });
+    try {
+      await runPiper(modelPath, text, tmpFile);
+      const wav = await fsp.readFile(tmpFile);
+      if (wav.length === 0) throw new Error('piper produced empty output');
+      await cacheCommit(tmpFile, cacheFile);
       return wav;
-    })
-    .finally(() => inFlight.delete(key));
+    } finally {
+      await fsp.rm(tmpFile, { force: true }).catch(() => {});
+    }
+  })().finally(() => inFlight.delete(key));
   inFlight.set(key, task);
   return task;
 }
 
-function runPiper(modelPath: string, text: string): Promise<Buffer | null> {
+function runPiper(modelPath: string, text: string, outFile: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const proc = spawn(binPath, ['--model', modelPath, '--output_file', '-'], {
+    const proc = spawn(binPath, ['--model', modelPath, '--output_file', outFile], {
       cwd: path.dirname(binPath),
       windowsHide: true,
     });
-    const chunks: Buffer[] = [];
     const timer = setTimeout(() => proc.kill(), SYNTH_TIMEOUT_MS);
-    proc.stdout.on('data', (c: Buffer) => chunks.push(c));
     proc.on('error', (err) => {
       clearTimeout(timer);
       reject(err);
     });
     proc.on('close', (code) => {
       clearTimeout(timer);
-      if (code === 0 && chunks.length > 0) resolve(Buffer.concat(chunks));
+      if (code === 0) resolve();
       else reject(new Error(`piper exited with code ${code}`));
     });
     proc.stdin.on('error', () => {});
@@ -107,12 +114,9 @@ function runPiper(modelPath: string, text: string): Promise<Buffer | null> {
   });
 }
 
-async function cachePut(file: string, wav: Buffer): Promise<void> {
+async function cacheCommit(tmpFile: string, file: string): Promise<void> {
   try {
-    await fsp.mkdir(cacheDir, { recursive: true });
-    const tmp = `${file}.${process.pid}.tmp`;
-    await fsp.writeFile(tmp, wav);
-    await fsp.rename(tmp, file);
+    await fsp.rename(tmpFile, file);
     if (++writesSinceSweep >= CACHE_SWEEP_EVERY) {
       writesSinceSweep = 0;
       void sweepCache().catch(() => {});
