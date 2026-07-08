@@ -67,7 +67,8 @@ export const en: Dict = {
   'shop.cardSnow': 'Snow',
   'shop.cardSnowDesc': 'Soft snowflakes drifting down the card.',
   'shop.voices': 'TTS voices',
-  'shop.voicesDesc': 'Rare voices for reading your sends aloud on stream. Basic voices are free.',
+  'shop.voicesDesc':
+    'Buy a voice and pick it when sending — your sends get read by it on stream. The auto voice (by text language) is free.',
   'shop.voicePreview': 'Listen',
   'voice.irina': 'Irina',
   'voice.denis': 'Denis',
@@ -431,7 +432,7 @@ export const ru: Dict = {
   'shop.cardSnowDesc': 'Мягкий снег медленно падает по карточке.',
   'shop.voices': 'Голоса озвучки',
   'shop.voicesDesc':
-    'Редкие голоса для озвучки твоих отправок на стриме. Базовые голоса бесплатны.',
+    'Купи голос и выбирай его при отправке — им будут озвучиваться твои сообщения на стриме. Голос «авто» (по языку текста) бесплатный.',
   'shop.voicePreview': 'Прослушать',
   'voice.irina': 'Ирина',
   'voice.denis': 'Денис',
@@ -796,7 +797,7 @@ export const uk: Dict = {
   'shop.cardSnowDesc': 'Ніжний сніг повільно падає по картці.',
   'shop.voices': 'Голоси озвучки',
   'shop.voicesDesc':
-    'Рідкісні голоси для озвучки твоїх надсилань на стрімі. Базові голоси безкоштовні.',
+    'Купи голос і обирай його під час надсилання — ним озвучуватимуться твої повідомлення на стрімі. Голос «авто» (за мовою тексту) безкоштовний.',
   'shop.voicePreview': 'Прослухати',
   'voice.irina': 'Ірина',
   'voice.denis': 'Денис',

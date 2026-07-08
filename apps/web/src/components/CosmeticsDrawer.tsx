@@ -26,8 +26,8 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   const colorItem = COSMETICS.find((c) => c.id === NICK_COLOR_ID)!;
   const nickEffects = COSMETICS.filter((c) => c.type === 'nick_effect');
   const cardEffects = COSMETICS.filter((c) => c.type === 'card_effect');
-  // Free voices are available to everyone straight in the compose form; the shop sells the rest.
-  const paidVoices = COSMETICS.filter((c) => c.type === 'tts_voice' && c.costDust > 0);
+  // Every specific voice is a purchase; the free path is the "auto" option in the compose form.
+  const voiceItems = COSMETICS.filter((c) => c.type === 'tts_voice');
   const ownsColor = user?.ownedCosmetics.includes(NICK_COLOR_ID) ?? false;
   const equippedColor = user?.equipped.nickColor ?? null;
   const equippedNickEffect = user?.equipped.nickEffect ?? null;
@@ -305,7 +305,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
           t('shop.voices'),
           <>
             <p className="text-sm text-muted">{t('shop.voicesDesc')}</p>
-            {paidVoices.map(voiceRow)}
+            {voiceItems.map(voiceRow)}
           </>,
         )}
       </div>
