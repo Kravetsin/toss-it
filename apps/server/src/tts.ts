@@ -38,11 +38,16 @@ export function detectTtsLang(text: string): keyof typeof TTS_VOICES {
 
 let warnedUnavailable = false;
 
+/** Absolute path the piper binary is expected at (logged for diagnostics). */
+export const ttsBinPath = binPath;
+
 export function ttsAvailable(): boolean {
   const ok = fs.existsSync(binPath);
   if (!ok && !warnedUnavailable) {
     warnedUnavailable = true;
-    console.warn('Piper TTS not installed — run `pnpm piper:setup`; falling back to Google TTS');
+    console.warn(
+      `Piper TTS not installed (expected at ${binPath}) — run \`pnpm piper:setup\`; falling back to Google TTS`,
+    );
   }
   return ok;
 }

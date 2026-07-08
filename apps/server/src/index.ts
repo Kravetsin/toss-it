@@ -88,6 +88,9 @@ const twitchChat = createTwitchChatModule({
 });
 
 registerRoutes(app, { playback, storage, tmpDir, io, twitchChat });
+
+const { ttsAvailable, ttsBinPath } = await import('./tts');
+app.log.info(`TTS: piper ${ttsAvailable() ? 'available' : 'MISSING'} at ${ttsBinPath}`);
 startCleanup(storage, app.log);
 startBackups(serverRoot, app.log);
 
