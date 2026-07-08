@@ -1,11 +1,40 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { PageShell } from '@/ui';
+import { useMe } from '@/hooks/useMe';
+import { useI18n } from '@/i18n';
+import { useShop } from '@/providers/ShopProvider';
+import { Button, PageShell } from '@/ui';
+import { Icon } from '@/ui/icons';
 import { BackgroundStars } from '@/components/BackgroundStars';
-import { StardustWallet } from '@/components/StardustWallet';
+import { ProfileMenu } from '@/components/ProfileMenu';
+
+/** Guest account cluster: same top-right spot as the wallet — browse the shop, or log in. */
+function GuestActions() {
+  const { t } = useI18n();
+  const { openShop } = useShop();
+  const returnTo = encodeURIComponent(window.location.pathname);
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={openShop}
+        className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 py-1 text-sm text-muted outline-none transition-colors hover:border-accent hover:text-text focus-visible:[box-shadow:var(--shadow-focus)]"
+      >
+        <Icon name="sparkles" size={15} className="text-accent" />
+        {t('wallet.shopLabel')}
+      </button>
+      <a href={`/api/auth/login?returnTo=${returnTo}`}>
+        <Button variant="primary" size="sm">
+          {t('nav.login')}
+        </Button>
+      </a>
+    </div>
+  );
+}
 
 /** Viewer page layout with home link, footer, and background stars. */
 export function ChannelShell({ children }: { children: ReactNode }) {
+  const { me } = useMe();
   return (
     <PageShell maxWidth="xl">
       <BackgroundStars />
@@ -18,7 +47,7 @@ export function ChannelShell({ children }: { children: ReactNode }) {
             <img src="/favicon.svg" alt="Tossit" width={24} height={24} />
             <span className="label-mono">Tossit</span>
           </Link>
-          <StardustWallet />
+          {me?.user ? <ProfileMenu /> : <GuestActions />}
         </div>
         {children}
         <p className="mt-10 text-center label-mono text-faint">Tossit</p>

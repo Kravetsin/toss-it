@@ -8,8 +8,10 @@ import { useApiAction } from '@/hooks/useApiAction';
 import { LanguageToggle, LanguageToggleCycle, useI18n } from '@/i18n';
 import { Avatar, IconButton, Tooltip } from '@/ui';
 import { Icon, type IconName } from '@/ui/icons';
-import { PlatformIcon, UserBadges } from '@/components/UserMarks';
 import { BackgroundStars } from '@/components/BackgroundStars';
+import { DustMark } from '@/components/DustMark';
+import { ProfileCard } from '@/components/ProfileCard';
+import { useShop } from '@/providers/ShopProvider';
 
 function Brand({ compact = false }: { compact?: boolean }) {
   return (
@@ -171,21 +173,25 @@ function AccountBlock({
   onNavigate?: () => void;
 }) {
   const { t } = useI18n();
+  const { openShop } = useShop();
   return (
     <div className="border-t border-border p-3">
-      <div className="flex flex-col gap-2.5 border border-border bg-surface-2 p-3 shadow-1">
-        <div className="flex items-center gap-3">
-          <Avatar url={user.avatarUrl} name={user.displayName} size={40} />
-          <div className="min-w-0 flex-1">
-            <p className="flex items-center gap-1.5 text-sm font-semibold text-text">
-              <span className="truncate">{user.displayName}</span>
-              <PlatformIcon userId={user.id} size={14} />
-            </p>
-            <p className="truncate text-xs text-muted">@{user.login}</p>
-          </div>
-        </div>
-        <UserBadges isFounder={user.isFounder} variant="chips" className="self-start" />
-      </div>
+      <ProfileCard user={user} />
+
+      {/* Stardust + shop: the one fixed home for the wallet across the streamer console. */}
+      <button
+        type="button"
+        onClick={openShop}
+        aria-label={t('shop.open')}
+        className="mt-2 flex w-full cursor-pointer items-center justify-between gap-2 border border-border bg-surface-2 px-3 py-2 text-sm outline-none transition-colors hover:border-accent focus-visible:[box-shadow:var(--shadow-focus)]"
+      >
+        <span className="flex items-center gap-1.5 text-muted">
+          <DustMark size={15} className="text-accent" />
+          <span className="tabular-nums text-text">{user.stardust}</span>
+        </span>
+        <span className="label-mono text-accent">{t('wallet.shopLabel')}</span>
+      </button>
+
       <div className="mt-2 flex flex-col gap-0.5">
         <AccountRow to="/promo" icon="gift" label={t('promo.haveCode')} onClick={onNavigate} />
         {user.isAdmin && (
@@ -274,6 +280,7 @@ function Sidebar({
   onToggle: () => void;
 }) {
   const { t } = useI18n();
+  const { openShop } = useShop();
   return (
     <aside
       className="relative sticky top-0 hidden h-screen shrink-0 flex-col border-r border-border bg-surface md:flex overflow-visible"
@@ -331,6 +338,20 @@ function Sidebar({
       {collapsed ? (
         <div className="flex flex-col items-center gap-1.5 border-t border-border p-2">
           <Avatar url={user.avatarUrl} name={user.displayName} size={34} />
+          <Tooltip
+            content={`${user.stardust} · ${t('wallet.shopLabel')}`}
+            placement="right"
+            focusable={false}
+          >
+            <button
+              type="button"
+              onClick={openShop}
+              aria-label={t('shop.open')}
+              className="inline-flex size-8 cursor-pointer items-center justify-center rounded-full border border-border text-muted outline-none transition-colors hover:border-accent hover:text-text focus-visible:[box-shadow:var(--shadow-focus)]"
+            >
+              <DustMark size={16} className="text-accent" />
+            </button>
+          </Tooltip>
           <MobileNavIcon to="/promo" icon="gift" label={t('promo.haveCode')} tip="right" />
           {user.isAdmin && (
             <MobileNavIcon to="/admin" icon="settings" label={t('admin.title')} tip="right" />

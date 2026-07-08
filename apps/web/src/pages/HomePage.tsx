@@ -10,7 +10,6 @@ import { NoChannelCard } from '@/features/home/components/NoChannelCard';
 import { ViewerLinkCard } from '@/features/home/components/ViewerLinkCard';
 import { OverlayCard } from '@/features/home/components/OverlayCard';
 import { TeamCard } from '@/features/home/components/TeamCard';
-import { StardustWallet } from '@/components/StardustWallet';
 import { ChatDustSettings } from '@/features/dashboard/components/ChatDustSettings';
 import { OnboardingChecklist } from '@/features/home/components/OnboardingChecklist';
 import { useSettingsData } from '@/features/dashboard/hooks/useSettingsData';
@@ -72,9 +71,6 @@ export function HomePage() {
         />
       ) : (
         <div className="flex flex-col gap-4">
-          <div className="flex justify-end">
-            <StardustWallet />
-          </div>
           <OnboardingChecklist
             channelId={me.channel.id}
             botLogin={settings?.chatBotLogin ?? null}
