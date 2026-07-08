@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
-import { DEFAULT_TTS_VOICE, ttsVoiceModule, type TtsLang, type TtsVoiceModule } from '@tmw/shared';
+import { ttsVoiceModule, ttsVoices, type TtsLang, type TtsVoiceModule } from '@tmw/shared';
 import { config } from './config';
 
 /**
@@ -32,12 +32,27 @@ export function detectTtsLang(text: string): TtsLang {
   return 'en';
 }
 
-/** Voice module for a submission: the picked catalog id, or the language default. */
-function resolveVoice(text: string, voiceId?: string | null): TtsVoiceModule | undefined {
-  return (
-    (voiceId ? ttsVoiceModule(voiceId) : undefined) ??
-    ttsVoiceModule(DEFAULT_TTS_VOICE[detectTtsLang(text)])
-  );
+/**
+ * Voice for a synthesis: the picked catalog id, or a RANDOM voice of the text's language —
+ * randomness is the free tier, buying a voice is what buys control. `seed` (submission id)
+ * makes the pick stable, so name+message and replays of one submission share a voice.
+ */
+function resolveVoice(
+  text: string,
+  voiceId?: string | null,
+  seed?: string,
+): TtsVoiceModule | undefined {
+  if (voiceId) {
+    const picked = ttsVoiceModule(voiceId);
+    if (picked) return picked;
+  }
+  const lang = detectTtsLang(text);
+  const pool = ttsVoices.filter((v) => v.lang === lang);
+  if (pool.length === 0) return undefined;
+  const idx = seed
+    ? crypto.createHash('sha1').update(seed).digest().readUInt32BE(0) % pool.length
+    : Math.floor(Math.random() * pool.length);
+  return pool[idx];
 }
 
 let warnedUnavailable = false;
@@ -61,9 +76,13 @@ const inFlight = new Map<string, Promise<Buffer | null>>();
 let writesSinceSweep = 0;
 
 /** WAV audio for the text, or null when piper/voice is missing (caller falls back). */
-export async function synthesize(text: string, voiceId?: string | null): Promise<Buffer | null> {
+export async function synthesize(
+  text: string,
+  voiceId?: string | null,
+  seed?: string,
+): Promise<Buffer | null> {
   if (!ttsAvailable()) return null;
-  const voice = resolveVoice(text, voiceId);
+  const voice = resolveVoice(text, voiceId, seed);
   if (!voice) return null;
   const modelPath = path.join(voicesDir, `${voice.model}.onnx`);
   if (!fs.existsSync(modelPath)) return null;

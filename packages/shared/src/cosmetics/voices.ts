@@ -2,9 +2,9 @@ import type { TtsLang, TtsVoiceModule } from './types';
 
 /**
  * TTS voice catalog. Picking a specific voice always requires buying it with stardust; the free
- * path is "auto" (no voice sent), which resolves to DEFAULT_TTS_VOICE by text language. The
- * referenced models must exist in the piper voices dir — keep this list in sync with
- * scripts/setup-piper.ts and the Dockerfile.
+ * path is "auto" (no voice sent) — a RANDOM voice of the text's language, so a purchase is what
+ * buys control. The referenced models must exist in the piper voices dir — keep this list in
+ * sync with scripts/setup-piper.ts and the Dockerfile.
  */
 export const ttsVoices: TtsVoiceModule[] = [
   {
@@ -92,10 +92,3 @@ export const ttsVoices: TtsVoiceModule[] = [
     labels: { name: 'voice.ryan', desc: 'voice.enM' },
   },
 ];
-
-/** What "auto" resolves to per detected language — independent of purchases. */
-export const DEFAULT_TTS_VOICE: Record<TtsLang, string> = {
-  ru: 'voice-irina',
-  uk: 'voice-tetiana',
-  en: 'voice-amy',
-};

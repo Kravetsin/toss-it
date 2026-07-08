@@ -420,7 +420,8 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
       if (!source) return reply.code(404).send({ error: 'Не найдено' });
 
       try {
-        const wav = await synthesize(source.slice(0, TEXT_MAX_LEN), sub?.ttsVoice);
+        // Seed = submission id: the free "auto" voice is random but consistent within one send.
+        const wav = await synthesize(source.slice(0, TEXT_MAX_LEN), sub?.ttsVoice, req.params.id);
         if (wav) return reply.type('audio/wav').send(wav);
       } catch (err) {
         req.log.warn({ err }, 'piper tts failed, falling back to google');
