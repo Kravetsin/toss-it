@@ -40,7 +40,9 @@ export function HoverBadge({
       } ${className}`}
     >
       <Icon name={icon} size={size} />
-      <span className="label-mono max-w-0 overflow-hidden whitespace-nowrap pl-1 transition-[max-width] duration-[var(--dur)] ease-out group-hover/hb:max-w-[7rem] group-focus-visible/hb:max-w-[7rem]">
+      {/* Collapsed = truly 0 wide: pl-1 lives behind the hover so its padding doesn't leave a
+          residual sliver when max-width is 0 (border-box keeps padding even at max-w-0). */}
+      <span className="label-mono max-w-0 overflow-hidden whitespace-nowrap pl-0 transition-[max-width,padding] duration-[var(--dur)] ease-out group-hover/hb:max-w-[7rem] group-hover/hb:pl-1 group-focus-visible/hb:max-w-[7rem] group-focus-visible/hb:pl-1">
         {label}
       </span>
     </span>
