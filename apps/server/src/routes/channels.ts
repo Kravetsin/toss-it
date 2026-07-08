@@ -224,6 +224,7 @@ export function registerChannelRoutes(app: FastifyInstance): void {
   app.get<{ Params: { login: string } }>('/api/c/:login', async (req, reply) => {
     const row = await db
       .select({
+        channelId: channels.id,
         login: users.login,
         displayName: users.displayName,
         avatarUrl: users.avatarUrl,
@@ -244,7 +245,12 @@ export function registerChannelRoutes(app: FastifyInstance): void {
       .where(eq(users.login, req.params.login.toLowerCase()))
       .get();
     if (!row) return reply.code(404).send({ error: 'Канал не найден' });
-    const { founderSince, equipped, ttsName, ttsMessage, ...rest } = row;
+    const { channelId, founderSince, equipped, ttsName, ttsMessage, ...rest } = row;
+    // The logged-in viewer's own per-channel level — so their header card matches the chat badge.
+    const viewer = await getSessionUser(req);
+    const [viewerLevel = 0] = viewer
+      ? await levelsForKeys(channelId, [{ userId: viewer.id, twitchId: null }])
+      : [];
     const response: PublicChannelInfo = {
       ...rest,
       ttsEnabled: ttsName || ttsMessage,
@@ -252,6 +258,7 @@ export function registerChannelRoutes(app: FastifyInstance): void {
       nickColor: equipped?.nickColor ?? null,
       nickEffect: equipped?.nickEffect ?? null,
       cardEffect: equipped?.cardEffect ?? null,
+      viewerLevel,
     };
     return response;
   });

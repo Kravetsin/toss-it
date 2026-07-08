@@ -1,15 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { LEVEL_GLOW_FROM, levelTier, toRoman } from '@tmw/shared';
 import { logout } from '@/lib/api';
 import { useMe } from '@/hooks/useMe';
 import { useI18n } from '@/i18n';
 import { useShop } from '@/providers/ShopProvider';
 import { useApiAction } from '@/hooks/useApiAction';
 import { registerStardustWallet } from '@/lib/stardustFx';
+import { nickProps } from '@/lib/nick';
 import { Avatar } from '@/ui';
 import { Icon, type IconName } from '@/ui/icons';
 import { DustMark } from '@/components/DustMark';
-import { ProfileCard } from '@/components/ProfileCard';
+import { CardEffect } from '@/components/CardEffect';
+import { PlatformIcon, UserBadges } from '@/components/UserMarks';
 
 function Row({
   icon,
@@ -45,11 +48,12 @@ function Row({
 }
 
 /**
- * Viewer-page account control (top-right): the sidebar's profile block has no home here, so this
- * popover is its equivalent — it shows the user's cosmetic card, stardust + shop, and account links.
- * Also the stardust fly-animation target, so earned dust flies to the avatar.
+ * Viewer-page account control (top-right): the FULL cosmetic card is always visible — the same
+ * look the streamer sees in chat (level rail + numeral, badge, nick color/effect, card particles)
+ * plus avatar, login platform and stardust — so a viewer never has to click to see their card.
+ * Clicking opens the actions menu (shop, dashboard, logout). Also the stardust fly target.
  */
-export function ProfileMenu() {
+export function ProfileMenu({ viewerLevel = 0 }: { viewerLevel?: number }) {
   const { me, refresh } = useMe();
   const { t } = useI18n();
   const { openShop } = useShop();
@@ -101,6 +105,10 @@ export function ProfileMenu() {
       },
     });
 
+  const nick = nickProps(user.equipped?.nickColor ?? null, user.equipped?.nickEffect ?? null);
+  const tier = viewerLevel ? levelTier(viewerLevel) : null;
+  const levelGlow = !!tier && viewerLevel >= LEVEL_GLOW_FROM;
+
   return (
     <div className="relative">
       <button
@@ -109,59 +117,79 @@ export function ProfileMenu() {
         onClick={() => setOpen((o) => !o)}
         aria-label={t('nav.profile')}
         aria-expanded={open}
-        className={`rounded-full outline-none transition-transform duration-200 hover:opacity-90 focus-visible:[box-shadow:var(--shadow-focus)] ${pop ? 'scale-110' : ''}`}
+        className={`relative flex items-center gap-2.5 overflow-hidden rounded-[var(--radius-sm)] border border-border bg-surface-2 py-1 pl-2.5 pr-3 text-left outline-none transition-[border-color,transform] duration-200 hover:border-accent focus-visible:[box-shadow:var(--shadow-focus)] ${pop ? 'scale-105' : ''}`}
       >
-        <Avatar url={user.avatarUrl} name={user.displayName} size={36} />
+        <CardEffect effect={user.equipped?.cardEffect} compact />
+        {tier && (
+          <span
+            aria-hidden
+            className={`pointer-events-none absolute inset-y-0 left-0 z-[1] w-[3px] ${tier.iris ? 'lvl-iris' : ''}`}
+            style={{
+              background: tier.color,
+              boxShadow: levelGlow ? `0 0 7px ${tier.color}` : undefined,
+            }}
+          />
+        )}
+        <Avatar url={user.avatarUrl} name={user.displayName} size={30} />
+        <span className="relative flex min-w-0 items-center gap-1.5">
+          {tier && (
+            <span
+              className={`shrink-0 text-xs font-bold ${tier.iris ? 'lvl-iris' : ''}`}
+              style={{
+                color: tier.color,
+                textShadow: levelGlow ? `0 0 6px ${tier.color}` : undefined,
+              }}
+            >
+              {toRoman(viewerLevel)}
+            </span>
+          )}
+          <UserBadges isFounder={user.isFounder} variant="icons" />
+          <span
+            className={`truncate text-sm font-semibold text-text ${nick.className}`}
+            style={nick.style}
+          >
+            {user.displayName}
+          </span>
+          <PlatformIcon userId={user.id} size={13} />
+        </span>
+        <span className="relative ml-1 flex shrink-0 items-center gap-1 label-mono text-accent">
+          <DustMark size={14} />
+          <span className="tabular-nums">{user.stardust}</span>
+        </span>
       </button>
+
       {open && (
         <div
           ref={popRef}
           role="menu"
-          className="glass glass-strong absolute right-0 z-50 mt-2 w-64 border border-glass-border p-3 shadow-3"
+          className="glass glass-strong absolute right-0 z-50 mt-2 w-56 border border-glass-border p-1 shadow-3"
         >
-          <ProfileCard user={user} />
-
-          <button
-            type="button"
+          <Row
+            icon="sparkles"
+            label={t('wallet.shopLabel')}
             onClick={() => {
               setOpen(false);
               openShop();
             }}
-            aria-label={t('shop.open')}
-            className="mt-2 flex w-full cursor-pointer items-center justify-between gap-2 border border-border bg-surface-2 px-3 py-2 text-sm outline-none transition-colors hover:border-accent focus-visible:[box-shadow:var(--shadow-focus)]"
-          >
-            <span className="flex items-center gap-1.5 text-muted">
-              <DustMark size={15} className="text-accent" />
-              <span className="tabular-nums text-text">{user.stardust}</span>
-            </span>
-            <span className="label-mono text-accent">{t('wallet.shopLabel')}</span>
-          </button>
-
-          <div className="mt-2 flex flex-col gap-0.5">
-            {me.channel && (
-              <Row
-                to="/dashboard"
-                icon="shield"
-                label={t('nav.dashboard')}
-                onClick={() => setOpen(false)}
-              />
-            )}
-            {me.channel && (
-              <Row
-                to="/dashboard/settings"
-                icon="settings"
-                label={t('nav.settings')}
-                onClick={() => setOpen(false)}
-              />
-            )}
+          />
+          {me.channel && (
             <Row
-              to="/promo"
-              icon="gift"
-              label={t('promo.haveCode')}
+              to="/dashboard"
+              icon="shield"
+              label={t('nav.dashboard')}
               onClick={() => setOpen(false)}
             />
-            <Row onClick={onLogout} icon="log-out" label={t('home.logout')} danger />
-          </div>
+          )}
+          {me.channel && (
+            <Row
+              to="/dashboard/settings"
+              icon="settings"
+              label={t('nav.settings')}
+              onClick={() => setOpen(false)}
+            />
+          )}
+          <Row to="/promo" icon="gift" label={t('promo.haveCode')} onClick={() => setOpen(false)} />
+          <Row onClick={onLogout} icon="log-out" label={t('home.logout')} danger />
         </div>
       )}
     </div>

@@ -33,7 +33,14 @@ function GuestActions() {
 }
 
 /** Viewer page layout with home link, footer, and background stars. */
-export function ChannelShell({ children }: { children: ReactNode }) {
+export function ChannelShell({
+  children,
+  viewerLevel = 0,
+}: {
+  children: ReactNode;
+  /** The logged-in viewer's per-channel level, for their always-visible header card. */
+  viewerLevel?: number;
+}) {
   const { me } = useMe();
   return (
     <PageShell maxWidth="xl">
@@ -47,7 +54,7 @@ export function ChannelShell({ children }: { children: ReactNode }) {
             <img src="/favicon.svg" alt="Tossit" width={24} height={24} />
             <span className="label-mono">Tossit</span>
           </Link>
-          {me?.user ? <ProfileMenu /> : <GuestActions />}
+          {me?.user ? <ProfileMenu viewerLevel={viewerLevel} /> : <GuestActions />}
         </div>
         {children}
         <p className="mt-10 text-center label-mono text-faint">Tossit</p>

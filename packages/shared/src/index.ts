@@ -430,6 +430,8 @@ export interface PublicChannelInfo {
   autoApproveGifs: boolean;
   /** Whether the streamer reads sends aloud (name or message) — drives the voice picker. */
   ttsEnabled: boolean;
+  /** The logged-in viewer's own per-channel level (0 = anon/none) — for their header card. */
+  viewerLevel: number;
   isFounder: boolean;
   /** Streamer description; null = viewer sees default subtitle. */
   description: string | null;
