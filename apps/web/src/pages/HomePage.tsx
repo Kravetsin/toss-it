@@ -10,6 +10,9 @@ import { NoChannelCard } from '@/features/home/components/NoChannelCard';
 import { ViewerLinkCard } from '@/features/home/components/ViewerLinkCard';
 import { OverlayCard } from '@/features/home/components/OverlayCard';
 import { TeamCard } from '@/features/home/components/TeamCard';
+import { StardustWallet } from '@/components/StardustWallet';
+import { ChatDustSettings } from '@/features/dashboard/components/ChatDustSettings';
+import { useSettingsData } from '@/features/dashboard/hooks/useSettingsData';
 
 function Content({ children }: { children: React.ReactNode }) {
   return <div className="mx-auto max-w-2xl px-4 py-10">{children}</div>;
@@ -20,6 +23,8 @@ export function HomePage() {
   const confirm = useConfirm();
   const { me, loading, refresh } = useMe();
   const act = useApiAction();
+  // Bot status card needs channel settings; home is always the owner's view.
+  const { settings } = useSettingsData(me?.channel?.id ?? null, true);
 
   if (loading) {
     return (
@@ -66,8 +71,12 @@ export function HomePage() {
         />
       ) : (
         <div className="flex flex-col gap-4">
+          <div className="flex justify-end">
+            <StardustWallet />
+          </div>
           <ViewerLinkCard login={me.user.login} viewerUrl={viewerUrl} />
           <OverlayCard overlayUrl={overlayUrl!} chatUrl={chatUrl!} onRotate={rotateToken} />
+          {settings && <ChatDustSettings settings={settings} />}
           <TeamCard channelId={me.channel.id} />
         </div>
       )}

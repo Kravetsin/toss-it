@@ -7,6 +7,7 @@ import { useI18n } from '@/i18n';
 import { Card, Drawer, Loader } from '@/ui';
 import { AuthButtons } from '@/components/AuthButtons';
 import { DashboardTopbar } from '@/features/dashboard/components/DashboardTopbar';
+import { TeamCard } from '@/features/home/components/TeamCard';
 import { NowPlayingCard } from '@/features/dashboard/components/NowPlayingCard';
 import { ModerationQueue } from '@/features/dashboard/components/ModerationQueue';
 import { MembersPanel } from '@/features/dashboard/components/MembersPanel';
@@ -89,6 +90,7 @@ export function DashboardPage() {
           })
         }
         onOpenHistory={() => setHistoryOpen(true)}
+        isOwner={isOwner}
       />
 
       {/* Mobile: single-column (NowPlaying → queue → members). Desktop (lg+): two-column grid.
@@ -142,6 +144,8 @@ export function DashboardPage() {
             }
             onBanAllowed={(id, name) => actions.banById(id, name)}
           />
+          {/* Team management also lives on Home; moderation workflows expect it here too. */}
+          {isOwner && channelId && <TeamCard channelId={channelId} />}
         </div>
       </div>
 

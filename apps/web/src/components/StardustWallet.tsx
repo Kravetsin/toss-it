@@ -62,13 +62,16 @@ export function StardustWallet({ className = '' }: { className?: string }) {
           type="button"
           onClick={() => setShopOpen(true)}
           aria-label={t('shop.open')}
-          className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 py-1 text-sm text-muted outline-none transition-colors hover:border-accent hover:text-text focus-visible:[box-shadow:var(--shadow-focus)]"
+          className="group inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-border bg-surface-2 py-1 pl-3 pr-2 text-sm text-muted outline-none transition-colors hover:border-accent hover:text-text focus-visible:[box-shadow:var(--shadow-focus)]"
         >
           <DustMark size={15} className="text-accent" />
           <span
             className={`tabular-nums transition-transform duration-200 ${pop ? 'scale-125 text-accent' : ''}`}
           >
             {displayed}
+          </span>
+          <span className="ml-0.5 inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 label-mono text-accent">
+            {t('wallet.shopLabel')}
           </span>
         </button>
       </Tooltip>

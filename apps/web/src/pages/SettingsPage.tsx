@@ -84,17 +84,18 @@ export function SettingsPage() {
       ) : section === 'moderation' ? (
         <ModerationSettings settings={settings} onSave={onSave} />
       ) : section === 'channel' ? (
-        <div className="flex flex-col gap-4">
-          <ChannelPageSettings settings={settings} onSave={onSave} />
-          <ChatDustSettings settings={settings} />
-        </div>
+        <ChannelPageSettings settings={settings} onSave={onSave} />
       ) : (
-        <IntegrationsCard
-          channelId={channelId}
-          onTestDonation={() =>
-            void act(() => sendTestDonation(channelId), { success: t('toast.donationSent') })
-          }
-        />
+        <div className="flex flex-col gap-4">
+          {/* The chat bot sits with the other integrations (it IS one), not under "Channel page". */}
+          <ChatDustSettings settings={settings} />
+          <IntegrationsCard
+            channelId={channelId}
+            onTestDonation={() =>
+              void act(() => sendTestDonation(channelId), { success: t('toast.donationSent') })
+            }
+          />
+        </div>
       )}
     </Content>
   );

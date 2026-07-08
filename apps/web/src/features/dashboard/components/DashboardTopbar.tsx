@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import type { AccessibleChannel } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
@@ -17,6 +18,7 @@ export function DashboardTopbar({
   accepting,
   onToggleAccepting,
   onOpenHistory,
+  isOwner,
 }: {
   list: AccessibleChannel[];
   current: AccessibleChannel;
@@ -28,8 +30,11 @@ export function DashboardTopbar({
   accepting: boolean | null;
   onToggleAccepting: (v: boolean) => void;
   onOpenHistory: () => void;
+  /** Settings are owner-only, so the gear link hides for moderators. */
+  isOwner: boolean;
 }) {
   const { t } = useI18n();
+  const navigate = useNavigate();
   return (
     <div className="static z-20 mb-6 -mx-4 flex flex-wrap items-center justify-between gap-3 border-b border-border bg-bg/90 px-4 py-3 backdrop-blur lg:sticky lg:top-0 lg:-mx-8 lg:px-8">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -71,6 +76,14 @@ export function DashboardTopbar({
           variant="ghost"
           onClick={onOpenHistory}
         />
+        {isOwner && (
+          <IconButton
+            name="settings"
+            label={t('settings.title')}
+            variant="ghost"
+            onClick={() => navigate('/dashboard/settings')}
+          />
+        )}
       </div>
     </div>
   );

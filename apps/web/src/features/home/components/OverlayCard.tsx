@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useClipboard } from '@/hooks/useClipboard';
 import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
@@ -47,7 +48,13 @@ export function OverlayCard({
         onCopy={() => copy(chatUrl, 'chat')}
       />
 
-      <div className="mt-3">
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Link to="/dashboard/settings/overlay">
+          <Button variant="secondary">
+            <Icon name="settings" size={16} />
+            {t('home.overlaySettingsBtn')}
+          </Button>
+        </Link>
         <Button variant="danger" onClick={onRotate}>
           <Icon name="reload" size={16} />
           {t('home.rotate')}
