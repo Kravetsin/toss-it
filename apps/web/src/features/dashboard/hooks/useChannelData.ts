@@ -3,6 +3,7 @@ import type {
   ChannelSettings,
   HistoryEntry,
   ListedUser,
+  MusicState,
   ReputationStats,
   SubmissionSummary,
 } from '@tmw/shared';
@@ -34,6 +35,7 @@ export function useChannelData(
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [allowed, setAllowed] = useState<ListedUser[]>([]);
   const [banned, setBanned] = useState<ListedUser[]>([]);
+  const [musicState, setMusicState] = useState<MusicState>({ videoId: null, playing: false });
   // Cross-channel reputation cache by userId, loaded on-demand as submissions arrive.
   const [reputation, setReputation] = useState<Record<string, ReputationStats>>({});
   const reputationRef = useRef(reputation);
@@ -106,6 +108,7 @@ export function useChannelData(
         .then(setHistory)
         .catch(() => {});
     });
+    socket.on('music:state', (s: MusicState) => setMusicState(s));
     return () => {
       socket.close();
     };
@@ -121,6 +124,7 @@ export function useChannelData(
     allowed,
     banned,
     reputation,
+    musicState,
     refreshLists,
   };
 }

@@ -19,6 +19,7 @@ import {
   type DonationFx,
   type MediaKind,
   type MediaPlayPayload,
+  type MusicCommand,
   type MusicConfig,
   type OverlayPosition,
   type OverlayToServerEvents,
@@ -34,7 +35,12 @@ interface YTPlayer {
   setVolume(volume: number): void;
   playVideo(): void;
   pauseVideo(): void;
+  nextVideo(): void;
+  previousVideo(): void;
+  playVideoAt(index: number): void;
   setShuffle(shuffle: boolean): void;
+  getPlaylist(): string[] | null;
+  getPlaylistIndex(): number;
   getDuration(): number;
   getIframe(): HTMLIFrameElement;
   destroy(): void;
@@ -53,7 +59,7 @@ interface YTPlayerOptions {
 }
 interface YTNamespace {
   Player: new (el: HTMLElement, opts: YTPlayerOptions) => YTPlayer;
-  PlayerState: { ENDED: number; PLAYING: number };
+  PlayerState: { ENDED: number; PLAYING: number; PAUSED: number };
 }
 declare global {
   interface Window {
@@ -107,6 +113,7 @@ socket.on('media:skip', (submissionId) => {
 });
 socket.on('donation:fx', triggerDonationFx);
 socket.on('music:config', applyMusicConfig);
+socket.on('music:command', handleMusicCommand);
 
 function show(payload: MediaPlayPayload): void {
   clearStage();
@@ -406,6 +413,40 @@ function duckMusic(ducked: boolean): void {
   musicPlayer?.setVolume(effectiveMusicVolume());
 }
 
+/** Transport commands from the dashboard. playAt matches by id so it survives shuffle. */
+function handleMusicCommand(cmd: MusicCommand): void {
+  if (!musicPlayer) return;
+  switch (cmd.action) {
+    case 'play':
+      musicPlayer.playVideo();
+      break;
+    case 'pause':
+      musicPlayer.pauseVideo();
+      break;
+    case 'next':
+      musicPlayer.nextVideo();
+      break;
+    case 'prev':
+      musicPlayer.previousVideo();
+      break;
+    case 'playAt': {
+      const idx = cmd.videoId ? (musicPlayer.getPlaylist() ?? []).indexOf(cmd.videoId) : -1;
+      if (idx >= 0) musicPlayer.playVideoAt(idx);
+      break;
+    }
+  }
+}
+
+/** Report current track + playing state to the server (relayed to the dashboard). */
+function reportMusicState(playing: boolean): void {
+  const list = musicPlayer?.getPlaylist() ?? null;
+  const idx = musicPlayer?.getPlaylistIndex() ?? -1;
+  socket.emit('music:state', {
+    videoId: list && idx >= 0 ? (list[idx] ?? null) : null,
+    playing,
+  });
+}
+
 function applyMusicConfig(cfg: MusicConfig): void {
   musicVolume = Math.min(100, Math.max(0, Math.round(cfg.volume)));
   musicHidden = !!cfg.hidden;
@@ -466,6 +507,12 @@ async function createMusicPlayer(playlistId: string): Promise<void> {
         const f = e.target.getIframe();
         f.style.width = '100%';
         f.style.height = '100%';
+      },
+      onStateChange: (e) => {
+        if (!window.YT) return;
+        // PLAYING also fires on each new track — reports the advanced videoId to the dashboard.
+        if (e.data === window.YT.PlayerState.PLAYING) reportMusicState(true);
+        else if (e.data === window.YT.PlayerState.PAUSED) reportMusicState(false);
       },
     },
   });

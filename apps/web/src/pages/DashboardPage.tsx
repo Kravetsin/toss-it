@@ -9,6 +9,7 @@ import { AuthButtons } from '@/components/AuthButtons';
 import { DashboardTopbar } from '@/features/dashboard/components/DashboardTopbar';
 import { TeamCard } from '@/features/home/components/TeamCard';
 import { NowPlayingCard } from '@/features/dashboard/components/NowPlayingCard';
+import { MusicPlayerCard } from '@/features/dashboard/components/MusicPlayerCard';
 import { ModerationQueue } from '@/features/dashboard/components/ModerationQueue';
 import { MembersPanel } from '@/features/dashboard/components/MembersPanel';
 import { HistoryCard } from '@/features/dashboard/components/HistoryCard';
@@ -125,6 +126,13 @@ export function DashboardPage() {
               onSendTest={actions.sendTest}
             />
           </div>
+          {isOwner && channelId && (
+            <MusicPlayerCard
+              channelId={channelId}
+              hasPlaylist={!!data.settings?.bgMusicPlaylist}
+              musicState={data.musicState}
+            />
+          )}
           <MembersPanel
             allowed={data.allowed}
             banned={data.banned}

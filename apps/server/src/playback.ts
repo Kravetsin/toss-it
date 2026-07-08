@@ -513,6 +513,10 @@ export function setupRealtime(io: RealtimeServer, app: FastifyInstance): Playbac
               playback.reportDuration(channel.id, submissionId, durationMs);
             }
           });
+          // Relay the overlay's music player state to the channel's dashboards.
+          socket.on('music:state', (state) => {
+            io.to(dashboardRoomOf(channel.id)).emit('music:state', state);
+          });
           void playback.onOverlayConnected(channel.id, (payload) =>
             socket.emit('media:play', payload),
           );

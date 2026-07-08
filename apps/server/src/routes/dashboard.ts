@@ -15,6 +15,8 @@ import {
   type IntegrationStatus,
   type ListedUser,
   type ModInviteInfo,
+  type MusicCommand,
+  type MusicTrack,
   type OnboardingStatus,
   type ReputationStats,
   type SubmissionSummary,
@@ -34,6 +36,7 @@ import {
 } from '../db/schema';
 import { config } from '../config';
 import { requireUser } from '../auth';
+import { fetchPlaylistTracks } from '../media/youtube';
 import type { TwitchChatModule } from '../modules/twitch-chat/index';
 import { decryptSecret, encryptSecret } from '../crypto';
 import { levelForSender, levelsForSenders } from '../level';
@@ -531,6 +534,36 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         hidden: patch.bgMusicHidden,
       });
       return toSettings({ ...channel, ...patch }, await chatBotInfo(channel));
+    },
+  );
+
+  /** Background-music track list (from the channel's playlist via the YT Data API). */
+  app.get<{ Params: { channelId: string } }>(
+    '/api/dashboard/:channelId/music/tracks',
+    async (req, reply): Promise<{ tracks: MusicTrack[] } | undefined> => {
+      const channel = await requireOwnerOf(req, reply, req.params.channelId);
+      if (!channel) return;
+      const tracks = channel.bgMusicPlaylist
+        ? await fetchPlaylistTracks(channel.bgMusicPlaylist)
+        : [];
+      return { tracks };
+    },
+  );
+
+  /** Transport command from the dashboard → relayed to the overlay's music player. */
+  app.post<{ Params: { channelId: string }; Body: MusicCommand | null }>(
+    '/api/dashboard/:channelId/music/command',
+    async (req, reply): Promise<{ ok: true } | undefined> => {
+      const channel = await requireOwnerOf(req, reply, req.params.channelId);
+      if (!channel) return;
+      const action = req.body?.action;
+      if (!action || !['play', 'pause', 'next', 'prev', 'playAt'].includes(action)) {
+        return reply.code(400).send({ error: 'Неизвестная команда' });
+      }
+      const videoId =
+        action === 'playAt' && typeof req.body?.videoId === 'string' ? req.body.videoId : undefined;
+      io.to(roomOf(channel.id)).emit('music:command', { action, videoId });
+      return { ok: true };
     },
   );
 

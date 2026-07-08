@@ -3,6 +3,9 @@
  * second only; overlay plays via embedded IFrame player.
  */
 
+import type { MusicTrack } from '@tmw/shared';
+import { config } from '../config';
+
 export interface ParsedYoutube {
   videoId: string;
   /** Start second from link timecode (t / start / #t); 0 means beginning. */
@@ -66,6 +69,56 @@ function parseStart(raw: string | null): number {
     total = Number(m[1] ?? 0) * 3600 + Number(m[2] ?? 0) * 60 + Number(m[3] ?? 0);
   }
   return Number.isFinite(total) && total > 0 ? Math.min(Math.floor(total), 86_400) : 0;
+}
+
+interface PlaylistCacheEntry {
+  at: number;
+  tracks: MusicTrack[];
+}
+const playlistCache = new Map<string, PlaylistCacheEntry>();
+const PLAYLIST_CACHE_MS = 10 * 60_000;
+const MAX_TRACKS = 200;
+
+/**
+ * Ordered tracks of a YouTube playlist via the Data API (needs YOUTUBE_API_KEY).
+ * Cached in-memory (playlists rarely change). Returns [] with no key or on error.
+ */
+export async function fetchPlaylistTracks(playlistId: string): Promise<MusicTrack[]> {
+  if (!config.youtube.apiKey) return [];
+  const cached = playlistCache.get(playlistId);
+  if (cached && Date.now() - cached.at < PLAYLIST_CACHE_MS) return cached.tracks;
+
+  const tracks: MusicTrack[] = [];
+  let pageToken = '';
+  try {
+    do {
+      const url = new URL('https://www.googleapis.com/youtube/v3/playlistItems');
+      url.searchParams.set('part', 'snippet');
+      url.searchParams.set('maxResults', '50');
+      url.searchParams.set('playlistId', playlistId);
+      url.searchParams.set('key', config.youtube.apiKey);
+      if (pageToken) url.searchParams.set('pageToken', pageToken);
+      const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      if (!res.ok) break;
+      const data = (await res.json()) as {
+        items?: { snippet?: { title?: string; resourceId?: { videoId?: string } } }[];
+        nextPageToken?: string;
+      };
+      for (const it of data.items ?? []) {
+        const videoId = it.snippet?.resourceId?.videoId;
+        const title = it.snippet?.title ?? '';
+        // Unavailable items surface as these placeholder titles — skip them.
+        if (videoId && title !== 'Private video' && title !== 'Deleted video') {
+          tracks.push({ videoId, title });
+        }
+      }
+      pageToken = data.nextPageToken ?? '';
+    } while (pageToken && tracks.length < MAX_TRACKS);
+  } catch {
+    return cached?.tracks ?? [];
+  }
+  playlistCache.set(playlistId, { at: Date.now(), tracks });
+  return tracks;
 }
 
 /**

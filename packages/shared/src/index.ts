@@ -205,6 +205,26 @@ export interface MusicConfig {
   hidden: boolean;
 }
 
+/** One background-music track (from the YouTube Data API), for the dashboard list. */
+export interface MusicTrack {
+  videoId: string;
+  title: string;
+}
+
+/** Transport command sent from the dashboard to the overlay's music player. */
+export interface MusicCommand {
+  action: 'play' | 'pause' | 'next' | 'prev' | 'playAt';
+  /** Target track for 'playAt' (matched by id, so it works under shuffle). */
+  videoId?: string;
+}
+
+/** Live music player state reported by the overlay to the dashboard. */
+export interface MusicState {
+  /** Currently loaded track, or null when idle/unstarted. */
+  videoId: string | null;
+  playing: boolean;
+}
+
 export interface ServerToOverlayEvents {
   'media:play': (payload: MediaPlayPayload) => void;
   'media:skip': (submissionId: string) => void;
@@ -214,6 +234,8 @@ export interface ServerToOverlayEvents {
   'chat:config': (cfg: ChatOverlayConfig) => void;
   /** Background-music config, sent on connect and whenever settings change. */
   'music:config': (cfg: MusicConfig) => void;
+  /** Transport command for the background-music player (from the dashboard). */
+  'music:command': (cmd: MusicCommand) => void;
   /** New chat line for the chat overlay source. */
   'chat:message': (msg: ChatOverlayMessage) => void;
   /** A single message was deleted on Twitch (by id). */
@@ -232,6 +254,8 @@ export interface OverlayToServerEvents {
   'playback:done': (submissionId: string) => void;
   /** Overlay learned real clip duration (YouTube: only during playback). */
   'playback:duration': (submissionId: string, durationMs: number) => void;
+  /** Background-music player state, relayed to the dashboard. */
+  'music:state': (state: MusicState) => void;
 }
 
 export interface SubmissionSummary {
@@ -266,6 +290,8 @@ export interface ServerToDashboardEvents {
   'moderation:resolved': (submissionId: string) => void;
   'playback:started': (submission: SubmissionSummary) => void;
   'playback:ended': (submissionId: string) => void;
+  /** Live background-music player state (relayed from the overlay). */
+  'music:state': (state: MusicState) => void;
 }
 
 export interface ChannelSettings {

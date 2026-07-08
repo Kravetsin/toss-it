@@ -3,6 +3,8 @@ import type {
   HistoryEntry,
   IntegrationStatus,
   ListedUser,
+  MusicCommand,
+  MusicTrack,
   OnboardingStatus,
   ReputationStats,
   SubmissionSummary,
@@ -17,6 +19,18 @@ export function getPending(channelId: string): Promise<SubmissionSummary[]> {
 
 export function getOnboarding(channelId: string): Promise<OnboardingStatus> {
   return fetch(`${dash(channelId)}/onboarding`).then((r) => json<OnboardingStatus>(r));
+}
+
+export function getMusicTracks(channelId: string): Promise<{ tracks: MusicTrack[] }> {
+  return fetch(`${dash(channelId)}/music/tracks`).then((r) => json<{ tracks: MusicTrack[] }>(r));
+}
+
+export function sendMusicCommand(channelId: string, cmd: MusicCommand): Promise<unknown> {
+  return fetch(`${dash(channelId)}/music/command`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(cmd),
+  });
 }
 
 export function getReputation(

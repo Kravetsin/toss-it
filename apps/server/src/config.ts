@@ -67,6 +67,8 @@ export const config = {
     /** How long to wait for real duration from player before watchdog deems the
      *  overlay dead and advances the queue (ms). Player usually reports in seconds. */
     loadGraceMs: Number(process.env.YOUTUBE_LOAD_GRACE_MS ?? 60_000),
+    /** Data API key (background-music track titles). Empty = track list unavailable. */
+    apiKey: process.env.YOUTUBE_API_KEY ?? '',
   },
 
   /** mime by magic bytes (file-type) → media kind. Everything else rejected. */
