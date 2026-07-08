@@ -20,6 +20,7 @@ import {
 import { parseYoutube, validateYoutube } from '../media/youtube';
 import { isGiphyId } from '../media/giphy';
 import { requireUser } from '../auth';
+import { synthesize } from '../tts';
 import { dashboardRoomOf, toSummary, type PlaybackManager, type RealtimeServer } from '../playback';
 import type { Storage } from '../storage';
 
@@ -366,8 +367,9 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
   });
 
   // TTS of sender name or message. Web Speech API has no voices in OBS, so we
-  // proxy a ready mp3 from Google Translate TTS (free, keyless). Text comes from
-  // DB by submission id; clients never pass arbitrary text.
+  // synthesize server-side with local Piper (see tts.ts); if it's not installed
+  // we fall back to the Google Translate TTS proxy (free, keyless, 200-char cap).
+  // Text comes from DB by submission id; clients never pass arbitrary text.
   app.get<{ Params: { id: string }; Querystring: { part?: string } }>(
     '/api/tts/:id',
     async (req, reply) => {
@@ -378,6 +380,13 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
         .get();
       const source = req.query.part === 'message' ? sub?.message : sub?.senderName;
       if (!source) return reply.code(404).send({ error: 'Не найдено' });
+
+      try {
+        const wav = await synthesize(source.slice(0, TEXT_MAX_LEN));
+        if (wav) return reply.type('audio/wav').send(wav);
+      } catch (err) {
+        req.log.warn({ err }, 'piper tts failed, falling back to google');
+      }
 
       const text = source.slice(0, 180);
       // Cyrillic → Russian pronunciation, else English (or env override).

@@ -83,9 +83,9 @@ export const config = {
     'audio/x-wav': 'audio',
   } as Record<string, MediaKind>,
 
-  /** TTS via Google Translate (free, no key). */
+  /** TTS: local Piper (data/piper, `pnpm piper:setup`), Google Translate fallback. */
   tts: {
-    /** Forced voice language (en/ru/...); defaults to detection by name. */
+    /** Forced voice language (en/ru/uk); defaults to detection by text. */
     lang: process.env.TTS_LANG,
   },
 

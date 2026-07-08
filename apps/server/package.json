@@ -7,6 +7,7 @@
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
     "db:generate": "drizzle-kit generate",
+    "piper:setup": "tsx scripts/setup-piper.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
