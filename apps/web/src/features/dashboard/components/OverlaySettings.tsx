@@ -37,6 +37,9 @@ export function OverlaySettings({
   const [musicSeparate, setMusicSeparate] = useState(settings.musicSeparate);
   const [musicPos, setMusicPos] = useState<OverlayPosition>(settings.musicPosition);
   const [musicMargin, setMusicMargin] = useState(settings.musicMargin);
+  const [bgMusicInput, setBgMusicInput] = useState(settings.bgMusicPlaylist ?? '');
+  const [bgMusicVolume, setBgMusicVolume] = useState(settings.bgMusicVolume);
+  const [bgMusicHidden, setBgMusicHidden] = useState(settings.bgMusicHidden);
 
   return (
     <Card>
@@ -176,6 +179,41 @@ export function OverlaySettings({
         )}
       </div>
 
+      <div className="mt-6 border-t border-border pt-4">
+        <h3 className="mb-1 flex items-center gap-2">
+          <Icon name="youtube" size={18} className="text-accent" />
+          {t('dash.bgMusic')}
+        </h3>
+        <p className="mb-3 text-xs text-muted">{t('dash.bgMusicNote')}</p>
+        <label className="text-sm text-muted">
+          <span className="flex items-center gap-1.5">{t('dash.bgMusicPlaylist')}</span>
+          <input
+            type="text"
+            value={bgMusicInput}
+            onChange={(e) => setBgMusicInput(e.target.value)}
+            placeholder="https://www.youtube.com/playlist?list=…"
+            className="mt-1 w-full rounded-[var(--radius-sm)] border border-border bg-surface px-3 py-2 text-sm text-text outline-none transition-colors focus-visible:border-accent"
+          />
+        </label>
+        {bgMusicInput.trim() && (
+          <div className="mt-3 flex flex-col gap-3">
+            <Slider
+              icon="volume-3"
+              label={t('dash.bgMusicVolume', { n: bgMusicVolume })}
+              min={0}
+              max={100}
+              value={bgMusicVolume}
+              onChange={setBgMusicVolume}
+            />
+            <Toggle
+              checked={bgMusicHidden}
+              onChange={setBgMusicHidden}
+              label={t('dash.bgMusicHidden')}
+            />
+          </div>
+        )}
+      </div>
+
       <div className="mt-4 flex justify-end">
         <Button
           variant="primary"
@@ -198,6 +236,9 @@ export function OverlaySettings({
               musicSeparate,
               musicPosition: musicPos,
               musicMargin,
+              bgMusicPlaylist: bgMusicInput,
+              bgMusicVolume,
+              bgMusicHidden,
             })
           }
         >

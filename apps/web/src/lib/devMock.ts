@@ -105,6 +105,9 @@ const MOCK_SETTINGS: ChannelSettings = {
   musicPosition: 'top-right',
   musicSize: 30,
   musicMargin: 5,
+  bgMusicPlaylist: null,
+  bgMusicVolume: 50,
+  bgMusicHidden: false,
   description: 'Шли мемы — лучшее окажется на стриме 🎬',
   links: [
     { platform: 'twitch', url: 'https://twitch.tv/kravetsinside' },

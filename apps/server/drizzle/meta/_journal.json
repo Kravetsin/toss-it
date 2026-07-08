@@ -197,6 +197,13 @@
       "when": 1783504402227,
       "tag": "0027_organic_surge",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "6",
+      "when": 1783545583991,
+      "tag": "0028_fair_pet_avengers",
+      "breakpoints": true
     }
   ]
 }

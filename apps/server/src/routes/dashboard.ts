@@ -7,6 +7,7 @@ import {
   CHANNEL_LINK_URL_MAX_LEN,
   OVERLAY_POSITIONS,
   SOCIAL_PLATFORMS,
+  youtubePlaylistId,
   type AccessibleChannel,
   type ChannelLink,
   type ChannelSettings,
@@ -164,6 +165,9 @@ function toSettings(
     musicPosition: ch.musicPosition,
     musicSize: ch.musicSize,
     musicMargin: ch.musicMargin,
+    bgMusicPlaylist: ch.bgMusicPlaylist,
+    bgMusicVolume: ch.bgMusicVolume,
+    bgMusicHidden: ch.bgMusicHidden,
     description: ch.description,
     links: ch.links,
   };
@@ -498,6 +502,19 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
           typeof b.musicMargin === 'number'
             ? clamp(Math.round(b.musicMargin), 0, 25)
             : channel.musicMargin,
+        // Store only a validated playlist id (parsed from a URL or bare id); '' clears it.
+        bgMusicPlaylist:
+          'bgMusicPlaylist' in b
+            ? typeof b.bgMusicPlaylist === 'string'
+              ? youtubePlaylistId(b.bgMusicPlaylist)
+              : null
+            : channel.bgMusicPlaylist,
+        bgMusicVolume:
+          typeof b.bgMusicVolume === 'number'
+            ? clamp(Math.round(b.bgMusicVolume), 0, 100)
+            : channel.bgMusicVolume,
+        bgMusicHidden:
+          typeof b.bgMusicHidden === 'boolean' ? b.bgMusicHidden : channel.bgMusicHidden,
         description: 'description' in b ? sanitizeDescription(b.description) : channel.description,
         links: 'links' in b ? sanitizeLinks(b.links) : channel.links,
       };
@@ -506,6 +523,12 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
       io.to(roomOf(channel.id)).emit('chat:config', {
         fontSize: patch.chatFontSize,
         fadeSeconds: patch.chatFadeSeconds,
+      });
+      // Push background-music config live so the media overlay updates without a reload.
+      io.to(roomOf(channel.id)).emit('music:config', {
+        playlistId: patch.bgMusicPlaylist,
+        volume: patch.bgMusicVolume,
+        hidden: patch.bgMusicHidden,
       });
       return toSettings({ ...channel, ...patch }, await chatBotInfo(channel));
     },

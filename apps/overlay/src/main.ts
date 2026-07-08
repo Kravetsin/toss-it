@@ -15,9 +15,11 @@ import {
   particleCount,
   positionToFlex,
   toRoman,
+  youtubePlaylistId,
   type DonationFx,
   type MediaKind,
   type MediaPlayPayload,
+  type MusicConfig,
   type OverlayPosition,
   type OverlayToServerEvents,
   type ServerToOverlayEvents,
@@ -31,12 +33,15 @@ injectLevelStyles();
 interface YTPlayer {
   setVolume(volume: number): void;
   playVideo(): void;
+  pauseVideo(): void;
+  setShuffle(shuffle: boolean): void;
   getDuration(): number;
   getIframe(): HTMLIFrameElement;
   destroy(): void;
 }
 interface YTPlayerOptions {
-  videoId: string;
+  /** Omitted for playlist mode (list via playerVars). */
+  videoId?: string;
   width?: string | number;
   height?: string | number;
   playerVars?: Record<string, string | number>;
@@ -101,11 +106,13 @@ socket.on('media:skip', (submissionId) => {
   if (submissionId === currentId) finish();
 });
 socket.on('donation:fx', triggerDonationFx);
+socket.on('music:config', applyMusicConfig);
 
 function show(payload: MediaPlayPayload): void {
   clearStage();
   currentId = payload.submissionId;
   finishing = false;
+  duckMusic(true); // post on screen → dip the background music
 
   const { justify, align } = positionToFlex(payload.position);
   stage.style.justifyContent = justify;
@@ -374,6 +381,96 @@ function reportYoutubeDuration(submissionId: string, player: YTPlayer): void {
   }
 }
 
+// ── Background music ────────────────────────────────────────────────────────
+// A second YouTube player runs a playlist between posts. It ducks (not pauses)
+// while a post is on screen so the transition isn't jarring, and can be hidden
+// in OBS (audio-only) via settings. Config arrives via the 'music:config' event.
+const MUSIC_DUCK = 0.75; // during a post, drop to 75% of the set volume
+let musicPlayer: YTPlayer | null = null;
+// The container div; the mount we pass to YT.Player gets REPLACED by an iframe (inside this wrap),
+// so we keep the wrap reference rather than reaching through the now-detached mount.
+let musicWrap: HTMLElement | null = null;
+let musicPlaylistId: string | null = null;
+let musicVolume = 50;
+let musicHidden = false;
+let musicDucked = false;
+
+function effectiveMusicVolume(): number {
+  return Math.round(musicVolume * (musicDucked ? MUSIC_DUCK : 1));
+}
+
+/** Dip/restore the background music around a post. No-op when there's no player. */
+function duckMusic(ducked: boolean): void {
+  if (musicDucked === ducked) return;
+  musicDucked = ducked;
+  musicPlayer?.setVolume(effectiveMusicVolume());
+}
+
+function applyMusicConfig(cfg: MusicConfig): void {
+  musicVolume = Math.min(100, Math.max(0, Math.round(cfg.volume)));
+  musicHidden = !!cfg.hidden;
+  if (cfg.playlistId !== musicPlaylistId) {
+    musicPlaylistId = cfg.playlistId;
+    teardownMusic();
+    if (musicPlaylistId) void createMusicPlayer(musicPlaylistId);
+  } else {
+    musicPlayer?.setVolume(effectiveMusicVolume());
+  }
+  updateMusicVisibility();
+}
+
+/** Hidden = clipped to 1px and transparent, but still rendered so audio keeps playing
+ *  (display:none would stop playback). Visible = small corner player. */
+function updateMusicVisibility(): void {
+  if (!musicWrap) return;
+  musicWrap.style.cssText = musicHidden
+    ? 'position:fixed;left:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;overflow:hidden;z-index:0'
+    : 'position:fixed;left:12px;bottom:12px;width:240px;height:135px;border-radius:8px;overflow:hidden;box-shadow:0 8px 24px -10px rgba(0,0,0,.6);pointer-events:none;z-index:5';
+}
+
+function teardownMusic(): void {
+  musicPlayer?.destroy();
+  musicPlayer = null;
+  musicWrap?.remove();
+  musicWrap = null;
+}
+
+async function createMusicPlayer(playlistId: string): Promise<void> {
+  await loadYouTubeApi();
+  // Config may have changed (or cleared) while the API loaded.
+  if (!window.YT || musicPlaylistId !== playlistId) return;
+  const wrap = document.createElement('div');
+  const mount = document.createElement('div');
+  wrap.appendChild(mount);
+  document.body.appendChild(wrap);
+  musicWrap = wrap;
+  updateMusicVisibility();
+  musicPlayer = new window.YT.Player(mount, {
+    width: '100%',
+    height: '100%',
+    playerVars: {
+      listType: 'playlist',
+      list: playlistId,
+      autoplay: 1,
+      loop: 1,
+      controls: 0,
+      rel: 0,
+      playsinline: 1,
+      modestbranding: 1,
+    },
+    events: {
+      onReady: (e) => {
+        e.target.setShuffle(true);
+        e.target.setVolume(effectiveMusicVolume());
+        e.target.playVideo();
+        const f = e.target.getIframe();
+        f.style.width = '100%';
+        f.style.height = '100%';
+      },
+    },
+  });
+}
+
 /** Lazily load the YouTube IFrame API (once per overlay session). */
 function loadYouTubeApi(): Promise<void> {
   if (window.YT?.Player) return Promise.resolve();
@@ -483,6 +580,7 @@ function finish(): void {
     exitTimer = undefined;
     stage.replaceChildren();
     currentId = null;
+    duckMusic(false); // screen idle → restore the background music
     if (id) socket.emit('playback:done', id);
   }, 300);
 }
@@ -857,3 +955,25 @@ function mountDemoPanel(): void {
 }
 
 if (DEMO) mountDemoPanel();
+// Demo the background music without a server: ?demo&music=<playlistId or URL>&mvol=40&mhide=1
+if (DEMO) {
+  const q = new URLSearchParams(window.location.search);
+  const raw = q.get('music');
+  if (raw) {
+    applyMusicConfig({
+      playlistId: youtubePlaylistId(raw),
+      volume: Number(q.get('mvol')) || 40,
+      hidden: q.has('mhide'),
+    });
+  }
+  // Debug probe for verification (demo only).
+  (window as unknown as { __music: () => unknown }).__music = () => ({
+    playlist: musicPlaylistId,
+    volume: musicVolume,
+    effective: effectiveMusicVolume(),
+    ducked: musicDucked,
+    hidden: musicHidden,
+    hasPlayer: !!musicPlayer,
+    wrapStyle: musicWrap?.getAttribute('style') ?? null,
+  });
+}

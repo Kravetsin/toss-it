@@ -195,6 +195,16 @@ export interface ChatOverlayConfig {
   fadeSeconds: number;
 }
 
+/** Background-music config for the media overlay (a YouTube playlist played between posts). */
+export interface MusicConfig {
+  /** YouTube playlist id, or null = no background music. */
+  playlistId: string | null;
+  /** Music volume 0-100 (independent of the submission overlay volume). */
+  volume: number;
+  /** Hide the player in OBS (audio-only) — it keeps playing, just not visible. */
+  hidden: boolean;
+}
+
 export interface ServerToOverlayEvents {
   'media:play': (payload: MediaPlayPayload) => void;
   'media:skip': (submissionId: string) => void;
@@ -202,6 +212,8 @@ export interface ServerToOverlayEvents {
   'donation:fx': (fx: DonationFx) => void;
   /** Chat display config, sent on connect and whenever settings change. */
   'chat:config': (cfg: ChatOverlayConfig) => void;
+  /** Background-music config, sent on connect and whenever settings change. */
+  'music:config': (cfg: MusicConfig) => void;
   /** New chat line for the chat overlay source. */
   'chat:message': (msg: ChatOverlayMessage) => void;
   /** A single message was deleted on Twitch (by id). */
@@ -295,6 +307,11 @@ export interface ChannelSettings {
   musicPosition: OverlayPosition;
   musicSize: number;
   musicMargin: number;
+  /** Background music: YouTube playlist id (null = off) played between posts, its own volume. */
+  bgMusicPlaylist: string | null;
+  bgMusicVolume: number;
+  /** Hide the background-music player in OBS (audio keeps playing). */
+  bgMusicHidden: boolean;
   /** Channel description on viewer page; null/'' = default subtitle shown. */
   description: string | null;
   /** Social links in viewer page header (order preserved). */
@@ -342,6 +359,19 @@ export * from './level';
 /** Validate a #rrggbb hex color (exactly 6 hex digits, no alpha). */
 export function isHexColor(v: string): boolean {
   return /^#[0-9a-fA-F]{6}$/.test(v);
+}
+
+/**
+ * Extract a YouTube playlist id from a full URL or a bare id. Accepts the `list=` query param
+ * (playlist or watch URLs) or a raw id. Returns null if no plausible id is found.
+ */
+export function youtubePlaylistId(input: string): string | null {
+  const s = input.trim();
+  if (!s) return null;
+  const fromUrl = s.match(/[?&]list=([A-Za-z0-9_-]+)/);
+  const id = fromUrl?.[1] ?? s;
+  // Playlist ids are alphanumeric/_/-; typical prefixes PL/UU/OL/RD/FL. Reject anything else.
+  return /^[A-Za-z0-9_-]{12,}$/.test(id) ? id : null;
 }
 
 export interface SessionUser {

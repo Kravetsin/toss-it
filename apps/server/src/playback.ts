@@ -482,6 +482,9 @@ export function setupRealtime(io: RealtimeServer, app: FastifyInstance): Playbac
               id: channels.id,
               chatFontSize: channels.chatFontSize,
               chatFadeSeconds: channels.chatFadeSeconds,
+              bgMusicPlaylist: channels.bgMusicPlaylist,
+              bgMusicVolume: channels.bgMusicVolume,
+              bgMusicHidden: channels.bgMusicHidden,
             })
             .from(channels)
             .where(eq(channels.overlayToken, token))
@@ -495,6 +498,12 @@ export function setupRealtime(io: RealtimeServer, app: FastifyInstance): Playbac
           socket.emit('chat:config', {
             fontSize: channel.chatFontSize,
             fadeSeconds: channel.chatFadeSeconds,
+          });
+          // The media overlay reads this on connect; the chat overlay ignores it.
+          socket.emit('music:config', {
+            playlistId: channel.bgMusicPlaylist,
+            volume: channel.bgMusicVolume,
+            hidden: channel.bgMusicHidden,
           });
           socket.on('playback:done', (submissionId) => {
             if (typeof submissionId === 'string') void playback.onDone(channel.id, submissionId);
