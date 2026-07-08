@@ -43,6 +43,7 @@ export function uploadMediaWithProgress(
   text: string,
   onProgress: (value: number | null) => void,
   giphyId?: string | null,
+  voice?: string | null,
 ): Promise<UploadResponse> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -73,6 +74,7 @@ export function uploadMediaWithProgress(
     if (file) fd.append('file', file);
     if (text.trim()) fd.append('text', text.trim());
     if (giphyId) fd.append('giphyId', giphyId);
+    if (voice) fd.append('voice', voice);
     xhr.send(fd);
   });
 }

@@ -417,6 +417,8 @@ export interface PublicChannelInfo {
   maxFileSizeBytes: number;
   /** Whether safe-rated GIFs skip moderation here — viewer page shows honest "instant vs review" copy. */
   autoApproveGifs: boolean;
+  /** Whether the streamer reads sends aloud (name or message) — drives the voice picker. */
+  ttsEnabled: boolean;
   isFounder: boolean;
   /** Streamer description; null = viewer sees default subtitle. */
   description: string | null;

@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
+import { DEFAULT_TTS_VOICE, ttsVoiceModule, type TtsLang, type TtsVoiceModule } from '@tmw/shared';
 import { config } from './config';
 
 /**
@@ -18,22 +19,25 @@ const binPath = path.join(piperDir, 'bin', process.platform === 'win32' ? 'piper
 const voicesDir = path.join(piperDir, 'voices');
 const cacheDir = path.join(serverRoot, 'data', 'tts-cache');
 
-export const TTS_VOICES: Record<string, string> = {
-  ru: 'ru_RU-irina-medium',
-  uk: 'uk_UA-ukrainian_tts-medium',
-  en: 'en_US-amy-medium',
-};
-
 const SYNTH_TIMEOUT_MS = 30_000;
 const CACHE_MAX_BYTES = 500 * 1024 * 1024;
 const CACHE_SWEEP_EVERY = 100;
 
-export function detectTtsLang(text: string): keyof typeof TTS_VOICES {
-  if (config.tts.lang && config.tts.lang in TTS_VOICES) return config.tts.lang;
+export function detectTtsLang(text: string): TtsLang {
+  const forced = config.tts.lang;
+  if (forced === 'ru' || forced === 'uk' || forced === 'en') return forced;
   // і/ї/є/ґ are Ukrainian-only; the rest of Cyrillic defaults to Russian.
   if (/[іїєґ]/i.test(text)) return 'uk';
   if (/[Ѐ-ӿ]/.test(text)) return 'ru';
   return 'en';
+}
+
+/** Voice module for a submission: the picked catalog id, or the language default. */
+function resolveVoice(text: string, voiceId?: string | null): TtsVoiceModule | undefined {
+  return (
+    (voiceId ? ttsVoiceModule(voiceId) : undefined) ??
+    ttsVoiceModule(DEFAULT_TTS_VOICE[detectTtsLang(text)])
+  );
 }
 
 let warnedUnavailable = false;
@@ -57,15 +61,16 @@ const inFlight = new Map<string, Promise<Buffer | null>>();
 let writesSinceSweep = 0;
 
 /** WAV audio for the text, or null when piper/voice is missing (caller falls back). */
-export async function synthesize(text: string): Promise<Buffer | null> {
+export async function synthesize(text: string, voiceId?: string | null): Promise<Buffer | null> {
   if (!ttsAvailable()) return null;
-  const voice = TTS_VOICES[detectTtsLang(text)];
-  const modelPath = path.join(voicesDir, `${voice}.onnx`);
+  const voice = resolveVoice(text, voiceId);
+  if (!voice) return null;
+  const modelPath = path.join(voicesDir, `${voice.model}.onnx`);
   if (!fs.existsSync(modelPath)) return null;
 
   const key = crypto
     .createHash('sha1')
-    .update(voice + '\n' + text)
+    .update(`${voice.model}#${voice.speaker ?? 0}\n${text}`)
     .digest('hex');
   const cacheFile = path.join(cacheDir, `${key}.wav`);
   try {
@@ -85,7 +90,7 @@ export async function synthesize(text: string): Promise<Buffer | null> {
   const task = (async () => {
     await fsp.mkdir(cacheDir, { recursive: true });
     try {
-      await runPiper(modelPath, text, tmpFile);
+      await runPiper(modelPath, voice.speaker, text, tmpFile);
       const wav = await fsp.readFile(tmpFile);
       if (wav.length === 0) throw new Error('piper produced empty output');
       await cacheCommit(tmpFile, cacheFile);
@@ -98,9 +103,16 @@ export async function synthesize(text: string): Promise<Buffer | null> {
   return task;
 }
 
-function runPiper(modelPath: string, text: string, outFile: string): Promise<void> {
+function runPiper(
+  modelPath: string,
+  speaker: number | undefined,
+  text: string,
+  outFile: string,
+): Promise<void> {
   return new Promise((resolve, reject) => {
-    const proc = spawn(binPath, ['--model', modelPath, '--output_file', outFile], {
+    const args = ['--model', modelPath, '--output_file', outFile];
+    if (speaker !== undefined) args.push('--speaker', String(speaker));
+    const proc = spawn(binPath, args, {
       cwd: path.dirname(binPath),
       windowsHide: true,
     });

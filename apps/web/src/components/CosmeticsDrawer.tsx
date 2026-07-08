@@ -5,11 +5,12 @@ import { useI18n } from '@/i18n';
 import { useMe } from '@/hooks/useMe';
 import { useApiAction } from '@/hooks/useApiAction';
 import { useConfirm } from '@/providers/ConfirmProvider';
-import { Badge, Button, Card, Drawer } from '@/ui';
+import { Badge, Button, Card, Drawer, IconButton } from '@/ui';
 import { Icon } from '@/ui/icons';
 import { DustMark } from '@/components/DustMark';
 import { CardEffect } from '@/components/CardEffect';
 import { buyCosmetic, equipCosmetic } from '@/lib/api/shop';
+import { playVoicePreview } from '@/lib/voicePreview';
 
 const DEFAULT_COLOR = '#8df0cc';
 const NICK_COLOR_ID = 'nick-color';
@@ -25,6 +26,8 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   const colorItem = COSMETICS.find((c) => c.id === NICK_COLOR_ID)!;
   const nickEffects = COSMETICS.filter((c) => c.type === 'nick_effect');
   const cardEffects = COSMETICS.filter((c) => c.type === 'card_effect');
+  // Free voices are available to everyone straight in the compose form; the shop sells the rest.
+  const paidVoices = COSMETICS.filter((c) => c.type === 'tts_voice' && c.costDust > 0);
   const ownsColor = user?.ownedCosmetics.includes(NICK_COLOR_ID) ?? false;
   const equippedColor = user?.equipped.nickColor ?? null;
   const equippedNickEffect = user?.equipped.nickEffect ?? null;
@@ -139,6 +142,55 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     );
   };
 
+  /** A purchasable TTS voice row: no equip slot — the voice is picked per send in the compose form. */
+  const voiceRow = (e: CosmeticItem) => {
+    const owned = user?.ownedCosmetics.includes(e.id) ?? false;
+    const labels = cosmeticModule(e.id)?.labels;
+    if (!labels) return null;
+    return (
+      <div key={e.id} className="border-t border-border pt-3 first:border-t-0 first:pt-0">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="flex items-center gap-2 font-medium text-text">
+              {t(labels.name)}
+              <IconButton
+                name="play"
+                size="sm"
+                variant="ghost"
+                label={t('shop.voicePreview')}
+                onClick={() => playVoicePreview(e.id)}
+              />
+            </span>
+            {owned ? (
+              <Badge>{t('shop.owned')}</Badge>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 label-mono text-accent">
+                <DustMark size={14} />
+                {e.costDust}
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-muted">{t(labels.desc)}</p>
+          {!owned && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="accent"
+                size="sm"
+                onClick={() => buy(e.id, t(labels.name), e.costDust)}
+                disabled={balance < e.costDust}
+              >
+                {t('shop.buy')}
+              </Button>
+              {balance < e.costDust && (
+                <span className="label-mono text-faint">{t('shop.notEnough')}</span>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const section = (title: string, body: ReactNode) => (
     <Card corners>
       <h3 className="font-display">{title}</h3>
@@ -247,6 +299,14 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
           cardEffects.map((e) =>
             effectRow(e, equippedCardEffect, (id) => equipEffect({ cardEffect: id })),
           ),
+        )}
+
+        {section(
+          t('shop.voices'),
+          <>
+            <p className="text-sm text-muted">{t('shop.voicesDesc')}</p>
+            {paidVoices.map(voiceRow)}
+          </>,
         )}
       </div>
     </Drawer>,

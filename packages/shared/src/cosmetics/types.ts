@@ -7,8 +7,12 @@
  * only ownership + equip state; the catalog lives here in code.
  */
 
-/** Cosmetic categories: nick color, nick effects (on the name), card effects (particle swarm). */
-export type CosmeticType = 'nick_color' | 'nick_effect' | 'card_effect';
+/** Cosmetic categories: nick color, nick effects (on the name), card effects (particle swarm),
+ *  TTS voices (picked per submission, not equipped). */
+export type CosmeticType = 'nick_color' | 'nick_effect' | 'card_effect' | 'tts_voice';
+
+/** Languages the TTS voices cover (matches piper voice models on the server). */
+export type TtsLang = 'ru' | 'uk' | 'en';
 
 /** Render surfaces a card effect is drawn on; particle counts are tuned per surface. */
 export type Surface = 'web' | 'overlayCard' | 'overlayChat';
@@ -80,7 +84,22 @@ export interface CardEffectModule extends BaseModule {
   groundGlow?: (particle: Record<string, string>) => Record<string, string>;
 }
 
-export type CosmeticModule = ColorModule | NickEffectModule | CardEffectModule;
+/**
+ * A TTS voice. costDust 0 = free for everyone; paid ones are bought like any cosmetic but are
+ * chosen per submission in the compose form rather than equipped. The server maps `model` +
+ * `speaker` to a piper invocation; web only shows labels and plays /api/tts/preview/:id.
+ */
+export interface TtsVoiceModule extends BaseModule {
+  type: 'tts_voice';
+  lang: TtsLang;
+  gender: 'f' | 'm';
+  /** Piper model basename in the voices dir (e.g. 'ru_RU-irina-medium'). */
+  model: string;
+  /** Speaker id inside a multi-speaker model (e.g. the Ukrainian one has 3 voices). */
+  speaker?: number;
+}
+
+export type CosmeticModule = ColorModule | NickEffectModule | CardEffectModule | TtsVoiceModule;
 
 /** What a user currently has equipped (one slot per category). */
 export interface EquippedCosmetics {

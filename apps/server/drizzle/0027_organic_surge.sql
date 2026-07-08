@@ -1,0 +1,1 @@
+ALTER TABLE `submissions` ADD `tts_voice` text;

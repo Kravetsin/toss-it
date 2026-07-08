@@ -15,8 +15,12 @@ RUN set -e; \
   tar -xzf piper.tgz && mv piper bin && rm piper.tgz; \
   cd voices; \
   for v in ru/ru_RU/irina/medium/ru_RU-irina-medium \
+           ru/ru_RU/denis/medium/ru_RU-denis-medium \
+           ru/ru_RU/dmitri/medium/ru_RU-dmitri-medium \
+           ru/ru_RU/ruslan/medium/ru_RU-ruslan-medium \
            uk/uk_UA/ukrainian_tts/medium/uk_UA-ukrainian_tts-medium \
-           en/en_US/amy/medium/en_US-amy-medium; do \
+           en/en_US/amy/medium/en_US-amy-medium \
+           en/en_US/ryan/medium/en_US-ryan-medium; do \
     n=$(basename $v); \
     curl -fsSL -o $n.onnx "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/$v.onnx?download=true"; \
     curl -fsSL -o $n.onnx.json "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/$v.onnx.json?download=true"; \

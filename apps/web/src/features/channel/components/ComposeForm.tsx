@@ -1,9 +1,10 @@
-import { TEXT_MAX_LEN } from '@tmw/shared';
+import { TEXT_MAX_LEN, type TtsVoiceModule } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { clock } from '@/lib/format';
+import { playVoicePreview } from '@/lib/voicePreview';
 import { youtubeIdFromText } from '@/lib/youtube';
 import { Icon } from '@/ui/icons';
-import { Accordion, Alert, Button, Textarea } from '@/ui';
+import { Accordion, Alert, Button, IconButton, Select, Textarea } from '@/ui';
 import { FileDropzone } from './FileDropzone';
 import { SelectedFileCard } from './SelectedFileCard';
 import { YouTubePreview } from './YouTubePreview';
@@ -19,6 +20,9 @@ export function ComposeForm({
   senderName,
   errorMessage,
   cooldownSec = 0,
+  voice = 'auto',
+  voices,
+  onVoiceChange,
   onPickFile,
   onRemoveFile,
   onPickGif,
@@ -36,6 +40,10 @@ export function ComposeForm({
   errorMessage: string | null;
   /** Cooldown in seconds: >0 disables send button, but input form remains accessible. */
   cooldownSec?: number;
+  /** Selected TTS voice id or 'auto'. Picker renders only when voices+onVoiceChange are given. */
+  voice?: string;
+  voices?: TtsVoiceModule[];
+  onVoiceChange?: (id: string) => void;
   onPickFile: (file: File | null) => void;
   onRemoveFile: () => void;
   onPickGif?: (gif: SelectedGif) => void;
@@ -101,6 +109,33 @@ export function ComposeForm({
           </span>
         </div>
       </div>
+
+      {voices && voices.length > 0 && onVoiceChange && (
+        <div className="flex items-center gap-2">
+          <Icon name="volume-2" size={16} className="shrink-0 text-muted" />
+          <Select
+            className="min-w-0 flex-1"
+            label={t('channel.voice')}
+            value={voice}
+            onChange={onVoiceChange}
+            options={[
+              { value: 'auto', label: t('channel.voiceAuto') },
+              ...voices.map((v) => ({
+                value: v.id,
+                label: `${t(v.labels.name)} · ${t(v.labels.desc)}`,
+              })),
+            ]}
+          />
+          {voice !== 'auto' && (
+            <IconButton
+              name="play"
+              size="sm"
+              label={t('channel.voicePreview')}
+              onClick={() => playVoicePreview(voice)}
+            />
+          )}
+        </div>
+      )}
 
       <Button
         variant="primary"

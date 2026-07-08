@@ -286,6 +286,8 @@ export const submissions = sqliteTable(
     youtubeStart: integer('youtube_start').notNull().default(0),
     /** Giphy id (kind='gif'), else null. No file; rendered from Giphy's CDN. */
     giphyId: text('giphy_id'),
+    /** TTS voice picked by the sender (catalog id from ttsVoices), null = auto by language. */
+    ttsVoice: text('tts_voice'),
   },
   (t) => [
     index('idx_submissions_channel_status').on(t.channelId, t.status),

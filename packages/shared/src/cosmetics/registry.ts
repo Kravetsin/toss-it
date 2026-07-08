@@ -6,6 +6,7 @@ import type {
   Rnd,
   Surface,
 } from './types';
+import type { TtsVoiceModule } from './types';
 import { nickColor } from './effects/nick-color';
 import { nickGlow } from './effects/nick-glow';
 import { nickPulse } from './effects/nick-pulse';
@@ -14,6 +15,7 @@ import { cardEmbers } from './effects/card-embers';
 import { cardStardust } from './effects/card-stardust';
 import { cardRain } from './effects/card-rain';
 import { cardSnow } from './effects/card-snow';
+import { ttsVoices } from './voices';
 
 /**
  * Structural CSS shared by every card effect: the clipped particle layer and the particle reset.
@@ -57,6 +59,7 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   cardStardust,
   cardRain,
   cardSnow,
+  ...ttsVoices,
 ];
 
 const BY_ID = new Map<string, CosmeticModule>(COSMETIC_MODULES.map((m) => [m.id, m]));
@@ -97,6 +100,12 @@ export function cardEffectClass(id: string): string {
 export function nickEffectClass(id: string): string {
   const m = BY_ID.get(id);
   return m?.type === 'nick_effect' ? m.className : '';
+}
+
+/** TTS voice module by catalog id, or undefined for unknown / non-voice ids. */
+export function ttsVoiceModule(id: string): TtsVoiceModule | undefined {
+  const m = BY_ID.get(id);
+  return m?.type === 'tts_voice' ? m : undefined;
 }
 
 const rnd: Rnd = (a, b) => a + Math.random() * (b - a);

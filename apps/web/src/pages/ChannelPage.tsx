@@ -118,6 +118,9 @@ export function ChannelPage() {
               senderName={me.user.displayName}
               errorMessage={sub.phase.name === 'error' ? sub.phase.message : null}
               cooldownSec={sub.cooldownSec}
+              voice={sub.voice}
+              voices={channel.ttsEnabled ? sub.availableVoices : undefined}
+              onVoiceChange={sub.setVoice}
               onPickFile={sub.pickFile}
               onRemoveFile={sub.removeFile}
               onPickGif={sub.pickGif}

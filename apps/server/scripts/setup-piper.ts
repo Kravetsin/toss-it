@@ -13,11 +13,15 @@ import { pipeline } from 'node:stream/promises';
 const PIPER_RELEASE = 'https://github.com/rhasspy/piper/releases/download/2023.11.14-2';
 const VOICES_BASE = 'https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0';
 
-// Must match TTS_VOICES in src/tts.ts.
+// Must match the models referenced by the voice catalog (packages/shared) and Dockerfile.
 const VOICES = [
   'ru/ru_RU/irina/medium/ru_RU-irina-medium',
+  'ru/ru_RU/denis/medium/ru_RU-denis-medium',
+  'ru/ru_RU/dmitri/medium/ru_RU-dmitri-medium',
+  'ru/ru_RU/ruslan/medium/ru_RU-ruslan-medium',
   'uk/uk_UA/ukrainian_tts/medium/uk_UA-ukrainian_tts-medium',
   'en/en_US/amy/medium/en_US-amy-medium',
+  'en/en_US/ryan/medium/en_US-ryan-medium',
 ];
 
 const serverRoot = path.resolve(import.meta.dirname, '..');

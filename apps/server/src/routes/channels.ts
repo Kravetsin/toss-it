@@ -232,6 +232,8 @@ export function registerChannelRoutes(app: FastifyInstance): void {
         maxAudioDurationMs: channels.maxAudioDurationMs,
         maxFileSizeBytes: channels.maxFileSizeBytes,
         autoApproveGifs: channels.autoApproveGifs,
+        ttsName: channels.ttsName,
+        ttsMessage: channels.ttsMessage,
         description: channels.description,
         links: channels.links,
         founderSince: users.founderSince,
@@ -242,9 +244,10 @@ export function registerChannelRoutes(app: FastifyInstance): void {
       .where(eq(users.login, req.params.login.toLowerCase()))
       .get();
     if (!row) return reply.code(404).send({ error: 'Канал не найден' });
-    const { founderSince, equipped, ...rest } = row;
+    const { founderSince, equipped, ttsName, ttsMessage, ...rest } = row;
     const response: PublicChannelInfo = {
       ...rest,
+      ttsEnabled: ttsName || ttsMessage,
       isFounder: founderSince != null,
       nickColor: equipped?.nickColor ?? null,
       nickEffect: equipped?.nickEffect ?? null,

@@ -48,6 +48,8 @@ export function registerCosmeticsRoutes(app: FastifyInstance): void {
     const itemId = typeof req.body?.itemId === 'string' ? req.body.itemId : '';
     const item = COSMETICS.find((c) => c.id === itemId);
     if (!item) return reply.code(400).send({ error: 'Неизвестный предмет' });
+    // Free items (e.g. base TTS voices) are available to everyone — nothing to buy.
+    if (item.costDust <= 0) return reply.code(400).send({ error: 'Предмет бесплатный' });
 
     // Charge FIRST with an atomic balance guard. A grant must never exist without a paid
     // debit: otherwise a concurrent equip could lock in a color for free during a rollback

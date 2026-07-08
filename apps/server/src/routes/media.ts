@@ -6,9 +6,23 @@ import { pipeline } from 'node:stream/promises';
 import { and, count, desc, eq, gt, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { fileTypeFromFile } from 'file-type';
-import { TEXT_MAX_LEN, type MediaKind, type UploadResponse } from '@tmw/shared';
+import {
+  TEXT_MAX_LEN,
+  ttsVoiceModule,
+  type MediaKind,
+  type TtsLang,
+  type UploadResponse,
+} from '@tmw/shared';
 import { db } from '../db/index';
-import { bans, channels, submissions, users, whitelist, type SubmissionRow } from '../db/schema';
+import {
+  bans,
+  channels,
+  submissions,
+  userCosmetics,
+  users,
+  whitelist,
+  type SubmissionRow,
+} from '../db/schema';
 import { config } from '../config';
 import {
   MediaQueueFullError,
@@ -133,6 +147,7 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
         let originalName = 'unknown';
         let text: string | undefined;
         let giphyIdField: string | undefined;
+        let voiceField: string | undefined;
         for await (const part of req.parts()) {
           if (part.type === 'file') {
             if (hasFile) {
@@ -148,7 +163,25 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
             text = part.value;
           } else if (part.fieldname === 'giphyId' && typeof part.value === 'string') {
             giphyIdField = part.value.trim() || undefined;
+          } else if (part.fieldname === 'voice' && typeof part.value === 'string') {
+            voiceField = part.value.trim() || undefined;
           }
+        }
+
+        // TTS voice: must be a known catalog id; paid ones require ownership.
+        let ttsVoice: string | null = null;
+        if (voiceField) {
+          const voice = ttsVoiceModule(voiceField);
+          if (!voice) return reply.code(400).send({ error: 'Неизвестный голос озвучки' });
+          if (voice.costDust > 0) {
+            const owned = await db
+              .select({ itemId: userCosmetics.itemId })
+              .from(userCosmetics)
+              .where(and(eq(userCosmetics.userId, user.id), eq(userCosmetics.itemId, voice.id)))
+              .get();
+            if (!owned) return reply.code(403).send({ error: 'Голос не куплен' });
+          }
+          ttsVoice = voice.id;
         }
 
         // Keep full text to detect a YouTube link BEFORE truncating (a long
@@ -314,6 +347,7 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
           youtubeId,
           youtubeStart,
           giphyId,
+          ttsVoice,
         };
         await db.insert(submissions).values(row);
 
@@ -374,7 +408,11 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
     '/api/tts/:id',
     async (req, reply) => {
       const sub = await db
-        .select({ senderName: submissions.senderName, message: submissions.text })
+        .select({
+          senderName: submissions.senderName,
+          message: submissions.text,
+          ttsVoice: submissions.ttsVoice,
+        })
         .from(submissions)
         .where(eq(submissions.id, req.params.id))
         .get();
@@ -382,7 +420,7 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
       if (!source) return reply.code(404).send({ error: 'Не найдено' });
 
       try {
-        const wav = await synthesize(source.slice(0, TEXT_MAX_LEN));
+        const wav = await synthesize(source.slice(0, TEXT_MAX_LEN), sub?.ttsVoice);
         if (wav) return reply.type('audio/wav').send(wav);
       } catch (err) {
         req.log.warn({ err }, 'piper tts failed, falling back to google');
@@ -405,4 +443,23 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
       }
     },
   );
+
+  // Voice sample for the compose form / shop: a fixed phrase per language, so no
+  // arbitrary text reaches the synthesizer. Public; cached like any synthesis.
+  const PREVIEW_PHRASE: Record<TtsLang, string> = {
+    ru: 'Привет! Так будет звучать твоё сообщение на стриме.',
+    uk: 'Привіт! Так звучатиме твоє повідомлення на стрімі.',
+    en: 'Hi! This is how your message will sound on stream.',
+  };
+  app.get<{ Params: { voiceId: string } }>('/api/tts/preview/:voiceId', async (req, reply) => {
+    const voice = ttsVoiceModule(req.params.voiceId);
+    if (!voice) return reply.code(404).send({ error: 'Не найдено' });
+    try {
+      const wav = await synthesize(PREVIEW_PHRASE[voice.lang], voice.id);
+      if (wav) return reply.type('audio/wav').send(wav);
+    } catch (err) {
+      req.log.warn({ err }, 'tts preview failed');
+    }
+    return reply.code(503).send({ error: 'Озвучка недоступна' });
+  });
 }

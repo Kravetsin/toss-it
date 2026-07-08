@@ -314,6 +314,7 @@ function mockPublicChannel(login: string): PublicChannelInfo {
     maxAudioDurationMs: MOCK_SETTINGS.maxAudioDurationMs,
     maxFileSizeBytes: MOCK_SETTINGS.maxFileSizeBytes,
     autoApproveGifs: MOCK_SETTINGS.autoApproveGifs,
+    ttsEnabled: true,
     isFounder: true,
     description: MOCK_SETTINGS.description,
     links: MOCK_SETTINGS.links,

@@ -1,7 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
-import type { LiveStatus, PublicChannelInfo, UploadResponse } from '@tmw/shared';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ttsVoices,
+  type LiveStatus,
+  type PublicChannelInfo,
+  type UploadResponse,
+} from '@tmw/shared';
 import { ApiRequestError, getChannelCooldown, uploadMediaWithProgress } from '@/lib/api';
 import { useCountdown } from '@/hooks/useCountdown';
+import { useMe } from '@/hooks/useMe';
 import { useI18n } from '@/i18n';
 import { mb } from '@/lib/format';
 import { useFilePreview } from './useFilePreview';
@@ -12,6 +18,8 @@ export type Phase =
   | { name: 'uploading'; progress: number | null }
   | { name: 'done'; result: UploadResponse }
   | { name: 'error'; message: string };
+
+const VOICE_KEY = 'tossit-tts-voice';
 
 /** A GIF picked from the Giphy picker — referenced by id, never uploaded. */
 export interface SelectedGif {
@@ -32,6 +40,18 @@ export function useMediaSubmission(
   const [file, setFile] = useState<File | null>(null);
   const [gif, setGif] = useState<SelectedGif | null>(null);
   const [text, setText] = useState('');
+  // TTS voice is a sticky preference, not per-send state ('auto' = server picks by language).
+  const [rawVoice, setVoiceState] = useState(() => localStorage.getItem(VOICE_KEY) ?? 'auto');
+  const { me } = useMe();
+  const availableVoices = useMemo(
+    () =>
+      ttsVoices.filter(
+        (v) => v.costDust === 0 || (me?.user?.ownedCosmetics.includes(v.id) ?? false),
+      ),
+    [me],
+  );
+  // A stored id may point to a voice this account doesn't own — treat it as auto, don't 403.
+  const voice = availableVoices.some((v) => v.id === rawVoice) ? rawVoice : 'auto';
   const [phase, setPhase] = useState<Phase>({ name: 'idle' });
   const [liveStatus, setLiveStatus] = useState<LiveStatus | null>(null);
   const [cooldownSec, setCooldownSec] = useCountdown();
@@ -87,6 +107,7 @@ export function useMediaSubmission(
         text,
         (progress) => setPhase({ name: 'uploading', progress }),
         gif?.id,
+        voice === 'auto' ? null : voice,
       );
       setLiveStatus(result.status);
       setPhase({ name: 'done', result });
@@ -125,11 +146,19 @@ export function useMediaSubmission(
 
   const status = liveStatus ?? (phase.name === 'done' ? phase.result.status : null);
 
+  const setVoice = useCallback((id: string) => {
+    setVoiceState(id);
+    localStorage.setItem(VOICE_KEY, id);
+  }, []);
+
   return {
     file,
     gif,
     text,
     setText,
+    voice,
+    setVoice,
+    availableVoices,
     phase,
     previewUrl,
     cooldownSec,
