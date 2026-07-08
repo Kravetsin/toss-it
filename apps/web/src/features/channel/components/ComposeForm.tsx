@@ -3,6 +3,7 @@ import { useI18n } from '@/i18n';
 import { clock } from '@/lib/format';
 import { playVoicePreview } from '@/lib/voicePreview';
 import { youtubeIdFromText } from '@/lib/youtube';
+import { useShop } from '@/providers/ShopProvider';
 import { Icon } from '@/ui/icons';
 import { Accordion, Alert, Button, IconButton, Select, Textarea } from '@/ui';
 import { FileDropzone } from './FileDropzone';
@@ -52,6 +53,7 @@ export function ComposeForm({
   onSend: () => void;
 }) {
   const { t } = useI18n();
+  const { openShop } = useShop();
   const cooling = cooldownSec > 0;
   // YouTube preview only for a text link with no file/gif selected.
   const ytId = file || gif ? null : youtubeIdFromText(text);
@@ -109,6 +111,20 @@ export function ComposeForm({
           </span>
         </div>
       </div>
+
+      {/* No owned voices yet: a second door into the shop, right when picking one matters. */}
+      {voices && voices.length === 0 && onVoiceChange && (
+        <button
+          type="button"
+          onClick={openShop}
+          className="flex cursor-pointer items-center gap-2 self-start text-sm text-muted outline-none transition-colors hover:text-accent focus-visible:text-accent"
+        >
+          <Icon name="volume-2" size={16} className="shrink-0" />
+          <span className="underline decoration-dotted underline-offset-4">
+            {t('channel.voiceShopCta')}
+          </span>
+        </button>
+      )}
 
       {voices && voices.length > 0 && onVoiceChange && (
         <div className="flex items-center gap-2">

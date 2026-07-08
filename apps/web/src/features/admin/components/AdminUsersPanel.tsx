@@ -50,7 +50,9 @@ function UserRow({
         tabIndex={0}
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), setOpen((o) => !o))}
+        onKeyDown={(e) =>
+          (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), setOpen((o) => !o))
+        }
         className="flex cursor-pointer items-center gap-2"
       >
         <Icon
@@ -99,7 +101,12 @@ function UserRow({
           )}
           <span className="flex items-center gap-2 tabular-nums">
             <StatChip icon="check" value={u.accepted} hint={t('admin.accepted')} tone="text-ok" />
-            <StatChip icon="close" value={u.rejected} hint={t('admin.rejected')} tone="text-danger" />
+            <StatChip
+              icon="close"
+              value={u.rejected}
+              hint={t('admin.rejected')}
+              tone="text-danger"
+            />
             <StatChip icon="shield" value={u.whitelistedIn} hint={t('admin.whitelistedIn')} />
             <StatChip icon="user-x" value={u.bannedIn} hint={t('admin.bannedIn')} />
           </span>

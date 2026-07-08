@@ -67,6 +67,9 @@ export const en: Dict = {
   'shop.cardRainDesc': 'Rain streaking down the card.',
   'shop.cardSnow': 'Snow',
   'shop.cardSnowDesc': 'Soft snowflakes drifting down the card.',
+  'shop.catNick': 'Nickname',
+  'shop.catCard': 'Card',
+  'shop.catVoices': 'Voices',
   'shop.voices': 'TTS voices',
   'shop.voicesDesc':
     'Without a purchase, a random voice reads your send. Buy a voice to choose who speaks for you.',
@@ -171,6 +174,10 @@ export const en: Dict = {
   'home.chatOverlayDesc':
     'Chat overlay: add this as a SECOND Browser Source (a vertical strip) — it shows your Twitch chat with Tossit cosmetics. Optional; toggle it in overlay settings.',
   'home.overlaySettingsBtn': 'Overlay settings',
+  'onboard.title': 'Getting started',
+  'onboard.step1': 'Add the overlay to OBS as a Browser Source — the URL is below',
+  'onboard.step2': 'Share your viewer link and get the first send',
+  'onboard.step3': 'Enable chat stardust: type /mod {bot} in your Twitch chat',
   'home.rotate': 'Reissue token',
   'home.rotateConfirm': 'The old URL in OBS will stop working. Reissue?',
 
@@ -188,6 +195,9 @@ export const en: Dict = {
   'channel.dropzone': 'Drag a file here or click to choose',
   'channel.sendingAs': 'Sending as {name}',
   'channel.voice': 'TTS voice',
+  'channel.voiceShopCta': 'Pick a voice for your sends — in the shop',
+  'channel.firstSendHint': '+10 stardust for your send! Collect it and spend on cosmetics.',
+  'channel.firstSendHintCta': 'Open shop',
   'channel.voiceAuto': 'Voice: random',
   'channel.voicePreview': 'Listen to the voice',
   'channel.tooBig': 'File too large: channel limit is {mb} MB',
@@ -433,6 +443,9 @@ export const ru: Dict = {
   'shop.cardRainDesc': 'Дождь стекает по карточке.',
   'shop.cardSnow': 'Снег',
   'shop.cardSnowDesc': 'Мягкий снег медленно падает по карточке.',
+  'shop.catNick': 'Ник',
+  'shop.catCard': 'Карточка',
+  'shop.catVoices': 'Голоса',
   'shop.voices': 'Голоса озвучки',
   'shop.voicesDesc':
     'Без покупки твою отправку читает случайный голос. Купи голос — и сам решай, кто говорит за тебя.',
@@ -539,6 +552,10 @@ export const ru: Dict = {
   'home.chatOverlayDesc':
     'Оверлей чата: добавь как ВТОРОЙ Browser Source (полоса сбоку) — он показывает твой чат Twitch с косметикой Tossit. Необязательно; включается в настройках оверлея.',
   'home.overlaySettingsBtn': 'Настройки оверлея',
+  'onboard.title': 'С чего начать',
+  'onboard.step1': 'Добавь оверлей в OBS как Browser Source — ссылка ниже',
+  'onboard.step2': 'Кинь зрителям ссылку на страницу и получи первую отправку',
+  'onboard.step3': 'Включи пыль за чат: напиши /mod {bot} в своём чате Twitch',
   'home.rotate': 'Перевыпустить токен',
   'home.rotateConfirm': 'Старый URL в OBS перестанет работать. Перевыпустить?',
 
@@ -556,6 +573,9 @@ export const ru: Dict = {
   'channel.dropzone': 'Перетащи файл сюда или нажми, чтобы выбрать',
   'channel.sendingAs': 'Отправляешь как {name}',
   'channel.voice': 'Голос озвучки',
+  'channel.voiceShopCta': 'Выбрать голос озвучки — в магазине',
+  'channel.firstSendHint': '+10 звёздной пыли за отправку! Копи и трать на косметику.',
+  'channel.firstSendHintCta': 'В магазин',
   'channel.voiceAuto': 'Голос: случайный',
   'channel.voicePreview': 'Прослушать голос',
   'channel.tooBig': 'Файл слишком большой: лимит канала {mb} МБ',
@@ -800,6 +820,9 @@ export const uk: Dict = {
   'shop.cardRainDesc': 'Дощ стікає по картці.',
   'shop.cardSnow': 'Сніг',
   'shop.cardSnowDesc': 'Ніжний сніг повільно падає по картці.',
+  'shop.catNick': 'Нік',
+  'shop.catCard': 'Картка',
+  'shop.catVoices': 'Голоси',
   'shop.voices': 'Голоси озвучки',
   'shop.voicesDesc':
     'Без покупки твоє надсилання читає випадковий голос. Купи голос — і сам вирішуй, хто говорить за тебе.',
@@ -906,6 +929,10 @@ export const uk: Dict = {
   'home.chatOverlayDesc':
     'Оверлей чату: додай як ДРУГИЙ Browser Source (смуга збоку) — він показує твій чат Twitch з косметикою Tossit. Необовʼязково; вмикається в налаштуваннях оверлея.',
   'home.overlaySettingsBtn': 'Налаштування оверлея',
+  'onboard.title': 'З чого почати',
+  'onboard.step1': 'Додай оверлей в OBS як Browser Source — посилання нижче',
+  'onboard.step2': 'Кинь глядачам посилання на сторінку та отримай перше надсилання',
+  'onboard.step3': 'Увімкни пил за чат: напиши /mod {bot} у своєму чаті Twitch',
   'home.rotate': 'Перевипустити токен',
   'home.rotateConfirm': 'Старий URL в OBS перестане працювати. Перевипустити?',
 
@@ -923,6 +950,9 @@ export const uk: Dict = {
   'channel.dropzone': 'Перетягни файл сюди або натисни, щоб обрати',
   'channel.sendingAs': 'Надсилаєш як {name}',
   'channel.voice': 'Голос озвучки',
+  'channel.voiceShopCta': 'Обрати голос озвучки — в магазині',
+  'channel.firstSendHint': '+10 зоряного пилу за надсилання! Збирай і витрачай на косметику.',
+  'channel.firstSendHintCta': 'До магазину',
   'channel.voiceAuto': 'Голос: випадковий',
   'channel.voicePreview': 'Прослухати голос',
   'channel.tooBig': 'Файл завеликий: ліміт каналу {mb} МБ',

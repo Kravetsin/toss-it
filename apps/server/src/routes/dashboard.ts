@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { and, asc, count, desc, eq, inArray, isNotNull } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, isNotNull, ne } from 'drizzle-orm';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import {
   CHANNEL_DESCRIPTION_MAX_LEN,
@@ -14,6 +14,7 @@ import {
   type IntegrationStatus,
   type ListedUser,
   type ModInviteInfo,
+  type OnboardingStatus,
   type ReputationStats,
   type SubmissionSummary,
 } from '@tmw/shared';
@@ -392,6 +393,39 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
       const channel = await requireOwnerOf(req, reply, req.params.channelId);
       if (!channel) return;
       return toSettings(channel, await chatBotInfo(channel));
+    },
+  );
+
+  // Home-page onboarding checklist: coarse "did this ever happen" signals.
+  app.get<{ Params: { channelId: string } }>(
+    '/api/dashboard/:channelId/onboarding',
+    async (req, reply): Promise<OnboardingStatus | undefined> => {
+      const channel = await requireOwnerOf(req, reply, req.params.channelId);
+      if (!channel) return;
+      const played = await db
+        .select({ id: submissions.id })
+        .from(submissions)
+        .where(and(eq(submissions.channelId, channel.id), eq(submissions.status, 'played')))
+        .limit(1)
+        .get();
+      const viewerSend = await db
+        .select({ id: submissions.id })
+        .from(submissions)
+        .where(
+          and(
+            eq(submissions.channelId, channel.id),
+            ne(submissions.senderUserId, channel.ownerUserId),
+          ),
+        )
+        .limit(1)
+        .get();
+      const bot = await chatBotInfo(channel);
+      return {
+        overlayAdded: deps.playback.overlayCount(channel.id) > 0 || !!played,
+        hasViewerSend: !!viewerSend,
+        botAvailable: bot.login !== null,
+        botReading: bot.reading,
+      };
     },
   );
 

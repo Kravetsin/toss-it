@@ -29,7 +29,10 @@ export function removeExclusion(login: string): Promise<{ ok: boolean }> {
   }).then((r) => json<{ ok: boolean }>(r));
 }
 
-export function listAdminUsers(q: string, sort: AdminUsersSort = 'created'): Promise<AdminUserRow[]> {
+export function listAdminUsers(
+  q: string,
+  sort: AdminUsersSort = 'created',
+): Promise<AdminUserRow[]> {
   const params = new URLSearchParams({ sort });
   if (q) params.set('q', q);
   return fetch(`/api/admin/users?${params}`).then((r) => json<AdminUserRow[]>(r));

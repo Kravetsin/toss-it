@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMe } from '@/hooks/useMe';
 import { useI18n } from '@/i18n';
+import { useShop } from '@/providers/ShopProvider';
 import { Tooltip } from '@/ui';
 import { DustMark } from '@/components/DustMark';
-import { CosmeticsDrawer } from '@/components/CosmeticsDrawer';
 import { registerStardustWallet } from '@/lib/stardustFx';
 
 /**
@@ -15,9 +15,9 @@ export function StardustWallet({ className = '' }: { className?: string }) {
   const { me } = useMe();
   const base = me?.user?.stardust ?? 0;
   const ref = useRef<HTMLButtonElement>(null);
+  const { openShop } = useShop();
   const [displayed, setDisplayed] = useState(base);
   const [pop, setPop] = useState(false);
-  const [shopOpen, setShopOpen] = useState(false);
 
   useEffect(() => {
     setDisplayed(base);
@@ -39,43 +39,40 @@ export function StardustWallet({ className = '' }: { className?: string }) {
 
   if (!me?.user) return null;
   return (
-    <>
-      <Tooltip
-        align="end"
-        className={className}
-        content={
-          <span className="flex flex-col gap-1">
-            <span className="flex items-center gap-1.5 font-semibold text-text">
-              <DustMark size={13} className="text-accent" />
-              {t('wallet.stardust')}
-            </span>
-            <span>{t('wallet.about')}</span>
-            <span className="mt-0.5 text-faint">{t('wallet.howTitle')}</span>
-            <span className="text-faint">{t('wallet.earnPost')}</span>
-            <span className="text-faint">{t('wallet.earnChat')}</span>
-            <span className="text-faint">{t('wallet.earnDonate')}</span>
+    <Tooltip
+      align="end"
+      className={className}
+      content={
+        <span className="flex flex-col gap-1">
+          <span className="flex items-center gap-1.5 font-semibold text-text">
+            <DustMark size={13} className="text-accent" />
+            {t('wallet.stardust')}
           </span>
-        }
+          <span>{t('wallet.about')}</span>
+          <span className="mt-0.5 text-faint">{t('wallet.howTitle')}</span>
+          <span className="text-faint">{t('wallet.earnPost')}</span>
+          <span className="text-faint">{t('wallet.earnChat')}</span>
+          <span className="text-faint">{t('wallet.earnDonate')}</span>
+        </span>
+      }
+    >
+      <button
+        ref={ref}
+        type="button"
+        onClick={openShop}
+        aria-label={t('shop.open')}
+        className="group inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-border bg-surface-2 py-1 pl-3 pr-2 text-sm text-muted outline-none transition-colors hover:border-accent hover:text-text focus-visible:[box-shadow:var(--shadow-focus)]"
       >
-        <button
-          ref={ref}
-          type="button"
-          onClick={() => setShopOpen(true)}
-          aria-label={t('shop.open')}
-          className="group inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-border bg-surface-2 py-1 pl-3 pr-2 text-sm text-muted outline-none transition-colors hover:border-accent hover:text-text focus-visible:[box-shadow:var(--shadow-focus)]"
+        <DustMark size={15} className="text-accent" />
+        <span
+          className={`tabular-nums transition-transform duration-200 ${pop ? 'scale-125 text-accent' : ''}`}
         >
-          <DustMark size={15} className="text-accent" />
-          <span
-            className={`tabular-nums transition-transform duration-200 ${pop ? 'scale-125 text-accent' : ''}`}
-          >
-            {displayed}
-          </span>
-          <span className="ml-0.5 inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 label-mono text-accent">
-            {t('wallet.shopLabel')}
-          </span>
-        </button>
-      </Tooltip>
-      <CosmeticsDrawer open={shopOpen} onClose={() => setShopOpen(false)} />
-    </>
+          {displayed}
+        </span>
+        <span className="ml-0.5 inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 label-mono text-accent">
+          {t('wallet.shopLabel')}
+        </span>
+      </button>
+    </Tooltip>
   );
 }

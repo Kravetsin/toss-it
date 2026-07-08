@@ -3,6 +3,7 @@ import type {
   HistoryEntry,
   IntegrationStatus,
   ListedUser,
+  OnboardingStatus,
   ReputationStats,
   SubmissionSummary,
 } from '@tmw/shared';
@@ -12,6 +13,10 @@ const dash = (channelId: string) => `/api/dashboard/${encodeURIComponent(channel
 
 export function getPending(channelId: string): Promise<SubmissionSummary[]> {
   return fetch(`${dash(channelId)}/pending`).then((r) => json<SubmissionSummary[]>(r));
+}
+
+export function getOnboarding(channelId: string): Promise<OnboardingStatus> {
+  return fetch(`${dash(channelId)}/onboarding`).then((r) => json<OnboardingStatus>(r));
 }
 
 export function getReputation(

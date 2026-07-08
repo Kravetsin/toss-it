@@ -9,11 +9,14 @@ export function OverlayCard({
   overlayUrl,
   chatUrl,
   onRotate,
+  showSettingsLink = true,
 }: {
   overlayUrl: string;
   /** Separate chat overlay browser source (same token). */
   chatUrl: string;
   onRotate: () => void;
+  /** Off when the card is rendered inside the overlay settings themselves. */
+  showSettingsLink?: boolean;
 }) {
   const { t } = useI18n();
   const { copiedKey, copy } = useClipboard();
@@ -49,12 +52,14 @@ export function OverlayCard({
       />
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <Link to="/dashboard/settings/overlay">
-          <Button variant="secondary">
-            <Icon name="settings" size={16} />
-            {t('home.overlaySettingsBtn')}
-          </Button>
-        </Link>
+        {showSettingsLink && (
+          <Link to="/dashboard/settings/overlay">
+            <Button variant="secondary">
+              <Icon name="settings" size={16} />
+              {t('home.overlaySettingsBtn')}
+            </Button>
+          </Link>
+        )}
         <Button variant="danger" onClick={onRotate}>
           <Icon name="reload" size={16} />
           {t('home.rotate')}

@@ -405,6 +405,17 @@ export interface ModInviteInfo {
   channelDisplayName: string;
 }
 
+/** Home-page onboarding checklist state (owner-only). */
+export interface OnboardingStatus {
+  /** An overlay is connected right now, or something has ever been played. */
+  overlayAdded: boolean;
+  /** At least one submission from a non-owner. */
+  hasViewerSend: boolean;
+  /** Chat bot is configured server-side (step hidden otherwise). */
+  botAvailable: boolean;
+  botReading: boolean;
+}
+
 export interface PublicChannelInfo {
   login: string;
   displayName: string;

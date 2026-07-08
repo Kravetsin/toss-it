@@ -1,9 +1,13 @@
 import type { ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { sendTestDonation } from '@/lib/api';
+import { rotateOverlayToken, sendTestDonation } from '@/lib/api';
+import { OVERLAY_BASE_URL } from '@/lib/config';
 import { useApiAction } from '@/hooks/useApiAction';
+import { useMe } from '@/hooks/useMe';
+import { useConfirm } from '@/providers/ConfirmProvider';
 import { useI18n } from '@/i18n';
 import { Card, Loader } from '@/ui';
+import { OverlayCard } from '@/features/home/components/OverlayCard';
 import { useChannels } from '@/features/dashboard/hooks/useChannels';
 import { useSettingsData } from '@/features/dashboard/hooks/useSettingsData';
 import { OverlaySettings } from '@/features/dashboard/components/OverlaySettings';
@@ -23,11 +27,35 @@ const SECTIONS: Section[] = ['overlay', 'moderation', 'channel', 'integrations']
 export function SettingsPage() {
   const { t } = useI18n();
   const act = useApiAction();
+  const confirm = useConfirm();
+  const { me, refresh } = useMe();
   const { section: raw } = useParams();
   const section: Section = SECTIONS.includes(raw as Section) ? (raw as Section) : 'overlay';
 
   const { channelId, isOwner } = useChannels();
   const { settings, loading, save } = useSettingsData(channelId, isOwner);
+
+  // The overlay URLs live here too (same card as Home): the URL and its settings
+  // belong on one screen — users look for both where they see the overlay.
+  const ownsThisChannel = me?.channel?.id === channelId;
+  const overlayUrl = ownsThisChannel
+    ? `${OVERLAY_BASE_URL}/?token=${me!.channel!.overlayToken}`
+    : null;
+  const chatUrl = ownsThisChannel
+    ? `${OVERLAY_BASE_URL}/chat.html?token=${me!.channel!.overlayToken}`
+    : null;
+  const rotateToken = () =>
+    void (async () => {
+      if (
+        await confirm({
+          message: t('home.rotateConfirm'),
+          confirmLabel: t('home.rotate'),
+          danger: true,
+        })
+      ) {
+        void act(rotateOverlayToken, { after: refresh, success: t('toast.tokenReissued') });
+      }
+    })();
 
   const onSave = (patch: Parameters<typeof save>[0]) =>
     void act(
@@ -80,7 +108,17 @@ export function SettingsPage() {
           <p className="text-muted">{t('settings.loadError')}</p>
         </Card>
       ) : section === 'overlay' ? (
-        <OverlaySettings settings={settings} onSave={onSave} />
+        <div className="flex flex-col gap-4">
+          {overlayUrl && chatUrl && (
+            <OverlayCard
+              overlayUrl={overlayUrl}
+              chatUrl={chatUrl}
+              onRotate={rotateToken}
+              showSettingsLink={false}
+            />
+          )}
+          <OverlaySettings settings={settings} onSave={onSave} />
+        </div>
       ) : section === 'moderation' ? (
         <ModerationSettings settings={settings} onSave={onSave} />
       ) : section === 'channel' ? (

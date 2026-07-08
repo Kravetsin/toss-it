@@ -1,4 +1,4 @@
-import type { TtsLang, TtsVoiceModule } from './types';
+import type { TtsVoiceModule } from './types';
 
 /**
  * TTS voice catalog. Picking a specific voice always requires buying it with stardust; the free

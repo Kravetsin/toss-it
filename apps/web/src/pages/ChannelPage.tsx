@@ -9,6 +9,7 @@ import { Alert, Card, Loader } from '@/ui';
 import { AuthButtons } from '@/components/AuthButtons';
 import { populateCosmos } from '@/components/BackgroundStars';
 import { flyStardust } from '@/lib/stardustFx';
+import { useShop } from '@/providers/ShopProvider';
 import { ChannelShell } from '@/features/channel/components/ChannelShell';
 import { ChannelHeader } from '@/features/channel/components/ChannelHeader';
 import { ComposeForm } from '@/features/channel/components/ComposeForm';
@@ -25,6 +26,8 @@ export function ChannelPage() {
   const [boardRefresh, setBoardRefresh] = useState(0);
   const composeRef = useRef<HTMLDivElement>(null);
   const firedRef = useRef<string | null>(null);
+  const { openShop } = useShop();
+  const [firstSendHint, setFirstSendHint] = useState(false);
 
   const bumpBoard = useCallback(() => setBoardRefresh((k) => k + 1), []);
 
@@ -68,6 +71,12 @@ export function ChannelPage() {
       : { x: window.innerWidth / 2, y: window.innerHeight * 0.7 };
     flyStardust(from, res.stardustBalance);
     void refresh();
+    // One-off stardust explainer AFTER the first successful send — never before it
+    // (nothing may slow the first send down), and never again after dismissal.
+    if (!localStorage.getItem('tossit-first-send-hint')) {
+      localStorage.setItem('tossit-first-send-hint', '1');
+      setFirstSendHint(true);
+    }
   }, [sub.phase, refresh]);
 
   if (channel === 'loading') {
@@ -103,32 +112,62 @@ export function ChannelPage() {
             <AuthButtons returnTo={`/c/${login}`} />
           </Card>
         ) : (
-          <Vessel
-            phase={sub.phase}
-            status={sub.status}
-            cooldownSec={sub.cooldownSec}
-            cooldownWindowSec={sub.cooldownWindowSec}
-          >
-            <ComposeForm
-              file={sub.file}
-              gif={sub.gif}
-              gifAutoApprove={loadedChannel?.autoApproveGifs ?? true}
-              previewUrl={sub.previewUrl}
-              text={sub.text}
-              senderName={me.user.displayName}
-              errorMessage={sub.phase.name === 'error' ? sub.phase.message : null}
+          <>
+            {firstSendHint && (
+              <div className="mb-4 flex items-center justify-between gap-3 rounded-[var(--radius)] border border-accent/40 bg-accent-soft/40 px-4 py-3 text-sm">
+                <span className="flex items-center gap-2 text-text">
+                  <Icon name="sparkles" size={16} className="shrink-0 text-accent" />
+                  {t('channel.firstSendHint')}
+                </span>
+                <span className="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFirstSendHint(false);
+                      openShop();
+                    }}
+                    className="cursor-pointer label-mono text-accent underline decoration-dotted underline-offset-4"
+                  >
+                    {t('channel.firstSendHintCta')}
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={t('common.close')}
+                    onClick={() => setFirstSendHint(false)}
+                    className="cursor-pointer p-1 text-muted hover:text-text"
+                  >
+                    <Icon name="close" size={14} />
+                  </button>
+                </span>
+              </div>
+            )}
+            <Vessel
+              phase={sub.phase}
+              status={sub.status}
               cooldownSec={sub.cooldownSec}
-              voice={sub.voice}
-              voices={channel.ttsEnabled ? sub.availableVoices : undefined}
-              onVoiceChange={sub.setVoice}
-              onPickFile={sub.pickFile}
-              onRemoveFile={sub.removeFile}
-              onPickGif={sub.pickGif}
-              onRemoveGif={sub.removeGif}
-              onTextChange={sub.setText}
-              onSend={() => void sub.send()}
-            />
-          </Vessel>
+              cooldownWindowSec={sub.cooldownWindowSec}
+            >
+              <ComposeForm
+                file={sub.file}
+                gif={sub.gif}
+                gifAutoApprove={loadedChannel?.autoApproveGifs ?? true}
+                previewUrl={sub.previewUrl}
+                text={sub.text}
+                senderName={me.user.displayName}
+                errorMessage={sub.phase.name === 'error' ? sub.phase.message : null}
+                cooldownSec={sub.cooldownSec}
+                voice={sub.voice}
+                voices={channel.ttsEnabled ? sub.availableVoices : undefined}
+                onVoiceChange={sub.setVoice}
+                onPickFile={sub.pickFile}
+                onRemoveFile={sub.removeFile}
+                onPickGif={sub.pickGif}
+                onRemoveGif={sub.removeGif}
+                onTextChange={sub.setText}
+                onSend={() => void sub.send()}
+              />
+            </Vessel>
+          </>
         )}
       </div>
 

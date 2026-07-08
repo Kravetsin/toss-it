@@ -15,6 +15,31 @@ import { playVoicePreview } from '@/lib/voicePreview';
 const DEFAULT_COLOR = '#8df0cc';
 const NICK_COLOR_ID = 'nick-color';
 
+type ShopCategory = 'nick' | 'card' | 'voices';
+
+function CategoryBtn({
+  active,
+  onClick,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`flex-1 rounded-none px-3 py-1.5 label-mono transition-colors duration-200 ease-out ${
+        active ? 'bg-accent text-accent-contrast' : 'text-muted hover:text-text'
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
 /** Cosmetics shop, opened from the stardust wallet. Everything is bought with stardust, never money. */
 export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t } = useI18n();
@@ -35,6 +60,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   const balance = user?.stardust ?? 0;
   const previewName = user?.displayName ?? 'nickname';
 
+  const [category, setCategory] = useState<ShopCategory>('nick');
   const [color, setColor] = useState(equippedColor ?? DEFAULT_COLOR);
   // Reflect the saved color when it changes (e.g. after a refresh) without fighting active edits.
   useEffect(() => {
@@ -209,6 +235,12 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
           </span>
         </div>
 
+        {/* Earn explainer used to hide in a hover tooltip — keep it always visible here. */}
+        <div className="rounded-[var(--radius-sm)] border border-border bg-surface-2 px-3 py-2 text-xs text-muted">
+          <span className="font-medium text-text">{t('wallet.howTitle')}</span>{' '}
+          {t('wallet.earnPost')} · {t('wallet.earnChat')} · {t('wallet.earnDonate')}
+        </div>
+
         {user && !user.hasTwitch && (
           <Card className="flex flex-col gap-2 border-accent/40">
             <span className="flex items-center gap-1.5 text-sm text-text">
@@ -228,86 +260,108 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
           </Card>
         )}
 
-        {section(
-          t('shop.nickColor'),
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-sm text-muted">{t('shop.nickColorDesc')}</p>
+        <div className="flex gap-1 border border-border bg-surface-2 p-1">
+          <CategoryBtn
+            active={category === 'nick'}
+            onClick={() => setCategory('nick')}
+            label={t('shop.catNick')}
+          />
+          <CategoryBtn
+            active={category === 'card'}
+            onClick={() => setCategory('card')}
+            label={t('shop.catCard')}
+          />
+          <CategoryBtn
+            active={category === 'voices'}
+            onClick={() => setCategory('voices')}
+            label={t('shop.catVoices')}
+          />
+        </div>
+
+        {category === 'nick' &&
+          section(
+            t('shop.nickColor'),
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm text-muted">{t('shop.nickColorDesc')}</p>
+                {ownsColor ? (
+                  <Badge>{t('shop.owned')}</Badge>
+                ) : (
+                  <span className="inline-flex shrink-0 items-center gap-1.5 label-mono text-accent">
+                    <DustMark size={14} />
+                    {colorItem.costDust}
+                  </span>
+                )}
+              </div>
+              {/* Demo: the nick in the picked colour (or mint for a not-yet-bought teaser). */}
+              <b className="text-lg" style={{ color: ownsColor ? color : DEFAULT_COLOR }}>
+                {previewName}
+              </b>
               {ownsColor ? (
-                <Badge>{t('shop.owned')}</Badge>
-              ) : (
-                <span className="inline-flex shrink-0 items-center gap-1.5 label-mono text-accent">
-                  <DustMark size={14} />
-                  {colorItem.costDust}
-                </span>
-              )}
-            </div>
-            {/* Demo: the nick in the picked colour (or mint for a not-yet-bought teaser). */}
-            <b className="text-lg" style={{ color: ownsColor ? color : DEFAULT_COLOR }}>
-              {previewName}
-            </b>
-            {ownsColor ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <input
-                  type="color"
-                  value={color}
-                  onChange={(e) => setColor(e.target.value)}
-                  aria-label={t('shop.nickColor')}
-                  className="h-10 w-14 shrink-0 cursor-pointer rounded-[var(--radius-sm)] border border-border bg-surface"
-                />
-                <Button
-                  variant="accent"
-                  size="sm"
-                  onClick={applyColor}
-                  disabled={color.toLowerCase() === (equippedColor ?? '').toLowerCase()}
-                >
-                  {t('shop.apply')}
-                </Button>
-                {equippedColor && (
-                  <Button variant="ghost" size="sm" onClick={removeColor}>
-                    {t('shop.remove')}
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    type="color"
+                    value={color}
+                    onChange={(e) => setColor(e.target.value)}
+                    aria-label={t('shop.nickColor')}
+                    className="h-10 w-14 shrink-0 cursor-pointer rounded-[var(--radius-sm)] border border-border bg-surface"
+                  />
+                  <Button
+                    variant="accent"
+                    size="sm"
+                    onClick={applyColor}
+                    disabled={color.toLowerCase() === (equippedColor ?? '').toLowerCase()}
+                  >
+                    {t('shop.apply')}
                   </Button>
-                )}
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="accent"
-                  size="sm"
-                  onClick={() => buy(NICK_COLOR_ID, t('shop.nickColor'), colorItem.costDust)}
-                  disabled={balance < colorItem.costDust}
-                >
-                  {t('shop.buy')}
-                </Button>
-                {balance < colorItem.costDust && (
-                  <span className="label-mono text-faint">{t('shop.notEnough')}</span>
-                )}
-              </div>
-            )}
-          </div>,
-        )}
+                  {equippedColor && (
+                    <Button variant="ghost" size="sm" onClick={removeColor}>
+                      {t('shop.remove')}
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="accent"
+                    size="sm"
+                    onClick={() => buy(NICK_COLOR_ID, t('shop.nickColor'), colorItem.costDust)}
+                    disabled={balance < colorItem.costDust}
+                  >
+                    {t('shop.buy')}
+                  </Button>
+                  {balance < colorItem.costDust && (
+                    <span className="label-mono text-faint">{t('shop.notEnough')}</span>
+                  )}
+                </div>
+              )}
+            </div>,
+          )}
 
-        {section(
-          t('shop.nickEffects'),
-          nickEffects.map((e) =>
-            effectRow(e, equippedNickEffect, (id) => equipEffect({ nickEffect: id })),
-          ),
-        )}
+        {category === 'nick' &&
+          section(
+            t('shop.nickEffects'),
+            nickEffects.map((e) =>
+              effectRow(e, equippedNickEffect, (id) => equipEffect({ nickEffect: id })),
+            ),
+          )}
 
-        {section(
-          t('shop.cardEffects'),
-          cardEffects.map((e) =>
-            effectRow(e, equippedCardEffect, (id) => equipEffect({ cardEffect: id })),
-          ),
-        )}
+        {category === 'card' &&
+          section(
+            t('shop.cardEffects'),
+            cardEffects.map((e) =>
+              effectRow(e, equippedCardEffect, (id) => equipEffect({ cardEffect: id })),
+            ),
+          )}
 
-        {section(
-          t('shop.voices'),
-          <>
-            <p className="text-sm text-muted">{t('shop.voicesDesc')}</p>
-            {voiceItems.map(voiceRow)}
-          </>,
-        )}
+        {category === 'voices' &&
+          section(
+            t('shop.voices'),
+            <>
+              <p className="text-sm text-muted">{t('shop.voicesDesc')}</p>
+              {voiceItems.map(voiceRow)}
+            </>,
+          )}
       </div>
     </Drawer>,
     document.body,

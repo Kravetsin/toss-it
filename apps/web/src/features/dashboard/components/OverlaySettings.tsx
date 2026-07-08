@@ -166,9 +166,7 @@ export function OverlaySettings({
             />
             <Slider
               icon="clock"
-              label={
-                chatFade === 0 ? t('dash.chatFadeOff') : t('dash.chatFade', { n: chatFade })
-              }
+              label={chatFade === 0 ? t('dash.chatFadeOff') : t('dash.chatFade', { n: chatFade })}
               min={0}
               max={120}
               value={chatFade}
