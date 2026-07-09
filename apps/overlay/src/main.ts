@@ -38,9 +38,8 @@ interface YTPlayer {
   nextVideo(): void;
   previousVideo(): void;
   playVideoAt(index: number): void;
-  loadPlaylist(playlist: string[], index?: number, startSeconds?: number): void;
+  loadVideoById(videoId: string, startSeconds?: number): void;
   setShuffle(shuffle: boolean): void;
-  setLoop(loop: boolean): void;
   getPlaylist(): string[] | null;
   getPlaylistIndex(): number;
   getDuration(): number;
@@ -393,31 +392,63 @@ function reportYoutubeDuration(submissionId: string, player: YTPlayer): void {
 }
 
 // ── Background music ────────────────────────────────────────────────────────
-// A second YouTube player runs a playlist between posts. It ducks (not pauses)
-// while a post is on screen so the transition isn't jarring, and can be hidden
-// in OBS (audio-only) via settings. Config arrives via the 'music:config' event.
+// A second YouTube player plays music between posts. It ducks (not pauses) while a post is on
+// screen, and can be hidden in OBS (audio-only) via settings. Config arrives via 'music:config'.
+//
+// The owned track list ("list" mode) keeps the queue HERE, not inside the YT player: the player
+// only ever loads the current video, and next/prev/shuffle/auto-advance run off musicIds. That
+// way list edits (reorder/add/delete) just swap the array and NEVER touch playback — no reload,
+// no micro-freeze. The playlistId fallback ("playlist" mode) still uses YT's native playlist.
 const MUSIC_DUCK = 0.75; // during a post, drop to 75% of the set volume
 let musicPlayer: YTPlayer | null = null;
 // The container div; the mount we pass to YT.Player gets REPLACED by an iframe (inside this wrap),
 // so we keep the wrap reference rather than reaching through the now-detached mount.
 let musicWrap: HTMLElement | null = null;
-// Identifies the current audio source (owned list or fallback playlist) — reload only when it changes.
-let musicSourceKey: string | null = null;
+let musicMode: 'list' | 'playlist' | null = null;
+let musicIds: string[] = []; // the owned queue (list mode); edits apply instantly
+let musicCurrentId: string | null = null; // playing track in list mode
+let musicHistory: string[] = []; // recently played stack, so prev works under shuffle
+let musicPlaylistId: string | null = null; // fallback source (playlist mode)
 let musicShuffle = false;
 let musicVolume = 50;
 let musicHidden = false;
 let musicDucked = false;
-
-function musicSourceKeyOf(cfg: MusicConfig): string | null {
-  if (cfg.trackIds.length) return `list:${cfg.trackIds.join(',')}`;
-  if (cfg.playlistId) return `pl:${cfg.playlistId}`;
-  return null;
-}
+let musicEpoch = 0; // bumped on teardown to invalidate in-flight async player creation
 
 function currentMusicVideoId(): string | null {
+  if (musicMode === 'list') return musicCurrentId;
   const list = musicPlayer?.getPlaylist() ?? null;
   const idx = musicPlayer?.getPlaylistIndex() ?? -1;
   return list && idx >= 0 ? (list[idx] ?? null) : null;
+}
+
+/** Load + play a track in list mode; the queue itself stays external to the player. */
+function playMusicId(id: string, startSeconds = 0): void {
+  musicCurrentId = id;
+  musicPlayer?.loadVideoById(id, startSeconds);
+}
+
+/** Step the list-mode queue (dir=1 is also the auto-advance on track end). */
+function stepMusic(dir: 1 | -1): void {
+  if (musicMode !== 'list' || musicIds.length === 0) return;
+  if (dir === -1 && musicShuffle && musicHistory.length > 0) {
+    playMusicId(musicHistory.pop()!);
+    return;
+  }
+  const idx = musicCurrentId ? musicIds.indexOf(musicCurrentId) : -1;
+  let next: string;
+  if (musicShuffle && musicIds.length > 1) {
+    do {
+      next = musicIds[Math.floor(Math.random() * musicIds.length)]!;
+    } while (next === musicCurrentId);
+  } else {
+    next = musicIds[(idx + dir + musicIds.length) % musicIds.length]!;
+  }
+  if (dir === 1 && musicCurrentId) {
+    musicHistory.push(musicCurrentId);
+    if (musicHistory.length > 50) musicHistory.shift();
+  }
+  playMusicId(next);
 }
 
 function effectiveMusicVolume(): number {
@@ -442,14 +473,21 @@ function handleMusicCommand(cmd: MusicCommand): void {
       musicPlayer.pauseVideo();
       break;
     case 'next':
-      musicPlayer.nextVideo();
+      if (musicMode === 'list') stepMusic(1);
+      else musicPlayer.nextVideo();
       break;
     case 'prev':
-      musicPlayer.previousVideo();
+      if (musicMode === 'list') stepMusic(-1);
+      else musicPlayer.previousVideo();
       break;
     case 'playAt': {
-      const idx = cmd.videoId ? (musicPlayer.getPlaylist() ?? []).indexOf(cmd.videoId) : -1;
-      if (idx >= 0) musicPlayer.playVideoAt(idx);
+      if (!cmd.videoId) break;
+      if (musicMode === 'list') {
+        if (musicIds.includes(cmd.videoId)) playMusicId(cmd.videoId);
+      } else {
+        const idx = (musicPlayer.getPlaylist() ?? []).indexOf(cmd.videoId);
+        if (idx >= 0) musicPlayer.playVideoAt(idx);
+      }
       break;
     }
     case 'seek':
@@ -460,10 +498,8 @@ function handleMusicCommand(cmd: MusicCommand): void {
 
 /** Report track + playing state + position to the server (relayed to the dashboard). */
 function reportMusicState(playing: boolean): void {
-  const list = musicPlayer?.getPlaylist() ?? null;
-  const idx = musicPlayer?.getPlaylistIndex() ?? -1;
   socket.emit('music:state', {
-    videoId: list && idx >= 0 ? (list[idx] ?? null) : null,
+    videoId: currentMusicVideoId(),
     playing,
     positionSec: musicPlayer?.getCurrentTime() ?? 0,
     durationSec: musicPlayer?.getDuration() ?? 0,
@@ -484,30 +520,44 @@ function applyMusicConfig(cfg: MusicConfig): void {
   musicVolume = Math.min(100, Math.max(0, Math.round(cfg.volume)));
   musicHidden = !!cfg.hidden;
   musicShuffle = !!cfg.shuffle;
-  const key = musicSourceKeyOf(cfg);
-  if (key === musicSourceKey) {
-    musicPlayer?.setVolume(effectiveMusicVolume());
-    musicPlayer?.setShuffle(musicShuffle);
-    updateMusicVisibility();
-    return;
-  }
+  musicPlayer?.setVolume(effectiveMusicVolume());
+  const mode = cfg.trackIds.length > 0 ? 'list' : cfg.playlistId ? 'playlist' : null;
 
-  // Source changed (import, reorder, add, delete). If the playing track survives in the new list,
-  // reorder the live player in place at its current position — a reorder or add must NOT restart
-  // the current track. Only rebuild when there's no player, the mode switched (list↔playlist), or
-  // the current track was removed.
-  const resumeId = currentMusicVideoId();
-  const resumeTime = musicPlayer?.getCurrentTime() ?? 0;
-  musicSourceKey = key;
-  if (musicPlayer && resumeId && cfg.trackIds.includes(resumeId)) {
-    musicPlayer.loadPlaylist(cfg.trackIds, cfg.trackIds.indexOf(resumeId), resumeTime);
-    musicPlayer.setLoop(true);
-    musicPlayer.setShuffle(musicShuffle);
-    musicPlayer.setVolume(effectiveMusicVolume());
+  if (mode === 'list') {
+    musicIds = [...cfg.trackIds];
+    if (musicMode === 'list' && musicPlayer) {
+      // Same mode → list edits only swap the queue; playback is untouched. The one exception:
+      // the playing track was deleted — fall to the top of the new list.
+      if (musicCurrentId && !musicIds.includes(musicCurrentId)) {
+        musicHistory = [];
+        playMusicId(musicIds[0]!);
+      }
+    } else {
+      // Entering list mode — carry the playing track over when it survives in the list.
+      const resumeId = currentMusicVideoId();
+      const resumeTime = musicPlayer?.getCurrentTime() ?? 0;
+      const keep = resumeId !== null && musicIds.includes(resumeId);
+      teardownMusic();
+      void createMusicPlayer({
+        mode: 'list',
+        videoId: keep ? resumeId : musicIds[0]!,
+        startSeconds: keep ? resumeTime : 0,
+      });
+    }
+    musicPlaylistId = null;
+  } else if (mode === 'playlist') {
+    if (musicMode !== 'playlist' || musicPlaylistId !== cfg.playlistId) {
+      teardownMusic();
+      void createMusicPlayer({ mode: 'playlist', playlistId: cfg.playlistId! });
+    } else {
+      musicPlayer?.setShuffle(musicShuffle);
+    }
+    musicPlaylistId = cfg.playlistId;
   } else {
     teardownMusic();
-    if (key) void createMusicPlayer(cfg, resumeId, resumeTime);
+    musicPlaylistId = null;
   }
+  musicMode = mode;
   updateMusicVisibility();
 }
 
@@ -521,53 +571,64 @@ function updateMusicVisibility(): void {
 }
 
 function teardownMusic(): void {
+  musicEpoch++;
   setMusicTicker(false);
   musicPlayer?.destroy();
   musicPlayer = null;
   musicWrap?.remove();
   musicWrap = null;
+  musicCurrentId = null;
+  musicHistory = [];
 }
 
-async function createMusicPlayer(
-  cfg: MusicConfig,
-  resumeId: string | null,
-  resumeTime = 0,
-): Promise<void> {
+interface MusicPlayerInit {
+  mode: 'list' | 'playlist';
+  /** List mode: the single video to load (the queue lives in musicIds). */
+  videoId?: string;
+  startSeconds?: number;
+  /** Playlist mode: YT's native playlist id. */
+  playlistId?: string;
+}
+
+async function createMusicPlayer(init: MusicPlayerInit): Promise<void> {
+  const epoch = musicEpoch;
   await loadYouTubeApi();
   // Config may have changed (or cleared) while the API loaded.
-  if (!window.YT || musicSourceKey !== musicSourceKeyOf(cfg)) return;
-  const useList = cfg.trackIds.length > 0;
+  if (!window.YT || epoch !== musicEpoch) return;
   const wrap = document.createElement('div');
   const mount = document.createElement('div');
   wrap.appendChild(mount);
   document.body.appendChild(wrap);
   musicWrap = wrap;
   updateMusicVisibility();
+  if (init.mode === 'list') musicCurrentId = init.videoId ?? null;
   musicPlayer = new window.YT.Player(mount, {
     width: '100%',
     height: '100%',
-    // Owned list: load ids via loadPlaylist onReady (avoids a huge URL). Fallback: a YouTube playlist.
-    playerVars: useList
-      ? { autoplay: 1, controls: 0, rel: 0, playsinline: 1, modestbranding: 1 }
-      : {
-          listType: 'playlist',
-          list: cfg.playlistId!,
-          autoplay: 1,
-          loop: 1,
-          controls: 0,
-          rel: 0,
-          playsinline: 1,
-          modestbranding: 1,
-        },
+    videoId: init.mode === 'list' ? init.videoId : undefined,
+    playerVars:
+      init.mode === 'list'
+        ? {
+            autoplay: 1,
+            start: Math.floor(init.startSeconds ?? 0),
+            controls: 0,
+            rel: 0,
+            playsinline: 1,
+            modestbranding: 1,
+          }
+        : {
+            listType: 'playlist',
+            list: init.playlistId!,
+            autoplay: 1,
+            loop: 1,
+            controls: 0,
+            rel: 0,
+            playsinline: 1,
+            modestbranding: 1,
+          },
     events: {
       onReady: (e) => {
-        if (useList) {
-          const idx = resumeId ? cfg.trackIds.indexOf(resumeId) : -1;
-          // Carry the position only when resuming the SAME track; a new track starts from 0.
-          e.target.loadPlaylist(cfg.trackIds, Math.max(0, idx), idx >= 0 ? resumeTime : 0);
-          e.target.setLoop(true);
-        }
-        e.target.setShuffle(musicShuffle);
+        if (init.mode === 'playlist') e.target.setShuffle(musicShuffle);
         e.target.setVolume(effectiveMusicVolume());
         e.target.playVideo();
         const f = e.target.getIframe();
@@ -583,7 +644,15 @@ async function createMusicPlayer(
         } else if (e.data === window.YT.PlayerState.PAUSED) {
           reportMusicState(false);
           setMusicTicker(false);
+        } else if (e.data === window.YT.PlayerState.ENDED && musicMode === 'list') {
+          // The player holds a single video, so track advance is ours.
+          stepMusic(1);
         }
+      },
+      onError: () => {
+        // A dead/blocked video would stall the single-video player — skip it (delay avoids a
+        // tight loop when several in a row are dead).
+        if (musicMode === 'list') window.setTimeout(() => stepMusic(1), 800);
       },
     },
   });
@@ -1088,9 +1157,11 @@ if (DEMO) {
       hidden: q.has('mhide'),
     });
   }
-  // Debug probe + reorder driver for verification (demo only).
+  // Debug probe + reorder/command drivers for verification (demo only).
   (window as unknown as { __music: () => unknown }).__music = () => ({
-    source: musicSourceKey,
+    mode: musicMode,
+    queue: musicIds,
+    playlistId: musicPlaylistId,
     shuffle: musicShuffle,
     volume: musicVolume,
     effective: effectiveMusicVolume(),
@@ -1102,4 +1173,5 @@ if (DEMO) {
     wrapStyle: musicWrap?.getAttribute('style') ?? null,
   });
   (window as unknown as { __applyMusic: (c: MusicConfig) => void }).__applyMusic = applyMusicConfig;
+  (window as unknown as { __musicCmd: (c: MusicCommand) => void }).__musicCmd = handleMusicCommand;
 }
