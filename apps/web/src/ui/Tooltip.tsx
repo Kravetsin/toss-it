@@ -139,7 +139,6 @@ export function Tooltip({
       window.removeEventListener('scroll', onMove, true);
       window.removeEventListener('resize', onMove);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   // Grow/shrink the fill once the plate is mounted in the DOM and measured.
@@ -176,7 +175,6 @@ export function Tooltip({
       el.style.clipPath = `circle(0% at ${originPct.current}% ${originY}%)`;
     }
     // originY/placement derive from the static placement prop — not reactive deps.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, align]);
 
   return (
