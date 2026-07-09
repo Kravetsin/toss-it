@@ -33,23 +33,16 @@ export function sendMusicCommand(channelId: string, cmd: MusicCommand): Promise<
   });
 }
 
-export function importMusicPlaylist(
+/** Add a playlist (list=…) or a single video from one link; both append with dedup. */
+export function addMusic(
   channelId: string,
   url: string,
-): Promise<{ tracks: MusicTrack[] }> {
-  return fetch(`${dash(channelId)}/music/import`, {
+): Promise<{ tracks: MusicTrack[]; added: number }> {
+  return fetch(`${dash(channelId)}/music/add`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ url }),
-  }).then((r) => json<{ tracks: MusicTrack[] }>(r));
-}
-
-export function addMusicTrack(channelId: string, url: string): Promise<{ tracks: MusicTrack[] }> {
-  return fetch(`${dash(channelId)}/music/track`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ url }),
-  }).then((r) => json<{ tracks: MusicTrack[] }>(r));
+  }).then((r) => json<{ tracks: MusicTrack[]; added: number }>(r));
 }
 
 export function setMusicOrder(

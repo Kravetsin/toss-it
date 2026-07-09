@@ -1,17 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import type { MusicTrack } from '@tmw/shared';
-import { addMusicTrack, importMusicPlaylist, setMusicOrder } from '@/lib/api';
+import { addMusic, setMusicOrder } from '@/lib/api';
 import { useI18n } from '@/i18n';
-import { useConfirm } from '@/providers/ConfirmProvider';
 import { useToast } from '@/providers/ToastProvider';
 import { Button, IconButton } from '@/ui';
 import { Icon } from '@/ui/icons';
 
 /**
- * Manage the owned background-music list: import a playlist (replaces it), add single tracks,
- * reorder (up/down), delete, and toggle shuffle. Edits hit the server and lift the new list up
- * (the overlay reloads live via music:config).
+ * Manage the owned background-music list: add a playlist or a single track from one link (both
+ * append, deduped), drag to reorder, delete, and toggle shuffle. Edits hit the server and lift
+ * the new list up (the overlay reloads live via music:config).
  */
 export function MusicManagerModal({
   open,
@@ -31,11 +30,14 @@ export function MusicManagerModal({
   onToggleShuffle: (v: boolean) => void;
 }) {
   const { t } = useI18n();
-  const confirm = useConfirm();
   const toast = useToast();
-  const [importUrl, setImportUrl] = useState('');
-  const [trackUrl, setTrackUrl] = useState('');
+  const [url, setUrl] = useState('');
   const [busy, setBusy] = useState(false);
+  // Local working copy: drag reorders it live; only the drop commits to the server.
+  const [items, setItems] = useState<MusicTrack[]>(tracks);
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+  useEffect(() => setItems(tracks), [tracks]);
 
   useEffect(() => {
     if (!open) return;
@@ -50,6 +52,7 @@ export function MusicManagerModal({
     setBusy(true);
     try {
       const r = await fn();
+      setItems(r.tracks);
       onTracksChange(r.tracks);
       toast(ok);
     } catch (e) {
@@ -59,46 +62,26 @@ export function MusicManagerModal({
     }
   };
 
-  const doImport = async () => {
-    if (!importUrl.trim()) return;
-    if (tracks.length > 0) {
-      const okConfirm = await confirm({
-        message: t('music.importConfirm'),
-        confirmLabel: t('music.import'),
-        danger: true,
-      });
-      if (!okConfirm) return;
-    }
-    await run(() => importMusicPlaylist(channelId, importUrl.trim()), t('music.imported'));
-    setImportUrl('');
-  };
-
   const doAdd = async () => {
-    if (!trackUrl.trim()) return;
-    await run(() => addMusicTrack(channelId, trackUrl.trim()), t('music.added'));
-    setTrackUrl('');
-  };
-
-  const reorder = (from: number, to: number) => {
-    if (to < 0 || to >= tracks.length) return;
-    const next = [...tracks];
-    const [moved] = next.splice(from, 1);
-    if (!moved) return;
-    next.splice(to, 0, moved);
-    onTracksChange(next); // optimistic
-    void run(
-      () =>
-        setMusicOrder(
-          channelId,
-          next.map((tr) => tr.videoId),
-        ),
-      t('music.saved'),
-    );
+    if (!url.trim()) return;
+    setBusy(true);
+    try {
+      const r = await addMusic(channelId, url.trim());
+      setItems(r.tracks);
+      onTracksChange(r.tracks);
+      toast(t('music.addedN', { n: r.added }));
+      setUrl('');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : String(e), 'danger');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const remove = (videoId: string) => {
-    const next = tracks.filter((tr) => tr.videoId !== videoId);
-    onTracksChange(next); // optimistic
+    const next = items.filter((tr) => tr.videoId !== videoId);
+    setItems(next);
+    onTracksChange(next);
     void run(
       () =>
         setMusicOrder(
@@ -107,6 +90,82 @@ export function MusicManagerModal({
         ),
       t('music.removed'),
     );
+  };
+
+  // ── Drag to reorder (pointer-based, with edge auto-scroll) ──────────────────
+  const listRef = useRef<HTMLUListElement>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const drag = useRef<{ id: string; grabOffset: number; pointerY: number; itemH: number } | null>(
+    null,
+  );
+  const rafRef = useRef(0);
+  const movedRef = useRef(false);
+
+  const tick = () => {
+    const st = drag.current;
+    const list = listRef.current;
+    if (!st || !list) return;
+    const rect = list.getBoundingClientRect();
+    const EDGE = 44;
+    const SPEED = 14;
+    if (st.pointerY < rect.top + EDGE) list.scrollTop -= SPEED;
+    else if (st.pointerY > rect.bottom - EDGE) list.scrollTop += SPEED;
+
+    const list0 = itemsRef.current;
+    const topInContent = st.pointerY - st.grabOffset - rect.top + list.scrollTop;
+    const target = Math.max(0, Math.min(list0.length - 1, Math.round(topInContent / st.itemH)));
+    const cur = list0.findIndex((tr) => tr.videoId === st.id);
+    if (cur !== -1 && target !== cur) {
+      const next = [...list0];
+      const [moved] = next.splice(cur, 1);
+      if (moved) {
+        next.splice(target, 0, moved);
+        setItems(next);
+        movedRef.current = true;
+      }
+    }
+    rafRef.current = requestAnimationFrame(tick);
+  };
+
+  const onGrabDown = (e: ReactPointerEvent, id: string) => {
+    const row = (e.currentTarget as HTMLElement).closest('li');
+    if (!row) return;
+    const rect = row.getBoundingClientRect();
+    drag.current = {
+      id,
+      grabOffset: e.clientY - rect.top,
+      pointerY: e.clientY,
+      itemH: rect.height,
+    };
+    movedRef.current = false;
+    setDragId(id);
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {
+      // no active pointer (e.g. synthetic events) — capture is best-effort
+    }
+    rafRef.current = requestAnimationFrame(tick);
+  };
+  const onGrabMove = (e: ReactPointerEvent) => {
+    if (drag.current) drag.current.pointerY = e.clientY;
+  };
+  const onGrabUp = () => {
+    cancelAnimationFrame(rafRef.current);
+    const committed = movedRef.current;
+    drag.current = null;
+    setDragId(null);
+    if (committed) {
+      const next = itemsRef.current;
+      onTracksChange(next);
+      void run(
+        () =>
+          setMusicOrder(
+            channelId,
+            next.map((tr) => tr.videoId),
+          ),
+        t('music.saved'),
+      );
+    }
   };
 
   const input =
@@ -140,74 +199,66 @@ export function MusicManagerModal({
           />
         </div>
 
-        {/* Import + add + shuffle controls */}
-        <div className="flex flex-col gap-2">
-          <label className="text-sm text-muted">{t('music.importLabel')}</label>
-          <div className="flex gap-2">
-            <input
-              className={input}
-              value={importUrl}
-              onChange={(e) => setImportUrl(e.target.value)}
-              placeholder="https://www.youtube.com/playlist?list=…"
-            />
-            <Button size="sm" disabled={busy || !importUrl.trim()} onClick={() => void doImport()}>
-              {t('music.import')}
-            </Button>
-          </div>
-          <label className="mt-2 text-sm text-muted">{t('music.addLabel')}</label>
-          <div className="flex gap-2">
-            <input
-              className={input}
-              value={trackUrl}
-              onChange={(e) => setTrackUrl(e.target.value)}
-              placeholder="https://www.youtube.com/watch?v=…"
-            />
-            <Button size="sm" disabled={busy || !trackUrl.trim()} onClick={() => void doAdd()}>
-              {t('music.add')}
-            </Button>
-          </div>
-          <label className="mt-2 flex cursor-pointer items-center gap-2 text-sm text-muted">
-            <input
-              type="checkbox"
-              checked={shuffle}
-              onChange={(e) => onToggleShuffle(e.target.checked)}
-              className="accent-[var(--color-accent)]"
-            />
-            {t('music.shuffle')}
-          </label>
+        {/* One field: paste a playlist or a single video — both append (deduped). */}
+        <label className="text-sm text-muted">{t('music.addLabel')}</label>
+        <div className="mt-1 flex gap-2">
+          <input
+            className={input}
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && void doAdd()}
+            placeholder="https://www.youtube.com/…?v= или ?list="
+          />
+          <Button size="sm" disabled={busy || !url.trim()} onClick={() => void doAdd()}>
+            {t('music.add')}
+          </Button>
         </div>
 
-        {/* Editable list */}
-        <div className="mt-4 min-h-0 flex-1 overflow-y-auto border-t border-border pt-3">
-          {tracks.length === 0 ? (
+        <button
+          type="button"
+          onClick={() => onToggleShuffle(!shuffle)}
+          aria-pressed={shuffle}
+          className={`mt-3 inline-flex w-max cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 label-mono outline-none transition-colors focus-visible:[box-shadow:var(--shadow-focus)] ${
+            shuffle
+              ? 'border-accent bg-accent-soft text-accent'
+              : 'border-border text-muted hover:text-text'
+          }`}
+        >
+          <Icon name="shuffle" size={15} />
+          {t('music.shuffle')}
+        </button>
+
+        {/* Editable list — drag the handle to reorder, × to remove. */}
+        <div className="mt-4 min-h-0 flex-1 border-t border-border pt-3">
+          {items.length === 0 ? (
             <p className="text-sm text-muted">{t('music.empty')}</p>
           ) : (
-            <ul className="flex flex-col gap-0.5">
-              {tracks.map((tr, i) => (
-                <li key={tr.videoId} className="flex items-center gap-2 px-1 py-1 text-sm">
+            <ul ref={listRef} className="flex max-h-[50vh] flex-col overflow-y-auto">
+              {items.map((tr) => (
+                <li
+                  key={tr.videoId}
+                  className={`flex items-center gap-2 rounded-[var(--radius-sm)] py-1 pr-1 text-sm ${
+                    dragId === tr.videoId ? 'bg-accent-soft' : ''
+                  }`}
+                >
+                  <span
+                    onPointerDown={(e) => onGrabDown(e, tr.videoId)}
+                    onPointerMove={onGrabMove}
+                    onPointerUp={onGrabUp}
+                    onPointerCancel={onGrabUp}
+                    aria-label={t('music.drag')}
+                    className="shrink-0 cursor-grab touch-none px-1 text-faint hover:text-muted active:cursor-grabbing"
+                  >
+                    <Icon name="grip-vertical" size={16} />
+                  </span>
                   <img
                     src={`https://i.ytimg.com/vi/${tr.videoId}/default.jpg`}
                     alt=""
                     loading="lazy"
+                    draggable={false}
                     className="h-7 w-12 shrink-0 rounded-sm object-cover"
                   />
                   <span className="min-w-0 flex-1 truncate text-text">{tr.title}</span>
-                  <IconButton
-                    name="chevron-up"
-                    label={t('music.up')}
-                    variant="ghost"
-                    size="sm"
-                    disabled={i === 0 || busy}
-                    onClick={() => reorder(i, i - 1)}
-                  />
-                  <IconButton
-                    name="chevron-down"
-                    label={t('music.down')}
-                    variant="ghost"
-                    size="sm"
-                    disabled={i === tracks.length - 1 || busy}
-                    onClick={() => reorder(i, i + 1)}
-                  />
                   <IconButton
                     name="close"
                     label={t('music.remove')}

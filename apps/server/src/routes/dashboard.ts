@@ -558,43 +558,45 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
     return capped;
   };
 
-  /** Import a YouTube playlist into the owned list (replaces it). */
+  /**
+   * Add tracks from one link — a whole playlist (list=…) or a single video. Both APPEND to the
+   * owned list, skipping tracks already present, so several playlists can be merged.
+   */
   app.post<{ Params: { channelId: string }; Body: { url?: unknown } | null }>(
-    '/api/dashboard/:channelId/music/import',
-    async (req, reply): Promise<{ tracks: MusicTrack[] } | undefined> => {
+    '/api/dashboard/:channelId/music/add',
+    async (req, reply): Promise<{ tracks: MusicTrack[]; added: number } | undefined> => {
       const channel = await requireOwnerOf(req, reply, req.params.channelId);
       if (!channel) return;
-      const playlistId = typeof req.body?.url === 'string' ? youtubePlaylistId(req.body.url) : null;
-      if (!playlistId) return reply.code(400).send({ error: 'Некорректная ссылка на плейлист' });
-      const tracks = await fetchPlaylistTracks(playlistId);
-      if (tracks.length === 0) {
-        return reply.code(422).send({ error: 'Плейлист пуст или нет ключа YouTube API' });
-      }
-      await db
-        .update(channels)
-        .set({ bgMusicPlaylist: playlistId })
-        .where(eq(channels.id, channel.id));
-      return { tracks: await saveTracks(channel.id, tracks) };
-    },
-  );
+      const url = typeof req.body?.url === 'string' ? req.body.url : '';
+      const seen = new Set(channel.bgMusicTracks.map((tr) => tr.videoId));
 
-  /** Append a single track by video URL/id. */
-  app.post<{ Params: { channelId: string }; Body: { url?: unknown } | null }>(
-    '/api/dashboard/:channelId/music/track',
-    async (req, reply): Promise<{ tracks: MusicTrack[] } | undefined> => {
-      const channel = await requireOwnerOf(req, reply, req.params.channelId);
-      if (!channel) return;
-      const parsed = typeof req.body?.url === 'string' ? parseYoutube(req.body.url) : null;
-      const videoId = parsed?.videoId ?? null;
-      if (!videoId) return reply.code(400).send({ error: 'Некорректная ссылка на видео' });
-      if (channel.bgMusicTracks.some((tr) => tr.videoId === videoId)) {
-        return reply.code(409).send({ error: 'Трек уже в списке' });
+      // A `list=` param (or a bare playlist id) → add the whole playlist; else a single video.
+      const playlistId = youtubePlaylistId(url);
+      if (playlistId) {
+        const fetched = await fetchPlaylistTracks(playlistId);
+        if (fetched.length === 0) {
+          return reply.code(422).send({ error: 'Плейлист пуст или нет ключа YouTube API' });
+        }
+        const fresh = fetched.filter((tr) => !seen.has(tr.videoId));
+        await db
+          .update(channels)
+          .set({ bgMusicPlaylist: playlistId })
+          .where(eq(channels.id, channel.id));
+        const tracks = await saveTracks(channel.id, [...channel.bgMusicTracks, ...fresh]);
+        return { tracks, added: fresh.length };
       }
+
+      const videoId = parseYoutube(url)?.videoId ?? null;
+      if (!videoId) return reply.code(400).send({ error: 'Некорректная ссылка' });
+      if (seen.has(videoId)) return reply.code(409).send({ error: 'Трек уже в списке' });
       const meta = await validateYoutube(videoId);
       if (!meta)
         return reply.code(422).send({ error: 'Видео недоступно или встраивание запрещено' });
-      const tracks = [...channel.bgMusicTracks, { videoId, title: meta.title || videoId }];
-      return { tracks: await saveTracks(channel.id, tracks) };
+      const tracks = await saveTracks(channel.id, [
+        ...channel.bgMusicTracks,
+        { videoId, title: meta.title || videoId },
+      ]);
+      return { tracks, added: 1 };
     },
   );
 
