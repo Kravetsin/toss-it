@@ -38,7 +38,7 @@ interface YTPlayer {
   nextVideo(): void;
   previousVideo(): void;
   playVideoAt(index: number): void;
-  loadPlaylist(playlist: string[], index?: number): void;
+  loadPlaylist(playlist: string[], index?: number, startSeconds?: number): void;
   setShuffle(shuffle: boolean): void;
   setLoop(loop: boolean): void;
   getPlaylist(): string[] | null;
@@ -485,15 +485,28 @@ function applyMusicConfig(cfg: MusicConfig): void {
   musicHidden = !!cfg.hidden;
   musicShuffle = !!cfg.shuffle;
   const key = musicSourceKeyOf(cfg);
-  if (key !== musicSourceKey) {
-    // List/playlist changed (import, reorder, add, delete) — reload, resuming the current track.
-    const resumeId = currentMusicVideoId();
-    musicSourceKey = key;
-    teardownMusic();
-    if (key) void createMusicPlayer(cfg, resumeId);
-  } else {
+  if (key === musicSourceKey) {
     musicPlayer?.setVolume(effectiveMusicVolume());
     musicPlayer?.setShuffle(musicShuffle);
+    updateMusicVisibility();
+    return;
+  }
+
+  // Source changed (import, reorder, add, delete). If the playing track survives in the new list,
+  // reorder the live player in place at its current position — a reorder or add must NOT restart
+  // the current track. Only rebuild when there's no player, the mode switched (list↔playlist), or
+  // the current track was removed.
+  const resumeId = currentMusicVideoId();
+  const resumeTime = musicPlayer?.getCurrentTime() ?? 0;
+  musicSourceKey = key;
+  if (musicPlayer && resumeId && cfg.trackIds.includes(resumeId)) {
+    musicPlayer.loadPlaylist(cfg.trackIds, cfg.trackIds.indexOf(resumeId), resumeTime);
+    musicPlayer.setLoop(true);
+    musicPlayer.setShuffle(musicShuffle);
+    musicPlayer.setVolume(effectiveMusicVolume());
+  } else {
+    teardownMusic();
+    if (key) void createMusicPlayer(cfg, resumeId, resumeTime);
   }
   updateMusicVisibility();
 }
@@ -515,7 +528,11 @@ function teardownMusic(): void {
   musicWrap = null;
 }
 
-async function createMusicPlayer(cfg: MusicConfig, resumeId: string | null): Promise<void> {
+async function createMusicPlayer(
+  cfg: MusicConfig,
+  resumeId: string | null,
+  resumeTime = 0,
+): Promise<void> {
   await loadYouTubeApi();
   // Config may have changed (or cleared) while the API loaded.
   if (!window.YT || musicSourceKey !== musicSourceKeyOf(cfg)) return;
@@ -545,8 +562,9 @@ async function createMusicPlayer(cfg: MusicConfig, resumeId: string | null): Pro
     events: {
       onReady: (e) => {
         if (useList) {
-          const start = resumeId ? Math.max(0, cfg.trackIds.indexOf(resumeId)) : 0;
-          e.target.loadPlaylist(cfg.trackIds, start);
+          const idx = resumeId ? cfg.trackIds.indexOf(resumeId) : -1;
+          // Carry the position only when resuming the SAME track; a new track starts from 0.
+          e.target.loadPlaylist(cfg.trackIds, Math.max(0, idx), idx >= 0 ? resumeTime : 0);
           e.target.setLoop(true);
         }
         e.target.setShuffle(musicShuffle);
@@ -1056,19 +1074,21 @@ function mountDemoPanel(): void {
 
 if (DEMO) mountDemoPanel();
 // Demo the background music without a server: ?demo&music=<playlistId or URL>&mvol=40&mhide=1
+// or a raw track list: ?demo&musicIds=<id,id,id>&mvol=40
 if (DEMO) {
   const q = new URLSearchParams(window.location.search);
   const raw = q.get('music');
-  if (raw) {
+  const ids = (q.get('musicIds') ?? '').split(',').filter(Boolean);
+  if (raw || ids.length) {
     applyMusicConfig({
-      trackIds: [],
-      playlistId: youtubePlaylistId(raw),
+      trackIds: ids,
+      playlistId: ids.length ? null : youtubePlaylistId(raw ?? ''),
       shuffle: q.has('mshuffle'),
       volume: Number(q.get('mvol')) || 40,
       hidden: q.has('mhide'),
     });
   }
-  // Debug probe for verification (demo only).
+  // Debug probe + reorder driver for verification (demo only).
   (window as unknown as { __music: () => unknown }).__music = () => ({
     source: musicSourceKey,
     shuffle: musicShuffle,
@@ -1077,6 +1097,9 @@ if (DEMO) {
     ducked: musicDucked,
     hidden: musicHidden,
     hasPlayer: !!musicPlayer,
+    currentId: currentMusicVideoId(),
+    currentTime: musicPlayer?.getCurrentTime() ?? 0,
     wrapStyle: musicWrap?.getAttribute('style') ?? null,
   });
+  (window as unknown as { __applyMusic: (c: MusicConfig) => void }).__applyMusic = applyMusicConfig;
 }
