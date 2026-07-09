@@ -97,13 +97,22 @@ export function DashboardPage() {
       {/* Mobile: single-column (NowPlaying → queue → members). Desktop (lg+): two-column grid.
           NowPlaying rendered twice for responsive display (mobile lg:hidden, desktop hidden lg:block). */}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
-        <div className="lg:hidden">
+        <div className="flex flex-col gap-4 lg:hidden">
           <NowPlayingCard
             now={data.now}
             isOwner={isOwner}
             onSkip={actions.skip}
             onSendTest={actions.sendTest}
           />
+          {isOwner && channelId && (
+            <MusicPlayerCard
+              channelId={channelId}
+              hasPlaylist={!!data.settings?.bgMusicPlaylist}
+              tracks={data.musicTracks}
+              loading={data.musicLoading}
+              musicState={data.musicState}
+            />
+          )}
         </div>
 
         <div className="min-w-0">
@@ -118,21 +127,23 @@ export function DashboardPage() {
         </div>
 
         <div className="flex min-w-0 flex-col gap-4 self-start lg:sticky lg:top-20">
-          <div className="hidden lg:block">
+          <div className="hidden flex-col gap-4 lg:flex">
             <NowPlayingCard
               now={data.now}
               isOwner={isOwner}
               onSkip={actions.skip}
               onSendTest={actions.sendTest}
             />
+            {isOwner && channelId && (
+              <MusicPlayerCard
+                channelId={channelId}
+                hasPlaylist={!!data.settings?.bgMusicPlaylist}
+                tracks={data.musicTracks}
+                loading={data.musicLoading}
+                musicState={data.musicState}
+              />
+            )}
           </div>
-          {isOwner && channelId && (
-            <MusicPlayerCard
-              channelId={channelId}
-              hasPlaylist={!!data.settings?.bgMusicPlaylist}
-              musicState={data.musicState}
-            />
-          )}
           <MembersPanel
             allowed={data.allowed}
             banned={data.banned}

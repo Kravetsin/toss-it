@@ -1,45 +1,30 @@
-import { useEffect, useState } from 'react';
 import type { MusicCommand, MusicState, MusicTrack } from '@tmw/shared';
-import { getMusicTracks, sendMusicCommand } from '@/lib/api';
+import { sendMusicCommand } from '@/lib/api';
 import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
 import { Card, IconButton } from '@/ui';
 
 /**
  * Background-music transport for the dashboard: play/pause/prev/next plus a scrollable
- * track list (click a track to play it). Live state (current track + playing) arrives via
- * the dashboard socket. Phase 1 is read-only — editing the list comes later.
+ * track list (click a track to play it). Presentational — tracks + live state come from
+ * useChannelData so it can render in both responsive slots without double-fetching. The
+ * actual player lives in the OBS overlay; this is only a remote. Phase 1 is read-only.
  */
 export function MusicPlayerCard({
   channelId,
   hasPlaylist,
+  tracks,
+  loading,
   musicState,
 }: {
   channelId: string;
   /** Whether a playlist is configured (settings). Card hides entirely if not. */
   hasPlaylist: boolean;
+  tracks: MusicTrack[];
+  loading: boolean;
   musicState: MusicState;
 }) {
   const { t } = useI18n();
-  const [tracks, setTracks] = useState<MusicTrack[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!hasPlaylist) return;
-    let cancelled = false;
-    setLoading(true);
-    void getMusicTracks(channelId)
-      .then((r) => {
-        if (!cancelled) setTracks(r.tracks);
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [channelId, hasPlaylist]);
 
   if (!hasPlaylist) return null;
 

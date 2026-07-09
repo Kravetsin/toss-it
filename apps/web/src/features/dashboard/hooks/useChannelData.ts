@@ -4,12 +4,14 @@ import type {
   HistoryEntry,
   ListedUser,
   MusicState,
+  MusicTrack,
   ReputationStats,
   SubmissionSummary,
 } from '@tmw/shared';
 import {
   getBans,
   getHistory,
+  getMusicTracks,
   getNowPlaying,
   getPending,
   getReputation,
@@ -36,6 +38,8 @@ export function useChannelData(
   const [allowed, setAllowed] = useState<ListedUser[]>([]);
   const [banned, setBanned] = useState<ListedUser[]>([]);
   const [musicState, setMusicState] = useState<MusicState>({ videoId: null, playing: false });
+  const [musicTracks, setMusicTracks] = useState<MusicTrack[]>([]);
+  const [musicLoading, setMusicLoading] = useState(false);
   // Cross-channel reputation cache by userId, loaded on-demand as submissions arrive.
   const [reputation, setReputation] = useState<Record<string, ReputationStats>>({});
   const reputationRef = useRef(reputation);
@@ -65,6 +69,28 @@ export function useChannelData(
       .then((rep) => setReputation((prev) => ({ ...prev, ...rep })))
       .catch(() => {});
   }, [pending, channelId]);
+
+  // Background-music track list (owner only), refetched when the configured playlist changes.
+  const playlist = isOwner ? (settings?.bgMusicPlaylist ?? null) : null;
+  useEffect(() => {
+    if (!channelId || !playlist) {
+      setMusicTracks([]);
+      return;
+    }
+    let cancelled = false;
+    setMusicLoading(true);
+    void getMusicTracks(channelId)
+      .then((r) => {
+        if (!cancelled) setMusicTracks(r.tracks);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setMusicLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [channelId, playlist]);
 
   // Load channel data and establish live socket connection. Restarts on channel change.
   useEffect(() => {
@@ -125,6 +151,8 @@ export function useChannelData(
     banned,
     reputation,
     musicState,
+    musicTracks,
+    musicLoading,
     refreshLists,
   };
 }
