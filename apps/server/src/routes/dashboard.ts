@@ -575,7 +575,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
     },
   );
 
-  const MAX_TRACKS = 200;
+  const MAX_TRACKS = 300;
   /** Persist a new track list, push it live to the overlay, and return it. */
   const saveTracks = async (channelId: string, tracks: MusicTrack[]): Promise<MusicTrack[]> => {
     const capped = tracks.slice(0, MAX_TRACKS);
@@ -584,6 +584,22 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
     if (ch) io.to(roomOf(channelId)).emit('music:config', musicConfigFrom(ch));
     return capped;
   };
+
+  /** Wipe the whole list — clears the playlist fallback too, so no music resumes in the overlay. */
+  app.delete<{ Params: { channelId: string } }>(
+    '/api/dashboard/:channelId/music/tracks',
+    async (req, reply): Promise<{ tracks: MusicTrack[] } | undefined> => {
+      const channel = await requireOwnerOf(req, reply, req.params.channelId);
+      if (!channel) return;
+      await db
+        .update(channels)
+        .set({ bgMusicTracks: [], bgMusicPlaylist: null })
+        .where(eq(channels.id, channel.id));
+      const ch = await db.select().from(channels).where(eq(channels.id, channel.id)).get();
+      if (ch) io.to(roomOf(channel.id)).emit('music:config', musicConfigFrom(ch));
+      return { tracks: [] };
+    },
+  );
 
   /**
    * Add tracks from one link — a whole playlist (list=…) or a single video. Both APPEND to the

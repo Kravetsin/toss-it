@@ -541,8 +541,11 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
       case 'moderators':
         return MOCK_MODERATORS;
       case 'music/tracks': {
-        // GET returns the list; PUT reorders/removes by the posted videoIds.
-        if (init?.method === 'PUT' && init.body) {
+        // GET returns the list; PUT reorders/removes by the posted videoIds; DELETE wipes it.
+        if (init?.method === 'DELETE') {
+          MOCK_SETTINGS.bgMusicTracks = [];
+          MOCK_SETTINGS.bgMusicPlaylist = null;
+        } else if (init?.method === 'PUT' && init.body) {
           const body = JSON.parse(String(init.body)) as { videoIds?: string[] };
           const byId = new Map(MOCK_SETTINGS.bgMusicTracks.map((tr) => [tr.videoId, tr]));
           MOCK_SETTINGS.bgMusicTracks = (body.videoIds ?? []).flatMap((id) => {

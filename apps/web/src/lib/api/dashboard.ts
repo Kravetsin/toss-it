@@ -56,6 +56,13 @@ export function setMusicOrder(
   }).then((r) => json<{ tracks: MusicTrack[] }>(r));
 }
 
+/** Wipe the whole track list and the playlist fallback. */
+export function clearMusic(channelId: string): Promise<{ tracks: MusicTrack[] }> {
+  return fetch(`${dash(channelId)}/music/tracks`, { method: 'DELETE' }).then((r) =>
+    json<{ tracks: MusicTrack[] }>(r),
+  );
+}
+
 export function getReputation(
   channelId: string,
   userIds: string[],

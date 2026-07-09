@@ -7,17 +7,20 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import type { MusicTrack } from '@tmw/shared';
-import { addMusic, setMusicOrder } from '@/lib/api';
+import { addMusic, clearMusic, setMusicOrder } from '@/lib/api';
 import { clock } from '@/lib/format';
 import { useI18n } from '@/i18n';
 import { useToast } from '@/providers/ToastProvider';
 import { Button, IconButton } from '@/ui';
-import { Icon } from '@/ui/icons';
+import { Icon, type IconName } from '@/ui/icons';
+
+// Keep in sync with the server cap (dashboard.ts MAX_TRACKS).
+const MAX_TRACKS = 300;
 
 /**
  * Manage the owned background-music list: add a playlist or a single track from one link (both
- * append, deduped), drag to reorder, delete, and toggle shuffle. Edits hit the server and lift
- * the new list up (the overlay reloads live via music:config).
+ * append, deduped), drag to reorder, delete, clear all, toggle shuffle, and hide the OBS player.
+ * Edits hit the server and lift the new list up (the overlay reloads live via music:config).
  */
 export function MusicManagerModal({
   open,
@@ -27,6 +30,8 @@ export function MusicManagerModal({
   onTracksChange,
   shuffle,
   onToggleShuffle,
+  hidden,
+  onToggleHidden,
 }: {
   open: boolean;
   onClose: () => void;
@@ -35,6 +40,9 @@ export function MusicManagerModal({
   onTracksChange: (tracks: MusicTrack[]) => void;
   shuffle: boolean;
   onToggleShuffle: (v: boolean) => void;
+  /** Hide the compact player in OBS (audio keeps playing). */
+  hidden: boolean;
+  onToggleHidden: (v: boolean) => void;
 }) {
   const { t } = useI18n();
   const toast = useToast();
@@ -97,6 +105,26 @@ export function MusicManagerModal({
         ),
       t('music.removed'),
     );
+  };
+
+  // Clear all is destructive and one-shot, so it arms on the first click and fires on the second.
+  const [clearArmed, setClearArmed] = useState(false);
+  const clearTimer = useRef(0);
+  useEffect(() => () => window.clearTimeout(clearTimer.current), []);
+  useEffect(() => {
+    if (!open) setClearArmed(false);
+  }, [open]);
+  const clearAll = () => {
+    if (!clearArmed) {
+      setClearArmed(true);
+      clearTimer.current = window.setTimeout(() => setClearArmed(false), 3000);
+      return;
+    }
+    window.clearTimeout(clearTimer.current);
+    setClearArmed(false);
+    setItems([]);
+    onTracksChange([]);
+    void run(() => clearMusic(channelId), t('music.cleared'));
   };
 
   // ── Drag to reorder (pointer-based, with edge auto-scroll) ──────────────────
@@ -295,22 +323,43 @@ export function MusicManagerModal({
           </Button>
         </div>
 
-        <button
-          type="button"
-          onClick={() => onToggleShuffle(!shuffle)}
-          aria-pressed={shuffle}
-          className={`mt-3 inline-flex w-max cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 label-mono outline-none transition-colors focus-visible:[box-shadow:var(--shadow-focus)] ${
-            shuffle
-              ? 'border-accent bg-accent-soft text-accent'
-              : 'border-border text-muted hover:text-text'
-          }`}
-        >
-          <Icon name="shuffle" size={15} />
-          {t('music.shuffle')}
-        </button>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Pill
+            active={shuffle}
+            icon="shuffle"
+            label={t('music.shuffle')}
+            onClick={() => onToggleShuffle(!shuffle)}
+          />
+          <Pill
+            active={hidden}
+            icon={hidden ? 'eye-off' : 'eye'}
+            label={t('music.hidePlayer')}
+            onClick={() => onToggleHidden(!hidden)}
+          />
+        </div>
 
         {/* Editable list — drag the handle to reorder, × to remove. */}
-        <div className="mt-4 min-h-0 flex-1 border-t border-border pt-3">
+        <div className="mt-4 flex min-h-0 flex-1 flex-col border-t border-border pt-3">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <span className="label-mono text-muted">
+              {t('music.count')} {items.length}/{MAX_TRACKS}
+            </span>
+            {items.length > 0 && (
+              <button
+                type="button"
+                onClick={clearAll}
+                disabled={busy}
+                className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 label-mono outline-none transition-colors focus-visible:[box-shadow:var(--shadow-focus)] disabled:opacity-50 ${
+                  clearArmed
+                    ? 'border-danger bg-danger/10 text-danger'
+                    : 'border-border text-muted hover:border-danger hover:text-danger'
+                }`}
+              >
+                <Icon name="trash" size={14} />
+                {clearArmed ? t('music.clearConfirm') : t('music.clearAll')}
+              </button>
+            )}
+          </div>
           {items.length === 0 ? (
             <p className="text-sm text-muted">{t('music.empty')}</p>
           ) : (
@@ -365,5 +414,34 @@ export function MusicManagerModal({
       </div>
     </div>,
     document.body,
+  );
+}
+
+/** Toggleable outlined pill (shuffle / hide player). */
+function Pill({
+  active,
+  icon,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  icon: IconName;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`inline-flex w-max cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 label-mono outline-none transition-colors focus-visible:[box-shadow:var(--shadow-focus)] ${
+        active
+          ? 'border-accent bg-accent-soft text-accent'
+          : 'border-border text-muted hover:text-text'
+      }`}
+    >
+      <Icon name={icon} size={15} />
+      {label}
+    </button>
   );
 }

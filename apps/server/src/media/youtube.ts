@@ -77,7 +77,7 @@ interface PlaylistCacheEntry {
 }
 const playlistCache = new Map<string, PlaylistCacheEntry>();
 const PLAYLIST_CACHE_MS = 10 * 60_000;
-const MAX_TRACKS = 200;
+const MAX_TRACKS = 300;
 
 /**
  * Ordered tracks of a YouTube playlist via the Data API (needs YOUTUBE_API_KEY).

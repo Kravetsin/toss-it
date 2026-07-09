@@ -23,6 +23,8 @@ export function MusicPlayerCard({
   musicState = { videoId: null, playing: false },
   shuffle,
   onToggleShuffle,
+  hidden,
+  onToggleHidden,
   volume,
   onVolumeChange,
 }: {
@@ -33,6 +35,9 @@ export function MusicPlayerCard({
   musicState: MusicState;
   shuffle: boolean;
   onToggleShuffle: (v: boolean) => void;
+  /** Hide the compact player in OBS (audio keeps playing). */
+  hidden: boolean;
+  onToggleHidden: (v: boolean) => void;
   /** Overlay music volume 0-100 (persisted in settings, pushed live via music:config). */
   volume: number;
   onVolumeChange: (v: number) => void;
@@ -58,8 +63,12 @@ export function MusicPlayerCard({
   const [seekPos, setSeekPos] = useState<number | null>(null);
   const scrubbing = useRef(false);
   const seekClear = useRef(0);
-  const duration = musicState.durationSec ?? 0;
+  // Fall back to the track's own duration so the bar shows the right length before the overlay's
+  // first position tick — keeps the bar's height stable instead of appearing on play.
+  const duration = musicState.durationSec || current?.durationSec || 0;
   const shownPos = seekPos ?? musicState.positionSec ?? 0;
+  // Seeking needs a live overlay (it reports a position); disabled otherwise, but still rendered.
+  const seekLive = musicState.positionSec != null && duration > 0;
   const commitSeek = (v: number) => {
     cmd({ action: 'seek', seconds: Math.round(v) });
     seekClear.current = window.setTimeout(() => setSeekPos(null), 1500);
@@ -146,25 +155,25 @@ export function MusicPlayerCard({
         />
       </div>
 
-      {/* Progress appears once the overlay reports a position (i.e. the player is live in OBS). */}
-      {current && duration > 0 && musicState.positionSec != null && (
-        <div className="mt-2 flex items-center gap-2">
-          <span className="shrink-0 text-xs tabular-nums text-muted">
-            {clock(Math.floor(shownPos))}
-          </span>
-          <SeekBar
-            current={shownPos}
-            duration={duration}
-            onSeek={onSeek}
-            onScrubStart={onScrubStart}
-            onScrubEnd={onScrubEnd}
-            label={t('dash.musicSeek')}
-          />
-          <span className="shrink-0 text-xs tabular-nums text-muted">
-            {clock(Math.floor(duration))}
-          </span>
-        </div>
-      )}
+      {/* Always rendered (interactive only when the overlay is live) so the row never appears or
+          disappears between tracks and shifts the card height. */}
+      <div className="mt-2 flex items-center gap-2">
+        <span className="shrink-0 text-xs tabular-nums text-muted">
+          {clock(Math.floor(shownPos))}
+        </span>
+        <SeekBar
+          current={shownPos}
+          duration={duration}
+          onSeek={onSeek}
+          onScrubStart={onScrubStart}
+          onScrubEnd={onScrubEnd}
+          label={t('dash.musicSeek')}
+          disabled={!seekLive}
+        />
+        <span className="shrink-0 text-xs tabular-nums text-muted">
+          {clock(Math.floor(duration))}
+        </span>
+      </div>
 
       {loading ? (
         <p className="mt-3 text-sm text-muted">{t('common.loading')}</p>
@@ -215,6 +224,8 @@ export function MusicPlayerCard({
         onTracksChange={onTracksChange}
         shuffle={shuffle}
         onToggleShuffle={onToggleShuffle}
+        hidden={hidden}
+        onToggleHidden={onToggleHidden}
       />
     </Card>
   );

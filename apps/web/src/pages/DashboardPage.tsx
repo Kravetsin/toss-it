@@ -119,6 +119,13 @@ export function DashboardPage() {
                   { success: t('toast.saved') },
                 )
               }
+              hidden={data.settings?.bgMusicHidden ?? false}
+              onToggleHidden={(v) =>
+                void act(
+                  async () => data.setSettings(await saveSettings(channelId, { bgMusicHidden: v })),
+                  { success: t('toast.saved') },
+                )
+              }
               volume={data.settings?.bgMusicVolume ?? 50}
               onVolumeChange={(v) =>
                 void saveSettings(channelId, { bgMusicVolume: v })
@@ -160,6 +167,14 @@ export function DashboardPage() {
                   void act(
                     async () =>
                       data.setSettings(await saveSettings(channelId, { bgMusicShuffle: v })),
+                    { success: t('toast.saved') },
+                  )
+                }
+                hidden={data.settings?.bgMusicHidden ?? false}
+                onToggleHidden={(v) =>
+                  void act(
+                    async () =>
+                      data.setSettings(await saveSettings(channelId, { bgMusicHidden: v })),
                     { success: t('toast.saved') },
                   )
                 }
