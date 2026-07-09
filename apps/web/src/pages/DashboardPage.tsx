@@ -15,7 +15,6 @@ import { MembersPanel } from '@/features/dashboard/components/MembersPanel';
 import { HistoryCard } from '@/features/dashboard/components/HistoryCard';
 import { useChannels } from '@/features/dashboard/hooks/useChannels';
 import { useChannelData } from '@/features/dashboard/hooks/useChannelData';
-import { useMusicMediaKeys } from '@/features/dashboard/hooks/useMusicMediaKeys';
 import { useSoundNotify } from '@/features/dashboard/hooks/useSoundNotify';
 import { useTabTitleBadge } from '@/features/dashboard/hooks/useTabTitleBadge';
 import { useModerationActions } from '@/features/dashboard/hooks/useModerationActions';
@@ -39,7 +38,6 @@ export function DashboardPage() {
   });
 
   useTabTitleBadge(data.pending.length);
-  const mediaKeys = useMusicMediaKeys(channelId, data.musicState, data.musicTracks, isOwner);
 
   const bannedIds = new Set(data.banned.map((b) => b.userId));
 
@@ -134,7 +132,6 @@ export function DashboardPage() {
                   .then(data.setSettings)
                   .catch(() => {})
               }
-              mediaKeys={mediaKeys}
             />
           )}
         </div>
@@ -187,7 +184,6 @@ export function DashboardPage() {
                     .then(data.setSettings)
                     .catch(() => {})
                 }
-                mediaKeys={mediaKeys}
               />
             )}
           </div>
