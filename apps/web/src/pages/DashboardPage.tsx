@@ -119,6 +119,12 @@ export function DashboardPage() {
                   { success: t('toast.saved') },
                 )
               }
+              volume={data.settings?.bgMusicVolume ?? 50}
+              onVolumeChange={(v) =>
+                void saveSettings(channelId, { bgMusicVolume: v })
+                  .then(data.setSettings)
+                  .catch(() => {})
+              }
             />
           )}
         </div>
@@ -156,6 +162,12 @@ export function DashboardPage() {
                       data.setSettings(await saveSettings(channelId, { bgMusicShuffle: v })),
                     { success: t('toast.saved') },
                   )
+                }
+                volume={data.settings?.bgMusicVolume ?? 50}
+                onVolumeChange={(v) =>
+                  void saveSettings(channelId, { bgMusicVolume: v })
+                    .then(data.setSettings)
+                    .catch(() => {})
                 }
               />
             )}

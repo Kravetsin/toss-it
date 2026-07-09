@@ -37,7 +37,12 @@ import {
 } from '../db/schema';
 import { config } from '../config';
 import { requireUser } from '../auth';
-import { fetchPlaylistTracks, parseYoutube, validateYoutube } from '../media/youtube';
+import {
+  fetchPlaylistTracks,
+  fetchVideoDurations,
+  parseYoutube,
+  validateYoutube,
+} from '../media/youtube';
 import type { TwitchChatModule } from '../modules/twitch-chat/index';
 import { decryptSecret, encryptSecret } from '../crypto';
 import { levelForSender, levelsForSenders } from '../level';
@@ -538,13 +543,35 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
     },
   );
 
+  /** Best-effort fill of missing track durations (cosmetic; needs YOUTUBE_API_KEY). */
+  const withDurations = async (
+    tracks: MusicTrack[],
+  ): Promise<{ tracks: MusicTrack[]; changed: boolean }> => {
+    const missing = tracks.filter((tr) => tr.durationSec == null).map((tr) => tr.videoId);
+    if (missing.length === 0) return { tracks, changed: false };
+    const durations = await fetchVideoDurations(missing);
+    if (durations.size === 0) return { tracks, changed: false };
+    return {
+      tracks: tracks.map((tr) =>
+        tr.durationSec == null && durations.has(tr.videoId)
+          ? { ...tr, durationSec: durations.get(tr.videoId) }
+          : tr,
+      ),
+      changed: true,
+    };
+  };
+
   /** The owned, editable background-music track list. */
   app.get<{ Params: { channelId: string } }>(
     '/api/dashboard/:channelId/music/tracks',
     async (req, reply): Promise<{ tracks: MusicTrack[] } | undefined> => {
       const channel = await requireOwnerOf(req, reply, req.params.channelId);
       if (!channel) return;
-      return { tracks: channel.bgMusicTracks };
+      // Lazily backfill durations for lists saved before durations existed.
+      const { tracks, changed } = await withDurations(channel.bgMusicTracks);
+      if (changed)
+        await db.update(channels).set({ bgMusicTracks: tracks }).where(eq(channels.id, channel.id));
+      return { tracks };
     },
   );
 
@@ -577,7 +604,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         if (fetched.length === 0) {
           return reply.code(422).send({ error: 'Плейлист пуст или нет ключа YouTube API' });
         }
-        const fresh = fetched.filter((tr) => !seen.has(tr.videoId));
+        const fresh = (await withDurations(fetched.filter((tr) => !seen.has(tr.videoId)))).tracks;
         await db
           .update(channels)
           .set({ bgMusicPlaylist: playlistId })
@@ -594,7 +621,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         return reply.code(422).send({ error: 'Видео недоступно или встраивание запрещено' });
       const tracks = await saveTracks(channel.id, [
         ...channel.bgMusicTracks,
-        { videoId, title: meta.title || videoId },
+        ...(await withDurations([{ videoId, title: meta.title || videoId }])).tracks,
       ]);
       return { tracks, added: 1 };
     },
@@ -629,12 +656,16 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
       const channel = await requireOwnerOf(req, reply, req.params.channelId);
       if (!channel) return;
       const action = req.body?.action;
-      if (!action || !['play', 'pause', 'next', 'prev', 'playAt'].includes(action)) {
+      if (!action || !['play', 'pause', 'next', 'prev', 'playAt', 'seek'].includes(action)) {
         return reply.code(400).send({ error: 'Неизвестная команда' });
       }
       const videoId =
         action === 'playAt' && typeof req.body?.videoId === 'string' ? req.body.videoId : undefined;
-      io.to(roomOf(channel.id)).emit('music:command', { action, videoId });
+      const seconds =
+        action === 'seek' && typeof req.body?.seconds === 'number'
+          ? clamp(req.body.seconds, 0, 86_400)
+          : undefined;
+      io.to(roomOf(channel.id)).emit('music:command', { action, videoId, seconds });
       return { ok: true };
     },
   );

@@ -106,7 +106,14 @@ const MOCK_SETTINGS: ChannelSettings = {
   musicSize: 30,
   musicMargin: 5,
   bgMusicPlaylist: null,
-  bgMusicTracks: [],
+  bgMusicTracks: [
+    { videoId: 'dQw4w9WgXcQ', title: 'NCS Mix — Chill Beats Vol. 1', durationSec: 212 },
+    { videoId: 'jNQXAC9IVRw', title: 'Lofi Girl — Study Session', durationSec: 3721 },
+    { videoId: '9bZkp7q19f0', title: 'Synthwave Drive — Night City', durationSec: 252 },
+    { videoId: 'kJQP7kiw5Fk', title: 'Epic Orchestra — Rise Again', durationSec: 281 },
+    { videoId: 'RgKAFK5djSk', title: 'Future Bass — Feel the Drop', durationSec: 229 },
+    { videoId: 'OPf0YbXqDm0', title: 'Deep House — Midnight Groove' },
+  ],
   bgMusicShuffle: false,
   bgMusicVolume: 50,
   bgMusicHidden: false,
@@ -514,8 +521,15 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
         return new URLSearchParams(window.location.search).has('empty') ? [] : MOCK_PENDING;
       case 'now':
         return { now: MOCK_NOW };
-      case 'settings':
+      case 'settings': {
+        // PUT merges the patch so sliders/toggles don't snap back on the echoed response.
+        if (init?.method === 'PUT' && init.body) {
+          Object.assign(MOCK_SETTINGS, JSON.parse(String(init.body)) as Partial<ChannelSettings>);
+        }
         return MOCK_SETTINGS;
+      }
+      case 'music/command':
+        return { ok: true };
       case 'whitelist':
         return MOCK_WHITELIST;
       case 'bans':
@@ -526,6 +540,18 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
         return MOCK_REPUTATION;
       case 'moderators':
         return MOCK_MODERATORS;
+      case 'music/tracks': {
+        // GET returns the list; PUT reorders/removes by the posted videoIds.
+        if (init?.method === 'PUT' && init.body) {
+          const body = JSON.parse(String(init.body)) as { videoIds?: string[] };
+          const byId = new Map(MOCK_SETTINGS.bgMusicTracks.map((tr) => [tr.videoId, tr]));
+          MOCK_SETTINGS.bgMusicTracks = (body.videoIds ?? []).flatMap((id) => {
+            const tr = byId.get(id);
+            return tr ? [tr] : [];
+          });
+        }
+        return { tracks: MOCK_SETTINGS.bgMusicTracks };
+      }
       case 'integrations':
         return []; // donation integrations
       case 'integrations/donatello':

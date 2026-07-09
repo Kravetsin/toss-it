@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { MusicCommand, MusicState, MusicTrack } from '@tmw/shared';
 import { sendMusicCommand } from '@/lib/api';
+import { clock } from '@/lib/format';
 import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
 import { Card, IconButton } from '@/ui';
+import { SeekBar } from '@/ui/media/SeekBar';
+import { VolumeSlider, volumeIcon } from '@/ui/media/VolumeSlider';
 import { MusicManagerModal } from './MusicManagerModal';
 
 /**
@@ -20,6 +23,8 @@ export function MusicPlayerCard({
   musicState = { videoId: null, playing: false },
   shuffle,
   onToggleShuffle,
+  volume,
+  onVolumeChange,
 }: {
   channelId: string;
   tracks: MusicTrack[];
@@ -28,12 +33,59 @@ export function MusicPlayerCard({
   musicState: MusicState;
   shuffle: boolean;
   onToggleShuffle: (v: boolean) => void;
+  /** Overlay music volume 0-100 (persisted in settings, pushed live via music:config). */
+  volume: number;
+  onVolumeChange: (v: number) => void;
 }) {
   const { t } = useI18n();
   const [manageOpen, setManageOpen] = useState(false);
 
   const cmd = (c: MusicCommand) => void sendMusicCommand(channelId, c).catch(() => {});
   const current = tracks.find((tr) => tr.videoId === musicState.videoId);
+
+  // Volume: local while dragging; commits to settings debounced (each PUT re-emits music:config).
+  const [vol, setVol] = useState(volume);
+  const volTimer = useRef(0);
+  useEffect(() => setVol(volume), [volume]);
+  const changeVolume = (v: number) => {
+    setVol(v);
+    window.clearTimeout(volTimer.current);
+    volTimer.current = window.setTimeout(() => onVolumeChange(v), 400);
+  };
+
+  // Seek: the overlay reports position ~1/s; while scrubbing (and briefly after, until a fresh
+  // report lands) show the local value so the bar doesn't jump back.
+  const [seekPos, setSeekPos] = useState<number | null>(null);
+  const scrubbing = useRef(false);
+  const seekClear = useRef(0);
+  const duration = musicState.durationSec ?? 0;
+  const shownPos = seekPos ?? musicState.positionSec ?? 0;
+  const commitSeek = (v: number) => {
+    cmd({ action: 'seek', seconds: Math.round(v) });
+    seekClear.current = window.setTimeout(() => setSeekPos(null), 1500);
+  };
+  // SeekBar fires onSeek continuously during a scrub — send the command only on release.
+  const lastSeek = useRef(0);
+  const onSeek = (v: number) => {
+    window.clearTimeout(seekClear.current);
+    lastSeek.current = v;
+    setSeekPos(v);
+    if (!scrubbing.current) commitSeek(v);
+  };
+  const onScrubStart = () => {
+    scrubbing.current = true;
+  };
+  const onScrubEnd = () => {
+    scrubbing.current = false;
+    commitSeek(lastSeek.current);
+  };
+  useEffect(
+    () => () => {
+      window.clearTimeout(volTimer.current);
+      window.clearTimeout(seekClear.current);
+    },
+    [],
+  );
 
   return (
     <Card>
@@ -76,9 +128,43 @@ export function MusicPlayerCard({
         </div>
       </div>
 
-      <p className="mt-1 truncate text-sm text-muted">
-        {current ? current.title : t('dash.musicIdle')}
-      </p>
+      <div className="mt-1 flex items-center gap-2">
+        <p className="min-w-0 flex-1 truncate text-sm text-muted">
+          {current ? current.title : t('dash.musicIdle')}
+        </p>
+        <Icon
+          name={volumeIcon(false, vol / 100)}
+          size={15}
+          className="shrink-0 text-muted"
+          aria-hidden
+        />
+        <VolumeSlider
+          volume={vol / 100}
+          muted={false}
+          onChange={(v) => changeVolume(Math.round(v * 100))}
+          label={t('dash.musicVolume')}
+        />
+      </div>
+
+      {/* Progress appears once the overlay reports a position (i.e. the player is live in OBS). */}
+      {current && duration > 0 && musicState.positionSec != null && (
+        <div className="mt-2 flex items-center gap-2">
+          <span className="shrink-0 text-xs tabular-nums text-muted">
+            {clock(Math.floor(shownPos))}
+          </span>
+          <SeekBar
+            current={shownPos}
+            duration={duration}
+            onSeek={onSeek}
+            onScrubStart={onScrubStart}
+            onScrubEnd={onScrubEnd}
+            label={t('dash.musicSeek')}
+          />
+          <span className="shrink-0 text-xs tabular-nums text-muted">
+            {clock(Math.floor(duration))}
+          </span>
+        </div>
+      )}
 
       {loading ? (
         <p className="mt-3 text-sm text-muted">{t('common.loading')}</p>

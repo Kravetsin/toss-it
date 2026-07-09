@@ -44,6 +44,8 @@ interface YTPlayer {
   getPlaylist(): string[] | null;
   getPlaylistIndex(): number;
   getDuration(): number;
+  getCurrentTime(): number;
+  seekTo(seconds: number, allowSeekAhead: boolean): void;
   getIframe(): HTMLIFrameElement;
   destroy(): void;
 }
@@ -450,17 +452,32 @@ function handleMusicCommand(cmd: MusicCommand): void {
       if (idx >= 0) musicPlayer.playVideoAt(idx);
       break;
     }
+    case 'seek':
+      if (typeof cmd.seconds === 'number') musicPlayer.seekTo(cmd.seconds, true);
+      break;
   }
 }
 
-/** Report current track + playing state to the server (relayed to the dashboard). */
+/** Report track + playing state + position to the server (relayed to the dashboard). */
 function reportMusicState(playing: boolean): void {
   const list = musicPlayer?.getPlaylist() ?? null;
   const idx = musicPlayer?.getPlaylistIndex() ?? -1;
   socket.emit('music:state', {
     videoId: list && idx >= 0 ? (list[idx] ?? null) : null,
     playing,
+    positionSec: musicPlayer?.getCurrentTime() ?? 0,
+    durationSec: musicPlayer?.getDuration() ?? 0,
   });
+}
+
+// While playing, report position once a second so the dashboard progress bar advances.
+let musicTicker: ReturnType<typeof setInterval> | null = null;
+function setMusicTicker(on: boolean): void {
+  if (musicTicker) {
+    clearInterval(musicTicker);
+    musicTicker = null;
+  }
+  if (on) musicTicker = setInterval(() => reportMusicState(true), 1000);
 }
 
 function applyMusicConfig(cfg: MusicConfig): void {
@@ -491,6 +508,7 @@ function updateMusicVisibility(): void {
 }
 
 function teardownMusic(): void {
+  setMusicTicker(false);
   musicPlayer?.destroy();
   musicPlayer = null;
   musicWrap?.remove();
@@ -541,8 +559,13 @@ async function createMusicPlayer(cfg: MusicConfig, resumeId: string | null): Pro
       onStateChange: (e) => {
         if (!window.YT) return;
         // PLAYING also fires on each new track — reports the advanced videoId to the dashboard.
-        if (e.data === window.YT.PlayerState.PLAYING) reportMusicState(true);
-        else if (e.data === window.YT.PlayerState.PAUSED) reportMusicState(false);
+        if (e.data === window.YT.PlayerState.PLAYING) {
+          reportMusicState(true);
+          setMusicTicker(true);
+        } else if (e.data === window.YT.PlayerState.PAUSED) {
+          reportMusicState(false);
+          setMusicTicker(false);
+        }
       },
     },
   });

@@ -122,6 +122,42 @@ export async function fetchPlaylistTracks(playlistId: string): Promise<MusicTrac
 }
 
 /**
+ * Track lengths in seconds via the Data API (50 ids per call). Best-effort:
+ * empty map with no key or on error — durations are cosmetic.
+ */
+export async function fetchVideoDurations(videoIds: string[]): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  if (!config.youtube.apiKey || videoIds.length === 0) return out;
+  try {
+    for (let i = 0; i < videoIds.length; i += 50) {
+      const url = new URL('https://www.googleapis.com/youtube/v3/videos');
+      url.searchParams.set('part', 'contentDetails');
+      url.searchParams.set('id', videoIds.slice(i, i + 50).join(','));
+      url.searchParams.set('key', config.youtube.apiKey);
+      const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      if (!res.ok) break;
+      const data = (await res.json()) as {
+        items?: { id?: string; contentDetails?: { duration?: string } }[];
+      };
+      for (const it of data.items ?? []) {
+        const sec = parseIsoDuration(it.contentDetails?.duration ?? '');
+        if (it.id && sec > 0) out.set(it.id, sec);
+      }
+    }
+  } catch {
+    // timeouts/network — leave whatever was collected
+  }
+  return out;
+}
+
+/** ISO 8601 duration ("PT1H2M3S") -> seconds; 0 on anything else (e.g. "P0D" for live). */
+function parseIsoDuration(iso: string): number {
+  const m = iso.match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/);
+  if (!m) return 0;
+  return Number(m[1] ?? 0) * 3600 + Number(m[2] ?? 0) * 60 + Number(m[3] ?? 0);
+}
+
+/**
  * Checks existence + embeddability via public oEmbed (no API key). Returns title,
  * or null if private/deleted/embedding disabled.
  */

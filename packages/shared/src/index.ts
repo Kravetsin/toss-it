@@ -213,6 +213,8 @@ export interface MusicConfig {
 export interface MusicTrack {
   videoId: string;
   title: string;
+  /** Track length in seconds via the YouTube Data API; absent without an API key. */
+  durationSec?: number;
 }
 
 /** Build the overlay's music config from a channel's stored background-music fields. */
@@ -234,9 +236,11 @@ export function musicConfigFrom(ch: {
 
 /** Transport command sent from the dashboard to the overlay's music player. */
 export interface MusicCommand {
-  action: 'play' | 'pause' | 'next' | 'prev' | 'playAt';
+  action: 'play' | 'pause' | 'next' | 'prev' | 'playAt' | 'seek';
   /** Target track for 'playAt' (matched by id, so it works under shuffle). */
   videoId?: string;
+  /** Target position for 'seek', seconds into the current track. */
+  seconds?: number;
 }
 
 /** Live music player state reported by the overlay to the dashboard. */
@@ -244,6 +248,9 @@ export interface MusicState {
   /** Currently loaded track, or null when idle/unstarted. */
   videoId: string | null;
   playing: boolean;
+  /** Playback position/length in seconds; absent while idle. */
+  positionSec?: number;
+  durationSec?: number;
 }
 
 export interface ServerToOverlayEvents {

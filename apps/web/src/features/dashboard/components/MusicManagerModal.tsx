@@ -1,7 +1,14 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
 import { createPortal } from 'react-dom';
 import type { MusicTrack } from '@tmw/shared';
 import { addMusic, setMusicOrder } from '@/lib/api';
+import { clock } from '@/lib/format';
 import { useI18n } from '@/i18n';
 import { useToast } from '@/providers/ToastProvider';
 import { Button, IconButton } from '@/ui';
@@ -93,6 +100,8 @@ export function MusicManagerModal({
   };
 
   // ── Drag to reorder (pointer-based, with edge auto-scroll) ──────────────────
+  // The grabbed row floats under the pointer via an inline transform; mid-drag reorders animate
+  // the other rows with FLIP (snapshot tops before setItems, slide from them after render).
   const listRef = useRef<HTMLUListElement>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const drag = useRef<{ id: string; grabOffset: number; pointerY: number; itemH: number } | null>(
@@ -100,6 +109,8 @@ export function MusicManagerModal({
   );
   const rafRef = useRef(0);
   const movedRef = useRef(false);
+  const rowRefs = useRef(new Map<string, HTMLLIElement>());
+  const prevTopsRef = useRef<Map<string, number> | null>(null);
 
   const tick = () => {
     const st = drag.current;
@@ -111,6 +122,12 @@ export function MusicManagerModal({
     if (st.pointerY < rect.top + EDGE) list.scrollTop -= SPEED;
     else if (st.pointerY > rect.bottom - EDGE) list.scrollTop += SPEED;
 
+    const dragEl = rowRefs.current.get(st.id);
+    if (dragEl) {
+      const layoutTop = rect.top - list.scrollTop + dragEl.offsetTop;
+      dragEl.style.transform = `translateY(${st.pointerY - st.grabOffset - layoutTop}px) scale(1.02)`;
+    }
+
     const list0 = itemsRef.current;
     const topInContent = st.pointerY - st.grabOffset - rect.top + list.scrollTop;
     const target = Math.max(0, Math.min(list0.length - 1, Math.round(topInContent / st.itemH)));
@@ -120,6 +137,9 @@ export function MusicManagerModal({
       const [moved] = next.splice(cur, 1);
       if (moved) {
         next.splice(target, 0, moved);
+        const tops = new Map<string, number>();
+        for (const [id, el] of rowRefs.current) tops.set(id, el.getBoundingClientRect().top);
+        prevTopsRef.current = tops;
         setItems(next);
         movedRef.current = true;
       }
@@ -127,9 +147,45 @@ export function MusicManagerModal({
     rafRef.current = requestAnimationFrame(tick);
   };
 
+  useLayoutEffect(() => {
+    const st = drag.current;
+    const prev = prevTopsRef.current;
+    const list = listRef.current;
+    if (!st || !prev || !list) return;
+    prevTopsRef.current = null;
+    const base = list.getBoundingClientRect().top - list.scrollTop;
+    for (const [id, el] of rowRefs.current) {
+      if (id === st.id) continue;
+      const before = prev.get(id);
+      if (before == null) continue;
+      // Snapshot includes any in-flight transform, so an interrupted slide continues smoothly.
+      const delta = before - (base + el.offsetTop);
+      if (Math.abs(delta) < 0.5) continue;
+      el.style.transition = 'none';
+      el.style.transform = `translateY(${delta}px)`;
+      requestAnimationFrame(() => {
+        el.style.transition = 'transform 160ms ease';
+        el.style.transform = '';
+      });
+    }
+  }, [items]);
+
+  const cleanupRef = useRef<(() => void) | null>(null);
+
+  useEffect(
+    () => () => {
+      cancelAnimationFrame(rafRef.current);
+      cleanupRef.current?.();
+    },
+    [],
+  );
+
   const onGrabDown = (e: ReactPointerEvent, id: string) => {
+    if (drag.current) return;
     const row = (e.currentTarget as HTMLElement).closest('li');
     if (!row) return;
+    // Stop the browser from starting a text selection with the drag gesture.
+    e.preventDefault();
     const rect = row.getBoundingClientRect();
     drag.current = {
       id,
@@ -138,22 +194,47 @@ export function MusicManagerModal({
       itemH: rect.height,
     };
     movedRef.current = false;
+    row.style.transition = 'none';
+    row.style.zIndex = '10';
     setDragId(id);
-    try {
-      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    } catch {
-      // no active pointer (e.g. synthetic events) — capture is best-effort
-    }
+    // Pointer capture would break here: mid-drag reorders move the row in the DOM, which drops
+    // the capture. Window listeners keep the drag alive anywhere on the page.
+    const pointerId = e.pointerId;
+    const onMove = (ev: PointerEvent) => {
+      if (ev.pointerId === pointerId && drag.current) drag.current.pointerY = ev.clientY;
+    };
+    const onUp = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      cleanupRef.current?.();
+      finishDrag();
+    };
+    cleanupRef.current = () => {
+      cleanupRef.current = null;
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
     rafRef.current = requestAnimationFrame(tick);
   };
-  const onGrabMove = (e: ReactPointerEvent) => {
-    if (drag.current) drag.current.pointerY = e.clientY;
-  };
-  const onGrabUp = () => {
+  const finishDrag = () => {
     cancelAnimationFrame(rafRef.current);
+    const st = drag.current;
     const committed = movedRef.current;
     drag.current = null;
     setDragId(null);
+    // Let the released row glide into its slot instead of snapping.
+    const el = st ? rowRefs.current.get(st.id) : undefined;
+    if (el) {
+      el.style.transition = 'transform 160ms ease';
+      el.style.transform = '';
+      window.setTimeout(() => {
+        el.style.transition = '';
+        el.style.zIndex = '';
+      }, 200);
+    }
     if (committed) {
       const next = itemsRef.current;
       onTracksChange(next);
@@ -233,19 +314,23 @@ export function MusicManagerModal({
           {items.length === 0 ? (
             <p className="text-sm text-muted">{t('music.empty')}</p>
           ) : (
-            <ul ref={listRef} className="flex max-h-[50vh] flex-col overflow-y-auto">
+            <ul
+              ref={listRef}
+              className={`relative flex max-h-[50vh] flex-col overflow-x-hidden overflow-y-auto ${dragId ? 'select-none' : ''}`}
+            >
               {items.map((tr) => (
                 <li
                   key={tr.videoId}
-                  className={`flex items-center gap-2 rounded-[var(--radius-sm)] py-1 pr-1 text-sm ${
-                    dragId === tr.videoId ? 'bg-accent-soft' : ''
+                  ref={(el) => {
+                    if (el) rowRefs.current.set(tr.videoId, el);
+                    else rowRefs.current.delete(tr.videoId);
+                  }}
+                  className={`relative flex items-center gap-2 rounded-[var(--radius-sm)] py-1 pr-1 text-sm ${
+                    dragId === tr.videoId ? 'bg-accent-soft shadow-2' : ''
                   }`}
                 >
                   <span
                     onPointerDown={(e) => onGrabDown(e, tr.videoId)}
-                    onPointerMove={onGrabMove}
-                    onPointerUp={onGrabUp}
-                    onPointerCancel={onGrabUp}
                     aria-label={t('music.drag')}
                     className="shrink-0 cursor-grab touch-none px-1 text-faint hover:text-muted active:cursor-grabbing"
                   >
@@ -259,6 +344,11 @@ export function MusicManagerModal({
                     className="h-7 w-12 shrink-0 rounded-sm object-cover"
                   />
                   <span className="min-w-0 flex-1 truncate text-text">{tr.title}</span>
+                  {tr.durationSec != null && (
+                    <span className="shrink-0 text-xs tabular-nums text-faint">
+                      {clock(tr.durationSec)}
+                    </span>
+                  )}
                   <IconButton
                     name="close"
                     label={t('music.remove')}

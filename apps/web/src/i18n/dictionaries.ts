@@ -244,6 +244,8 @@ export const en: Dict = {
   'dash.musicPrev': 'Previous track',
   'dash.musicNext': 'Next track',
   'dash.musicIdle': 'Not playing',
+  'dash.musicVolume': 'Music volume',
+  'dash.musicSeek': 'Track progress',
   'music.manage': 'Manage music',
   'music.emptyCta': 'Add a playlist or tracks',
   'music.addLabel': 'Add a playlist or a track by link',
@@ -650,6 +652,8 @@ export const ru: Dict = {
   'dash.musicIdle': 'Не играет',
   'dash.musicNoTracks':
     'Треков нет — укажи плейлист в настройках оверлея (нужен ключ YouTube API).',
+  'dash.musicVolume': 'Громкость музыки',
+  'dash.musicSeek': 'Прогресс трека',
   'music.manage': 'Управление музыкой',
   'music.emptyCta': 'Добавь плейлист или треки',
   'music.addLabel': 'Добавить плейлист или трек по ссылке',
@@ -1055,6 +1059,8 @@ export const uk: Dict = {
   'dash.musicIdle': 'Не грає',
   'dash.musicNoTracks':
     'Треків немає — вкажи плейлист у налаштуваннях оверлея (потрібен ключ YouTube API).',
+  'dash.musicVolume': 'Гучність музики',
+  'dash.musicSeek': 'Прогрес треку',
   'music.manage': 'Керування музикою',
   'music.emptyCta': 'Додай плейлист або треки',
   'music.addLabel': 'Додати плейлист або трек за посиланням',
