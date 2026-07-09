@@ -5,6 +5,7 @@ import {
   CHANNEL_DESCRIPTION_MAX_LEN,
   CHANNEL_LINKS_MAX,
   CHANNEL_LINK_URL_MAX_LEN,
+  musicConfigFrom,
   OVERLAY_POSITIONS,
   SOCIAL_PLATFORMS,
   youtubePlaylistId,
@@ -36,7 +37,7 @@ import {
 } from '../db/schema';
 import { config } from '../config';
 import { requireUser } from '../auth';
-import { fetchPlaylistTracks } from '../media/youtube';
+import { fetchPlaylistTracks, parseYoutube, validateYoutube } from '../media/youtube';
 import type { TwitchChatModule } from '../modules/twitch-chat/index';
 import { decryptSecret, encryptSecret } from '../crypto';
 import { levelForSender, levelsForSenders } from '../level';
@@ -169,6 +170,8 @@ function toSettings(
     musicSize: ch.musicSize,
     musicMargin: ch.musicMargin,
     bgMusicPlaylist: ch.bgMusicPlaylist,
+    bgMusicTracks: ch.bgMusicTracks,
+    bgMusicShuffle: ch.bgMusicShuffle,
     bgMusicVolume: ch.bgMusicVolume,
     bgMusicHidden: ch.bgMusicHidden,
     description: ch.description,
@@ -512,6 +515,8 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
               ? youtubePlaylistId(b.bgMusicPlaylist)
               : null
             : channel.bgMusicPlaylist,
+        bgMusicShuffle:
+          typeof b.bgMusicShuffle === 'boolean' ? b.bgMusicShuffle : channel.bgMusicShuffle,
         bgMusicVolume:
           typeof b.bgMusicVolume === 'number'
             ? clamp(Math.round(b.bgMusicVolume), 0, 100)
@@ -528,25 +533,90 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         fadeSeconds: patch.chatFadeSeconds,
       });
       // Push background-music config live so the media overlay updates without a reload.
-      io.to(roomOf(channel.id)).emit('music:config', {
-        playlistId: patch.bgMusicPlaylist,
-        volume: patch.bgMusicVolume,
-        hidden: patch.bgMusicHidden,
-      });
+      io.to(roomOf(channel.id)).emit('music:config', musicConfigFrom({ ...channel, ...patch }));
       return toSettings({ ...channel, ...patch }, await chatBotInfo(channel));
     },
   );
 
-  /** Background-music track list (from the channel's playlist via the YT Data API). */
+  /** The owned, editable background-music track list. */
   app.get<{ Params: { channelId: string } }>(
     '/api/dashboard/:channelId/music/tracks',
     async (req, reply): Promise<{ tracks: MusicTrack[] } | undefined> => {
       const channel = await requireOwnerOf(req, reply, req.params.channelId);
       if (!channel) return;
-      const tracks = channel.bgMusicPlaylist
-        ? await fetchPlaylistTracks(channel.bgMusicPlaylist)
-        : [];
-      return { tracks };
+      return { tracks: channel.bgMusicTracks };
+    },
+  );
+
+  const MAX_TRACKS = 200;
+  /** Persist a new track list, push it live to the overlay, and return it. */
+  const saveTracks = async (channelId: string, tracks: MusicTrack[]): Promise<MusicTrack[]> => {
+    const capped = tracks.slice(0, MAX_TRACKS);
+    await db.update(channels).set({ bgMusicTracks: capped }).where(eq(channels.id, channelId));
+    const ch = await db.select().from(channels).where(eq(channels.id, channelId)).get();
+    if (ch) io.to(roomOf(channelId)).emit('music:config', musicConfigFrom(ch));
+    return capped;
+  };
+
+  /** Import a YouTube playlist into the owned list (replaces it). */
+  app.post<{ Params: { channelId: string }; Body: { url?: unknown } | null }>(
+    '/api/dashboard/:channelId/music/import',
+    async (req, reply): Promise<{ tracks: MusicTrack[] } | undefined> => {
+      const channel = await requireOwnerOf(req, reply, req.params.channelId);
+      if (!channel) return;
+      const playlistId = typeof req.body?.url === 'string' ? youtubePlaylistId(req.body.url) : null;
+      if (!playlistId) return reply.code(400).send({ error: 'Некорректная ссылка на плейлист' });
+      const tracks = await fetchPlaylistTracks(playlistId);
+      if (tracks.length === 0) {
+        return reply.code(422).send({ error: 'Плейлист пуст или нет ключа YouTube API' });
+      }
+      await db
+        .update(channels)
+        .set({ bgMusicPlaylist: playlistId })
+        .where(eq(channels.id, channel.id));
+      return { tracks: await saveTracks(channel.id, tracks) };
+    },
+  );
+
+  /** Append a single track by video URL/id. */
+  app.post<{ Params: { channelId: string }; Body: { url?: unknown } | null }>(
+    '/api/dashboard/:channelId/music/track',
+    async (req, reply): Promise<{ tracks: MusicTrack[] } | undefined> => {
+      const channel = await requireOwnerOf(req, reply, req.params.channelId);
+      if (!channel) return;
+      const parsed = typeof req.body?.url === 'string' ? parseYoutube(req.body.url) : null;
+      const videoId = parsed?.videoId ?? null;
+      if (!videoId) return reply.code(400).send({ error: 'Некорректная ссылка на видео' });
+      if (channel.bgMusicTracks.some((tr) => tr.videoId === videoId)) {
+        return reply.code(409).send({ error: 'Трек уже в списке' });
+      }
+      const meta = await validateYoutube(videoId);
+      if (!meta)
+        return reply.code(422).send({ error: 'Видео недоступно или встраивание запрещено' });
+      const tracks = [...channel.bgMusicTracks, { videoId, title: meta.title || videoId }];
+      return { tracks: await saveTracks(channel.id, tracks) };
+    },
+  );
+
+  /** Set the exact ordered list (handles reorder + delete; client sends final order). */
+  app.put<{ Params: { channelId: string }; Body: { videoIds?: unknown } | null }>(
+    '/api/dashboard/:channelId/music/tracks',
+    async (req, reply): Promise<{ tracks: MusicTrack[] } | undefined> => {
+      const channel = await requireOwnerOf(req, reply, req.params.channelId);
+      if (!channel) return;
+      const ids = Array.isArray(req.body?.videoIds) ? req.body.videoIds : null;
+      if (!ids) return reply.code(400).send({ error: 'Некорректный список' });
+      // Reorder/drop only within the current list — titles are preserved, no id invented.
+      const byId = new Map(channel.bgMusicTracks.map((tr) => [tr.videoId, tr]));
+      const seen = new Set<string>();
+      const tracks: MusicTrack[] = [];
+      for (const id of ids) {
+        if (typeof id === 'string' && byId.has(id) && !seen.has(id)) {
+          seen.add(id);
+          tracks.push(byId.get(id)!);
+        }
+      }
+      return { tracks: await saveTracks(channel.id, tracks) };
     },
   );
 

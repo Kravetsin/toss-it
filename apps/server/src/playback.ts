@@ -1,15 +1,16 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type { Server } from 'socket.io';
-import type {
-  EquippedCosmetics,
-  LiveStatus,
-  MediaPlayPayload,
-  OverlayToServerEvents,
-  ServerToDashboardEvents,
-  ServerToOverlayEvents,
-  ServerToViewerEvents,
-  SubmissionSummary,
+import {
+  musicConfigFrom,
+  type EquippedCosmetics,
+  type LiveStatus,
+  type MediaPlayPayload,
+  type OverlayToServerEvents,
+  type ServerToDashboardEvents,
+  type ServerToOverlayEvents,
+  type ServerToViewerEvents,
+  type SubmissionSummary,
 } from '@tmw/shared';
 import { db } from './db/index';
 import { channelModerators, channels, submissions, users, type SubmissionRow } from './db/schema';
@@ -478,14 +479,7 @@ export function setupRealtime(io: RealtimeServer, app: FastifyInstance): Playbac
             return;
           }
           const channel = await db
-            .select({
-              id: channels.id,
-              chatFontSize: channels.chatFontSize,
-              chatFadeSeconds: channels.chatFadeSeconds,
-              bgMusicPlaylist: channels.bgMusicPlaylist,
-              bgMusicVolume: channels.bgMusicVolume,
-              bgMusicHidden: channels.bgMusicHidden,
-            })
+            .select()
             .from(channels)
             .where(eq(channels.overlayToken, token))
             .get();
@@ -500,11 +494,7 @@ export function setupRealtime(io: RealtimeServer, app: FastifyInstance): Playbac
             fadeSeconds: channel.chatFadeSeconds,
           });
           // The media overlay reads this on connect; the chat overlay ignores it.
-          socket.emit('music:config', {
-            playlistId: channel.bgMusicPlaylist,
-            volume: channel.bgMusicVolume,
-            hidden: channel.bgMusicHidden,
-          });
+          socket.emit('music:config', musicConfigFrom(channel));
           socket.on('playback:done', (submissionId) => {
             if (typeof submissionId === 'string') void playback.onDone(channel.id, submissionId);
           });

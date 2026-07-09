@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import type { MusicCommand, MusicState, MusicTrack } from '@tmw/shared';
 import { sendMusicCommand } from '@/lib/api';
 import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
 import { Card, IconButton } from '@/ui';
+import { MusicManagerModal } from './MusicManagerModal';
 
 /**
  * Background-music transport for the dashboard: play/pause/prev/next plus a scrollable
@@ -12,21 +14,23 @@ import { Card, IconButton } from '@/ui';
  */
 export function MusicPlayerCard({
   channelId,
-  hasPlaylist,
-  tracks,
+  tracks = [],
+  onTracksChange,
   loading,
-  musicState,
+  musicState = { videoId: null, playing: false },
+  shuffle,
+  onToggleShuffle,
 }: {
   channelId: string;
-  /** Whether a playlist is configured (settings). Card hides entirely if not. */
-  hasPlaylist: boolean;
   tracks: MusicTrack[];
+  onTracksChange: (tracks: MusicTrack[]) => void;
   loading: boolean;
   musicState: MusicState;
+  shuffle: boolean;
+  onToggleShuffle: (v: boolean) => void;
 }) {
   const { t } = useI18n();
-
-  if (!hasPlaylist) return null;
+  const [manageOpen, setManageOpen] = useState(false);
 
   const cmd = (c: MusicCommand) => void sendMusicCommand(channelId, c).catch(() => {});
   const current = tracks.find((tr) => tr.videoId === musicState.videoId);
@@ -44,12 +48,14 @@ export function MusicPlayerCard({
             size="sm"
             variant="ghost"
             label={t('dash.musicPrev')}
+            disabled={tracks.length === 0}
             onClick={() => cmd({ action: 'prev' })}
           />
           <IconButton
             name={musicState.playing ? 'pause' : 'play'}
             size="sm"
             label={musicState.playing ? t('dash.musicPause') : t('dash.musicPlay')}
+            disabled={tracks.length === 0}
             onClick={() => cmd({ action: musicState.playing ? 'pause' : 'play' })}
           />
           <IconButton
@@ -57,7 +63,15 @@ export function MusicPlayerCard({
             size="sm"
             variant="ghost"
             label={t('dash.musicNext')}
+            disabled={tracks.length === 0}
             onClick={() => cmd({ action: 'next' })}
+          />
+          <IconButton
+            name="settings"
+            size="sm"
+            variant="ghost"
+            label={t('music.manage')}
+            onClick={() => setManageOpen(true)}
           />
         </div>
       </div>
@@ -69,7 +83,14 @@ export function MusicPlayerCard({
       {loading ? (
         <p className="mt-3 text-sm text-muted">{t('common.loading')}</p>
       ) : tracks.length === 0 ? (
-        <p className="mt-3 text-sm text-muted">{t('dash.musicNoTracks')}</p>
+        <button
+          type="button"
+          onClick={() => setManageOpen(true)}
+          className="mt-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-dashed border-border py-4 text-sm text-muted transition-colors hover:border-accent hover:text-accent"
+        >
+          <Icon name="gift" size={16} />
+          {t('music.emptyCta')}
+        </button>
       ) : (
         <ul className="mt-3 flex max-h-64 flex-col gap-0.5 overflow-y-auto">
           {tracks.map((tr, i) => {
@@ -99,6 +120,16 @@ export function MusicPlayerCard({
           })}
         </ul>
       )}
+
+      <MusicManagerModal
+        open={manageOpen}
+        onClose={() => setManageOpen(false)}
+        channelId={channelId}
+        tracks={tracks}
+        onTracksChange={onTracksChange}
+        shuffle={shuffle}
+        onToggleShuffle={onToggleShuffle}
+      />
     </Card>
   );
 }

@@ -197,8 +197,12 @@ export interface ChatOverlayConfig {
 
 /** Background-music config for the media overlay (a YouTube playlist played between posts). */
 export interface MusicConfig {
-  /** YouTube playlist id, or null = no background music. */
+  /** Owned, ordered track ids to play (preferred). Empty → fall back to playlistId. */
+  trackIds: string[];
+  /** YouTube playlist id fallback (back-compat before a list is imported), or null. */
   playlistId: string | null;
+  /** Play in random order instead of list order. */
+  shuffle: boolean;
   /** Music volume 0-100 (independent of the submission overlay volume). */
   volume: number;
   /** Hide the player in OBS (audio-only) — it keeps playing, just not visible. */
@@ -209,6 +213,23 @@ export interface MusicConfig {
 export interface MusicTrack {
   videoId: string;
   title: string;
+}
+
+/** Build the overlay's music config from a channel's stored background-music fields. */
+export function musicConfigFrom(ch: {
+  bgMusicTracks: MusicTrack[];
+  bgMusicPlaylist: string | null;
+  bgMusicShuffle: boolean;
+  bgMusicVolume: number;
+  bgMusicHidden: boolean;
+}): MusicConfig {
+  return {
+    trackIds: ch.bgMusicTracks.map((t) => t.videoId),
+    playlistId: ch.bgMusicPlaylist,
+    shuffle: ch.bgMusicShuffle,
+    volume: ch.bgMusicVolume,
+    hidden: ch.bgMusicHidden,
+  };
 }
 
 /** Transport command sent from the dashboard to the overlay's music player. */
@@ -333,8 +354,12 @@ export interface ChannelSettings {
   musicPosition: OverlayPosition;
   musicSize: number;
   musicMargin: number;
-  /** Background music: YouTube playlist id (null = off) played between posts, its own volume. */
+  /** Background music: last imported YouTube playlist id (import source), or null. */
   bgMusicPlaylist: string | null;
+  /** Owned, ordered track list — the source of truth for playback (editable). */
+  bgMusicTracks: MusicTrack[];
+  /** Play the list in random order. */
+  bgMusicShuffle: boolean;
   bgMusicVolume: number;
   /** Hide the background-music player in OBS (audio keeps playing). */
   bgMusicHidden: boolean;

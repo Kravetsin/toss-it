@@ -106,6 +106,8 @@ const MOCK_SETTINGS: ChannelSettings = {
   musicSize: 30,
   musicMargin: 5,
   bgMusicPlaylist: null,
+  bgMusicTracks: [],
+  bgMusicShuffle: false,
   bgMusicVolume: 50,
   bgMusicHidden: false,
   description: 'Шли мемы — лучшее окажется на стриме 🎬',

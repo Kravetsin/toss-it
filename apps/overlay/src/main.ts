@@ -38,7 +38,9 @@ interface YTPlayer {
   nextVideo(): void;
   previousVideo(): void;
   playVideoAt(index: number): void;
+  loadPlaylist(playlist: string[], index?: number): void;
   setShuffle(shuffle: boolean): void;
+  setLoop(loop: boolean): void;
   getPlaylist(): string[] | null;
   getPlaylistIndex(): number;
   getDuration(): number;
@@ -397,10 +399,24 @@ let musicPlayer: YTPlayer | null = null;
 // The container div; the mount we pass to YT.Player gets REPLACED by an iframe (inside this wrap),
 // so we keep the wrap reference rather than reaching through the now-detached mount.
 let musicWrap: HTMLElement | null = null;
-let musicPlaylistId: string | null = null;
+// Identifies the current audio source (owned list or fallback playlist) — reload only when it changes.
+let musicSourceKey: string | null = null;
+let musicShuffle = false;
 let musicVolume = 50;
 let musicHidden = false;
 let musicDucked = false;
+
+function musicSourceKeyOf(cfg: MusicConfig): string | null {
+  if (cfg.trackIds.length) return `list:${cfg.trackIds.join(',')}`;
+  if (cfg.playlistId) return `pl:${cfg.playlistId}`;
+  return null;
+}
+
+function currentMusicVideoId(): string | null {
+  const list = musicPlayer?.getPlaylist() ?? null;
+  const idx = musicPlayer?.getPlaylistIndex() ?? -1;
+  return list && idx >= 0 ? (list[idx] ?? null) : null;
+}
 
 function effectiveMusicVolume(): number {
   return Math.round(musicVolume * (musicDucked ? MUSIC_DUCK : 1));
@@ -450,12 +466,17 @@ function reportMusicState(playing: boolean): void {
 function applyMusicConfig(cfg: MusicConfig): void {
   musicVolume = Math.min(100, Math.max(0, Math.round(cfg.volume)));
   musicHidden = !!cfg.hidden;
-  if (cfg.playlistId !== musicPlaylistId) {
-    musicPlaylistId = cfg.playlistId;
+  musicShuffle = !!cfg.shuffle;
+  const key = musicSourceKeyOf(cfg);
+  if (key !== musicSourceKey) {
+    // List/playlist changed (import, reorder, add, delete) — reload, resuming the current track.
+    const resumeId = currentMusicVideoId();
+    musicSourceKey = key;
     teardownMusic();
-    if (musicPlaylistId) void createMusicPlayer(musicPlaylistId);
+    if (key) void createMusicPlayer(cfg, resumeId);
   } else {
     musicPlayer?.setVolume(effectiveMusicVolume());
+    musicPlayer?.setShuffle(musicShuffle);
   }
   updateMusicVisibility();
 }
@@ -476,10 +497,11 @@ function teardownMusic(): void {
   musicWrap = null;
 }
 
-async function createMusicPlayer(playlistId: string): Promise<void> {
+async function createMusicPlayer(cfg: MusicConfig, resumeId: string | null): Promise<void> {
   await loadYouTubeApi();
   // Config may have changed (or cleared) while the API loaded.
-  if (!window.YT || musicPlaylistId !== playlistId) return;
+  if (!window.YT || musicSourceKey !== musicSourceKeyOf(cfg)) return;
+  const useList = cfg.trackIds.length > 0;
   const wrap = document.createElement('div');
   const mount = document.createElement('div');
   wrap.appendChild(mount);
@@ -489,19 +511,27 @@ async function createMusicPlayer(playlistId: string): Promise<void> {
   musicPlayer = new window.YT.Player(mount, {
     width: '100%',
     height: '100%',
-    playerVars: {
-      listType: 'playlist',
-      list: playlistId,
-      autoplay: 1,
-      loop: 1,
-      controls: 0,
-      rel: 0,
-      playsinline: 1,
-      modestbranding: 1,
-    },
+    // Owned list: load ids via loadPlaylist onReady (avoids a huge URL). Fallback: a YouTube playlist.
+    playerVars: useList
+      ? { autoplay: 1, controls: 0, rel: 0, playsinline: 1, modestbranding: 1 }
+      : {
+          listType: 'playlist',
+          list: cfg.playlistId!,
+          autoplay: 1,
+          loop: 1,
+          controls: 0,
+          rel: 0,
+          playsinline: 1,
+          modestbranding: 1,
+        },
     events: {
       onReady: (e) => {
-        e.target.setShuffle(true);
+        if (useList) {
+          const start = resumeId ? Math.max(0, cfg.trackIds.indexOf(resumeId)) : 0;
+          e.target.loadPlaylist(cfg.trackIds, start);
+          e.target.setLoop(true);
+        }
+        e.target.setShuffle(musicShuffle);
         e.target.setVolume(effectiveMusicVolume());
         e.target.playVideo();
         const f = e.target.getIframe();
@@ -1008,14 +1038,17 @@ if (DEMO) {
   const raw = q.get('music');
   if (raw) {
     applyMusicConfig({
+      trackIds: [],
       playlistId: youtubePlaylistId(raw),
+      shuffle: q.has('mshuffle'),
       volume: Number(q.get('mvol')) || 40,
       hidden: q.has('mhide'),
     });
   }
   // Debug probe for verification (demo only).
   (window as unknown as { __music: () => unknown }).__music = () => ({
-    playlist: musicPlaylistId,
+    source: musicSourceKey,
+    shuffle: musicShuffle,
     volume: musicVolume,
     effective: effectiveMusicVolume(),
     ducked: musicDucked,

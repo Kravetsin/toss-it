@@ -33,6 +33,36 @@ export function sendMusicCommand(channelId: string, cmd: MusicCommand): Promise<
   });
 }
 
+export function importMusicPlaylist(
+  channelId: string,
+  url: string,
+): Promise<{ tracks: MusicTrack[] }> {
+  return fetch(`${dash(channelId)}/music/import`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ url }),
+  }).then((r) => json<{ tracks: MusicTrack[] }>(r));
+}
+
+export function addMusicTrack(channelId: string, url: string): Promise<{ tracks: MusicTrack[] }> {
+  return fetch(`${dash(channelId)}/music/track`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ url }),
+  }).then((r) => json<{ tracks: MusicTrack[] }>(r));
+}
+
+export function setMusicOrder(
+  channelId: string,
+  videoIds: string[],
+): Promise<{ tracks: MusicTrack[] }> {
+  return fetch(`${dash(channelId)}/music/tracks`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ videoIds }),
+  }).then((r) => json<{ tracks: MusicTrack[] }>(r));
+}
+
 export function getReputation(
   channelId: string,
   userIds: string[],

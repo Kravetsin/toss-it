@@ -107,10 +107,18 @@ export function DashboardPage() {
           {isOwner && channelId && (
             <MusicPlayerCard
               channelId={channelId}
-              hasPlaylist={!!data.settings?.bgMusicPlaylist}
               tracks={data.musicTracks}
+              onTracksChange={data.setMusicTracks}
               loading={data.musicLoading}
               musicState={data.musicState}
+              shuffle={data.settings?.bgMusicShuffle ?? false}
+              onToggleShuffle={(v) =>
+                void act(
+                  async () =>
+                    data.setSettings(await saveSettings(channelId, { bgMusicShuffle: v })),
+                  { success: t('toast.saved') },
+                )
+              }
             />
           )}
         </div>
@@ -137,10 +145,18 @@ export function DashboardPage() {
             {isOwner && channelId && (
               <MusicPlayerCard
                 channelId={channelId}
-                hasPlaylist={!!data.settings?.bgMusicPlaylist}
                 tracks={data.musicTracks}
+                onTracksChange={data.setMusicTracks}
                 loading={data.musicLoading}
                 musicState={data.musicState}
+                shuffle={data.settings?.bgMusicShuffle ?? false}
+                onToggleShuffle={(v) =>
+                  void act(
+                    async () =>
+                      data.setSettings(await saveSettings(channelId, { bgMusicShuffle: v })),
+                    { success: t('toast.saved') },
+                  )
+                }
               />
             )}
           </div>

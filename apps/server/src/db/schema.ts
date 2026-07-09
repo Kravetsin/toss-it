@@ -4,6 +4,7 @@ import type {
   ChannelLink,
   EquippedCosmetics,
   MediaKind,
+  MusicTrack,
   OverlayPosition,
   SubmissionStatus,
 } from '@tmw/shared';
@@ -93,8 +94,13 @@ export const channels = sqliteTable('channels', {
   musicPosition: text('music_position').$type<OverlayPosition>().notNull().default('center'),
   musicSize: integer('music_size').notNull().default(80),
   musicMargin: integer('music_margin').notNull().default(0),
-  // Background music: a YouTube playlist played between posts (null = off), its own volume.
+  // Background music: last imported playlist id (source) + the owned editable track list.
   bgMusicPlaylist: text('bg_music_playlist'),
+  bgMusicTracks: text('bg_music_tracks', { mode: 'json' })
+    .$type<MusicTrack[]>()
+    .notNull()
+    .default(sql`'[]'`),
+  bgMusicShuffle: integer('bg_music_shuffle', { mode: 'boolean' }).notNull().default(false),
   bgMusicVolume: integer('bg_music_volume').notNull().default(50),
   bgMusicHidden: integer('bg_music_hidden', { mode: 'boolean' }).notNull().default(false),
   description: text('description'),

@@ -70,10 +70,9 @@ export function useChannelData(
       .catch(() => {});
   }, [pending, channelId]);
 
-  // Background-music track list (owner only), refetched when the configured playlist changes.
-  const playlist = isOwner ? (settings?.bgMusicPlaylist ?? null) : null;
+  // Owned background-music track list (owner only), loaded once per channel; edits update it live.
   useEffect(() => {
-    if (!channelId || !playlist) {
+    if (!channelId || !isOwner) {
       setMusicTracks([]);
       return;
     }
@@ -90,7 +89,7 @@ export function useChannelData(
     return () => {
       cancelled = true;
     };
-  }, [channelId, playlist]);
+  }, [channelId, isOwner]);
 
   // Load channel data and establish live socket connection. Restarts on channel change.
   useEffect(() => {
@@ -152,6 +151,7 @@ export function useChannelData(
     reputation,
     musicState,
     musicTracks,
+    setMusicTracks,
     musicLoading,
     refreshLists,
   };
