@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { MusicCommand, MusicState, MusicTrack } from '@tmw/shared';
+import type { MediaKeysStatus } from '@/features/dashboard/hooks/useMusicMediaKeys';
 import { sendMusicCommand } from '@/lib/api';
 import { clock } from '@/lib/format';
 import { useI18n } from '@/i18n';
@@ -27,6 +28,7 @@ export function MusicPlayerCard({
   onToggleHidden,
   volume,
   onVolumeChange,
+  mediaKeys = 'unsupported',
 }: {
   channelId: string;
   tracks: MusicTrack[];
@@ -41,6 +43,8 @@ export function MusicPlayerCard({
   /** Overlay music volume 0-100 (persisted in settings, pushed live via music:config). */
   volume: number;
   onVolumeChange: (v: number) => void;
+  /** Hardware media keys: hidden when unsupported, dim until the first click arms them. */
+  mediaKeys?: MediaKeysStatus;
 }) {
   const { t } = useI18n();
   const [manageOpen, setManageOpen] = useState(false);
@@ -141,6 +145,14 @@ export function MusicPlayerCard({
         <p className="min-w-0 flex-1 truncate text-sm text-muted">
           {current ? current.title : t('dash.musicIdle')}
         </p>
+        {mediaKeys !== 'unsupported' && (
+          <span
+            title={mediaKeys === 'armed' ? t('dash.mediaKeysArmed') : t('dash.mediaKeysWaiting')}
+            className={`shrink-0 ${mediaKeys === 'armed' ? 'text-accent' : 'text-faint'}`}
+          >
+            <Icon name="keyboard" size={15} />
+          </span>
+        )}
         <Icon
           name={volumeIcon(false, vol / 100)}
           size={15}

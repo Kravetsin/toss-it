@@ -1,19 +1,28 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { MusicCommand, MusicState, MusicTrack } from '@tmw/shared';
 import { sendMusicCommand } from '@/lib/api';
 
 /**
  * Wire hardware media keys (and the OS media overlay / lock-screen controls) to the background
  * music. The player itself lives in the OBS overlay, so this tab has no audio of its own — but
- * the OS only routes media keys to a tab that is actively playing media. A silent looping track
- * keeps a Media Session alive purely to receive those keys; each press is forwarded to the same
- * command channel the on-screen buttons use.
+ * the OS only routes media keys to a tab that is actively playing media. A near-silent looping
+ * track keeps a Media Session alive purely to receive those keys; each press is forwarded to the
+ * same command channel the on-screen buttons use.
+ *
+ * Returns the arming status so the UI can surface it: autoplay is gesture-gated, so until the
+ * streamer clicks the page once the session cannot start ('waiting'), then it stays 'armed'.
  */
+export type MediaKeysStatus = 'unsupported' | 'waiting' | 'armed';
 
-/** Minimal silent 16-bit PCM WAV as a data URI — pure zeros, so it never makes a sound. */
-function silentWavDataUri(seconds = 8): string {
+/**
+ * Looping 16-bit PCM WAV as a data URI. NOT digital zeros: some Chrome builds refuse media-key
+ * focus to playback they classify as inaudible, so this carries a 30 Hz tone at 4/32768 amplitude
+ * (≈ -78 dBFS) — real signal for the audibility heuristic, imperceptible on any speaker.
+ */
+function nearSilentWavDataUri(seconds = 8): string {
   const rate = 8000;
-  const dataLen = Math.floor(rate * seconds) * 2;
+  const samples = Math.floor(rate * seconds);
+  const dataLen = samples * 2;
   const buf = new ArrayBuffer(44 + dataLen);
   const dv = new DataView(buf);
   const ascii = (off: number, s: string) => {
@@ -32,6 +41,9 @@ function silentWavDataUri(seconds = 8): string {
   dv.setUint16(34, 16, true);
   ascii(36, 'data');
   dv.setUint32(40, dataLen, true);
+  for (let i = 0; i < samples; i++) {
+    dv.setInt16(44 + i * 2, Math.round(4 * Math.sin((2 * Math.PI * 30 * i) / rate)), true);
+  }
   let bin = '';
   for (const byte of new Uint8Array(buf)) bin += String.fromCharCode(byte);
   return `data:audio/wav;base64,${btoa(bin)}`;
@@ -42,25 +54,28 @@ export function useMusicMediaKeys(
   musicState: MusicState,
   tracks: MusicTrack[],
   enabled: boolean,
-) {
+): MediaKeysStatus {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [status, setStatus] = useState<MediaKeysStatus>('unsupported');
   const hasTracks = tracks.length > 0;
 
-  // Claim the Media Session: silent loop + action handlers. Kept alive for the whole session.
+  // Claim the Media Session: near-silent loop + action handlers. Kept alive all session long.
   useEffect(() => {
     if (!enabled || !channelId || !hasTracks || !('mediaSession' in navigator)) return;
     const ms = navigator.mediaSession;
+    setStatus('waiting');
 
-    const audio = new Audio(silentWavDataUri());
+    const audio = new Audio(nearSilentWavDataUri());
     audio.loop = true;
     audioRef.current = audio;
 
-    // Autoplay is gesture-gated; try now (in case a gesture already happened), else on the next
-    // interaction — and stop listening the moment playback takes, so we don't replay on every key.
+    // Autoplay is gesture-gated; try now (a prior click on the origin unlocks it), else on the
+    // next interaction — and stop listening the moment playback takes.
     const start = () => {
       void audio
         .play()
         .then(() => {
+          setStatus('armed');
           window.removeEventListener('pointerdown', start);
           window.removeEventListener('keydown', start);
         })
@@ -80,6 +95,7 @@ export function useMusicMediaKeys(
     });
 
     return () => {
+      setStatus('unsupported');
       window.removeEventListener('pointerdown', start);
       window.removeEventListener('keydown', start);
       for (const a of ['play', 'pause', 'nexttrack', 'previoustrack', 'seekto'] as const) {
@@ -102,18 +118,21 @@ export function useMusicMediaKeys(
 
     ms.playbackState = musicState.playing ? 'playing' : 'paused';
 
+    // Metadata is set even while idle, so the session shows up in the OS media hub right away.
     const current = tracks.find((tr) => tr.videoId === musicState.videoId);
-    if (current && 'MediaMetadata' in window) {
+    if ('MediaMetadata' in window) {
       ms.metadata = new MediaMetadata({
-        title: current.title,
+        title: current?.title ?? 'Tossit',
         artist: 'Tossit',
-        artwork: [
-          {
-            src: `https://i.ytimg.com/vi/${current.videoId}/mqdefault.jpg`,
-            sizes: '320x180',
-            type: 'image/jpeg',
-          },
-        ],
+        artwork: current
+          ? [
+              {
+                src: `https://i.ytimg.com/vi/${current.videoId}/mqdefault.jpg`,
+                sizes: '320x180',
+                type: 'image/jpeg',
+              },
+            ]
+          : [],
       });
     }
 
@@ -135,4 +154,6 @@ export function useMusicMediaKeys(
       }
     }
   }, [enabled, hasTracks, musicState, tracks]);
+
+  return status;
 }

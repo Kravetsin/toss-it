@@ -39,7 +39,7 @@ export function DashboardPage() {
   });
 
   useTabTitleBadge(data.pending.length);
-  useMusicMediaKeys(channelId, data.musicState, data.musicTracks, isOwner);
+  const mediaKeys = useMusicMediaKeys(channelId, data.musicState, data.musicTracks, isOwner);
 
   const bannedIds = new Set(data.banned.map((b) => b.userId));
 
@@ -134,6 +134,7 @@ export function DashboardPage() {
                   .then(data.setSettings)
                   .catch(() => {})
               }
+              mediaKeys={mediaKeys}
             />
           )}
         </div>
@@ -186,6 +187,7 @@ export function DashboardPage() {
                     .then(data.setSettings)
                     .catch(() => {})
                 }
+                mediaKeys={mediaKeys}
               />
             )}
           </div>
