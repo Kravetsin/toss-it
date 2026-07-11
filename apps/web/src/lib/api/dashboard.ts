@@ -3,15 +3,25 @@ import type {
   HistoryEntry,
   IntegrationStatus,
   ListedUser,
+  LivePresence,
   MusicCommand,
   MusicTrack,
   OnboardingStatus,
   ReputationStats,
+  StatsSummary,
   SubmissionSummary,
 } from '@tmw/shared';
 import { json } from './http';
 
 const dash = (channelId: string) => `/api/dashboard/${encodeURIComponent(channelId)}`;
+
+export function getStats(channelId: string, days: number): Promise<StatsSummary> {
+  return fetch(`${dash(channelId)}/stats?days=${days}`).then((r) => json<StatsSummary>(r));
+}
+
+export function getLivePresence(channelId: string): Promise<LivePresence> {
+  return fetch(`${dash(channelId)}/live`).then((r) => json<LivePresence>(r));
+}
 
 export function getPending(channelId: string): Promise<SubmissionSummary[]> {
   return fetch(`${dash(channelId)}/pending`).then((r) => json<SubmissionSummary[]>(r));

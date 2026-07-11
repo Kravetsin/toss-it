@@ -326,6 +326,7 @@ function Sidebar({
           collapsed={collapsed}
           end
         />
+        <NavItem to="/dashboard/stats" icon="chart" label={t('nav.stats')} collapsed={collapsed} />
         <NavItem
           to="/dashboard/settings"
           icon="settings"
@@ -439,6 +440,7 @@ function MobileSidebar({
         <nav className="flex flex-col gap-1 px-3">
           <NavItem to="/" icon="home" label={t('nav.home')} onClick={onClose} />
           <NavItem to="/dashboard" icon="shield" label={t('nav.dashboard')} onClick={onClose} end />
+          <NavItem to="/dashboard/stats" icon="chart" label={t('nav.stats')} onClick={onClose} />
           <NavItem
             to="/dashboard/settings"
             icon="settings"
@@ -474,6 +476,7 @@ function MobileBar({ onMenu }: { onMenu: () => void }) {
       <nav className="flex items-center gap-1.5">
         <MobileNavIcon to="/" icon="home" label={t('nav.home')} />
         <MobileNavIcon to="/dashboard" icon="shield" label={t('nav.dashboard')} end />
+        <MobileNavIcon to="/dashboard/stats" icon="chart" label={t('nav.stats')} />
         <MobileNavIcon to="/dashboard/settings" icon="settings" label={t('nav.settings')} />
         <NotificationBell variant="icon" />
         <IconButton name="menu" label={t('nav.menu')} variant="ghost" size="sm" onClick={onMenu} />

@@ -10,9 +10,11 @@ import {
   type HistoryEntry,
   type LeaderboardEntry,
   type ListedUser,
+  type LivePresence,
   type MeResponse,
   type PublicChannelInfo,
   type ReputationStats,
+  type StatsSummary,
   type SubmissionSummary,
 } from '@tmw/shared';
 
@@ -395,6 +397,52 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
   },
 ];
 
+const MOCK_STATS: StatsSummary = {
+  totalSubmissions: 1234,
+  totalAired: 456,
+  totalRejected: 210,
+  monthSubmissions: 189,
+  todaySubmissions: 12,
+  uniqueContributors: 84,
+  monthMessages: 5230,
+  monthWatchMinutes: 9840,
+  daily: Array.from({ length: 14 }, (_, i) => {
+    const dayMs = t - (13 - i) * 86_400_000;
+    const submissions = 3 + Math.floor(Math.random() * 12);
+    const aired = Math.floor(submissions * (0.4 + Math.random() * 0.4));
+    return {
+      day: new Date(dayMs).toISOString().slice(0, 10),
+      submissions,
+      aired,
+      rejected: Math.floor((submissions - aired) * Math.random()),
+      messages: 20 + Math.floor(Math.random() * 120),
+      watchMinutes: 100 + Math.floor(Math.random() * 400),
+    };
+  }),
+  byKind: [
+    { kind: 'image', count: 520 },
+    { kind: 'youtube', count: 310 },
+    { kind: 'video', count: 190 },
+    { kind: 'text', count: 120 },
+    { kind: 'gif', count: 64 },
+    { kind: 'audio', count: 30 },
+  ],
+};
+
+const MOCK_LIVE: LivePresence = {
+  live: true,
+  provider: 'twitch',
+  updatedAt: t,
+  viewers: [
+    { id: 'v1', login: 'meme_lord', name: 'meme_lord' },
+    { id: 'v2', login: 'pixel_witch', name: 'Pixel Witch' },
+    { id: 'v7', login: 'clip_gremlin', name: 'clip_gremlin' },
+    { id: 'v3', login: 'dj_summer', name: 'DJ Summer' },
+    { id: 'v9', login: 'streamfan', name: 'StreamFan' },
+    { id: 'v12', login: 'regular_andy', name: 'Regular Andy' },
+  ],
+};
+
 function cosmeticState() {
   const u = MOCK_ME.user!;
   return { stardust: u.stardust, ownedCosmetics: u.ownedCosmetics, equipped: u.equipped };
@@ -521,6 +569,10 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
         return new URLSearchParams(window.location.search).has('empty') ? [] : MOCK_PENDING;
       case 'now':
         return { now: MOCK_NOW };
+      case 'stats':
+        return MOCK_STATS;
+      case 'live':
+        return MOCK_LIVE;
       case 'settings': {
         // PUT merges the patch so sliders/toggles don't snap back on the echoed response.
         if (init?.method === 'PUT' && init.body) {

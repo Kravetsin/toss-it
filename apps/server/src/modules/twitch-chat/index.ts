@@ -1,6 +1,12 @@
 import { and, eq, sql } from 'drizzle-orm';
 import type { FastifyBaseLogger } from 'fastify';
-import { LEVEL_POINTS, xpToLevel, type ChatFragment, type EquippedCosmetics } from '@tmw/shared';
+import {
+  LEVEL_POINTS,
+  xpToLevel,
+  type ChatFragment,
+  type EquippedCosmetics,
+  type LiveViewer,
+} from '@tmw/shared';
 import { db } from '../../db/index';
 import {
   channelActivity,
@@ -41,6 +47,8 @@ export interface TwitchChatModule {
   status(): { connected: boolean; login: string | null };
   /** Is the bot actually subscribed to this channel's chat right now? */
   readsChannel(channelId: string): boolean;
+  /** Latest "who's in chat now" snapshot for a live channel (Twitch), or null if unknown. */
+  liveViewers(channelId: string): { viewers: LiveViewer[]; at: number } | null;
   /** Admin edited the leaderboard exclusions — refresh the collection guard now. */
   reloadExclusions(): void;
   stop(): void;
@@ -70,6 +78,8 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
   >();
   /** `${channelId} ${twitchId}` -> per-channel level, short-lived cache (chat volume). */
   const levelCache = new Map<string, { level: number; at: number }>();
+  /** channel id -> latest Get-Chatters snapshot, for the streamer "who's on stream now" panel. */
+  const liveChatters = new Map<string, { viewers: LiveViewer[]; at: number }>();
 
   /**
    * Sender's all-time per-channel level (0–10): chat messages + watch-minutes (from
@@ -296,8 +306,12 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     if (!client || !creds) return;
     const minutes = Math.round(WATCH_POLL_MS / 60_000);
     for (const [broadcasterId, channelId] of channelByBroadcaster) {
-      if (!client.isSubscribed(broadcasterId)) continue;
-      if (deps.overlayCount(channelId) === 0) continue; // count only while live
+      if (!client.isSubscribed(broadcasterId) || deps.overlayCount(channelId) === 0) {
+        liveChatters.delete(channelId); // not live/subscribed — drop the stale snapshot
+        continue;
+      }
+      const viewers: LiveViewer[] = [];
+      let ok = true;
       let cursor: string | undefined;
       do {
         const url = new URL(CHATTERS_URL);
@@ -311,6 +325,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
             { status: res?.status, broadcasterId },
             'twitch-chat: chatters fetch failed — reconnect the bot if it predates the moderator:read:chatters scope',
           );
+          ok = false;
           break;
         }
         const body = (await res.json()) as {
@@ -320,9 +335,12 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
         for (const c of body.data ?? []) {
           if (c.user_id === broadcasterId) continue; // own presence is not watch time
           bumpWatch(channelId, c.user_id, c.user_login, c.user_name, minutes);
+          viewers.push({ id: c.user_id, login: c.user_login, name: c.user_name });
         }
         cursor = body.pagination?.cursor;
       } while (cursor);
+      // Keep the previous snapshot on a partial/failed fetch rather than showing an empty list.
+      if (ok) liveChatters.set(channelId, { viewers, at: Date.now() });
     }
   }
 
@@ -439,6 +457,9 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
       return { connected: client != null && creds != null, login: creds?.login ?? null };
     },
     readsChannel,
+    liveViewers(channelId) {
+      return liveChatters.get(channelId) ?? null;
+    },
     reloadExclusions() {
       void loadExclusions().catch((err) =>
         deps.log.warn({ err }, 'twitch-chat: exclusions reload failed'),

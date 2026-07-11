@@ -625,6 +625,59 @@ export interface LeaderboardEntry {
   level?: number;
 }
 
+/** One UTC day bucket for the streamer stats charts. */
+export interface DailyStat {
+  /** 'YYYY-MM-DD' (UTC). */
+  day: string;
+  /** All submissions received that day (any status). */
+  submissions: number;
+  /** Submissions that played on stream (status='played'). */
+  aired: number;
+  rejected: number;
+  /** Chat messages counted that day (from the chat module; 0 when no chat source). */
+  messages: number;
+  watchMinutes: number;
+}
+
+/** Submission count by media kind. */
+export interface KindStat {
+  kind: MediaKind;
+  count: number;
+}
+
+/** Streamer statistics overview (owner-only). Daily series is the last N UTC days, zero-filled. */
+export interface StatsSummary {
+  totalSubmissions: number;
+  totalAired: number;
+  totalRejected: number;
+  monthSubmissions: number;
+  todaySubmissions: number;
+  /** Distinct registered senders (by account id) all-time. */
+  uniqueContributors: number;
+  /** Chat totals for the current UTC month (from channel activity). */
+  monthMessages: number;
+  monthWatchMinutes: number;
+  daily: DailyStat[];
+  byKind: KindStat[];
+}
+
+/** A viewer currently in the live channel's chat. Provider will become switchable later. */
+export interface LiveViewer {
+  id: string;
+  login: string;
+  name: string;
+}
+
+/** "Who's on stream now" for the streamer console. `live` = OBS overlay connected (platform-agnostic). */
+export interface LivePresence {
+  live: boolean;
+  /** Source of the viewer list; null when no viewer source is available. */
+  provider: 'twitch' | null;
+  viewers: LiveViewer[];
+  /** When the viewer list was last sampled (epoch ms), null if never. */
+  updatedAt: number | null;
+}
+
 /** Cross-channel user reputation — aggregates across all channels. */
 export interface ReputationStats {
   /** Submissions actually shown on streams (status='played'). */

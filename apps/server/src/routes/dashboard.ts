@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { and, asc, count, desc, eq, inArray, isNotNull, ne } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, inArray, isNotNull, ne, sql } from 'drizzle-orm';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import {
   CHANNEL_DESCRIPTION_MAX_LEN,
@@ -12,19 +12,25 @@ import {
   type AccessibleChannel,
   type ChannelLink,
   type ChannelSettings,
+  type DailyStat,
   type HistoryEntry,
   type IntegrationStatus,
+  type KindStat,
   type ListedUser,
+  type LivePresence,
   type ModInviteInfo,
   type MusicCommand,
   type MusicTrack,
   type OnboardingStatus,
   type ReputationStats,
+  type StatsSummary,
   type SubmissionSummary,
 } from '@tmw/shared';
 import { db } from '../db/index';
 import {
   bans,
+  channelActivity,
+  channelDaily,
   channelIntegrations,
   channelModerators,
   channels,
@@ -115,6 +121,10 @@ async function requireOwnerOf(
 }
 
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
+
+const DAY_MS = 86_400_000;
+/** UTC 'YYYY-MM-DD' for an epoch-ms instant. */
+const utcDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 
 /** Normalize description: trim + cap to limit; empty becomes null. */
 function sanitizeDescription(input: unknown): string | null {
@@ -722,6 +732,125 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         status: r.sub.status,
         isFounder: r.founderSince != null,
       }));
+    },
+  );
+
+  /** Owner-only stats overview: totals + last-N-day activity series + submissions by kind. */
+  app.get<{ Params: { channelId: string }; Querystring: { days?: string } }>(
+    '/api/dashboard/:channelId/stats',
+    async (req, reply): Promise<StatsSummary | undefined> => {
+      const channel = await requireOwnerOf(req, reply, req.params.channelId);
+      if (!channel) return;
+      const days = clamp(parseInt(req.query.days ?? '14', 10) || 14, 1, 90);
+      const nowD = new Date();
+      const todayStart = Date.UTC(nowD.getUTCFullYear(), nowD.getUTCMonth(), nowD.getUTCDate());
+      const sinceMs = todayStart - (days - 1) * DAY_MS;
+      const monthStart = Date.UTC(nowD.getUTCFullYear(), nowD.getUTCMonth(), 1);
+      const month = nowD.toISOString().slice(0, 7);
+
+      // Submissions per day: bucket the ms timestamp into a UTC calendar day.
+      const dayExpr = sql<string>`strftime('%Y-%m-%d', ${submissions.createdAt} / 1000, 'unixepoch')`;
+      const subDaily = await db
+        .select({
+          day: dayExpr,
+          submissions: sql<number>`count(*)`,
+          aired: sql<number>`sum(case when ${submissions.status} = 'played' then 1 else 0 end)`,
+          rejected: sql<number>`sum(case when ${submissions.status} = 'rejected' then 1 else 0 end)`,
+        })
+        .from(submissions)
+        .where(
+          and(eq(submissions.channelId, channel.id), gte(submissions.createdAt, new Date(sinceMs))),
+        )
+        .groupBy(dayExpr)
+        .all();
+
+      const chatDaily = await db
+        .select({
+          day: channelDaily.day,
+          messages: channelDaily.messages,
+          watchMinutes: channelDaily.watchMinutes,
+        })
+        .from(channelDaily)
+        .where(and(eq(channelDaily.channelId, channel.id), gte(channelDaily.day, utcDay(sinceMs))))
+        .all();
+
+      const subByDay = new Map(subDaily.map((r) => [r.day, r]));
+      const chatByDay = new Map(chatDaily.map((r) => [r.day, r]));
+      const daily: DailyStat[] = [];
+      for (let i = 0; i < days; i++) {
+        const day = utcDay(sinceMs + i * DAY_MS);
+        const s = subByDay.get(day);
+        const c = chatByDay.get(day);
+        daily.push({
+          day,
+          submissions: s?.submissions ?? 0,
+          aired: s?.aired ?? 0,
+          rejected: s?.rejected ?? 0,
+          messages: c?.messages ?? 0,
+          watchMinutes: c?.watchMinutes ?? 0,
+        });
+      }
+
+      const byKindRows = await db
+        .select({ kind: submissions.kind, count: sql<number>`count(*)` })
+        .from(submissions)
+        .where(eq(submissions.channelId, channel.id))
+        .groupBy(submissions.kind)
+        .all();
+      const byKind: KindStat[] = byKindRows
+        .map((r) => ({ kind: r.kind, count: r.count }))
+        .sort((a, b) => b.count - a.count);
+
+      const totals = await db
+        .select({
+          total: sql<number>`count(*)`,
+          aired: sql<number>`sum(case when ${submissions.status} = 'played' then 1 else 0 end)`,
+          rejected: sql<number>`sum(case when ${submissions.status} = 'rejected' then 1 else 0 end)`,
+          month: sql<number>`sum(case when ${submissions.createdAt} >= ${monthStart} then 1 else 0 end)`,
+          today: sql<number>`sum(case when ${submissions.createdAt} >= ${todayStart} then 1 else 0 end)`,
+          contributors: sql<number>`count(distinct ${submissions.senderUserId})`,
+        })
+        .from(submissions)
+        .where(eq(submissions.channelId, channel.id))
+        .get();
+
+      const chatMonth = await db
+        .select({
+          messages: sql<number>`coalesce(sum(${channelActivity.messages}), 0)`,
+          watch: sql<number>`coalesce(sum(${channelActivity.watchMinutes}), 0)`,
+        })
+        .from(channelActivity)
+        .where(and(eq(channelActivity.channelId, channel.id), eq(channelActivity.month, month)))
+        .get();
+
+      return {
+        totalSubmissions: totals?.total ?? 0,
+        totalAired: totals?.aired ?? 0,
+        totalRejected: totals?.rejected ?? 0,
+        monthSubmissions: totals?.month ?? 0,
+        todaySubmissions: totals?.today ?? 0,
+        uniqueContributors: totals?.contributors ?? 0,
+        monthMessages: chatMonth?.messages ?? 0,
+        monthWatchMinutes: chatMonth?.watch ?? 0,
+        daily,
+        byKind,
+      };
+    },
+  );
+
+  /** Owner-only "who's on stream now": OBS-overlay live signal + current chatters (Twitch for now). */
+  app.get<{ Params: { channelId: string } }>(
+    '/api/dashboard/:channelId/live',
+    async (req, reply): Promise<LivePresence | undefined> => {
+      const channel = await requireOwnerOf(req, reply, req.params.channelId);
+      if (!channel) return;
+      const snap = deps.twitchChat.liveViewers(channel.id);
+      return {
+        live: playback.overlayCount(channel.id) > 0,
+        provider: snap ? 'twitch' : null,
+        viewers: snap?.viewers ?? [],
+        updatedAt: snap?.at ?? null,
+      };
     },
   );
 

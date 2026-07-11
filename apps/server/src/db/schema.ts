@@ -244,6 +244,23 @@ export const channelActivity = sqliteTable(
 );
 
 /**
+ * Per-channel per-day chat activity (channel totals, not per-user) for the streamer stats charts.
+ * channel_activity is monthly only, so daily message/watch series live here. day = 'YYYY-MM-DD'
+ * (UTC). Submission counts per day come from the submissions table directly (no bucket needed).
+ */
+export const channelDaily = sqliteTable(
+  'channel_daily',
+  {
+    channelId: text('channel_id').notNull(),
+    day: text('day').notNull(),
+    messages: integer('messages').notNull().default(0),
+    watchMinutes: integer('watch_minutes').notNull().default(0),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.channelId, t.day] })],
+);
+
+/**
  * Stardust earned by a platform identity (chat bot) with no user row yet.
  * Claimed and deleted at first login with that identity. platform: 'twitch' | ...
  */

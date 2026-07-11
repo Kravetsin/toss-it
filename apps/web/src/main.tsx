@@ -15,6 +15,7 @@ import { I18nProvider, LanguageSwitcher } from './i18n';
 import { HomePage } from './pages/HomePage';
 import { ChannelPage } from './pages/ChannelPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { StatsPage } from './pages/StatsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { ModInvitePage } from './pages/ModInvitePage';
 import { LinkConfirmPage } from './pages/LinkConfirmPage';
@@ -47,6 +48,7 @@ createRoot(document.getElementById('root')!).render(
                       <Route path="/ru" element={<HomePage />} />
                       <Route path="/uk" element={<HomePage />} />
                       <Route path="/dashboard" element={<DashboardPage />} />
+                      <Route path="/dashboard/stats" element={<StatsPage />} />
                       <Route path="/dashboard/settings" element={<SettingsPage />} />
                       <Route path="/dashboard/settings/:section" element={<SettingsPage />} />
                     </Route>
