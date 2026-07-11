@@ -8,6 +8,7 @@ import { ConfirmProvider } from '@/providers/ConfirmProvider';
 import { ToastProvider } from '@/providers/ToastProvider';
 import { MeProvider } from '@/providers/MeProvider';
 import { ShopProvider } from '@/providers/ShopProvider';
+import { NotificationsProvider } from '@/providers/NotificationsProvider';
 import { AppShell } from '@/components/AppShell';
 import { DustClaimedToast } from '@/components/DustClaimedToast';
 import { I18nProvider, LanguageSwitcher } from './i18n';
@@ -37,27 +38,29 @@ createRoot(document.getElementById('root')!).render(
           <MeProvider>
             <ShopProvider>
               <BrowserRouter>
-                <Routes>
-                  {/* Streamer routes inside persistent AppShell (sidebar). */}
-                  <Route element={<AppShell />}>
-                    <Route path="/" element={<HomePage />} />
-                    {/* Localized landing entry URLs (SEO + hreflang); language picked in detectInitial. */}
-                    <Route path="/ru" element={<HomePage />} />
-                    <Route path="/uk" element={<HomePage />} />
-                    <Route path="/dashboard" element={<DashboardPage />} />
-                    <Route path="/dashboard/settings" element={<SettingsPage />} />
-                    <Route path="/dashboard/settings/:section" element={<SettingsPage />} />
-                  </Route>
-                  {/* Public routes: no AppShell. */}
-                  <Route path="/c/:login" element={<ChannelPage />} />
-                  <Route path="/mod-invite/:token" element={<ModInvitePage />} />
-                  <Route path="/link/confirm" element={<LinkConfirmPage />} />
-                  <Route path="/promo" element={<PromoCodePage />} />
-                  <Route path="/admin" element={<AdminPage />} />
-                  {import.meta.env.DEV && <Route path="/_gallery" element={<GalleryPage />} />}
-                </Routes>
-                <LanguageSwitcher />
-                <DustClaimedToast />
+                <NotificationsProvider>
+                  <Routes>
+                    {/* Streamer routes inside persistent AppShell (sidebar). */}
+                    <Route element={<AppShell />}>
+                      <Route path="/" element={<HomePage />} />
+                      {/* Localized landing entry URLs (SEO + hreflang); language picked in detectInitial. */}
+                      <Route path="/ru" element={<HomePage />} />
+                      <Route path="/uk" element={<HomePage />} />
+                      <Route path="/dashboard" element={<DashboardPage />} />
+                      <Route path="/dashboard/settings" element={<SettingsPage />} />
+                      <Route path="/dashboard/settings/:section" element={<SettingsPage />} />
+                    </Route>
+                    {/* Public routes: no AppShell. */}
+                    <Route path="/c/:login" element={<ChannelPage />} />
+                    <Route path="/mod-invite/:token" element={<ModInvitePage />} />
+                    <Route path="/link/confirm" element={<LinkConfirmPage />} />
+                    <Route path="/promo" element={<PromoCodePage />} />
+                    <Route path="/admin" element={<AdminPage />} />
+                    {import.meta.env.DEV && <Route path="/_gallery" element={<GalleryPage />} />}
+                  </Routes>
+                  <LanguageSwitcher />
+                  <DustClaimedToast />
+                </NotificationsProvider>
               </BrowserRouter>
             </ShopProvider>
           </MeProvider>

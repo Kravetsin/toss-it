@@ -5,15 +5,13 @@ import { Icon } from '@/ui/icons';
 import { IconButton } from '@/ui';
 import { ChannelSwitcher } from './ChannelSwitcher';
 
-// Sticky topbar: title + channel switcher (left), accepting toggle + sound + history (right).
-// accepting toggle is owner-only, hidden if null.
+// Sticky topbar: title + channel switcher (left), accepting toggle + history (right).
+// accepting toggle is owner-only, hidden if null. Notification/sound controls live in the app-shell bell.
 export function DashboardTopbar({
   list,
   current,
   channelId,
   onSelect,
-  soundOn,
-  onToggleSound,
   accepting,
   onToggleAccepting,
   onOpenHistory,
@@ -23,8 +21,6 @@ export function DashboardTopbar({
   current: AccessibleChannel;
   channelId: string | null;
   onSelect: (id: string) => void;
-  soundOn: boolean;
-  onToggleSound: () => void;
   // null = toggle hidden (owner-only or settings not loaded)
   accepting: boolean | null;
   onToggleAccepting: (v: boolean) => void;
@@ -61,13 +57,6 @@ export function DashboardTopbar({
             {accepting ? t('dash.accepting') : t('dash.acceptingOff')}
           </label>
         )}
-        <IconButton
-          name={soundOn ? 'bell' : 'bell-off'}
-          label={soundOn ? t('dash.notifyOn') : t('dash.notifyOff')}
-          variant="ghost"
-          active={soundOn}
-          onClick={onToggleSound}
-        />
         <IconButton
           name="history"
           label={t('dash.history')}

@@ -12,6 +12,7 @@ import { BackgroundStars } from '@/components/BackgroundStars';
 import { DustMark } from '@/components/DustMark';
 import { ProfileCard } from '@/components/ProfileCard';
 import { useShop } from '@/providers/ShopProvider';
+import { NotificationBell } from '@/components/NotificationBell';
 
 function Brand({ compact = false }: { compact?: boolean }) {
   return (
@@ -331,6 +332,7 @@ function Sidebar({
           label={t('nav.settings')}
           collapsed={collapsed}
         />
+        <NotificationBell variant="sidebar" collapsed={collapsed} />
       </nav>
 
       <div className="flex-1" />
@@ -473,6 +475,7 @@ function MobileBar({ onMenu }: { onMenu: () => void }) {
         <MobileNavIcon to="/" icon="home" label={t('nav.home')} />
         <MobileNavIcon to="/dashboard" icon="shield" label={t('nav.dashboard')} end />
         <MobileNavIcon to="/dashboard/settings" icon="settings" label={t('nav.settings')} />
+        <NotificationBell variant="icon" />
         <IconButton name="menu" label={t('nav.menu')} variant="ghost" size="sm" onClick={onMenu} />
       </nav>
     </div>

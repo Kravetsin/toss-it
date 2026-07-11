@@ -15,9 +15,8 @@ import { MembersPanel } from '@/features/dashboard/components/MembersPanel';
 import { HistoryCard } from '@/features/dashboard/components/HistoryCard';
 import { useChannels } from '@/features/dashboard/hooks/useChannels';
 import { useChannelData } from '@/features/dashboard/hooks/useChannelData';
-import { useSoundNotify } from '@/features/dashboard/hooks/useSoundNotify';
-import { useTabTitleBadge } from '@/features/dashboard/hooks/useTabTitleBadge';
 import { useModerationActions } from '@/features/dashboard/hooks/useModerationActions';
+import { useNotifications } from '@/providers/NotificationsProvider';
 
 function Content({ children }: { children: React.ReactNode }) {
   return <div className="mx-auto max-w-6xl px-4 py-6 lg:px-8">{children}</div>;
@@ -28,16 +27,14 @@ export function DashboardPage() {
   const act = useApiAction();
   const { me, loading: meLoading } = useMe();
   const { channelsList, list, current, channelId, isOwner, setCurrentId } = useChannels();
-  const sound = useSoundNotify();
-  const data = useChannelData(channelId, isOwner, sound.soundOnRef);
+  const { soundOnRef } = useNotifications();
+  const data = useChannelData(channelId, isOwner, soundOnRef);
   const [historyOpen, setHistoryOpen] = useState(false);
   const actions = useModerationActions({
     channelId,
     current,
     refreshLists: data.refreshLists,
   });
-
-  useTabTitleBadge(data.pending.length);
 
   const bannedIds = new Set(data.banned.map((b) => b.userId));
 
@@ -82,8 +79,6 @@ export function DashboardPage() {
         current={current}
         channelId={channelId}
         onSelect={setCurrentId}
-        soundOn={sound.soundOn}
-        onToggleSound={sound.toggle}
         accepting={accepting}
         onToggleAccepting={(v) =>
           void act(async () => data.setSettings(await saveSettings(channelId!, { accepting: v })), {
