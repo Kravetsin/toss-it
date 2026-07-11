@@ -1,4 +1,4 @@
-import { Card } from '@/ui';
+import { Card, Tooltip } from '@/ui';
 import { Icon, type IconName } from '@/ui/icons';
 
 export interface BarPoint {
@@ -48,16 +48,27 @@ export function StatBarChart({
           const anyPct = (p.value / max) * 100;
           const subFrac = subLabel && p.value > 0 ? Math.min(1, (p.sub ?? 0) / p.value) : 0;
           return (
-            <div key={i} className="group flex h-full flex-1 flex-col justify-end">
-              <div
-                className="w-full overflow-hidden rounded-t-sm"
-                style={{ height: `${anyPct}%` }}
-                title={
-                  subLabel
-                    ? `${p.label}: ${formatValue(p.value)} · ${formatValue(p.sub ?? 0)} ${subLabel}`
-                    : `${p.label}: ${formatValue(p.value)}`
-                }
-              >
+            <Tooltip
+              key={i}
+              focusable={false}
+              placement="top"
+              className="group h-full min-w-0 flex-1 flex-col justify-end"
+              content={
+                <span className="flex flex-col gap-0.5">
+                  <span className="text-text">{p.label}</span>
+                  <span>
+                    {formatValue(p.value)}
+                    {subLabel && p.sub != null && (
+                      <span className="text-accent">
+                        {' · '}
+                        {formatValue(p.sub)} {subLabel}
+                      </span>
+                    )}
+                  </span>
+                </span>
+              }
+            >
+              <div className="w-full overflow-hidden rounded-t-sm" style={{ height: `${anyPct}%` }}>
                 {subLabel ? (
                   <>
                     <div
@@ -70,7 +81,7 @@ export function StatBarChart({
                   <div className="h-full bg-accent/80 transition-colors group-hover:bg-accent" />
                 )}
               </div>
-            </div>
+            </Tooltip>
           );
         })}
       </div>

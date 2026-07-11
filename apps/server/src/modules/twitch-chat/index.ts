@@ -334,6 +334,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
         };
         for (const c of body.data ?? []) {
           if (c.user_id === broadcasterId) continue; // own presence is not watch time
+          if (excludedLogins.has(c.user_login)) continue; // hidden bots (admin exclusions)
           bumpWatch(channelId, c.user_id, c.user_login, c.user_name, minutes);
           viewers.push({ id: c.user_id, login: c.user_login, name: c.user_name });
         }
