@@ -201,6 +201,9 @@ export function registerChannelRoutes(app: FastifyInstance): void {
       ownerUserId: user.id,
       overlayToken: newOverlayToken(),
       createdAt: new Date(),
+      // New channels default to a separate music position — music shouldn't take the
+      // media spot. (Column default stays false so existing channels keep their choice.)
+      musicSeparate: true,
     };
     await db.insert(channels).values(channel);
     const response: ChannelSelf = { id: channel.id, overlayToken: channel.overlayToken };

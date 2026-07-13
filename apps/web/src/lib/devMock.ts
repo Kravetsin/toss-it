@@ -85,6 +85,7 @@ const MOCK_CHANNELS: AccessibleChannel[] = [
 
 const MOCK_SETTINGS: ChannelSettings = {
   maxDurationMs: 30_000,
+  imageDurationMs: 8_000,
   maxAudioDurationMs: 180_000,
   maxFileSizeBytes: 50 * 1024 * 1024,
   volume: 70,
@@ -103,7 +104,7 @@ const MOCK_SETTINGS: ChannelSettings = {
   overlayPosition: 'bottom-right',
   overlaySize: 40,
   overlayMargin: 5,
-  musicSeparate: false,
+  musicSeparate: true,
   musicPosition: 'top-right',
   musicSize: 30,
   musicMargin: 5,

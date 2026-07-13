@@ -164,6 +164,7 @@ function toSettings(
     chatBotLogin: chatBot.login,
     chatBotReading: chatBot.reading,
     maxDurationMs: ch.maxDurationMs,
+    imageDurationMs: ch.imageDurationMs,
     maxAudioDurationMs: ch.maxAudioDurationMs,
     maxFileSizeBytes: ch.maxFileSizeBytes,
     volume: ch.volume,
@@ -466,6 +467,10 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
           typeof b.maxDurationMs === 'number'
             ? clamp(Math.round(b.maxDurationMs), 1_000, 60_000)
             : channel.maxDurationMs,
+        imageDurationMs:
+          typeof b.imageDurationMs === 'number'
+            ? clamp(Math.round(b.imageDurationMs), 1_000, 60_000)
+            : channel.imageDurationMs,
         maxAudioDurationMs:
           typeof b.maxAudioDurationMs === 'number'
             ? clamp(Math.round(b.maxAudioDurationMs), 1_000, 600_000)

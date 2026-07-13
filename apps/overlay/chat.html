@@ -15,6 +15,8 @@
         font-family: 'JetBrains Mono', monospace;
       }
       /* Chat column anchored bottom; newest at the bottom, older scroll up off-screen.
+         gap is 0 so the per-message left trail lines join into one continuous line;
+         inter-message spacing comes from .msg padding-bottom instead.
          --chat-font is set from channel settings via the chat:config socket event. */
       #chat {
         position: fixed;
@@ -22,91 +24,129 @@
         display: flex;
         flex-direction: column;
         justify-content: flex-end;
-        gap: 8px;
-        padding: 12px;
+        gap: 0;
+        padding: 12px 12px 12px 6px;
         box-sizing: border-box;
         font-size: var(--chat-font, 19px);
       }
+      /* One message: a star marker + name on its own line, then the message bubble.
+         The username sits ABOVE the text (not inline) so long pastes never wrap around
+         it. All offsets are in em so the whole thing scales with the font-size setting. */
       .msg {
         position: relative;
         align-self: flex-start;
-        /* Keep natural height: without this, an overflowing flex column shrinks each
-           row to fit (squishing the text) instead of letting old ones scroll off-screen. */
+        /* Keep natural height: without this an overflowing flex column squishes rows
+           instead of letting old ones scroll off-screen. */
         flex: 0 0 auto;
         max-width: 100%;
         box-sizing: border-box;
-        padding: 7px 14px;
-        font-size: inherit;
-        line-height: 1.4;
+        padding: 0 0 0.72em 1.65em;
         color: #ededec;
-        background: rgba(13, 17, 17, 0.72);
-        -webkit-backdrop-filter: blur(10px);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(141, 240, 204, 0.22);
-        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
-        box-shadow:
-          inset 0 1px 0 0 rgba(141, 240, 204, 0.35),
-          0 8px 24px -10px rgba(0, 0, 0, 0.6);
-        overflow: hidden;
-        overflow-wrap: anywhere;
-        animation: msg-in 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+        line-height: 1.4;
       }
-      /* Auto-hide: JS adds .leaving after the fade delay, then removes on animationend. */
-      .msg.leaving {
-        animation: msg-out 0.45s ease forwards;
+      /* Permanent trail: one even, faint mint thread — uniform so segments join seamlessly
+         (no per-message brightness seam). Fades in gently as a message enters. */
+      .msg::before {
+        content: '';
+        position: absolute;
+        left: 0.5em;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        border-radius: 2px;
+        background: color-mix(in srgb, #8df0cc 18%, transparent);
+        animation: trail-fade 0.7s ease both;
       }
-      /* Text sits above the card-effect particle layer. */
-      .msg .content {
-        position: relative;
-        z-index: 1;
+      /* Star marker riding the line at the name row; drops in on entry.
+         Tier-colored for ranked chatters (--tier), mint otherwise. */
+      .msg .star {
+        position: absolute;
+        left: 0.06em;
+        top: 0.3em;
+        width: 0.95em;
+        height: 0.95em;
+        color: var(--tier, #8df0cc);
+        filter: drop-shadow(0 0 5px color-mix(in srgb, var(--tier-glow, #8df0cc) 85%, transparent));
+        animation: star-descend 0.7s cubic-bezier(0.4, 0, 0.2, 1) both;
       }
-      /* Keep the founder icon + name + colon together, always on the name's line. */
-      .msg .head {
+      .msg .star svg {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      /* Comet wake: a bright tail that trails above the star during the fall, then fades on
+         landing — the "shleif". Rides with the star (it's the star's ::before). */
+      .msg .star::before {
+        content: '';
+        position: absolute;
+        left: 50%;
+        bottom: 78%;
+        width: 2px;
+        transform: translateX(-50%);
+        border-radius: 2px;
+        background: linear-gradient(
+          to top,
+          color-mix(in srgb, var(--tier, #8df0cc) 80%, transparent),
+          transparent
+        );
+        opacity: 0;
+        animation: star-wake 0.7s ease both;
+      }
+      /* Name on its own line above the message. */
+      .msg .name-line {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        margin-bottom: 0.28em;
         white-space: nowrap;
+        animation: bloom 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both;
       }
       .msg .name {
         font-weight: 700;
-        margin-right: 2px;
-      }
-      .msg .sep {
-        color: #8df0cc;
-        opacity: 0.7;
-        margin-right: 6px;
-      }
-      /* Level: rarity-colored rail on the left edge (--tier), mirroring card effects on the bottom.
-         Glow only from level 6 up (--tier-glow is the color there, transparent below). Plus the
-         Roman-numeral rank before the name — readable at any chat font size, unlike a tiny badge. */
-      .msg[data-tier]::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 0;
-        bottom: 0;
-        width: 3px;
-        background: var(--tier);
-        box-shadow: 0 0 7px var(--tier-glow, transparent);
-        z-index: 1;
       }
       .msg .lvl-num {
         color: var(--tier);
         font-weight: 700;
-        font-size: 0.82em;
+        font-size: 0.8em;
         letter-spacing: 0.04em;
-        margin-right: 5px;
         text-shadow:
           0 0 6px var(--tier-glow, transparent),
           0 1px 2px rgba(0, 0, 0, 0.5);
       }
       .msg .badge {
-        display: inline-block;
-        vertical-align: middle;
         color: #8df0cc;
-        margin-right: 4px;
+        display: inline-flex;
       }
       .msg .badge svg {
         display: block;
         width: 1em;
         height: 1em;
+      }
+      /* Minimal message bubble — just enough backing to read over any stream.
+         Sharper top-left corner points back at the star. */
+      .msg .bubble {
+        position: relative;
+        display: inline-block;
+        max-width: 100%;
+        box-sizing: border-box;
+        padding: 0.28em 0.7em;
+        border-radius: 4px 12px 12px 12px;
+        background: rgba(13, 17, 17, 0.58);
+        -webkit-backdrop-filter: blur(8px);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(141, 240, 204, 0.14);
+        box-shadow: 0 8px 22px -12px rgba(0, 0, 0, 0.6);
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+        overflow: hidden;
+        overflow-wrap: anywhere;
+        /* Unfolds from the star (top-left corner points at it). */
+        transform-origin: 0 0;
+        animation: bloom-bubble 0.55s cubic-bezier(0.16, 1, 0.3, 1) 0.34s both;
+      }
+      /* Text sits above the card-effect particle layer (injected .card-fx has no z-index). */
+      .msg .bubble .body {
+        position: relative;
+        z-index: 1;
       }
       .msg .emote {
         height: 1.5em;
@@ -114,18 +154,76 @@
         margin: 0 1px;
       }
 
+      /* Auto-hide: JS adds .leaving after the fade delay, then removes on animationend. */
+      .msg.leaving {
+        animation: msg-out 0.45s ease forwards;
+      }
+
       /* Card effects (.card-fx*) and nick effects (.nick-glow) are injected at boot from the
-         shared cosmetics registry (injectCosmeticsStyles). Chat pills add the `.compact` class
-         (see chat.ts) so particles use the short-row trajectory. Text stays above via
-         `.msg .content { z-index: 1 }` (the injected .card-fx layer has no z-index). */
-      @keyframes msg-in {
+         shared cosmetics registry (injectCosmeticsStyles). Chat bubbles add the `.compact` class
+         (see chat.ts) so particles use the short-row trajectory. */
+      /* Entry: the star glides down the line (which draws in behind it), lands with a soft
+         twinkle, and the message unfolds from that point — the eye-catch moment on stream. */
+      @keyframes star-descend {
         0% {
           opacity: 0;
-          transform: translateX(-14px);
+          transform: translateY(-1.5em) scale(0.72);
+        }
+        22% {
+          opacity: 1;
+        }
+        88% {
+          transform: translateY(0) scale(1.06);
         }
         100% {
           opacity: 1;
-          transform: translateX(0);
+          transform: translateY(0) scale(1);
+        }
+      }
+      @keyframes trail-fade {
+        0% {
+          opacity: 0;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+      /* Wake grows into a tail mid-fall, then shrinks and fades as the star settles. */
+      @keyframes star-wake {
+        0% {
+          opacity: 0;
+          height: 0.2em;
+        }
+        30% {
+          opacity: 0.9;
+        }
+        65% {
+          opacity: 0.65;
+          height: 1.8em;
+        }
+        100% {
+          opacity: 0;
+          height: 0.3em;
+        }
+      }
+      @keyframes bloom {
+        0% {
+          opacity: 0;
+          transform: translateY(-0.35em);
+        }
+        100% {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes bloom-bubble {
+        0% {
+          opacity: 0;
+          transform: translate(-0.35em, -0.55em) scale(0.9);
+        }
+        100% {
+          opacity: 1;
+          transform: translate(0, 0) scale(1);
         }
       }
       @keyframes msg-out {
@@ -136,6 +234,15 @@
         100% {
           opacity: 0;
           transform: translateX(-10px);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .msg .star,
+        .msg .star::before,
+        .msg::before,
+        .msg .name-line,
+        .msg .bubble {
+          animation: none;
         }
       }
     </style>

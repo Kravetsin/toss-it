@@ -14,6 +14,7 @@ export * from './Avatar';
 export * from './Chip';
 export * from './Input';
 export * from './Select';
+export * from './Switch';
 export * from './PageShell';
 export * from './CopyableLinkBox';
 export * from './Tooltip';

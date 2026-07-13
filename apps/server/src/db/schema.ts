@@ -64,8 +64,10 @@ export const channels = sqliteTable('channels', {
     .unique()
     .references(() => users.id),
   overlayToken: text('overlay_token').notNull().unique(),
-  // Limit for video and images; audio has its own, longer limit (music > memes).
+  // Limit for video; images and audio have their own (music > memes; images just display a while).
   maxDurationMs: integer('max_duration_ms').notNull().default(15_000),
+  /** How long static images and gifs stay on screen. */
+  imageDurationMs: integer('image_duration_ms').notNull().default(8_000),
   maxAudioDurationMs: integer('max_audio_duration_ms').notNull().default(60_000),
   maxFileSizeBytes: integer('max_file_size_bytes')
     .notNull()

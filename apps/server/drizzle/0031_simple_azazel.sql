@@ -1,0 +1,1 @@
+ALTER TABLE `channels` ADD `image_duration_ms` integer DEFAULT 8000 NOT NULL;

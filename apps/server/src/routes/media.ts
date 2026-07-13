@@ -230,7 +230,7 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
           let outExt: string;
           try {
             if (kind === 'image') {
-              durationMs = Math.min(config.imageDurationMs, channel.maxDurationMs);
+              durationMs = channel.imageDurationMs;
               outExt = 'webp';
               outMime = 'image/webp';
               await processImage(uploadTmp, path.join(tmpDir, `${id}.${outExt}`));
@@ -286,7 +286,7 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
           outMime = 'image/gif';
           giphyId = giphyIdField;
           // GIFs loop briefly like images; reuse the image display window.
-          durationMs = Math.min(config.imageDurationMs, channel.maxDurationMs);
+          durationMs = channel.imageDurationMs;
         } else {
           const yt = parseYoutube(fullText!);
           if (yt) {

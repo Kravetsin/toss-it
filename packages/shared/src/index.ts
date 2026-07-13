@@ -323,8 +323,10 @@ export interface ServerToDashboardEvents {
 }
 
 export interface ChannelSettings {
-  /** Duration cap for video and images, ms. Longer videos are truncated. */
+  /** Duration cap for video, ms. Longer videos are truncated. */
   maxDurationMs: number;
+  /** How long static images and GIFs stay on screen, ms. */
+  imageDurationMs: number;
   /** Separate cap for audio (music runs longer than memes), ms. */
   maxAudioDurationMs: number;
   maxFileSizeBytes: number;

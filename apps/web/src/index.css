@@ -613,3 +613,127 @@ textarea {
     box-shadow: none;
   }
 }
+
+/* ── Star switch: sparkle knob that lights mint + glows, twinkles on toggle.
+   (Global prefers-reduced-motion rule above disables the twinkle/slide.) ── */
+.switch-star {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+}
+.switch-star:disabled {
+  cursor: not-allowed;
+}
+.switch-star[aria-checked='true'] {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+  box-shadow: inset 0 0 10px color-mix(in srgb, var(--color-accent) 22%, transparent);
+}
+.switch-star:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+.switch-star-knob {
+  position: absolute;
+  top: 50%;
+  left: 2px;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--color-muted);
+  background: var(--color-surface);
+  transition:
+    transform var(--dur) var(--spring),
+    color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+}
+.switch-star[aria-checked='true'] .switch-star-knob {
+  transform: translateY(-50%) translateX(20px);
+  color: var(--color-accent);
+  box-shadow: 0 0 9px 1px color-mix(in srgb, var(--color-accent) 70%, transparent);
+}
+.switch-star[aria-checked='true'] .switch-star-spark {
+  animation: switch-twinkle var(--dur) var(--ease-out);
+}
+@keyframes switch-twinkle {
+  40% {
+    transform: scale(1.35) rotate(30deg);
+  }
+}
+
+/* ── Comet-trail slider: glowing orb thumb, mint tail fill (--val = percent),
+   faint starfield on the empty track. Add .slider-star + set --val. ── */
+.slider-star {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 22px;
+  background: transparent;
+  cursor: pointer;
+}
+.slider-star:focus-visible {
+  outline: none;
+}
+.slider-star::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, rgba(141, 240, 204, 0), var(--color-accent)) left center /
+      var(--val, 50%) 100% no-repeat,
+    radial-gradient(
+        circle,
+        color-mix(in srgb, var(--color-text) 28%, transparent) 0.6px,
+        transparent 1.4px
+      )
+      0 center / 11px 8px,
+    var(--color-surface-2);
+}
+.slider-star::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  margin-top: -5px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 32%, #ffffff, var(--color-accent) 62%);
+  box-shadow: 0 0 9px 1px color-mix(in srgb, var(--color-accent) 70%, transparent);
+}
+.slider-star:focus-visible::-webkit-slider-thumb {
+  box-shadow:
+    0 0 9px 1px color-mix(in srgb, var(--color-accent) 70%, transparent),
+    var(--shadow-focus);
+}
+.slider-star::-moz-range-track {
+  height: 8px;
+  border-radius: 999px;
+  background:
+    radial-gradient(
+        circle,
+        color-mix(in srgb, var(--color-text) 28%, transparent) 0.6px,
+        transparent 1.4px
+      )
+      0 center / 11px 8px,
+    var(--color-surface-2);
+}
+.slider-star::-moz-range-progress {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-accent);
+}
+.slider-star::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 32%, #ffffff, var(--color-accent) 62%);
+  box-shadow: 0 0 9px 1px color-mix(in srgb, var(--color-accent) 70%, transparent);
+}

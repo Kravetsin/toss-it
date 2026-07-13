@@ -6,15 +6,21 @@ import { useApiAction } from '@/hooks/useApiAction';
 import { useMe } from '@/hooks/useMe';
 import { useConfirm } from '@/providers/ConfirmProvider';
 import { useI18n } from '@/i18n';
-import { Card, Loader } from '@/ui';
+import { Accordion, Card, Loader } from '@/ui';
 import { OverlayCard } from '@/features/home/components/OverlayCard';
 import { useChannels } from '@/features/dashboard/hooks/useChannels';
 import { useSettingsData } from '@/features/dashboard/hooks/useSettingsData';
-import { OverlaySettings } from '@/features/dashboard/components/OverlaySettings';
 import { ModerationSettings } from '@/features/dashboard/components/ModerationSettings';
+import { SubmissionLimits } from '@/features/dashboard/components/SubmissionLimits';
 import { ChatDustSettings } from '@/features/dashboard/components/ChatDustSettings';
 import { ChannelPageSettings } from '@/features/dashboard/components/ChannelPageSettings';
 import { IntegrationsCard } from '@/features/dashboard/components/IntegrationsCard';
+import { SettingsToggles } from '@/features/dashboard/components/settings/SettingsToggles';
+import {
+  ChatSettings,
+  MediaLayoutSettings,
+  MusicSettings,
+} from '@/features/dashboard/components/settings/overlaySections';
 
 function Content({ children }: { children: ReactNode }) {
   return <div className="mx-auto max-w-4xl px-4 py-6 lg:px-8">{children}</div>;
@@ -23,7 +29,10 @@ function Content({ children }: { children: ReactNode }) {
 type Section = 'overlay' | 'moderation' | 'channel' | 'integrations';
 const SECTIONS: Section[] = ['overlay', 'moderation', 'channel', 'integrations'];
 
-/** Channel settings page with tabs: Overlay / Channel / Integrations (owner-only). */
+/**
+ * Channel settings (owner-only), split into tabs so each concern is its own screen rather than
+ * one long sheet. The Overlay tab groups its many controls into accordions with quick toggles on top.
+ */
 export function SettingsPage() {
   const { t } = useI18n();
   const act = useApiAction();
@@ -108,6 +117,7 @@ export function SettingsPage() {
           <p className="text-muted">{t('settings.loadError')}</p>
         </Card>
       ) : section === 'overlay' ? (
+        // First tab redesigned: OBS card + quick toggles stay open; the rest are accordions.
         <div className="flex flex-col gap-4">
           {overlayUrl && chatUrl && (
             <OverlayCard
@@ -117,10 +127,22 @@ export function SettingsPage() {
               showSettingsLink={false}
             />
           )}
-          <OverlaySettings settings={settings} onSave={onSave} />
+          <SettingsToggles settings={settings} onSave={onSave} />
+          <Accordion title={t('settings.mediaLayout')} icon="image">
+            <MediaLayoutSettings settings={settings} onSave={onSave} />
+          </Accordion>
+          <Accordion title={t('settings.music')} icon="volume-2">
+            <MusicSettings settings={settings} onSave={onSave} />
+          </Accordion>
+          <Accordion title={t('settings.chat')} icon="message-circle">
+            <ChatSettings settings={settings} onSave={onSave} />
+          </Accordion>
         </div>
       ) : section === 'moderation' ? (
-        <ModerationSettings settings={settings} onSave={onSave} />
+        <div className="flex flex-col gap-4">
+          <ModerationSettings settings={settings} onSave={onSave} />
+          <SubmissionLimits settings={settings} onSave={onSave} />
+        </div>
       ) : section === 'channel' ? (
         <ChannelPageSettings settings={settings} onSave={onSave} />
       ) : (

@@ -44,8 +44,6 @@ export const config = {
   maxFileSizeBytes: 50 * 1024 * 1024,
   /** Max display duration; longer video/audio is truncated. */
   maxDurationMs: 15_000,
-  /** How long static images and gifs stay on screen. */
-  imageDurationMs: 8_000,
 
   /** Media processing: limits against memory spikes (sharp/ffmpeg hold native RAM). */
   media: {

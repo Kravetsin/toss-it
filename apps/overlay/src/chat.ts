@@ -25,6 +25,10 @@ injectLevelStyles();
 const FOUNDER_SVG =
   '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>';
 
+// Trail marker: the brand 4-point spark (same glyph as StarMark / stardust).
+const STAR_SVG =
+  '<svg viewBox="0 0 24 24" width="100%" height="100%" fill="currentColor"><path d="M12 0C12 6.627 6.627 12 0 12C6.627 12 12 17.373 12 24C12 17.373 17.373 12 24 12C17.373 12 12 6.627 12 0Z"/></svg>';
+
 const DEFAULT_COLOR = '#8df0cc';
 const MAX_MESSAGES = 40;
 /** Small Twitch emote (28px) — matches the ~19px line height. */
@@ -33,6 +37,10 @@ const emoteUrl = (id: string) =>
 
 /** Fade-out animation length (keep in sync with .msg.leaving in chat.html). */
 const FADE_ANIM_MS = 450;
+
+/** How long existing messages take to slide up when a new one arrives. */
+const RISE_MS = 460;
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const SERVER_URL = import.meta.env.DEV ? 'http://127.0.0.1:3000' : window.location.origin;
 const chat = document.getElementById('chat')!;
@@ -104,8 +112,8 @@ function renderMessage(msg: ChatOverlayMessage): void {
   row.dataset.id = msg.id;
   row.dataset.user = msg.userId;
 
-  // Level: rarity color on the left border (mirrors card effects on the bottom edge); the border
-  // + numeral glow only from level 6 up. The exact level shows as a Roman numeral before the name.
+  // Level: rarity tint on the star marker + a Roman numeral before the name; glow kicks in from
+  // level 6 up. The trail line itself stays mint — the brand thread through the whole chat.
   const tier = msg.level ? levelTier(msg.level) : null;
   if (tier) {
     row.dataset.tier = '';
@@ -117,26 +125,26 @@ function renderMessage(msg: ChatOverlayMessage): void {
     );
   }
 
-  // Card effect first: it's the background particle layer, under .content.
-  if (msg.cosmetics?.cardEffect) addCardEffect(row, msg.cosmetics.cardEffect);
+  // Star marker riding the trail line — drops in on entry to "reveal" the message.
+  const star = document.createElement('span');
+  star.className = 'star';
+  star.innerHTML = STAR_SVG; // constant, trusted markup — not user input
+  row.appendChild(star);
 
-  const content = document.createElement('span');
-  content.className = 'content';
-
-  // Founder icon + name + colon stay together on the name's line (nowrap head).
-  const head = document.createElement('span');
-  head.className = 'head';
+  // Name on its own line above the message, so long pastes never wrap around it.
+  const nameLine = document.createElement('div');
+  nameLine.className = 'name-line';
   if (tier) {
     const ln = document.createElement('span');
     ln.className = 'lvl-num';
     ln.textContent = toRoman(msg.level!);
-    head.appendChild(ln);
+    nameLine.appendChild(ln);
   }
   if (msg.isFounder) {
     const badge = document.createElement('span');
     badge.className = 'badge';
     badge.innerHTML = FOUNDER_SVG; // constant, trusted markup — not user input
-    head.appendChild(badge);
+    nameLine.appendChild(badge);
   }
   const name = document.createElement('span');
   name.className = 'name';
@@ -148,24 +156,45 @@ function renderMessage(msg: ChatOverlayMessage): void {
     name.classList.add(nickFx);
     name.style.setProperty('--nick-glow', color);
   }
-  head.appendChild(name);
-  const sep = document.createElement('span');
-  sep.className = 'sep';
-  sep.textContent = ':';
-  head.appendChild(sep);
-  content.appendChild(head);
+  nameLine.appendChild(name);
+  row.appendChild(nameLine);
 
+  // Message bubble; card-effect particles render behind the text, clipped to the bubble.
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  if (msg.cosmetics?.cardEffect) addCardEffect(bubble, msg.cosmetics.cardEffect);
   const body = document.createElement('span');
+  body.className = 'body';
   renderFragments(body, msg.fragments);
-  content.appendChild(body);
-
-  row.appendChild(content);
+  bubble.appendChild(body);
+  row.appendChild(bubble);
   row.dataset.ts = String(Date.now());
   chat.appendChild(row);
   // Cap the DOM: drop the oldest messages from the top.
   while (chat.children.length > MAX_MESSAGES) chat.firstElementChild?.remove();
 
+  // Smooth-rise: existing messages slide up by the new row's height instead of snapping.
+  smoothRise(row.offsetHeight, row);
   scheduleFade(row);
+}
+
+/**
+ * The column is bottom-anchored, so a new row snaps everything above it upward. FLIP that:
+ * shift the whole column down by the added height, then animate back to 0 (existing rows glide
+ * up). The new row is countered so it stays put and plays its own star/reveal entry.
+ */
+function smoothRise(delta: number, newRow: HTMLElement): void {
+  if (reduceMotion || delta <= 0) return;
+  // Same curve as the star descent — one coherent, even glide, not a fast snap-settle.
+  const ease = 'cubic-bezier(0.4, 0, 0.2, 1)';
+  chat.animate([{ transform: `translateY(${delta}px)` }, { transform: 'translateY(0)' }], {
+    duration: RISE_MS,
+    easing: ease,
+  });
+  newRow.animate([{ transform: `translateY(${-delta}px)` }, { transform: 'translateY(0)' }], {
+    duration: RISE_MS,
+    easing: ease,
+  });
 }
 
 /** (Re)schedule a message's fade from the CURRENT fadeSeconds, accounting for its age.
@@ -277,7 +306,14 @@ if (DEMO) {
       fragments: [{ type: 'text', text: 'на этом канале с самого начала' }],
     },
   ];
-  demo.forEach(renderMessage);
+  // Feed one message at a time on a loop so the star-drop entry animation is visible.
+  let i = 0;
+  const push = () => {
+    renderMessage({ ...demo[i % demo.length]!, id: `d${i}` });
+    i += 1;
+  };
+  push();
+  window.setInterval(push, 1900);
 } else {
   const socket: Socket<ServerToOverlayEvents, OverlayToServerEvents> = io(SERVER_URL, {
     query: { role: 'overlay', token: token ?? '' },

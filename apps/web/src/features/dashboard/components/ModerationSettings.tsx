@@ -2,10 +2,9 @@ import { useState } from 'react';
 import type { ChannelSettings } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { useConfirm } from '@/providers/ConfirmProvider';
-import { Icon } from '@/ui/icons';
-import { Card } from '@/ui';
+import { Card, Switch } from '@/ui';
 
-/** Moderation policy: bypass rules for trusted content (YouTube auto-approve, etc.). */
+/** Moderation policy: bypass rules for trusted content (GIF / YouTube auto-approve). Saved instantly. */
 export function ModerationSettings({
   settings,
   onSave,
@@ -15,8 +14,13 @@ export function ModerationSettings({
 }) {
   const { t } = useI18n();
   const confirm = useConfirm();
-  const [ytAuto, setYtAuto] = useState(settings.autoApproveYoutube);
   const [gifAuto, setGifAuto] = useState(settings.autoApproveGifs);
+  const [ytAuto, setYtAuto] = useState(settings.autoApproveYoutube);
+
+  const toggleGif = (next: boolean) => {
+    setGifAuto(next);
+    onSave({ autoApproveGifs: next });
+  };
 
   // Enabling skips moderation — gate it behind a risk reminder; disabling is instant.
   const toggleYt = async (next: boolean) => {
@@ -33,44 +37,26 @@ export function ModerationSettings({
     onSave({ autoApproveYoutube: next });
   };
 
-  const toggleGif = (next: boolean) => {
-    setGifAuto(next);
-    onSave({ autoApproveGifs: next });
-  };
-
   return (
-    <Card className="flex flex-col gap-4">
-      <label className="flex cursor-pointer items-start gap-3">
-        <input
-          type="checkbox"
+    <Card className="flex flex-col divide-y divide-border">
+      <div className="pb-4">
+        <Switch
+          icon="image"
+          label={t('mod.gifAutoApprove')}
+          description={t('mod.gifAutoApproveNote')}
           checked={gifAuto}
-          onChange={(e) => toggleGif(e.target.checked)}
-          className="mt-0.5 accent-[var(--color-accent)]"
+          onChange={toggleGif}
         />
-        <span>
-          <span className="flex items-center gap-1.5 text-sm text-text">
-            <Icon name="image" size={15} />
-            {t('mod.gifAutoApprove')}
-          </span>
-          <span className="mt-1 block text-xs text-muted">{t('mod.gifAutoApproveNote')}</span>
-        </span>
-      </label>
-
-      <label className="flex cursor-pointer items-start gap-3 border-t border-border pt-4">
-        <input
-          type="checkbox"
+      </div>
+      <div className="pt-4">
+        <Switch
+          icon="youtube"
+          label={t('mod.ytAutoApprove')}
+          description={t('mod.ytAutoApproveNote')}
           checked={ytAuto}
-          onChange={(e) => void toggleYt(e.target.checked)}
-          className="mt-0.5 accent-[var(--color-accent)]"
+          onChange={(v) => void toggleYt(v)}
         />
-        <span>
-          <span className="flex items-center gap-1.5 text-sm text-text">
-            <Icon name="youtube" size={15} />
-            {t('mod.ytAutoApprove')}
-          </span>
-          <span className="mt-1 block text-xs text-muted">{t('mod.ytAutoApproveNote')}</span>
-        </span>
-      </label>
+      </div>
     </Card>
   );
 }
