@@ -143,6 +143,14 @@
         transform-origin: 0 0;
         animation: bloom-bubble 0.55s cubic-bezier(0.16, 1, 0.3, 1) 0.34s both;
       }
+      /* No-star (no-level) messages have no star to wait for — reveal promptly instead of
+         holding the ~0.3s beat that lets the star land first. */
+      .msg:not([data-tier]) .name-line {
+        animation-delay: 0.04s;
+      }
+      .msg:not([data-tier]) .bubble {
+        animation-delay: 0.08s;
+      }
       /* Text sits above the card-effect particle layer (injected .card-fx has no z-index). */
       .msg .bubble .body {
         position: relative;

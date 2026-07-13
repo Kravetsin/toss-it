@@ -125,11 +125,14 @@ function renderMessage(msg: ChatOverlayMessage): void {
     );
   }
 
-  // Star marker riding the trail line — drops in on entry to "reveal" the message.
-  const star = document.createElement('span');
-  star.className = 'star';
-  star.innerHTML = STAR_SVG; // constant, trusted markup — not user input
-  row.appendChild(star);
+  // Star marker rides the trail line and drops in to reveal the message — but only for ranked
+  // viewers. A newcomer (no level) gets no star: the star is what marks an established viewer.
+  if (tier) {
+    const star = document.createElement('span');
+    star.className = 'star';
+    star.innerHTML = STAR_SVG; // constant, trusted markup — not user input
+    row.appendChild(star);
+  }
 
   // Name on its own line above the message, so long pastes never wrap around it.
   const nameLine = document.createElement('div');
@@ -254,8 +257,8 @@ if (DEMO) {
       twitchColor: '#9ab0ad',
       cosmetics: null,
       isFounder: false,
-      level: 1,
-      fragments: [{ type: 'text', text: 'привет, впервые тут' }],
+      level: 0,
+      fragments: [{ type: 'text', text: 'привет, впервые тут (без звезды)' }],
     },
     {
       id: '2',
