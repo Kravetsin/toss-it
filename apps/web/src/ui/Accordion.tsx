@@ -10,11 +10,14 @@ import { Icon, type IconName } from './icons';
 export function Accordion({
   title,
   icon,
+  titleAccessory,
   defaultOpen = false,
   children,
 }: {
   title: string;
   icon?: IconName;
+  /** Optional node rendered right after the title (e.g. a "Powered by" attribution mark). */
+  titleAccessory?: ReactNode;
   defaultOpen?: boolean;
   children: ReactNode;
 }) {
@@ -39,6 +42,7 @@ export function Accordion({
         <span className="flex items-center gap-1.5">
           {icon && <Icon name={icon} size={16} />}
           {title}
+          {titleAccessory}
         </span>
         <Icon
           name="chevron-down"

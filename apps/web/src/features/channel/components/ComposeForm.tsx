@@ -86,7 +86,18 @@ export function ComposeForm({
         <>
           <FileDropzone onPick={onPickFile} />
           {onPickGif && (
-            <Accordion title={t('channel.gifButton')} icon="gift">
+            <Accordion
+              title={t('channel.gifButton')}
+              icon="gift"
+              // Required Giphy attribution — the picker uses hideAttribution, so we surface it here.
+              titleAccessory={
+                <img
+                  src="/powered-by-giphy.png"
+                  alt="Powered by GIPHY"
+                  className="ml-1 h-3.5 w-auto opacity-90"
+                />
+              }
+            >
               <GifPicker autoApprove={gifAutoApprove} onPick={onPickGif} />
             </Accordion>
           )}
