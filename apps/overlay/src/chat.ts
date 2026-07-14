@@ -12,6 +12,7 @@ import {
   particleCount,
   toRoman,
   type ChatFragment,
+  type ChatOverlayConfig,
   type ChatOverlayMessage,
   type OverlayToServerEvents,
   type ServerToOverlayEvents,
@@ -38,12 +39,16 @@ const emoteUrl = (id: string) =>
 /** Fade-out animation length (keep in sync with .msg.leaving in chat.html). */
 const FADE_ANIM_MS = 450;
 
-/** How long existing messages take to slide up when a new one arrives. */
+/** How long existing messages take to slide up when a new one arrives. One curve for the
+ *  column rise, the rail-tip extension (see #rail transition) and the marker split-off,
+ *  so the thread tip and the marker travel as one. */
 const RISE_MS = 460;
+const RISE_EASE = 'cubic-bezier(0.4, 0, 0.2, 1)';
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const SERVER_URL = import.meta.env.DEV ? 'http://127.0.0.1:3000' : window.location.origin;
 const chat = document.getElementById('chat')!;
+const rail = document.getElementById('rail')!;
 
 // Seconds a message lives before fading; 0 = keep. Updated by chat:config.
 let fadeSeconds = 0;
@@ -111,6 +116,8 @@ function renderMessage(msg: ChatOverlayMessage): void {
   row.className = 'msg';
   row.dataset.id = msg.id;
   row.dataset.user = msg.userId;
+  // Role-tinted message border (broadcaster/mod/vip) — colors live in chat.html.
+  if (msg.role) row.dataset.role = msg.role;
 
   // Level: rarity tint on the star marker + a Roman numeral before the name; glow kicks in from
   // level 6 up. The trail line itself stays mint — the brand thread through the whole chat.
@@ -125,13 +132,20 @@ function renderMessage(msg: ChatOverlayMessage): void {
     );
   }
 
-  // Star marker rides the trail line and drops in to reveal the message — but only for ranked
-  // viewers. A newcomer (no level) gets no star: the star is what marks an established viewer.
+  const color = msg.cosmetics?.nickColor ?? msg.twitchColor ?? DEFAULT_COLOR;
+
+  // Thread marker: a tier-colored star for ranked viewers, a small nick-colored bead for
+  // newcomers — the star is what marks an established viewer.
   if (tier) {
     const star = document.createElement('span');
     star.className = 'star';
     star.innerHTML = STAR_SVG; // constant, trusted markup — not user input
     row.appendChild(star);
+  } else {
+    const dot = document.createElement('span');
+    dot.className = 'dot';
+    dot.style.setProperty('--dot', color);
+    row.appendChild(dot);
   }
 
   // Name on its own line above the message, so long pastes never wrap around it.
@@ -149,10 +163,17 @@ function renderMessage(msg: ChatOverlayMessage): void {
     badge.innerHTML = FOUNDER_SVG; // constant, trusted markup — not user input
     nameLine.appendChild(badge);
   }
+  // Native platform badges (mod/vip/sub…), pre-resolved to images by the server.
+  for (const b of msg.badges ?? []) {
+    const img = document.createElement('img');
+    img.className = 'tw-badge';
+    img.src = b.url;
+    img.alt = b.title;
+    nameLine.appendChild(img);
+  }
   const name = document.createElement('span');
   name.className = 'name';
   name.textContent = msg.name;
-  const color = msg.cosmetics?.nickColor ?? msg.twitchColor ?? DEFAULT_COLOR;
   name.style.color = color;
   const nickFx = msg.cosmetics?.nickEffect ? nickEffectClass(msg.cosmetics.nickEffect) : '';
   if (nickFx) {
@@ -178,7 +199,72 @@ function renderMessage(msg: ChatOverlayMessage): void {
 
   // Smooth-rise: existing messages slide up by the new row's height instead of snapping.
   smoothRise(row.offsetHeight, row);
+  const prevTip = lastTipY;
+  updateRail();
+  animateMarker(row, prevTip);
+  fireWake(tier?.color ?? color);
   scheduleFade(row);
+}
+
+/** Y of the thread tip inside a row: the marker's center (name line's if somehow absent).
+ *  offset* is used instead of rects so running FLIP transforms don't skew the numbers. */
+function tipY(row: HTMLElement): number {
+  const anchor =
+    row.querySelector<HTMLElement>('.star, .dot') ?? row.querySelector<HTMLElement>('.name-line');
+  if (!anchor) return row.offsetTop;
+  return row.offsetTop + anchor.offsetTop + anchor.offsetHeight / 2;
+}
+
+/** Viewport Y of the thread tip after the last updateRail — where the next marker splits off. */
+let lastTipY: number | null = null;
+
+/** Re-fit the single thread line: from just above the oldest message down to the newest
+ *  message's marker. Its CSS transition matches smoothRise, so it glides with the column. */
+function updateRail(): void {
+  const first = chat.querySelector<HTMLElement>('.msg');
+  const last = chat.querySelector<HTMLElement>('.msg:last-of-type');
+  if (!first || !last) {
+    rail.style.opacity = '0';
+    lastTipY = null;
+    return;
+  }
+  // Overshoot 1em above the first row so the top-dissolve mask has room to fade.
+  const top = first.offsetTop - parseFloat(getComputedStyle(chat).fontSize);
+  const tip = tipY(last);
+  rail.style.opacity = '1';
+  rail.style.top = `${top}px`;
+  rail.style.height = `${Math.max(0, tip - top)}px`;
+  lastTipY = tip;
+}
+
+/** Entry: the new marker splits off the previous thread tip and glides to its spot, on the
+ *  same curve the rail tip extends with — so the drawing thread is literally its trail. */
+function animateMarker(row: HTMLElement, prevTip: number | null): void {
+  if (reduceMotion) return;
+  const marker = row.querySelector<HTMLElement>('.star, .dot');
+  if (!marker) return;
+  const font = parseFloat(getComputedStyle(chat).fontSize);
+  // First message has no tip to split from — condense in place with a short drop.
+  let fromY = prevTip === null ? -1.2 * font : prevTip - tipY(row);
+  fromY = Math.max(-10 * font, Math.min(10 * font, fromY));
+  marker.animate(
+    [
+      { opacity: 0, transform: `translateY(${fromY}px) scale(0.25) rotate(-60deg)` },
+      { opacity: 1, offset: 0.3 },
+      { opacity: 1, transform: 'translateY(0) scale(1) rotate(0deg)' },
+    ],
+    { duration: RISE_MS, easing: RISE_EASE, fill: 'backwards' },
+  );
+}
+
+/** The hot stretch of thread just drawn behind the marker: glows, then cools into the line. */
+function fireWake(color: string): void {
+  if (reduceMotion) return;
+  const w = document.createElement('div');
+  w.className = 'wake';
+  w.style.setProperty('--wake', color);
+  w.addEventListener('animationend', () => w.remove());
+  rail.appendChild(w);
 }
 
 /**
@@ -188,15 +274,13 @@ function renderMessage(msg: ChatOverlayMessage): void {
  */
 function smoothRise(delta: number, newRow: HTMLElement): void {
   if (reduceMotion || delta <= 0) return;
-  // Same curve as the star descent — one coherent, even glide, not a fast snap-settle.
-  const ease = 'cubic-bezier(0.4, 0, 0.2, 1)';
   chat.animate([{ transform: `translateY(${delta}px)` }, { transform: 'translateY(0)' }], {
     duration: RISE_MS,
-    easing: ease,
+    easing: RISE_EASE,
   });
   newRow.animate([{ transform: `translateY(${-delta}px)` }, { transform: 'translateY(0)' }], {
     duration: RISE_MS,
-    easing: ease,
+    easing: RISE_EASE,
   });
 }
 
@@ -222,33 +306,58 @@ function fadeOut(row: HTMLElement): void {
   fadeTimers.delete(row);
   if (!row.isConnected || row.classList.contains('leaving')) return;
   row.classList.add('leaving');
-  window.setTimeout(() => row.remove(), FADE_ANIM_MS);
+  window.setTimeout(() => {
+    row.remove();
+    updateRail();
+  }, FADE_ANIM_MS);
 }
 
-function applyConfig(cfg: { fontSize: number; fadeSeconds: number }): void {
-  chat.style.setProperty('--chat-font', `${cfg.fontSize}px`);
+function applyConfig(cfg: ChatOverlayConfig): void {
+  // On :root so both #chat and #rail (a sibling) pick it up.
+  document.documentElement.style.setProperty('--chat-font', `${cfg.fontSize}px`);
   fadeSeconds = cfg.fadeSeconds;
+  // Per-element toggles are applied via CSS on the container (chat.html), so flipping one
+  // instantly affects every message, old and new. Default on: only 'off' when explicitly false.
+  chat.dataset.badges = cfg.showBadges === false ? 'off' : 'on';
+  chat.dataset.level = cfg.showLevel === false ? 'off' : 'on';
+  chat.dataset.roleBorders = cfg.roleBorders === false ? 'off' : 'on';
   // Adapt already-visible messages to the new setting (schedule, cancel, or hide overdue).
   for (const row of Array.from(chat.children)) scheduleFade(row as HTMLElement);
+  updateRail();
 }
 
 function removeMessage(messageId: string): void {
   chat.querySelector(`[data-id="${CSS.escape(messageId)}"]`)?.remove();
+  updateRail();
 }
 function removeUser(userId: string): void {
   chat.querySelectorAll(`[data-user="${CSS.escape(userId)}"]`).forEach((el) => el.remove());
+  updateRail();
 }
 function clearAll(): void {
   chat.replaceChildren();
+  updateRail();
 }
 
 if (DEMO) {
-  // ?font= / ?fade= let us exercise config without a server.
+  // ?font= / ?fade= / ?badges=0 / ?level=0 / ?roles=0 exercise config without a server.
   const q = new URLSearchParams(window.location.search);
   applyConfig({
     fontSize: Number(q.get('font')) || 19,
     fadeSeconds: Number(q.get('fade')) || 0,
+    showBadges: q.get('badges') !== '0',
+    showLevel: q.get('level') !== '0',
+    roleBorders: q.get('roles') !== '0',
   });
+  // Real, stable Twitch global-badge CDN URLs — just to exercise rendering without a server.
+  const badge = (id: string, title: string) => ({
+    url: `https://static-cdn.jtvnw.net/badges/v1/${id}/2`,
+    title,
+  });
+  const BROADCASTER = badge('5527c58c-fb7d-422d-b71b-f309dcb85cc1', 'Broadcaster');
+  const MODERATOR = badge('3267646d-33f0-4b17-b3df-f923a41db1d0', 'Moderator');
+  const VIP = badge('b817aba4-fad8-49e2-b88a-7cc744dfa6ec', 'VIP');
+  const SUB = badge('5d9f2208-5dd8-11e7-8513-2ff4adfae661', 'Subscriber');
   const demo: ChatOverlayMessage[] = [
     {
       id: '1',
@@ -268,6 +377,8 @@ if (DEMO) {
       cosmetics: null,
       isFounder: false,
       level: 3,
+      badges: [VIP],
+      role: 'vip',
       fragments: [{ type: 'text', text: 'незарег, но уже с бейджем 👀' }],
     },
     {
@@ -278,6 +389,8 @@ if (DEMO) {
       cosmetics: { nickColor: '#8df0cc', nickEffect: 'nick-glow', cardEffect: 'card-stardust' },
       isFounder: true,
       level: 8,
+      badges: [BROADCASTER],
+      role: 'broadcaster',
       fragments: [
         { type: 'text', text: 'смотри какой эмоут ' },
         { type: 'emote', id: '25', text: 'Kappa' },
@@ -291,6 +404,8 @@ if (DEMO) {
       cosmetics: { cardEffect: 'card-levitation' },
       isFounder: true,
       level: 5,
+      badges: [MODERATOR],
+      role: 'moderator',
       fragments: [
         {
           type: 'text',
@@ -306,17 +421,33 @@ if (DEMO) {
       cosmetics: null,
       isFounder: false,
       level: 10,
+      badges: [MODERATOR, VIP],
+      role: 'moderator',
       fragments: [{ type: 'text', text: 'на этом канале с самого начала' }],
     },
+    {
+      id: '6',
+      userId: 'u6',
+      name: 'subfan',
+      twitchColor: '#7ec8ff',
+      cosmetics: null,
+      isFounder: false,
+      level: 2,
+      badges: [SUB],
+      role: 'subscriber',
+      fragments: [{ type: 'text', text: 'я на сабе уже 3 месяца 💜' }],
+    },
   ];
-  // Feed one message at a time on a loop so the star-drop entry animation is visible.
+  // Feed one message at a time on a loop so the entry animation is visible.
+  // ?manual disables the loop; window.__push() steps by hand (animation debugging).
   let i = 0;
   const push = () => {
     renderMessage({ ...demo[i % demo.length]!, id: `d${i}` });
     i += 1;
   };
+  (window as unknown as Record<string, unknown>).__push = push;
   push();
-  window.setInterval(push, 1900);
+  if (!q.has('manual')) window.setInterval(push, 1900);
 } else {
   const socket: Socket<ServerToOverlayEvents, OverlayToServerEvents> = io(SERVER_URL, {
     query: { role: 'overlay', token: token ?? '' },

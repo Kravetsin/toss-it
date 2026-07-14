@@ -178,6 +178,9 @@ function toSettings(
     chatOverlayEnabled: ch.chatOverlayEnabled,
     chatFontSize: ch.chatFontSize,
     chatFadeSeconds: ch.chatFadeSeconds,
+    chatShowBadges: ch.chatShowBadges,
+    chatShowLevel: ch.chatShowLevel,
+    chatRoleBorders: ch.chatRoleBorders,
     overlayPosition: ch.overlayPosition,
     overlaySize: ch.overlaySize,
     overlayMargin: ch.overlayMargin,
@@ -504,6 +507,12 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
           typeof b.chatFadeSeconds === 'number'
             ? clamp(Math.round(b.chatFadeSeconds), 0, 600)
             : channel.chatFadeSeconds,
+        chatShowBadges:
+          typeof b.chatShowBadges === 'boolean' ? b.chatShowBadges : channel.chatShowBadges,
+        chatShowLevel:
+          typeof b.chatShowLevel === 'boolean' ? b.chatShowLevel : channel.chatShowLevel,
+        chatRoleBorders:
+          typeof b.chatRoleBorders === 'boolean' ? b.chatRoleBorders : channel.chatRoleBorders,
         overlayPosition: OVERLAY_POSITIONS.includes(b.overlayPosition as never)
           ? (b.overlayPosition as (typeof OVERLAY_POSITIONS)[number])
           : channel.overlayPosition,
@@ -551,6 +560,9 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
       io.to(roomOf(channel.id)).emit('chat:config', {
         fontSize: patch.chatFontSize,
         fadeSeconds: patch.chatFadeSeconds,
+        showBadges: patch.chatShowBadges,
+        showLevel: patch.chatShowLevel,
+        roleBorders: patch.chatRoleBorders,
       });
       // Push background-music config live so the media overlay updates without a reload.
       io.to(roomOf(channel.id)).emit('music:config', musicConfigFrom({ ...channel, ...patch }));

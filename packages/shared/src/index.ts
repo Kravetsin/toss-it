@@ -169,6 +169,19 @@ export type ChatFragment =
   | { type: 'text'; text: string }
   | { type: 'emote'; id: string; text: string };
 
+/** A resolved platform chat badge (mod/vip/broadcaster/subscriber…) ready to render:
+ *  the server turns Twitch's set_id/version into a CDN image URL so the overlay stays dumb. */
+export interface ChatBadge {
+  /** Badge image URL (Twitch CDN). */
+  url: string;
+  /** Human title for alt text, e.g. 'Moderator', 'Subscriber'. */
+  title: string;
+}
+
+/** Highlighted chat roles — drive the role-tinted message border in the overlay.
+ *  Priority high→low: broadcaster > moderator > vip > subscriber. */
+export type ChatRole = 'broadcaster' | 'moderator' | 'vip' | 'subscriber';
+
 /** A chat message forwarded to the chat overlay (twitch-chat module → overlay). */
 export interface ChatOverlayMessage {
   /** Twitch message id (for targeted deletion). */
@@ -184,15 +197,25 @@ export interface ChatOverlayMessage {
   isFounder: boolean;
   /** Author's per-channel level 0–10 (0 = no badge); drives the rarity badge + left border. */
   level?: number;
+  /** Native platform badges (mod/vip/sub…), pre-resolved to images; absent/empty if none. */
+  badges?: ChatBadge[];
+  /** Highlighted role (broadcaster/mod/vip) for the tinted message border; absent otherwise. */
+  role?: ChatRole;
   fragments: ChatFragment[];
 }
 
-/** Display config for the chat overlay (font size, auto-hide). */
+/** Display config for the chat overlay (font size, auto-hide, per-element toggles). */
 export interface ChatOverlayConfig {
   /** Message font size in px. */
   fontSize: number;
   /** Seconds a message stays before fading out; 0 = keep until pushed off. */
   fadeSeconds: number;
+  /** Render native Twitch badges next to the nick. */
+  showBadges: boolean;
+  /** Render the numeric level (Roman numeral) before the nick — star is unaffected. */
+  showLevel: boolean;
+  /** Tint the message border by role (broadcaster/mod/vip/sub). */
+  roleBorders: boolean;
 }
 
 /** Background-music config for the media overlay (a YouTube playlist played between posts). */
@@ -352,6 +375,12 @@ export interface ChannelSettings {
   chatFontSize: number;
   /** Chat overlay: seconds before a message fades out; 0 = keep until pushed off. */
   chatFadeSeconds: number;
+  /** Chat overlay: render native Twitch badges (mod/vip/sub…) next to the nick. */
+  chatShowBadges: boolean;
+  /** Chat overlay: render the numeric level (Roman numeral) before the nick — star is unaffected. */
+  chatShowLevel: boolean;
+  /** Chat overlay: tint the message border by role (broadcaster/mod/vip/sub). */
+  chatRoleBorders: boolean;
   /** Media anchor (shared for images/video; music inherits unless musicSeparate). */
   overlayPosition: OverlayPosition;
   /** Max media size, % of viewport (10-100). */

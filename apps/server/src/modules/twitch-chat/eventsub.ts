@@ -1,6 +1,7 @@
 import type { FastifyBaseLogger } from 'fastify';
 import type { ChatFragment } from '@tmw/shared';
 import { config } from '../../config';
+import type { EventBadge } from './badges';
 
 const EVENTSUB_WS_URL = 'wss://eventsub.wss.twitch.tv/ws';
 const HELIX_SUBS_URL = 'https://api.twitch.tv/helix/eventsub/subscriptions';
@@ -29,6 +30,8 @@ export interface ChatMessageEvent {
   messageId: string;
   /** Twitch name color (#rrggbb) or null. */
   color: string | null;
+  /** Native platform badges assigned to the message (unresolved set_id/version). */
+  badges: EventBadge[];
   /** Message split into text/emote fragments (native Twitch emotes only). */
   fragments: ChatFragment[];
 }
@@ -67,9 +70,20 @@ interface EventSubMessage {
       target_user_id?: string;
       message_id?: string;
       color?: string;
+      badges?: { set_id?: string; id?: string }[];
       message?: { text?: string; fragments?: EventFragment[] };
     };
   };
+}
+
+/** Keep only well-formed badge assignments; images are resolved later from the catalog. */
+function toBadges(raw: { set_id?: string; id?: string }[] | undefined): EventBadge[] {
+  if (!raw) return [];
+  const out: EventBadge[] = [];
+  for (const b of raw) {
+    if (b.set_id && b.id) out.push({ setId: b.set_id, id: b.id });
+  }
+  return out;
 }
 
 /** Map Twitch fragments to our text/emote shape; non-emote parts render as plain text. */
@@ -271,6 +285,7 @@ export class EventSubClient {
           chatterName: ev.chatter_user_name ?? ev.chatter_user_login ?? ev.chatter_user_id,
           messageId: ev.message_id ?? '',
           color: ev.color || null,
+          badges: toBadges(ev.badges),
           fragments: toFragments(ev.message?.fragments, ev.message?.text ?? ''),
         });
       } else if (subType === 'channel.chat.message_delete' && ev.message_id) {

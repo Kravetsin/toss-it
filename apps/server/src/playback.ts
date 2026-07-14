@@ -492,6 +492,9 @@ export function setupRealtime(io: RealtimeServer, app: FastifyInstance): Playbac
           socket.emit('chat:config', {
             fontSize: channel.chatFontSize,
             fadeSeconds: channel.chatFadeSeconds,
+            showBadges: channel.chatShowBadges,
+            showLevel: channel.chatShowLevel,
+            roleBorders: channel.chatRoleBorders,
           });
           // The media overlay reads this on connect; the chat overlay ignores it.
           socket.emit('music:config', musicConfigFrom(channel));

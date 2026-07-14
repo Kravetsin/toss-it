@@ -19,6 +19,7 @@ import {
 import { config } from '../../config';
 import { roomOf, type RealtimeServer } from '../../playback';
 import { EventSubClient } from './eventsub';
+import { createBadgeResolver, roleFromBadges, type EventBadge } from './badges';
 import { awardChatDust } from './accrual';
 import { bumpMessage, bumpWatch, flushActivity } from './stats';
 import { loadBotCredentials, refreshBotCredentials, type BotCredentials } from './token';
@@ -80,6 +81,8 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
   const levelCache = new Map<string, { level: number; at: number }>();
   /** channel id -> latest Get-Chatters snapshot, for the streamer "who's on stream now" panel. */
   const liveChatters = new Map<string, { viewers: LiveViewer[]; at: number }>();
+  // Resolves native platform badges to image URLs (cached catalogs; helixGet is hoisted below).
+  const badgeResolver = createBadgeResolver({ helixGet, log: deps.log });
 
   /**
    * Sender's all-time per-channel level (0–10): chat messages + watch-minutes (from
@@ -219,6 +222,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     chatterName: string;
     messageId: string;
     color: string | null;
+    badges: EventBadge[];
     fragments: ChatFragment[];
   }): void {
     const channelId = channelByBroadcaster.get(ev.broadcasterId);
@@ -237,8 +241,12 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     // Chat overlay: show everyone INCLUDING the streamer (but not excluded bots),
     // only when the channel enabled it and an overlay is actually listening.
     if (excluded || !chatEnabledChannels.has(channelId) || !live) return;
-    void Promise.all([lookupCosmetics(ev.chatterId), lookupLevel(channelId, ev.chatterId)])
-      .then(([{ cosmetics, isFounder }, level]) => {
+    void Promise.all([
+      lookupCosmetics(ev.chatterId),
+      lookupLevel(channelId, ev.chatterId),
+      badgeResolver.resolve(ev.broadcasterId, ev.badges),
+    ])
+      .then(([{ cosmetics, isFounder }, level, badges]) => {
         deps.io.to(roomOf(channelId)).emit('chat:message', {
           id: ev.messageId,
           userId: ev.chatterId,
@@ -247,6 +255,8 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
           cosmetics,
           isFounder,
           level,
+          badges,
+          role: roleFromBadges(ev.badges),
           fragments: ev.fragments,
         });
       })

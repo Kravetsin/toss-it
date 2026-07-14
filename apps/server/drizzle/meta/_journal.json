@@ -225,6 +225,13 @@
       "when": 1783971047183,
       "tag": "0031_simple_azazel",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1784027173401,
+      "tag": "0032_cold_star_brand",
+      "breakpoints": true
     }
   ]
 }

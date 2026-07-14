@@ -84,6 +84,10 @@ export const channels = sqliteTable('channels', {
   chatFontSize: integer('chat_font_size').notNull().default(19),
   // Seconds before a chat message fades out; 0 = keep until pushed off by newer ones.
   chatFadeSeconds: integer('chat_fade_seconds').notNull().default(0),
+  // Chat overlay per-element toggles (all default on): Twitch badges, level numeral, role borders.
+  chatShowBadges: integer('chat_show_badges', { mode: 'boolean' }).notNull().default(true),
+  chatShowLevel: integer('chat_show_level', { mode: 'boolean' }).notNull().default(true),
+  chatRoleBorders: integer('chat_role_borders', { mode: 'boolean' }).notNull().default(true),
   soundAlert: integer('sound_alert', { mode: 'boolean' }).notNull().default(false),
   ttsName: integer('tts_name', { mode: 'boolean' }).notNull().default(false),
   ttsMessage: integer('tts_message', { mode: 'boolean' }).notNull().default(false),

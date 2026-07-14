@@ -15,9 +15,8 @@
         font-family: 'JetBrains Mono', monospace;
       }
       /* Chat column anchored bottom; newest at the bottom, older scroll up off-screen.
-         gap is 0 so the per-message left trail lines join into one continuous line;
-         inter-message spacing comes from .msg padding-bottom instead.
-         --chat-font is set from channel settings via the chat:config socket event. */
+         Inter-message spacing comes from .msg padding-bottom (gap stays 0).
+         --chat-font is set on :root from channel settings via the chat:config event. */
       #chat {
         position: fixed;
         inset: 0;
@@ -44,21 +43,48 @@
         color: #ededec;
         line-height: 1.4;
       }
-      /* Permanent trail: one even, faint mint thread — uniform so segments join seamlessly
-         (no per-message brightness seam). Fades in gently as a message enters. */
-      .msg::before {
-        content: '';
-        position: absolute;
-        left: 0.5em;
-        top: 0;
-        bottom: 0;
+      /* The star thread: ONE continuous fixed line for the whole column, so segments can
+         never seam or gap. Geometry (top/height) is driven from JS; the transition matches
+         the smooth-rise FLIP so it glides together with the messages. Sits behind #chat
+         (inserted before it in the DOM). Ends at the newest message's star — the thread tip. */
+      #rail {
+        position: fixed;
+        left: calc(6px + 0.5em);
+        top: 100vh;
+        height: 0;
         width: 2px;
-        border-radius: 2px;
+        font-size: var(--chat-font, 19px);
         background: color-mix(in srgb, #8df0cc 18%, transparent);
-        animation: trail-fade 0.7s ease both;
+        opacity: 0;
+        pointer-events: none;
+        transition:
+          top 0.46s cubic-bezier(0.4, 0, 0.2, 1),
+          height 0.46s cubic-bezier(0.4, 0, 0.2, 1),
+          opacity 0.4s ease;
+        /* Dissolve toward the top instead of ending bluntly. */
+        -webkit-mask-image: linear-gradient(to bottom, transparent, #000 2.2em);
+        mask-image: linear-gradient(to bottom, transparent, #000 2.2em);
       }
-      /* Star marker riding the line at the name row; drops in on entry.
-         Tier-colored for ranked chatters (--tier), mint otherwise. */
+      /* Hot wake: the freshly drawn stretch of thread right behind the descending marker.
+         Anchored to the rail tip (bottom: 0), so it rides the tip as the rail grows — it IS
+         the marker's trail, glowing then cooling into the faint base line. One per message
+         (JS), tinted by the marker's color, removed on animationend. */
+      #rail .wake {
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        height: 2.4em;
+        background: linear-gradient(
+          to top,
+          color-mix(in srgb, var(--wake, #8df0cc) 85%, transparent),
+          transparent
+        );
+        opacity: 0;
+        animation: wake-cool 0.75s ease-out both;
+      }
+      /* Star marker for ranked chatters: splits off the previous thread tip and glides to
+         its spot (WAAPI in chat.ts — the travel distance varies per message). */
       .msg .star {
         position: absolute;
         left: 0.06em;
@@ -66,31 +92,27 @@
         width: 0.95em;
         height: 0.95em;
         color: var(--tier, #8df0cc);
-        filter: drop-shadow(0 0 5px color-mix(in srgb, var(--tier-glow, #8df0cc) 85%, transparent));
-        animation: star-descend 0.7s cubic-bezier(0.4, 0, 0.2, 1) both;
+        /* Two-layer glow (level 6+ only — both stops key off --tier-glow, which JS sets to
+           the literal string 'transparent' below that threshold, so it's a no-op there). */
+        filter: drop-shadow(0 0 3px var(--tier-glow, transparent))
+          drop-shadow(0 0 11px color-mix(in srgb, var(--tier-glow, #8df0cc) 90%, transparent));
       }
       .msg .star svg {
         display: block;
         width: 100%;
         height: 100%;
       }
-      /* Comet wake: a bright tail that trails above the star during the fall, then fades on
-         landing — the "shleif". Rides with the star (it's the star's ::before). */
-      .msg .star::before {
-        content: '';
+      /* No-level newcomers: a small nick-colored bead on the thread instead of a star
+         (same split-off entry). Center matches the star's (0.775em down the name row). */
+      .msg .dot {
         position: absolute;
-        left: 50%;
-        bottom: 78%;
-        width: 2px;
-        transform: translateX(-50%);
-        border-radius: 2px;
-        background: linear-gradient(
-          to top,
-          color-mix(in srgb, var(--tier, #8df0cc) 80%, transparent),
-          transparent
-        );
-        opacity: 0;
-        animation: star-wake 0.7s ease both;
+        left: 0.353em;
+        top: 0.575em;
+        width: 0.4em;
+        height: 0.4em;
+        border-radius: 50%;
+        background: var(--dot, #8df0cc);
+        box-shadow: 0 0 5px color-mix(in srgb, var(--dot, #8df0cc) 55%, transparent);
       }
       /* Name on its own line above the message. */
       .msg .name-line {
@@ -122,6 +144,15 @@
         width: 1em;
         height: 1em;
       }
+      /* Native platform badges (mod/vip/sub…): Twitch's own square art, scaled to the name row.
+         Slight lift off the dark stream so pale badges keep their edge. */
+      .msg .tw-badge {
+        width: 1.05em;
+        height: 1.05em;
+        border-radius: 3px;
+        vertical-align: middle;
+        filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
+      }
       /* Minimal message bubble — just enough backing to read over any stream.
          Sharper top-left corner points back at the star. */
       .msg .bubble {
@@ -143,13 +174,35 @@
         transform-origin: 0 0;
         animation: bloom-bubble 0.55s cubic-bezier(0.16, 1, 0.3, 1) 0.34s both;
       }
-      /* No-star (no-level) messages have no star to wait for — reveal promptly instead of
-         holding the ~0.3s beat that lets the star land first. */
-      .msg:not([data-tier]) .name-line {
-        animation-delay: 0.04s;
+      /* Role-tinted bubble: broadcaster/mod/vip/sub get a colored border + soft matching halo so
+         the streamer spots them at a glance (and a highlighted sub nudges others to subscribe).
+         Colors track the badge icons; subscriber gets brand mint. --role is set per role below
+         and inherited by the bubble. */
+      .msg[data-role='broadcaster'] {
+        --role: #ff4d4d;
       }
-      .msg:not([data-tier]) .bubble {
-        animation-delay: 0.08s;
+      .msg[data-role='moderator'] {
+        --role: #3fd35a;
+      }
+      .msg[data-role='vip'] {
+        --role: #ff7ac6;
+      }
+      .msg[data-role='subscriber'] {
+        --role: #8df0cc;
+      }
+      /* Scoped so the streamer can turn role borders off (chat:config) without touching the rest. */
+      #chat:not([data-role-borders='off']) .msg[data-role] .bubble {
+        border-color: color-mix(in srgb, var(--role) 62%, transparent);
+        box-shadow:
+          0 8px 22px -12px rgba(0, 0, 0, 0.6),
+          0 0 14px -3px color-mix(in srgb, var(--role) 42%, transparent);
+      }
+      /* Per-element toggles from chat:config (applyConfig sets these on #chat). */
+      #chat[data-badges='off'] .tw-badge {
+        display: none;
+      }
+      #chat[data-level='off'] .lvl-num {
+        display: none;
       }
       /* Text sits above the card-effect particle layer (injected .card-fx has no z-index). */
       .msg .bubble .body {
@@ -170,48 +223,17 @@
       /* Card effects (.card-fx*) and nick effects (.nick-glow) are injected at boot from the
          shared cosmetics registry (injectCosmeticsStyles). Chat bubbles add the `.compact` class
          (see chat.ts) so particles use the short-row trajectory. */
-      /* Entry: the star glides down the line (which draws in behind it), lands with a soft
-         twinkle, and the message unfolds from that point — the eye-catch moment on stream. */
-      @keyframes star-descend {
+      /* Entry: the marker splits off the previous tip and glides down while the thread
+         draws in behind it (its wake glows, then cools); the message unfolds at landing. */
+      @keyframes wake-cool {
         0% {
           opacity: 0;
-          transform: translateY(-1.5em) scale(0.72);
         }
         22% {
-          opacity: 1;
-        }
-        88% {
-          transform: translateY(0) scale(1.06);
-        }
-        100% {
-          opacity: 1;
-          transform: translateY(0) scale(1);
-        }
-      }
-      @keyframes trail-fade {
-        0% {
-          opacity: 0;
-        }
-        100% {
-          opacity: 1;
-        }
-      }
-      /* Wake grows into a tail mid-fall, then shrinks and fades as the star settles. */
-      @keyframes star-wake {
-        0% {
-          opacity: 0;
-          height: 0.2em;
-        }
-        30% {
-          opacity: 0.9;
-        }
-        65% {
-          opacity: 0.65;
-          height: 1.8em;
+          opacity: 0.85;
         }
         100% {
           opacity: 0;
-          height: 0.3em;
         }
       }
       @keyframes bloom {
@@ -245,17 +267,18 @@
         }
       }
       @media (prefers-reduced-motion: reduce) {
-        .msg .star,
-        .msg .star::before,
-        .msg::before,
         .msg .name-line,
         .msg .bubble {
           animation: none;
+        }
+        #rail {
+          transition: none;
         }
       }
     </style>
   </head>
   <body>
+    <div id="rail"></div>
     <div id="chat"></div>
     <script type="module" src="/src/chat.ts"></script>
   </body>

@@ -123,6 +123,9 @@ export function ChatSettings({ settings, onSave }: { settings: ChannelSettings; 
   const [chatOverlay, setChatOverlay] = useState(settings.chatOverlayEnabled);
   const [chatFont, setChatFont] = useState(settings.chatFontSize);
   const [chatFade, setChatFade] = useState(settings.chatFadeSeconds);
+  const [showBadges, setShowBadges] = useState(settings.chatShowBadges);
+  const [showLevel, setShowLevel] = useState(settings.chatShowLevel);
+  const [roleBorders, setRoleBorders] = useState(settings.chatRoleBorders);
   return (
     <div className="flex flex-col gap-4">
       <Switch
@@ -133,22 +136,42 @@ export function ChatSettings({ settings, onSave }: { settings: ChannelSettings; 
         onChange={setChatOverlay}
       />
       {chatOverlay && (
-        <div className="grid gap-4 border-l border-accent/40 pl-4 sm:grid-cols-2">
-          <Slider
-            icon="message-circle"
-            label={t('dash.chatFont', { n: chatFont })}
-            min={12}
-            max={40}
-            value={chatFont}
-            onChange={setChatFont}
+        <div className="flex flex-col gap-4 border-l border-accent/40 pl-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Slider
+              icon="message-circle"
+              label={t('dash.chatFont', { n: chatFont })}
+              min={12}
+              max={40}
+              value={chatFont}
+              onChange={setChatFont}
+            />
+            <Slider
+              icon="clock"
+              label={chatFade === 0 ? t('dash.chatFadeOff') : t('dash.chatFade', { n: chatFade })}
+              min={0}
+              max={120}
+              value={chatFade}
+              onChange={setChatFade}
+            />
+          </div>
+          <Switch
+            icon="sparkles"
+            label={t('dash.chatBadges')}
+            checked={showBadges}
+            onChange={setShowBadges}
           />
-          <Slider
-            icon="clock"
-            label={chatFade === 0 ? t('dash.chatFadeOff') : t('dash.chatFade', { n: chatFade })}
-            min={0}
-            max={120}
-            value={chatFade}
-            onChange={setChatFade}
+          <Switch
+            icon="star"
+            label={t('dash.chatLevel')}
+            checked={showLevel}
+            onChange={setShowLevel}
+          />
+          <Switch
+            icon="shield"
+            label={t('dash.chatRoleBorders')}
+            checked={roleBorders}
+            onChange={setRoleBorders}
           />
         </div>
       )}
@@ -158,6 +181,9 @@ export function ChatSettings({ settings, onSave }: { settings: ChannelSettings; 
             chatOverlayEnabled: chatOverlay,
             chatFontSize: chatFont,
             chatFadeSeconds: chatFade,
+            chatShowBadges: showBadges,
+            chatShowLevel: showLevel,
+            chatRoleBorders: roleBorders,
           })
         }
       />
