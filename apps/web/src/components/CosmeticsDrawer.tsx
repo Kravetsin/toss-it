@@ -123,20 +123,38 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     if (!ok) return;
     void act(() => buyCosmetic(id), { after: refresh, success: t('shop.bought') });
   };
-  // One Apply for the whole name colour: colour → gradient → flow is one ladder in one slot, so
-  // sending the rungs apart would let an upgrade land without its foundation.
+  // The whole name colour always goes in ONE call: colour → gradient → flow is one ladder in one
+  // slot (the server validates it as such), so sending the rungs apart would let an upgrade land
+  // without its foundation. `next` overrides a rung that a toggle is flipping right now — React
+  // state is still the old value at that point.
   const useGradient = gradient && ownsGradient;
   const useFlow = useGradient && flow && ownsFlow;
-  const applyColor = () =>
+  const applyNick = (next?: { gradient?: boolean; flow?: boolean }) => {
+    const g = (next?.gradient ?? gradient) && ownsGradient;
+    // Flow rides on the gradient, so dropping the gradient drops it — same rule the server holds.
+    const f = g && (next?.flow ?? flow) && ownsFlow;
     void act(
-      () =>
-        equipCosmetic({
-          nickColor: color,
-          nickColor2: useGradient ? color2 : null,
-          nickFlow: useFlow,
-        }),
+      () => equipCosmetic({ nickColor: color, nickColor2: g ? color2 : null, nickFlow: f }),
       { after: refresh, success: t('shop.equipped') },
     );
+  };
+  const applyColor = () => applyNick();
+  // A rung's own button IS the action. These used to only stage local state, so "Оживить" lit up,
+  // nothing was saved, and the viewer had to know to scroll back to an Apply button in the SECTION
+  // ABOVE — a toggle that looks done and isn't is worse than no toggle. The colour keeps its Apply
+  // because a colour input fires on every drag frame; a toggle fires once, so it can just commit.
+  // Both send the composition the preview is showing, pending colour edits and all: saving a name
+  // the viewer is not looking at would be its own surprise.
+  const toggleGradient = () => {
+    const next = !gradient;
+    setGradient(next);
+    applyNick({ gradient: next });
+  };
+  const toggleFlow = () => {
+    const next = !flow;
+    setFlow(next);
+    applyNick({ flow: next });
+  };
   // Dropping the base colour drops the upgrades with it (the server enforces the same invariant).
   const removeColor = () =>
     void act(() => equipCosmetic({ nickColor: null }), {
@@ -148,6 +166,9 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
         return refresh();
       },
     });
+  // In practice this now only fires for the two colour pickers, since the rungs commit themselves.
+  // They stay in the comparison anyway: if a toggle's request fails, Apply lights back up and is the
+  // way out — dropping them would leave the drawer showing a state the server never took.
   const colorDirty =
     color.toLowerCase() !== (equippedColor ?? '').toLowerCase() ||
     (useGradient ? color2.toLowerCase() : '') !== (equippedColor2 ?? '').toLowerCase() ||
@@ -455,7 +476,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
                       variant={gradient ? 'ghost' : 'primary'}
                       size="sm"
                       className="self-start"
-                      onClick={() => setGradient(!gradient)}
+                      onClick={toggleGradient}
                     >
                       {t(gradient ? 'shop.gradientOff' : 'shop.gradientAdd')}
                     </Button>
@@ -500,7 +521,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
                       variant={flow ? 'ghost' : 'primary'}
                       size="sm"
                       className="self-start"
-                      onClick={() => setFlow(!flow)}
+                      onClick={toggleFlow}
                     >
                       {t(flow ? 'shop.flowOff' : 'shop.flowOn')}
                     </Button>
