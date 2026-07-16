@@ -15,6 +15,7 @@ import { nickGlow } from './effects/nick-glow';
 import { nickPulse } from './effects/nick-pulse';
 import { cardLevitation } from './effects/card-levitation';
 import { cardEmbers } from './effects/card-embers';
+import { cardSakura } from './effects/card-sakura';
 import { cardStardust } from './effects/card-stardust';
 import { cardRain } from './effects/card-rain';
 import { cardSnow } from './effects/card-snow';
@@ -94,6 +95,7 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   cardStardust,
   cardRain,
   cardSnow,
+  cardSakura,
   ...ttsVoices,
 ];
 
@@ -195,16 +197,27 @@ export function cosmeticsCss(): string {
 }
 
 /**
- * Inject the cosmetics stylesheet once (idempotent). Call at app boot on each surface (web, media
- * overlay, chat overlay) so cards/names have their effect styles before first render. No-ops off
- * the browser, so it's safe to reach from shared code the server also imports.
+ * Inject the cosmetics stylesheet. Call at app boot on each surface (web, media overlay, chat
+ * overlay) so cards/names have their effect styles before first render. No-ops off the browser, so
+ * it's safe to reach from shared code the server also imports.
+ *
+ * Re-running REFRESHES the tag instead of bailing out. It used to return early whenever the tag
+ * existed, which made every hot reload a lie: an effect's `css` would change, the module would
+ * re-run, and the page kept serving the previous stylesheet — you'd be reading new code while
+ * watching the old effect, and only a hard reload told the truth.
  */
 export function injectCosmeticsStyles(): void {
   if (typeof document === 'undefined') return;
   const ID = 'cosmetics-styles';
-  if (document.getElementById(ID)) return;
+  const css = cosmeticsCss();
+  const existing = document.getElementById(ID);
+  if (existing) {
+    // Guard the write: re-assigning identical text would still re-parse the sheet on every call.
+    if (existing.textContent !== css) existing.textContent = css;
+    return;
+  }
   const style = document.createElement('style');
   style.id = ID;
-  style.textContent = cosmeticsCss();
+  style.textContent = css;
   document.head.appendChild(style);
 }

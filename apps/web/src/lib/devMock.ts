@@ -408,7 +408,7 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     nickColor2: null,
     nickFlow: false,
     nickEffect: 'nick-pulse',
-    cardEffect: 'card-embers',
+    cardEffect: 'card-snow',
     level: 10,
   },
   {
@@ -435,7 +435,7 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     // Static gradient, no flow — the contrast against the drifting rows above is the point.
     nickFlow: false,
     nickEffect: null,
-    cardEffect: 'card-snow',
+    cardEffect: 'card-sakura',
     level: 2,
   },
 ];
