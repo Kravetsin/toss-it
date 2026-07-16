@@ -154,7 +154,9 @@ export const cardLightning: CardEffectModule = {
       // A pill is ~33px tall, so a card's ratio would leave the bolt ~8px wide — no room for a
       // zigzag to exist at all. Wider here buys the swing somewhere to go.
       '--ar': (compact ? rnd(0.34, 0.48) : rnd(0.2, 0.32)).toFixed(3),
-      clipPath: `polygon(${points.join(', ')})`,
+      // Handed to ::before as a custom property (those inherit; clip-path does not) — see the css
+      // for why the shape and the glow must not share an element.
+      '--bolt': `polygon(${points.join(', ')})`,
       '--dur': `${dur.toFixed(2)}s`,
       '--delay': `${(-rnd(0, dur)).toFixed(2)}s`,
     };
@@ -166,6 +168,19 @@ export const cardLightning: CardEffectModule = {
     '--delay': p['--delay'] ?? '0s',
   }),
   css: `
+/*
+ * The glow lives on this wrapper and the SHAPE lives on ::before — they must not share an element.
+ * clip-path is applied AFTER filter, so on one element the clip cuts away the very halo the filter
+ * just drew around the bolt, leaving a flat white line. That is why no amount of tuning the radius
+ * did anything: the glow was never missing, it was being cropped off. Split in two, the filter sees
+ * an already-clipped child and its halo has nowhere to be cut.
+ *
+ * STACKED, not widened: a shadow is a blurred copy of the shape, so one wide blur spreads a 1.9px
+ * hairline's light over a huge area and its peak alpha collapses to nothing. Chained drop-shadows
+ * each take the PREVIOUS result (shape plus the halo already drawn) as input, so tight ones compound
+ * into a dense glow — the same reason the meteor's only halo is 3px. Keep every layer opaque; the
+ * failure mode is one wide BRIGHT blur, which just smudges the line.
+ */
 .card-fx-lightning .p {
   top: 0;
   height: 100%;
@@ -173,15 +188,16 @@ export const cardLightning: CardEffectModule = {
   aspect-ratio: var(--ar, 0.26);
   /* Centre the element on its spawn column: the tip is at the element's 50%. */
   translate: -50% 0;
-  background: #ffffff;
-  /* drop-shadow filters the CLIPPED result, so the halo traces the bolt instead of its box. Three
-     layers, each with a job: 1px white hugs the edge and eats the stair-stepping on the polygon's
-     sharp angles; 4px is the near halo; 10px at half alpha is the electrified air. What must NOT
-     happen is a wide BRIGHT halo — that was the first version (4/11px opaque) and it turned the
-     hairline into a smudge. Widen the dim layer, never the bright one. */
-  filter: drop-shadow(0 0 1px #ffffff) drop-shadow(0 0 4px rgba(196, 181, 253, 0.9))
-    drop-shadow(0 0 10px rgba(124, 58, 237, 0.55));
+  filter: drop-shadow(0 0 1px #ffffff) drop-shadow(0 0 3px #c4b5fd) drop-shadow(0 0 6px #a78bfa)
+    drop-shadow(0 0 6px #7c3aed);
   animation: cardfx-lightning-strike var(--dur, 6s) linear var(--delay, 0s) infinite;
+}
+.card-fx-lightning .p::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: #ffffff;
+  clip-path: var(--bolt);
 }
 /* Dead for most of the cycle, then a double flicker — a single clean fade reads as a lamp, not a
    strike. Paused (reduced-motion) it rests on the 0% frame: invisible, card simply clean.
