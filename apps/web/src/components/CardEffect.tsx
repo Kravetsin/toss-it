@@ -17,7 +17,10 @@ export function CardEffect({
   compact?: boolean;
 }) {
   const count = effect ? particleCount(effect, 'web') : 0;
-  const particles = useMemo(() => makeParticles(effect ?? '', count), [effect, count]);
+  const particles = useMemo(
+    () => makeParticles(effect ?? '', count, compact),
+    [effect, count, compact],
+  );
   // Ground glows bloom at each particle's bottom-edge crossing. Compact rows use per-effect
   // `.compact .g` keyframes phased to the clipped trajectory's actual crossing moment.
   const glows = useMemo(() => makeGroundGlows(effect ?? '', particles), [effect, particles]);

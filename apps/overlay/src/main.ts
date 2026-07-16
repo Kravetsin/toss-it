@@ -171,7 +171,9 @@ function show(payload: MediaPlayPayload): void {
       flow: payload.senderNickFlow ?? false,
       effect: payload.senderEffect ?? null,
     });
-    if (nick.className) nameEl.classList.add(nick.className);
+    // split(): nickRender composes several classes (paint + flow + effect) and classList.add throws
+    // on a string containing spaces.
+    if (nick.className) nameEl.classList.add(...nick.className.split(' '));
     applyStyleMap(nameEl, nick.style);
     banner.appendChild(nameEl);
     // Badges (founder, future cosmetics) — mint glyphs after the name.
@@ -207,7 +209,8 @@ function addCardEffect(alert: HTMLElement, effect: string): void {
   if (!cls || !count) return;
   const layer = document.createElement('div');
   layer.className = `card-fx ${cls}`;
-  const particles = makeParticles(effect, count);
+  // The alert is a full card, never a compact row.
+  const particles = makeParticles(effect, count, false);
   for (const ps of particles) {
     const p = document.createElement('span');
     p.className = 'p';

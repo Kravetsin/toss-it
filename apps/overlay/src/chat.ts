@@ -114,7 +114,7 @@ function addCardEffect(row: HTMLElement, effect: string): void {
   // `compact`: pills are short, so use the compact trajectory (crosses the row, clipped outside).
   const layer = document.createElement('div');
   layer.className = `card-fx ${cls} compact`;
-  const particles = makeParticles(effect, count);
+  const particles = makeParticles(effect, count, true);
   for (const ps of particles) {
     const p = document.createElement('span');
     p.className = 'p';
@@ -202,7 +202,9 @@ function renderMessage(msg: ChatOverlayMessage): void {
     flow: msg.cosmetics?.nickFlow ?? false,
     effect: msg.cosmetics?.nickEffect ?? null,
   });
-  if (nick.className) name.classList.add(nick.className);
+  // split(): nickRender composes several classes (paint + flow + effect) and classList.add throws
+  // on a string containing spaces.
+  if (nick.className) name.classList.add(...nick.className.split(' '));
   applyStyleMap(name, nick.style);
   nameLine.appendChild(name);
   row.appendChild(nameLine);
@@ -448,7 +450,7 @@ if (DEMO) {
       userId: 'u5',
       name: 'oldtimer',
       twitchColor: '#f5d76e',
-      cosmetics: null,
+      cosmetics: { cardEffect: 'card-sakura' },
       isFounder: false,
       level: 10,
       badges: [MODERATOR, VIP],
@@ -460,12 +462,50 @@ if (DEMO) {
       userId: 'u6',
       name: 'subfan',
       twitchColor: '#7ec8ff',
-      cosmetics: null,
+      cosmetics: { cardEffect: 'card-snow' },
       isFounder: false,
       level: 2,
       badges: [SUB],
       role: 'subscriber',
       fragments: [{ type: 'text', text: 'я на сабе уже 3 месяца 💜' }],
+    },
+    // Every card effect gets a pill: a chat message is the smallest surface any of them has to
+    // survive, so the demo is where a too-big effect gets caught.
+    {
+      id: '10',
+      userId: 'u10',
+      name: 'thunderstruck',
+      twitchColor: null,
+      cosmetics: {
+        nickColor: '#f5f3ff',
+        nickColor2: '#7c3aed',
+        nickFlow: true,
+        nickEffect: 'nick-pulse',
+        cardEffect: 'card-lightning',
+      },
+      isFounder: false,
+      level: 8,
+      fragments: [{ type: 'text', text: 'бахнуло знатно' }],
+    },
+    {
+      id: '11',
+      userId: 'u11',
+      name: 'ember_fan',
+      twitchColor: '#ffb86c',
+      cosmetics: { cardEffect: 'card-embers' },
+      isFounder: false,
+      level: 3,
+      fragments: [{ type: 'text', text: 'горит и не гаснет' }],
+    },
+    {
+      id: '12',
+      userId: 'u12',
+      name: 'rainy',
+      twitchColor: '#a9b8c9',
+      cosmetics: { cardEffect: 'card-rain' },
+      isFounder: false,
+      level: 2,
+      fragments: [{ type: 'text', text: 'дождь весь день' }],
     },
     // 7-9 walk the big-emote ladder: 1 → 6em, 2-3 → 3.75em, 4-6 → 2.25em.
     {

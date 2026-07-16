@@ -94,8 +94,14 @@ export interface CardEffectModule extends BaseModule {
    * mid-flight, desynced) — the css should read `animation: <name> var(--dur) linear var(--delay)`
    * so a paired ground glow can inherit the same timing and bloom in sync. Keys are camelCase CSS
    * props or `--custom` properties, usable as a React style object or via element.style.
+   *
+   * `compact` = the container is a short one (leaderboard row, chat pill) rather than a card or an
+   * alert. It is the only honest signal of how much VERTICAL room the particle gets: `Surface`
+   * can't answer that, since 'web' covers both a 40px row and a 192px card. Most effects ignore it
+   * and vary only through `.compact` CSS; geometry that has to thin out in a short box (lightning's
+   * bend count) needs it here, because the shape is generated, not styled.
    */
-  particle: (rnd: Rnd) => Record<string, string>;
+  particle: (rnd: Rnd, compact: boolean) => Record<string, string>;
   /**
    * Optional: given a particle's generated style, return the style for a fixed "ground glow"
    * element (class `g`) pinned to the bottom of the card at that particle's origin (rising effects)

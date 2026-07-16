@@ -165,6 +165,9 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderName: 'meme_lord',
     senderLevel: 7,
     senderColor: '#ff6ad5',
+    // Full nick ladder: gradient + flow + glow, so the top of the colour chain is on screen.
+    senderColor2: '#a78bfa',
+    senderNickFlow: true,
     senderEffect: 'nick-glow',
     senderCardEffect: 'card-stardust',
     text: 'каеф, врубай этого на стрим 🔥🔥🔥',
@@ -193,6 +196,8 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderName: 'clip_gremlin',
     senderLevel: 2,
     senderColor: '#ffb86c',
+    // Static gradient right next to meme_lord's flowing one — the difference is the whole upsell.
+    senderColor2: '#ff5f6d',
     senderEffect: 'nick-glow',
     senderCardEffect: 'card-embers',
     text: 'зацени нарезку, го на стрим',
@@ -233,6 +238,33 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderCardEffect: 'card-snow',
     text: 'превед :)',
     createdAt: t - 18 * min,
+  }),
+  // Snow's neighbour on purpose: both are calm falls, and side by side it's obvious that a petal
+  // is not a dot.
+  sub({
+    id: 's6',
+    kind: 'text',
+    senderUserId: 'twitch:v6',
+    senderName: 'hanami',
+    senderLevel: 5,
+    senderColor: '#ffc2d8',
+    senderCardEffect: 'card-sakura',
+    text: 'принесла тебе весны в предложку',
+    createdAt: t - 22 * min,
+  }),
+  sub({
+    id: 's7',
+    kind: 'text',
+    senderUserId: 'twitch:v8',
+    senderName: 'thunderstruck',
+    senderLevel: 10,
+    senderColor: '#f5f3ff',
+    senderColor2: '#7c3aed',
+    senderNickFlow: true,
+    senderEffect: 'nick-pulse',
+    senderCardEffect: 'card-lightning',
+    text: 'бахнуло знатно, го смотреть',
+    createdAt: t - 26 * min,
   }),
 ];
 
@@ -382,7 +414,7 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     nickColor2: '#ff5f6d',
     nickFlow: true,
     nickEffect: 'nick-glow',
-    cardEffect: 'card-stardust',
+    cardEffect: 'card-lightning',
     level: 8,
   },
   {

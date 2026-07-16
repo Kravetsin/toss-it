@@ -15,6 +15,7 @@ import { nickGlow } from './effects/nick-glow';
 import { nickPulse } from './effects/nick-pulse';
 import { cardLevitation } from './effects/card-levitation';
 import { cardEmbers } from './effects/card-embers';
+import { cardLightning } from './effects/card-lightning';
 import { cardSakura } from './effects/card-sakura';
 import { cardStardust } from './effects/card-stardust';
 import { cardRain } from './effects/card-rain';
@@ -96,6 +97,7 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   cardRain,
   cardSnow,
   cardSakura,
+  cardLightning,
   ...ttsVoices,
 ];
 
@@ -158,12 +160,18 @@ const rnd: Rnd = (a, b) => a + Math.random() * (b - a);
 /**
  * Inline styles for `count` randomized particles of a card effect — an organic swarm rather than a
  * looped GIF. Returns [] for unknown / non-card effects. Generate once per mount (values are random
- * each call).
+ * each call). `compact` (short container: leaderboard row, chat pill) is required rather than
+ * defaulted so a new consumer has to answer the question instead of silently getting a card's
+ * geometry in a 40px row — see CardEffectModule.particle.
  */
-export function makeParticles(id: string, count: number): Record<string, string>[] {
+export function makeParticles(
+  id: string,
+  count: number,
+  compact: boolean,
+): Record<string, string>[] {
   const m = asCardEffect(id);
   if (!m) return [];
-  return Array.from({ length: count }, () => m.particle(rnd));
+  return Array.from({ length: count }, () => m.particle(rnd, compact));
 }
 
 /**
