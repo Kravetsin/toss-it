@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { BRAND_HUE, hexToHue, type ChannelSettings, type ChannelTheme } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { useMe } from '@/hooks/useMe';
@@ -6,10 +6,12 @@ import { Button, Card, Input } from '@/ui';
 import { Icon, type IconName } from '@/ui/icons';
 
 const BRAND_HUE_INT = Math.round(BRAND_HUE);
-// The channel page's real layout size. Height reaches past the send button (its bottom sits at
-// ~765), since that button is the biggest accent surface on the page.
+/** Neutral starting point for the backdrop slider: a cool blue, the way the stock charcoal leans. */
+const DEFAULT_BG_HUE = 210;
+// The channel page's real layout size. Height clears the leaderboard tabs (they end at ~932), so
+// the send button and both tab rows — the page's main accent surfaces — are all in frame.
 const PREVIEW_W = 1180;
-const PREVIEW_H = 880;
+const PREVIEW_H = 960;
 
 /** Page-color constructor: the streamer moves hues, we own lightness (see @tmw/shared resolveTheme).
  *  The preview is the real /c/:login in an iframe, themed live over postMessage — so it's exactly
@@ -28,29 +30,28 @@ export function ChannelThemeSettings({
   const { me } = useMe();
   const login = me?.user?.login ?? '';
   const [accentHue, setAccentHue] = useState<number | null>(settings.theme.accentHue);
-  const [bgHue, setBgHue] = useState<number | null>(settings.theme.bgHue);
+  // Always a number, unlike accentHue: the backdrop's "off" is its own strength slider at 0, so the
+  // hue must survive that (nulling it here would silently forget the streamer's pick on reload).
+  const [bgHue, setBgHue] = useState(settings.theme.bgHue ?? DEFAULT_BG_HUE);
   const [bgTint, setBgTint] = useState(settings.theme.bgTint);
 
-  const theme: ChannelTheme = { accentHue, bgHue: bgTint > 0 ? (bgHue ?? 210) : null, bgTint };
+  const theme: ChannelTheme = { accentHue, bgHue, bgTint };
 
-  // iframe src is fixed at the initially-saved theme (correct first paint); live edits go over
-  // postMessage so the frame never reloads mid-drag.
-  const srcRef = useRef<string | null>(null);
-  if (srcRef.current === null && login) {
+  // Pinned to the theme saved when the frame first mounts (correct first paint); live edits go over
+  // postMessage so it never reloads mid-drag. Keyed on login — it's blank until /api/me resolves.
+  const src = useMemo(() => {
+    if (!login) return null;
     const p = new URLSearchParams({ themePreview: '1' });
     if (settings.theme.accentHue !== null) p.set('accentHue', String(settings.theme.accentHue));
     if (settings.theme.bgHue !== null) p.set('bgHue', String(settings.theme.bgHue));
     p.set('bgTint', String(settings.theme.bgTint));
-    srcRef.current = `/c/${login}?${p}`;
-  }
+    return `/c/${login}?${p}`;
+  }, [login]);
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  // Throttle to ~1 post per frame, always carrying the newest value: a dragged range input fires
-  // faster than the preview can repaint, and that backlog is what made fast drags stutter.
-  // Deliberately a timestamp + trailing timeout rather than rAF: rAF never fires in a background
-  // tab, so an "already scheduled" guard could latch on forever and freeze the preview for good.
+  // ~1 post/frame with the newest value — a dragged range input outruns the preview's repaint.
+  // Timestamp, not rAF: rAF never fires in a background tab, so its guard could latch on forever.
   const nextTheme = useRef(theme);
-  nextTheme.current = theme;
   const lastPostRef = useRef(0);
   const timerRef = useRef(0);
   const postTheme = () => {
@@ -66,12 +67,17 @@ export function ChannelThemeSettings({
     if (since >= 16) send();
     else timerRef.current = window.setTimeout(send, 16 - since);
   };
-  useEffect(postTheme, [accentHue, bgHue, bgTint]);
+  // Ref synced here, not during render: a concurrent render that never commits must not be able to
+  // publish its theme to the frame.
+  useEffect(() => {
+    nextTheme.current = theme;
+    postTheme();
+  }, [accentHue, bgHue, bgTint]);
   useEffect(() => () => window.clearTimeout(timerRef.current), []);
 
   const reset = () => {
     setAccentHue(null);
-    setBgHue(null);
+    setBgHue(DEFAULT_BG_HUE);
     setBgTint(0);
   };
   const pasteHex = (raw: string) => {
@@ -108,7 +114,7 @@ export function ChannelThemeSettings({
           </Section>
 
           <Section icon="image" title={t('theme.backdropOn')} hint={t('theme.backdropHint')}>
-            <HueSlider label={t('theme.hue')} value={bgHue ?? 210} onChange={setBgHue} />
+            <HueSlider label={t('theme.hue')} value={bgHue} onChange={setBgHue} />
             <RangeRow
               label={t('theme.tint')}
               min={0}
@@ -128,7 +134,7 @@ export function ChannelThemeSettings({
 
         <PreviewFrame
           ref={iframeRef}
-          src={srcRef.current}
+          src={src}
           onReady={postTheme}
           label={t('theme.previewLabel')}
         />
@@ -238,11 +244,7 @@ function HueSlider({
         max={359}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="mt-1 h-2 w-full cursor-pointer appearance-none rounded-full"
-        style={{
-          background:
-            'linear-gradient(to right, oklch(0.8 0.12 0), oklch(0.8 0.12 60), oklch(0.8 0.12 120), oklch(0.8 0.12 180), oklch(0.8 0.12 240), oklch(0.8 0.12 300), oklch(0.8 0.12 360))',
-        }}
+        className="slider-hue mt-1"
       />
     </label>
   );

@@ -6,7 +6,7 @@ import { useShop } from '@/providers/ShopProvider';
 import { Button, PageShell } from '@/ui';
 import { Icon } from '@/ui/icons';
 import { BackgroundStars } from '@/components/BackgroundStars';
-import { isThemePreview } from '../lib/themeQuery';
+import { IS_THEME_PREVIEW } from '../lib/themeQuery';
 import { ProfileMenu } from '@/components/ProfileMenu';
 
 /** Guest account cluster: same top-right spot as the wallet — browse the shop, or log in. */
@@ -45,7 +45,7 @@ export function ChannelShell({
   const { me } = useMe();
   return (
     <PageShell maxWidth="xl">
-      <BackgroundStars staticMode={isThemePreview()} />
+      <BackgroundStars staticMode={IS_THEME_PREVIEW} />
       <div className="relative z-10">
         <div className="mb-6 flex items-center justify-between gap-2">
           <Link

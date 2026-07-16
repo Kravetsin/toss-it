@@ -672,8 +672,10 @@ textarea {
 }
 
 /* ── Comet-trail slider: glowing orb thumb, mint tail fill (--val = percent),
-   faint starfield on the empty track. Add .slider-star + set --val. ── */
-.slider-star {
+   faint starfield on the empty track. Add .slider-star + set --val.
+   .slider-hue is the same control with the hue wheel as its track (channel theme picker). ── */
+.slider-star,
+.slider-hue {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
@@ -681,7 +683,20 @@ textarea {
   background: transparent;
   cursor: pointer;
 }
-.slider-star:focus-visible {
+.slider-hue {
+  --hue-wheel: linear-gradient(
+    90deg,
+    oklch(0.8 0.13 0),
+    oklch(0.8 0.13 60),
+    oklch(0.8 0.13 120),
+    oklch(0.8 0.13 180),
+    oklch(0.8 0.13 240),
+    oklch(0.8 0.13 300),
+    oklch(0.8 0.13 360)
+  );
+}
+.slider-star:focus-visible,
+.slider-hue:focus-visible {
   outline: none;
 }
 .slider-star::-webkit-slider-runnable-track {
@@ -698,7 +713,8 @@ textarea {
       0 center / 11px 8px,
     var(--color-surface-2);
 }
-.slider-star::-webkit-slider-thumb {
+.slider-star::-webkit-slider-thumb,
+.slider-hue::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 18px;
   height: 18px;
@@ -707,10 +723,31 @@ textarea {
   background: radial-gradient(circle at 35% 32%, #ffffff, var(--color-accent) 62%);
   box-shadow: 0 0 9px 1px color-mix(in srgb, var(--color-accent) 70%, transparent);
 }
-.slider-star:focus-visible::-webkit-slider-thumb {
+.slider-star:focus-visible::-webkit-slider-thumb,
+.slider-hue:focus-visible::-webkit-slider-thumb {
   box-shadow:
     0 0 9px 1px color-mix(in srgb, var(--color-accent) 70%, transparent),
     var(--shadow-focus);
+}
+/* Track = the hue wheel at the lightness/chroma resolveTheme actually emits, so the strip previews
+   the real output. Vendor pseudos stay in separate rules — one unknown selector drops the lot. */
+.slider-hue::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--hue-wheel);
+}
+.slider-hue::-moz-range-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--hue-wheel);
+}
+.slider-hue::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 32%, #ffffff, var(--color-accent) 62%);
+  box-shadow: 0 0 9px 1px color-mix(in srgb, var(--color-accent) 70%, transparent);
 }
 .slider-star::-moz-range-track {
   height: 8px;

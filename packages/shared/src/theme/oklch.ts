@@ -55,11 +55,21 @@ function polar(chroma: number, hue: number): [number, number] {
 }
 
 /**
+ * Memo for maxChroma. Callers pass a handful of fixed lightnesses against integer hues, so this
+ * settles at a few thousand entries; the cap is a backstop against unexpected float inputs.
+ */
+const maxChromaMemo = new Map<string, number>();
+const MEMO_CAP = 20_000;
+
+/**
  * Largest chroma that still fits in sRGB at this lightness/hue. The gamut is wildly
  * asymmetric — at L=0.88 green reaches ~0.23 but blue only ~0.06 — so chroma can never be a
  * fixed constant across hues; callers clamp against this. Monotonic in C, hence bisection.
  */
 export function maxChroma(L: number, hue: number): number {
+  const key = `${L}|${hue}`;
+  const hit = maxChromaMemo.get(key);
+  if (hit !== undefined) return hit;
   let lo = 0;
   let hi = 0.4;
   for (let i = 0; i < 20; i++) {
@@ -67,6 +77,8 @@ export function maxChroma(L: number, hue: number): number {
     if (inGamut(oklabToLinearSrgb(L, ...polar(mid, hue)))) lo = mid;
     else hi = mid;
   }
+  if (maxChromaMemo.size >= MEMO_CAP) maxChromaMemo.clear();
+  maxChromaMemo.set(key, lo);
   return lo;
 }
 

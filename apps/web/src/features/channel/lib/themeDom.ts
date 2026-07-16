@@ -42,6 +42,13 @@ export function applyChannelThemeVars(theme: ChannelTheme): void {
   resnapCanvasEngines();
 }
 
+/** Drop every inline token applyChannelThemeVars may have set (preview unmount). */
+export function clearChannelThemeVars(): void {
+  const root = document.documentElement;
+  for (const key of THEME_TOKENS) root.style.removeProperty(`--color-${key}`);
+  resnapCanvasEngines();
+}
+
 /**
  * Apply a channel theme to the live document, synchronously. Writes (or clears) the
  * `<style id="ch-theme">` the server also inlines (seo.ts), then re-snapshots the canvas engines

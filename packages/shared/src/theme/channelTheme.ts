@@ -25,14 +25,17 @@ export const DEFAULT_THEME: ChannelTheme = { accentHue: null, bgHue: null, bgTin
  *  owns it (useChannelTheme) so it can be dropped on unmount instead of leaking SPA-wide. */
 export const THEME_STYLE_ID = 'ch-theme';
 
+/** `== null` on purpose: an undefined hue must fall through here too, or resolveTheme would build
+ *  colors from NaN and emit '#NaNNaNNaN', which setProperty accepts and every token then breaks. */
 function tintOf(t: ChannelTheme): number {
-  if (t.bgHue === null) return 0;
+  if (t.bgHue == null || !Number.isFinite(t.bgTint)) return 0;
   return (Math.max(0, Math.min(100, t.bgTint)) / 100) * TINT_MAX;
 }
 
-/** True when the channel left everything at default — callers skip injecting any override. */
+/** True when nothing would be overridden. Derived from resolveTheme rather than re-testing the
+ *  knobs, so "default" can never drift from "emits no tokens". */
 export function isDefaultTheme(t: ChannelTheme): boolean {
-  return t.accentHue === null && tintOf(t) <= 0;
+  return Object.keys(resolveTheme(t)).length === 0;
 }
 
 /**
@@ -75,14 +78,15 @@ export type ThemeTokens = Record<string, string>;
  */
 export function resolveTheme(t: ChannelTheme): ThemeTokens {
   const tokens: ThemeTokens = {};
-  if (t.accentHue !== null) {
-    tokens.accent = oklchHex(ACCENT.L, ACCENT.C, t.accentHue);
-    tokens['accent-hover'] = oklchHex(ACCENT_HOVER.L, ACCENT_HOVER.C, t.accentHue);
-    tokens['accent-contrast'] = oklchHex(ACCENT_CONTRAST.L, ACCENT_CONTRAST.C, t.accentHue);
+  const aHue = t.accentHue;
+  if (aHue != null && Number.isFinite(aHue)) {
+    tokens.accent = oklchHex(ACCENT.L, ACCENT.C, aHue);
+    tokens['accent-hover'] = oklchHex(ACCENT_HOVER.L, ACCENT_HOVER.C, aHue);
+    tokens['accent-contrast'] = oklchHex(ACCENT_CONTRAST.L, ACCENT_CONTRAST.C, aHue);
   }
   const tint = tintOf(t);
-  if (tint > 0) {
-    const bHue = t.bgHue as number;
+  const bHue = t.bgHue;
+  if (tint > 0 && bHue != null) {
     for (const [name, L] of Object.entries(SURFACES)) tokens[name] = oklchHex(L, tint, bHue);
     for (const [name, L] of Object.entries(TEXTS)) {
       tokens[name] = oklchHex(L, tint * TEXT_TINT[name as keyof typeof TEXT_TINT], bHue);
@@ -96,9 +100,8 @@ export function resolveTheme(t: ChannelTheme): ThemeTokens {
  * own `:root` (same specificity — later wins), i.e. at the end of <head>, not in the SEO block.
  */
 export function themeCss(t: ChannelTheme): string {
-  if (isDefaultTheme(t)) return '';
   const decls = Object.entries(resolveTheme(t))
     .map(([k, v]) => `--color-${k}:${v}`)
     .join(';');
-  return `:root{${decls}}`;
+  return decls ? `:root{${decls}}` : '';
 }

@@ -274,11 +274,8 @@ function render(template: string, m: PageMeta): string {
   if (m.lang && m.lang !== 'en')
     html = html.replace(/<html lang="[^"]*">/, `<html lang="${m.lang}">`);
   if (m.bodyHtml) html = html.replace(ROOT_DIV, `<div id="root">${m.bodyHtml}</div>`);
-  // Must land at the very end of <head>: Vite emits the bundle's stylesheet (which carries
-  // Tailwind's own `:root` tokens) AFTER the SEO block, and same-specificity later wins. Being in
-  // <head> at all is what makes it flash-free — CSS blocks the first paint, so no frame shows mint.
-  // The id hands ownership to useChannelTheme, which drops it when the channel page unmounts —
-  // otherwise a client-side nav away would leave the whole SPA wearing this channel's colors.
+  // After the bundle's stylesheet (Vite emits it below the SEO block) or its `:root` wins; in
+  // <head> so CSS blocks the first paint and no frame shows mint. Id: useChannelTheme owns cleanup.
   if (m.themeCss) {
     html = html.replace('</head>', `<style id="${THEME_STYLE_ID}">${m.themeCss}</style></head>`);
   }

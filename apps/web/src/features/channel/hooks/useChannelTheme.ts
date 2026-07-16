@@ -1,6 +1,11 @@
 import { useLayoutEffect, useState } from 'react';
 import { THEME_STYLE_ID, type ChannelTheme } from '@tmw/shared';
-import { applyChannelTheme, applyChannelThemeVars, clearChannelTheme } from '../lib/themeDom';
+import {
+  applyChannelTheme,
+  applyChannelThemeVars,
+  clearChannelTheme,
+  clearChannelThemeVars,
+} from '../lib/themeDom';
 
 /**
  * Applies a channel's page theme and — crucially — removes it on unmount. The tokens live on
@@ -33,9 +38,8 @@ export function useThemePreviewListener(enabled: boolean, initial: ChannelTheme)
     // token falls back to the default palette rather than to whatever is saved on the channel.
     document.getElementById(THEME_STYLE_ID)?.remove();
     applyChannelThemeVars(initial);
-    // Freeze animations AND transitions. Animations: on a scaled iframe layer one animated pixel (a
-    // badge sparkle) re-composites the whole layer every frame. Transitions: they ease colors in over
-    // ~150ms, so a fast drag lags behind the slider and you overshoot the hue you wanted.
+    // Animations: one animated pixel re-composites the whole scaled iframe layer every frame.
+    // Transitions: they ease colors in over ~150ms, so a fast drag lags and overshoots the hue.
     const freeze = document.createElement('style');
     freeze.textContent = '*,*::before,*::after{animation:none!important;transition:none!important}';
     document.head.appendChild(freeze);
@@ -50,6 +54,9 @@ export function useThemePreviewListener(enabled: boolean, initial: ChannelTheme)
     return () => {
       window.removeEventListener('message', onMessage);
       freeze.remove();
+      // Same reason useChannelTheme cleans up: these tokens live on :root, so leaving them behind
+      // would repaint the whole SPA in this preview's colors after a client-side nav away.
+      clearChannelThemeVars();
     };
   }, [enabled]);
 }
