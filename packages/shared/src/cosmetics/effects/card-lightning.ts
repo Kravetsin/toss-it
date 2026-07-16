@@ -78,24 +78,49 @@ export const cardLightning: CardEffectModule = {
       if (rnd(0, 1) > 0.25) side = -side;
     }
 
-    // A spur that dies in the air. A fork is THE lightning silhouette — every lightning icon ever
-    // drawn has one — so it buys recognition at a glance, which is the whole brief. Half the bolts
-    // get one, making it a third axis of variety on top of bend count and run lengths. Compact
-    // skips it: in a 33px pill a spur is a pixel.
-    const forked = !compact && rnd(0, 1) < 0.5;
-    // Never the top node and never the tip: a spur off the strike point would read as a second bolt.
-    const branchAt = forked ? 1 + Math.floor(rnd(0, segments - 2)) : -1;
-    // Outward, i.e. the way the bolt already leans — inward would cross its own body.
-    const branchDir = branchAt > 0 && xs[branchAt]! > 50 ? 1 : -1;
-    // Reach generously sideways: the trunk only uses ~a third of the element's width, and the
-    // element is ~5x taller than wide, so a modest % barely moves the tip at all — the first
-    // version read as a kink in the trunk rather than a fork. Clamped inside the box: the element
-    // paints nothing outside it, so an over-long spur would just get its tip lopped off.
-    const bx = Math.min(97, Math.max(3, (xs[branchAt] ?? 50) + branchDir * rnd(24, 44)));
-    const by = Math.min(96, (ys[branchAt] ?? 50) + rnd(14, 28));
-    // Root thickness in px, near the trunk's own at that height. Too thin and a long spur is a
-    // needle — invisible however far it reaches.
-    const bRoot = w0 * 0.7;
+    // Spurs that die in the air. A fork is THE lightning silhouette — every lightning icon ever
+    // drawn has one — so every bolt gets TWO: one reads as an accident of the trunk, two read as a
+    // channel branching, and they land at different heights. Never the top node and never the tip
+    // (a spur off the strike point would read as a second bolt). Sizes are all relative, so a pill
+    // gets the same fork proportionally as a card does.
+    const branches: { at: number; dir: number; bx: number; by: number }[] = [];
+    const cand: number[] = [];
+    for (let i = 1; i <= segments - 2; i++) cand.push(i);
+    // Enumerate the valid PAIRS and pick one, rather than picking a node and hunting for a partner:
+    // the latter dead-ends whenever the first pick is the middle node of a short trunk, and that
+    // bolt silently ends up with a single spur. Non-adjacent, or two spurs leaving the same side
+    // would grow into each other. A trunk too short for any pair (4 segments) takes a lone spur —
+    // better one fork than a bare line.
+    const pairs: [number, number][] = [];
+    for (let a = 1; a <= segments - 2; a++)
+      for (let b = a + 2; b <= segments - 2; b++) pairs.push([a, b]);
+    const picks: number[] = pairs.length
+      ? pairs[Math.floor(rnd(0, pairs.length))]!
+      : cand.length
+        ? [cand[Math.floor(rnd(0, cand.length))]!]
+        : [];
+    for (const at of picks) {
+      // Outward, i.e. the way the bolt already leans — inward would cross its own body.
+      const dir = xs[at]! > 50 ? 1 : -1;
+      // Reach generously sideways: the element is ~5x taller than wide and the trunk uses only a
+      // third of that width, so a modest % barely moves the tip — the first version read as a kink
+      // in the trunk. Clamped inside the box: the element paints nothing outside it, so an
+      // over-long spur would just get its tip lopped off.
+      //
+      // A pill needs a shorter, stubbier spur. Its trunk swings wide (the swing is uncompensated
+      // there, ~20-36%) so "outward" is not empty space, and with only 4-6 segments a card's drop
+      // of 14-28% spans a whole segment — the spur runs straight into the trunk's next swing and
+      // the outline crosses itself. Keeping the drop inside one segment keeps the contour simple.
+      branches.push({
+        at,
+        dir,
+        bx: Math.min(97, Math.max(3, xs[at]! + dir * (compact ? rnd(16, 26) : rnd(24, 44)))),
+        by: Math.min(96, ys[at]! + (compact ? rnd(5, 10) : rnd(14, 28))),
+      });
+    }
+    // Root thickness in px. A spur tapers root -> point, so its AVERAGE width is only half this:
+    // at w0*0.7 that was ~0.65px — subpixel, i.e. invisible however far it reached.
+    const bRoot = w0 * 0.9;
 
     // clip-path takes any <length-percentage>, so a point is a % plus an optional px offset — that
     // is what keeps the bolt a constant-width hairline on a size-relative zigzag.
@@ -108,16 +133,18 @@ export const cardLightning: CardEffectModule = {
     // hair below the root, then on down the trunk.
     for (let i = 0; i <= segments; i++) {
       points.push(P(xs[i]!, ys[i]!));
-      if (i === branchAt && branchDir < 0) {
-        points.push(P(bx, by));
+      const b = branches.find((x) => x.at === i && x.dir < 0);
+      if (b) {
+        points.push(P(b.bx, b.by));
         points.push(P(xs[i]!, ys[i]!, 0, bRoot));
       }
     }
     // Right edge, back up. A right-going spur detours here — same shape, walked in reverse.
     for (let i = segments - 1; i >= 0; i--) {
-      if (i === branchAt && branchDir > 0) {
+      const b = branches.find((x) => x.at === i && x.dir > 0);
+      if (b) {
         points.push(P(xs[i]!, ys[i]!, ws[i]!, bRoot));
-        points.push(P(bx, by));
+        points.push(P(b.bx, b.by));
       }
       points.push(P(xs[i]!, ys[i]!, ws[i]!));
     }
@@ -147,9 +174,13 @@ export const cardLightning: CardEffectModule = {
   /* Centre the element on its spawn column: the tip is at the element's 50%. */
   translate: -50% 0;
   background: #ffffff;
-  /* drop-shadow filters the CLIPPED result, so the halo traces the bolt instead of its box. Kept
-     tight (2/7px, like the meteor's 3px): a wide soft halo turns a hairline into a smudge. */
-  filter: drop-shadow(0 0 2px #ffffff) drop-shadow(0 0 7px #a78bfa);
+  /* drop-shadow filters the CLIPPED result, so the halo traces the bolt instead of its box. Three
+     layers, each with a job: 1px white hugs the edge and eats the stair-stepping on the polygon's
+     sharp angles; 4px is the near halo; 10px at half alpha is the electrified air. What must NOT
+     happen is a wide BRIGHT halo — that was the first version (4/11px opaque) and it turned the
+     hairline into a smudge. Widen the dim layer, never the bright one. */
+  filter: drop-shadow(0 0 1px #ffffff) drop-shadow(0 0 4px rgba(196, 181, 253, 0.9))
+    drop-shadow(0 0 10px rgba(124, 58, 237, 0.55));
   animation: cardfx-lightning-strike var(--dur, 6s) linear var(--delay, 0s) infinite;
 }
 /* Dead for most of the cycle, then a double flicker — a single clean fade reads as a lamp, not a
