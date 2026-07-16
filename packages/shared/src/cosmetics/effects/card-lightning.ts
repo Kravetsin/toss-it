@@ -87,12 +87,15 @@ export const cardLightning: CardEffectModule = {
     const branchAt = forked ? 1 + Math.floor(rnd(0, segments - 2)) : -1;
     // Outward, i.e. the way the bolt already leans — inward would cross its own body.
     const branchDir = branchAt > 0 && xs[branchAt]! > 50 ? 1 : -1;
-    // Clamped inside the box: the element paints nothing outside it, so an over-long spur would
-    // just get its tip lopped off.
-    const bx = Math.min(97, Math.max(3, (xs[branchAt] ?? 50) + branchDir * rnd(9, 20)));
-    const by = Math.min(96, (ys[branchAt] ?? 50) + rnd(6, 14));
-    // Root thickness in px, like the trunk's — thinner, since a branch is a lesser channel.
-    const bRoot = w0 * 0.55;
+    // Reach generously sideways: the trunk only uses ~a third of the element's width, and the
+    // element is ~5x taller than wide, so a modest % barely moves the tip at all — the first
+    // version read as a kink in the trunk rather than a fork. Clamped inside the box: the element
+    // paints nothing outside it, so an over-long spur would just get its tip lopped off.
+    const bx = Math.min(97, Math.max(3, (xs[branchAt] ?? 50) + branchDir * rnd(24, 44)));
+    const by = Math.min(96, (ys[branchAt] ?? 50) + rnd(14, 28));
+    // Root thickness in px, near the trunk's own at that height. Too thin and a long spur is a
+    // needle — invisible however far it reaches.
+    const bRoot = w0 * 0.7;
 
     // clip-path takes any <length-percentage>, so a point is a % plus an optional px offset — that
     // is what keeps the bolt a constant-width hairline on a size-relative zigzag.
