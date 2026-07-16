@@ -5,6 +5,7 @@ import {
   LEVEL_GLOW_FROM,
   OVERLAY_POSITIONS,
   applyStyleMap,
+  bindRespawn,
   cardEffectClass,
   giphyGifUrl,
   injectCosmeticsStyles,
@@ -225,6 +226,9 @@ function addCardEffect(alert: HTMLElement, effect: string): void {
     layer.appendChild(g);
   }
   alert.appendChild(layer);
+  // Fresh spawn column per cycle, so a particle doesn't loop in the one column it was born in.
+  // No teardown: the listeners live on the alert's own particles and go when the alert does.
+  bindRespawn(layer, effect, particles, false);
 }
 
 function createMediaElement(payload: MediaPlayPayload, url: string): HTMLElement {

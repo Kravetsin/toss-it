@@ -3,6 +3,7 @@ import { io, type Socket } from 'socket.io-client';
 import {
   LEVEL_GLOW_FROM,
   applyStyleMap,
+  bindRespawn,
   cardEffectClass,
   injectCosmeticsStyles,
   injectLevelStyles,
@@ -129,6 +130,9 @@ function addCardEffect(row: HTMLElement, effect: string): void {
     layer.appendChild(g);
   }
   row.appendChild(layer);
+  // Fresh spawn column per cycle, so a particle doesn't loop in the one column it was born in.
+  // No teardown: the listeners live on the pill's own particles and go when the row does.
+  bindRespawn(layer, effect, particles, true);
 }
 
 function renderMessage(msg: ChatOverlayMessage): void {

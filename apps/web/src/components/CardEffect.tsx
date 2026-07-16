@@ -1,5 +1,11 @@
-import { useMemo, type CSSProperties } from 'react';
-import { cardEffectClass, makeGroundGlows, makeParticles, particleCount } from '@tmw/shared';
+import { useEffect, useMemo, useRef, type CSSProperties } from 'react';
+import {
+  bindRespawn,
+  cardEffectClass,
+  makeGroundGlows,
+  makeParticles,
+  particleCount,
+} from '@tmw/shared';
 
 /**
  * Particle layer for an equipped card effect (levitation / stardust). Render as the first child
@@ -24,10 +30,19 @@ export function CardEffect({
   // Ground glows bloom at each particle's bottom-edge crossing. Compact rows use per-effect
   // `.compact .g` keyframes phased to the clipped trajectory's actual crossing moment.
   const glows = useMemo(() => makeGroundGlows(effect ?? '', particles), [effect, particles]);
+  // Each particle gets a fresh spawn column at the end of every cycle — without this a particle
+  // loops in the one column it was born in, and the swarm reads as a row of taps rather than
+  // weather. Imperative on purpose: it fires per animation cycle, which is no business of React's.
+  const layerRef = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const el = layerRef.current;
+    if (!el || !effect) return;
+    return bindRespawn(el, effect, particles, compact);
+  }, [effect, particles, compact]);
   if (!count) return null;
   const cls = cardEffectClass(effect ?? '');
   return (
-    <span className={`card-fx ${cls} ${compact ? 'compact' : ''}`} aria-hidden>
+    <span ref={layerRef} className={`card-fx ${cls} ${compact ? 'compact' : ''}`} aria-hidden>
       {particles.map((style, i) => (
         <span key={i} className="p" style={style as CSSProperties} />
       ))}

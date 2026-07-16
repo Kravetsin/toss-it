@@ -171,7 +171,7 @@ export function makeParticles(
 ): Record<string, string>[] {
   const m = asCardEffect(id);
   if (!m) return [];
-  return Array.from({ length: count }, () => m.particle(rnd, compact));
+  return Array.from({ length: count }, (_, i) => m.particle(rnd, compact, i));
 }
 
 /**
@@ -185,6 +185,68 @@ export function makeGroundGlows(
 ): Record<string, string>[] {
   const glow = asCardEffect(id)?.groundGlow;
   return glow ? particles.map((p) => glow(p)) : [];
+}
+
+/**
+ * Give each particle a NEW spawn column at the end of every cycle, and move its ground glow with it.
+ * Returns a teardown. Call once per mounted layer, passing the same particle maps the elements were
+ * built from; `.p` and `.g` children are paired by index, exactly as the consumers render them.
+ *
+ * Why this exists: makeParticles runs once per mount, so `left` was chosen once and the particle
+ * then looped in that one column FOREVER — the swarm was N stationary taps, which is precisely the
+ * "looped GIF" makeParticles claims not to be. Invisible while every particle is a faint speck; the
+ * moment depth made a few of them big and loud it read as a waterfall, worst in card-rain, whose
+ * near drops re-fire from the same column ~2.5 times a second.
+ *
+ * Only the COLUMN is re-rolled. Size and speed must not be, tempting as it looks: `--dur` feeds a
+ * running animation whose progress is derived from elapsed time, so changing it re-maps the phase
+ * and teleports the particle mid-flight — and re-rolling size while keeping duration would break the
+ * one rule depth rests on, that speed follows size (see ../depth).
+ *
+ * The module is asked for the new column rather than us picking one: spawn ranges are the effect's
+ * own business (stardust spawns from -8%, lightning from 12%, embers from 4%), and the glow's offset
+ * from it even more so — stardust re-derives its drift, lightning pins to the strike. Hence
+ * `groundGlow()` rather than copying `left` across.
+ *
+ * Safe on the boundary: every effect's cycle opens at opacity 0, so the jump is never seen. Pseudo-
+ * element animations (sakura's tumble and sway, the shrink/burnout) also fire this event on `.p` and
+ * are filtered out — otherwise one cycle would respawn two or three times.
+ */
+export function bindRespawn(
+  layer: HTMLElement,
+  id: string,
+  particles: Record<string, string>[],
+  compact: boolean,
+): () => void {
+  const m = asCardEffect(id);
+  if (!m || typeof window === 'undefined') return () => {};
+  const ps = layer.querySelectorAll<HTMLElement>('.p');
+  const gs = layer.querySelectorAll<HTMLElement>('.g');
+  // Our own copies: the maps belong to the caller (React memoises them) and must not be mutated.
+  const maps = particles.map((p) => ({ ...p }));
+  const offs: (() => void)[] = [];
+  ps.forEach((p, i) => {
+    const map = maps[i];
+    if (!map) return;
+    const onIteration = (e: AnimationEvent) => {
+      if (e.pseudoElement) return;
+      const fresh = m.particle(rnd, compact, i);
+      if (!fresh.left) return;
+      // The column, plus whatever else the module says is safe to be reborn with.
+      for (const k of ['left', ...(m.respawnKeys ?? [])]) {
+        const v = fresh[k];
+        if (v === undefined) continue;
+        map[k] = v;
+        if (k.startsWith('--')) p.style.setProperty(k, v);
+        else (p.style as unknown as Record<string, string>)[k] = v;
+      }
+      const g = gs[i];
+      if (g && m.groundGlow) applyStyleMap(g, m.groundGlow(map));
+    };
+    p.addEventListener('animationiteration', onIteration);
+    offs.push(() => p.removeEventListener('animationiteration', onIteration));
+  });
+  return () => offs.forEach((off) => off());
 }
 
 /**

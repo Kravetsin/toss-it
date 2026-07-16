@@ -1,3 +1,4 @@
+import { DEPTH_BLUR_RATIO_POINT, depthCount, depthPlane, parallaxDur } from '../depth';
 import type { CardEffectModule } from '../types';
 
 /**
@@ -5,6 +6,16 @@ import type { CardEffectModule } from '../types';
  * origin on the bottom edge. The `.compact` variant (leaderboard rows, chat pills) flies a
  * trajectory that starts/ends OUTSIDE the row — a whole dot is only seen while crossing, confined
  * to its row.
+ *
+ * DEPTH (see ../depth): a defocused point of light is a bokeh ball, so like snow this takes the near
+ * plane for free and uses the POINT blur ratio — nearer = bigger, faster, wider drift, and only the
+ * in-focus plane blooms at the bottom. The rise ALREADY shrinks each dot as it climbs; that is a
+ * different cue (distance travelled, not distance from the lens) and the two stack rather than
+ * fight, since the shrink is relative to whatever --s its plane handed out.
+ *
+ * The blur goes on the COLUMN, never on the dot: a filter is applied in the element's own space and
+ * then scaled by that element's transform, so blur sharing an element with the shrink would fade
+ * out as the dot burns down to 0.35. The column carries no scale, so its blur is screen px.
  *
  * Structure (same as snow/sakura): `.p` is an invisible full-height COLUMN that carries the rise,
  * `::before` is the dot. The rise is a `%` translate, NOT `top`: `top` is a layout property snapped
@@ -23,20 +34,34 @@ export const cardLevitation: CardEffectModule = {
   type: 'card_effect',
   costDust: 2500,
   className: 'card-fx-levitation',
-  counts: { web: 10, overlayCard: 14, overlayChat: 8 },
+  // In-focus density; depthCount adds the off-focus planes on top rather than out of it (../depth).
+  counts: { web: depthCount(10), overlayCard: depthCount(14), overlayChat: depthCount(8) },
   labels: { name: 'shop.cardLevitation', desc: 'shop.cardLevitationDesc' },
-  particle: (rnd) => {
-    const dur = rnd(2.8, 4.6);
+  particle: (rnd, compact, index) => {
+    const plane = depthPlane(index);
+    // A 4px dot × --s. Near stays modest in a 40px row, and the blur carries the defocus instead.
+    const nearS = compact ? rnd(1.5, 2) : rnd(1.8, 2.6);
+    const s = plane === 'near' ? nearS : plane === 'far' ? rnd(0.3, 0.5) : rnd(0.65, 1.35);
+    // Speed follows SIZE, not the plane (see parallaxDur) — a big dot dawdling past a small one
+    // breaks depth from inside the in-focus plane, where --s already spans ~2×.
+    const dur = parallaxDur(3.7, s, rnd(0.9, 1.1));
     return {
       left: `${rnd(2, 98).toFixed(1)}%`,
-      '--drift': `${rnd(-18, 18).toFixed(0)}px`,
-      '--s': rnd(0.65, 1.35).toFixed(2),
+      '--drift': `${(rnd(-18, 18) * (plane === 'near' ? 1.6 : plane === 'far' ? 0.5 : 1)).toFixed(0)}px`,
+      '--s': s.toFixed(2),
+      // Blur tracks the dot's RENDERED size (4px × --s) — one lens across all three planes.
+      '--blur': `${(4 * s * DEPTH_BLUR_RATIO_POINT[plane]).toFixed(2)}px`,
+      // Compact rows run a touch brighter (their own keyframes always did); distance dims only the
+      // far plane — a blurred dot that is ALSO faded reads as dirt rather than depth.
+      '--op': ((compact ? 0.9 : 0.8) * (plane === 'far' ? 0.75 : 1)).toFixed(2),
       '--dur': `${dur.toFixed(2)}s`,
       '--delay': `${(-rnd(0, dur)).toFixed(2)}s`,
     };
   },
-  // Glow sits at the dot's spawn column and blooms as the dot emerges from the bottom.
+  // Glow sits at the dot's spawn column and blooms as the dot emerges from the bottom. In-focus
+  // plane only: a dot floating in front of the lens never rose off this card.
   groundGlow: (p) => ({
+    ...(p['--blur'] === '0.00px' ? {} : { display: 'none' }),
     left: p.left ?? '50%',
     '--dur': p['--dur'] ?? '3.4s',
     '--delay': p['--delay'] ?? '0s',
@@ -48,6 +73,8 @@ export const cardLevitation: CardEffectModule = {
   top: 0;
   width: 0;
   height: 100%;
+  /* Defocus on the column: it carries no scale, so this is screen px (see the header). */
+  filter: blur(var(--blur, 0));
   animation: cardfx-rise var(--dur, 3.4s) linear var(--delay, 0s) infinite;
 }
 /* The dot itself rides inside the column; its shrink shares --dur/--delay to stay in step. */
@@ -69,7 +96,7 @@ export const cardLevitation: CardEffectModule = {
     opacity: 0;
   }
   14% {
-    opacity: 0.8;
+    opacity: var(--op, 0.8);
   }
   100% {
     translate: var(--drift, 0) -8%;
@@ -96,10 +123,10 @@ export const cardLevitation: CardEffectModule = {
     opacity: 0;
   }
   22% {
-    opacity: 0.9;
+    opacity: var(--op, 0.9);
   }
   78% {
-    opacity: 0.9;
+    opacity: var(--op, 0.9);
   }
   100% {
     translate: var(--drift, 0) -35%;

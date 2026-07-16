@@ -100,8 +100,23 @@ export interface CardEffectModule extends BaseModule {
    * can't answer that, since 'web' covers both a 40px row and a 192px card. Most effects ignore it
    * and vary only through `.compact` CSS; geometry that has to thin out in a short box (lightning's
    * bend count) needs it here, because the shape is generated, not styled.
+   *
+   * `index` (0-based, < the surface's count) exists for QUOTAS: a trait that must appear a fixed
+   * number of times per swarm has to be assigned by index, not rolled. Rolling it per particle is
+   * independent draws, so the rare bucket sometimes takes over and the common one thins out — for
+   * sakura's depth planes that meant a swarm where almost nothing was in focus. Effects whose
+   * randomness is genuinely per-particle (spawn, size, speed) ignore this and just use `rnd`.
    */
-  particle: (rnd: Rnd, compact: boolean) => Record<string, string>;
+  particle: (rnd: Rnd, compact: boolean, index: number) => Record<string, string>;
+  /**
+   * Extra keys of `particle()`'s output that a respawn re-rolls, on top of the spawn column (see
+   * bindRespawn). Empty by default, and that default is load-bearing: most of what `particle()`
+   * emits is the particle's SIZE, and size may not change without `--dur` changing with it (speed
+   * follows size — see ../depth), while `--dur` may not change at all on a running animation. List
+   * a key here only if it is neither timing nor tied to it — geometry a cycle can safely be reborn
+   * with, like card-lightning's generated silhouette.
+   */
+  respawnKeys?: string[];
   /**
    * Optional: given a particle's generated style, return the style for a fixed "ground glow"
    * element (class `g`) pinned to the bottom of the card at that particle's origin (rising effects)
