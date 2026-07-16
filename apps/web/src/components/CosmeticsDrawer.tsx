@@ -154,7 +154,9 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
               </span>
             )}
           </div>
-          <p className="text-sm text-muted">{t(labels.desc)}</p>
+          {/* Flavor, not instruction: the row already animates the effect, so describing it would
+              only restate what's on screen — and risk contradicting what the viewer sees. */}
+          <p className="text-sm italic text-muted">{t(labels.desc)}</p>
           <div className="flex items-center gap-2">
             {!owned ? (
               <Button
@@ -307,7 +309,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
             t('shop.nickColor'),
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-sm text-muted">{t('shop.nickColorDesc')}</p>
+                <p className="text-sm italic text-muted">{t('shop.nickColorDesc')}</p>
                 {ownsColor ? (
                   <Badge>{t('shop.owned')}</Badge>
                 ) : (

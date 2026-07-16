@@ -1,9 +1,16 @@
 import crypto from 'node:crypto';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { LinkAccountCard, LinkPendingInfo, MeResponse } from '@tmw/shared';
 import { db } from '../db/index';
-import { channels, linkedIdentities, sessions, userCosmetics, users, type UserRow } from '../db/schema';
+import {
+  channels,
+  linkedIdentities,
+  sessions,
+  userCosmetics,
+  users,
+  type UserRow,
+} from '../db/schema';
 import { config } from '../config';
 import {
   addIdentity,
@@ -176,7 +183,10 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
           const claimed = await claimPendingDust('twitch', twitchId, current.id);
           return reply.redirect(
             config.webUrl +
-              withParams(returnTo, claimed > 0 ? { twitchLinked: 1, dustClaimed: claimed } : { twitchLinked: 1 }),
+              withParams(
+                returnTo,
+                claimed > 0 ? { twitchLinked: 1, dustClaimed: claimed } : { twitchLinked: 1 },
+              ),
           );
         }
         if (owner.id === current.id) {
@@ -255,6 +265,14 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
       displayName: u.displayName,
       avatarUrl: u.avatarUrl,
       stardust: u.stardust,
+      cosmetics:
+        (
+          await db
+            .select({ n: sql<number>`count(*)` })
+            .from(userCosmetics)
+            .where(eq(userCosmetics.userId, u.id))
+            .get()
+        )?.n ?? 0,
       ownsChannel: !!(await db
         .select({ id: channels.id })
         .from(channels)

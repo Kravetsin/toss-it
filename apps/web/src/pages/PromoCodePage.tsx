@@ -16,6 +16,7 @@ export function PromoCodePage() {
   const [redeeming, setRedeeming] = useState(false);
   // null while not yet redeemed; otherwise the grant type for success messaging.
   const [grant, setGrant] = useState<string | null>(null);
+  const [amount, setAmount] = useState<number | null>(null);
 
   async function activate(e: FormEvent) {
     e.preventDefault();
@@ -24,6 +25,7 @@ export function PromoCodePage() {
     setRedeeming(true);
     try {
       const res = await redeemPromo(c);
+      setAmount(res.amount);
       setGrant(res.grant);
     } catch (e) {
       toast(e instanceof Error ? e.message : String(e), 'danger');
@@ -44,7 +46,11 @@ export function PromoCodePage() {
       <PageShell>
         <StatusCard icon="sparkles">
           <p className="text-lg">
-            {grant === 'founder' ? t('promo.successFounder') : t('promo.success')}
+            {grant === 'founder'
+              ? t('promo.successFounder')
+              : grant === 'stardust'
+                ? t('promo.successStardust', { n: amount ?? 0 })
+                : t('promo.success')}
           </p>
           <a href="/dashboard">
             <Button variant="primary">{t('promo.toDashboard')}</Button>

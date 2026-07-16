@@ -541,6 +541,7 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
         displayName: 'Kravets',
         avatarUrl: null,
         stardust: 250,
+        cosmetics: 1,
         ownsChannel: true,
       },
       other: {
@@ -548,6 +549,7 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
         displayName: 'KravetsTwitch',
         avatarUrl: null,
         stardust: 1200,
+        cosmetics: 4,
         ownsChannel: false,
       },
     };

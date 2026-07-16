@@ -69,9 +69,14 @@ export function LinkConfirmPage() {
         <b>{acc.displayName}</b>
         <span className="text-sm text-muted">@{acc.login}</span>
       </span>
-      <span className="inline-flex items-center gap-1.5 text-sm text-muted">
-        <DustMark size={14} className="text-accent" />
-        <span className="tabular-nums">{acc.stardust}</span>
+      {/* What each account is worth, side by side — the subtitle warns the loser's dust AND
+          cosmetics go unreachable, and these are the numbers that make it choosable at a glance. */}
+      <span className="inline-flex items-center gap-3 text-sm text-muted">
+        <span className="inline-flex items-center gap-1.5">
+          <DustMark size={14} className="text-accent" />
+          <span className="tabular-nums">{acc.stardust}</span>
+        </span>
+        <span>{t('link.cosmeticsCount', { n: acc.cosmetics })}</span>
       </span>
       {acc.ownsChannel && <Badge>{t('link.ownsChannel')}</Badge>}
       <Button variant="primary" disabled={busy} onClick={() => void choose(key)}>

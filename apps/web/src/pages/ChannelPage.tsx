@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import type { PublicChannelInfo } from '@tmw/shared';
+import { DUST_POINTS, type PublicChannelInfo } from '@tmw/shared';
 import { getChannel, getLeaderboard } from '@/lib/api';
 import { useMe } from '@/hooks/useMe';
 import { useI18n } from '@/i18n';
@@ -117,7 +117,7 @@ export function ChannelPage() {
         ) : !me?.user ? (
           <Card className="flex flex-col items-center gap-4 py-10 text-center">
             <p className="text-muted">{t('channel.loginToSend')}</p>
-            <AuthButtons returnTo={`/c/${login}`} />
+            <AuthButtons returnTo={`/c/${login}`} dustHint />
           </Card>
         ) : (
           <>
@@ -125,7 +125,11 @@ export function ChannelPage() {
               <div className="mb-4 flex items-center justify-between gap-3 rounded-[var(--radius)] border border-accent/40 bg-accent-soft/40 px-4 py-3 text-sm">
                 <span className="flex items-center gap-2 text-text">
                   <Icon name="sparkles" size={16} className="shrink-0 text-accent" />
-                  {t('channel.firstSendHint')}
+                  {/* Reuse the one moment the moat already allows for shop talk (right after the
+                      first send, never before it) to also name what a Twitch-less account misses. */}
+                  {t(me.user.hasTwitch ? 'channel.firstSendHint' : 'channel.firstSendHintTwitch', {
+                    n: DUST_POINTS.send,
+                  })}
                 </span>
                 <span className="flex shrink-0 items-center gap-1">
                   <button

@@ -493,6 +493,9 @@ export interface LinkAccountCard {
   displayName: string;
   avatarUrl: string | null;
   stardust: number;
+  /** Cosmetics bought on this account. Shown because the loser's are lost too — the warning says
+   *  so, and this is what makes that concrete enough to choose on without reading it. */
+  cosmetics: number;
   ownsChannel: boolean;
 }
 
@@ -571,18 +574,29 @@ export interface PublicChannelInfo {
 
 export interface PromoRedeemResult {
   ok: true;
-  /** Redeemed grant type ('founder' etc.) — frontend messages per type. */
+  /** Redeemed grant type ('founder' | 'stardust') — frontend messages per type. */
   grant: string;
+  /** Grant payload (dust granted for 'stardust'); null for grants that carry no amount. */
+  amount: number | null;
 }
 
 export interface AdminPromoCode {
   code: string;
   grant: string;
+  grantAmount: number | null;
   note: string | null;
   createdAt: number;
-  /** Redeemer's login, or null if code unused. */
-  redeemedByLogin: string | null;
-  redeemedAt: number | null;
+  maxUses: number;
+  usedCount: number;
+  /** Set = code is dead (admin revoked it); we never issue a natural expiry. */
+  expiresAt: number | null;
+}
+
+/** One activation of a promo code, for the admin per-code log. */
+export interface AdminPromoRedemption {
+  login: string;
+  displayName: string;
+  createdAt: number;
 }
 
 /** One user in the admin support panel. */

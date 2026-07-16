@@ -1,11 +1,12 @@
 import crypto from 'node:crypto';
-import { and, desc, eq, inArray, like, or, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, like, or, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type {
   AdminBotStatus,
   AdminExclusion,
   AdminLiveChannel,
   AdminPromoCode,
+  AdminPromoRedemption,
   AdminUserRow,
 } from '@tmw/shared';
 import { db } from '../db/index';
@@ -16,6 +17,7 @@ import {
   linkedIdentities,
   pendingDust,
   promoCodes,
+  promoRedemptions,
   submissions,
   userCosmetics,
   users,
@@ -26,11 +28,15 @@ import { config } from '../config';
 import type { TwitchChatModule } from '../modules/twitch-chat/index';
 import type { PlaybackManager } from '../playback';
 import { clearLeaderboardCaches } from './channels';
-import { isKnownGrant } from './promo';
+import { grantNeedsAmount, grantPrefix, isKnownGrant } from './promo';
 import { STATE_COOKIE, type OAuthState } from './auth';
 
 // No ambiguous chars (0/O/1/I) so codes are easy to dictate.
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+// Sanity ceilings on a currency faucet — a typo shouldn't be able to mint a fortune.
+const GRANT_AMOUNT_CAP = 100_000;
+const MAX_USES_CAP = 10_000;
 
 function randomChunk(len: number): string {
   let out = '';
@@ -38,8 +44,8 @@ function randomChunk(len: number): string {
   return out;
 }
 
-function genCode(): string {
-  return `FND-${randomChunk(4)}-${randomChunk(4)}`;
+function genCode(prefix: string): string {
+  return `${prefix}-${randomChunk(4)}-${randomChunk(4)}`;
 }
 
 export interface AdminRoutesDeps {
@@ -49,31 +55,34 @@ export interface AdminRoutesDeps {
 
 export function registerAdminRoutes(app: FastifyInstance, deps: AdminRoutesDeps): void {
   /** Channels with a connected OBS overlay right now (≈ live). */
-  app.get('/api/admin/live-channels', async (req, reply): Promise<AdminLiveChannel[] | undefined> => {
-    const admin = await requireAdmin(req, reply);
-    if (!admin) return;
-    const live = deps.playback.liveChannels();
-    if (live.size === 0) return [];
-    const rows = await db
-      .select({
-        id: channels.id,
-        login: users.login,
-        displayName: users.displayName,
-        avatarUrl: users.avatarUrl,
-      })
-      .from(channels)
-      .innerJoin(users, eq(users.id, channels.ownerUserId))
-      .where(inArray(channels.id, [...live.keys()]))
-      .all();
-    return rows
-      .map((r) => ({
-        login: r.login,
-        displayName: r.displayName,
-        avatarUrl: r.avatarUrl,
-        overlays: live.get(r.id) ?? 0,
-      }))
-      .sort((a, b) => a.displayName.localeCompare(b.displayName));
-  });
+  app.get(
+    '/api/admin/live-channels',
+    async (req, reply): Promise<AdminLiveChannel[] | undefined> => {
+      const admin = await requireAdmin(req, reply);
+      if (!admin) return;
+      const live = deps.playback.liveChannels();
+      if (live.size === 0) return [];
+      const rows = await db
+        .select({
+          id: channels.id,
+          login: users.login,
+          displayName: users.displayName,
+          avatarUrl: users.avatarUrl,
+        })
+        .from(channels)
+        .innerJoin(users, eq(users.id, channels.ownerUserId))
+        .where(inArray(channels.id, [...live.keys()]))
+        .all();
+      return rows
+        .map((r) => ({
+          login: r.login,
+          displayName: r.displayName,
+          avatarUrl: r.avatarUrl,
+          overlays: live.get(r.id) ?? 0,
+        }))
+        .sort((a, b) => a.displayName.localeCompare(b.displayName));
+    },
+  );
 
   app.get('/api/admin/bot', async (req, reply): Promise<AdminBotStatus | undefined> => {
     const admin = await requireAdmin(req, reply);
@@ -278,84 +287,125 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminRoutesDeps)
   );
 
   /** One-time bot hookup: the admin logs in AS the bot account with chat-read scope. */
-  app.get<{ Querystring: { returnTo?: string } }>(
-    '/api/admin/bot/connect',
-    async (req, reply) => {
-      const admin = await requireAdmin(req, reply);
-      if (!admin) return;
-      if (!config.twitch.clientId) {
-        return reply.code(503).send({ error: 'TWITCH_CLIENT_ID не настроен' });
-      }
-      const returnTo =
-        typeof req.query.returnTo === 'string' && req.query.returnTo.startsWith('/')
-          ? req.query.returnTo
-          : '/';
-      const state = crypto.randomBytes(16).toString('hex');
-      const payload: OAuthState = { state, returnTo, bot: true };
-      reply.setCookie(STATE_COOKIE, JSON.stringify(payload), {
-        signed: true,
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: config.isProd,
-        path: '/api/auth',
-        maxAge: 600,
-      });
-      // force_verify so the admin can pick the bot account, not their own session.
-      // moderated_channels: the /mod list is the opt-in signal for chat-dust channels.
-      // read:chatters: watch-time leaderboard (Get Chatters needs a moderator token).
-      return reply.redirect(
-        buildAuthorizeUrl(
-          state,
-          true,
-          'user:read:chat user:read:moderated_channels moderator:read:chatters',
-        ),
-      );
-    },
-  );
+  app.get<{ Querystring: { returnTo?: string } }>('/api/admin/bot/connect', async (req, reply) => {
+    const admin = await requireAdmin(req, reply);
+    if (!admin) return;
+    if (!config.twitch.clientId) {
+      return reply.code(503).send({ error: 'TWITCH_CLIENT_ID не настроен' });
+    }
+    const returnTo =
+      typeof req.query.returnTo === 'string' && req.query.returnTo.startsWith('/')
+        ? req.query.returnTo
+        : '/';
+    const state = crypto.randomBytes(16).toString('hex');
+    const payload: OAuthState = { state, returnTo, bot: true };
+    reply.setCookie(STATE_COOKIE, JSON.stringify(payload), {
+      signed: true,
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: config.isProd,
+      path: '/api/auth',
+      maxAge: 600,
+    });
+    // force_verify so the admin can pick the bot account, not their own session.
+    // moderated_channels: the /mod list is the opt-in signal for chat-dust channels.
+    // read:chatters: watch-time leaderboard (Get Chatters needs a moderator token).
+    return reply.redirect(
+      buildAuthorizeUrl(
+        state,
+        true,
+        'user:read:chat user:read:moderated_channels moderator:read:chatters',
+      ),
+    );
+  });
 
-  app.post<{ Body: { count?: number; note?: string; grant?: string } }>(
-    '/api/admin/promo',
-    async (req, reply): Promise<{ codes: string[] } | undefined> => {
-      const admin = await requireAdmin(req, reply);
-      if (!admin) return;
-      const count = Math.min(20, Math.max(1, Math.floor(Number(req.body?.count) || 1)));
-      const note = typeof req.body?.note === 'string' ? req.body.note.trim() || null : null;
-      const grant = (req.body?.grant ?? 'founder').trim();
-      if (!isKnownGrant(grant)) {
-        return reply.code(400).send({ error: `Неизвестный тип гранта: ${grant}` });
+  app.post<{
+    Body: { count?: number; note?: string; grant?: string; grantAmount?: number; maxUses?: number };
+  }>('/api/admin/promo', async (req, reply): Promise<{ codes: string[] } | undefined> => {
+    const admin = await requireAdmin(req, reply);
+    if (!admin) return;
+    const count = Math.min(20, Math.max(1, Math.floor(Number(req.body?.count) || 1)));
+    const note = typeof req.body?.note === 'string' ? req.body.note.trim() || null : null;
+    const grant = (req.body?.grant ?? 'founder').trim();
+    if (!isKnownGrant(grant)) {
+      return reply.code(400).send({ error: `Неизвестный тип гранта: ${grant}` });
+    }
+    const maxUses = Math.min(MAX_USES_CAP, Math.max(1, Math.floor(Number(req.body?.maxUses) || 1)));
+
+    // Dust is real currency: an unbounded or missing amount must fail loudly, not default to 0.
+    let grantAmount: number | null = null;
+    if (grantNeedsAmount(grant)) {
+      grantAmount = Math.floor(Number(req.body?.grantAmount));
+      if (!Number.isFinite(grantAmount) || grantAmount < 1 || grantAmount > GRANT_AMOUNT_CAP) {
+        return reply.code(400).send({ error: `Укажите количество от 1 до ${GRANT_AMOUNT_CAP}` });
       }
-      const now = new Date();
-      const codes = Array.from({ length: count }, genCode);
-      await db
-        .insert(promoCodes)
-        .values(codes.map((code) => ({ code, grant, note, createdAt: now })));
-      return { codes };
-    },
-  );
+    }
+
+    const now = new Date();
+    const codes = Array.from({ length: count }, () => genCode(grantPrefix(grant)));
+    await db
+      .insert(promoCodes)
+      .values(codes.map((code) => ({ code, grant, grantAmount, note, maxUses, createdAt: now })));
+    return { codes };
+  });
 
   app.get('/api/admin/promo', async (req, reply): Promise<AdminPromoCode[] | undefined> => {
     const admin = await requireAdmin(req, reply);
     if (!admin) return;
-    const rows = await db
-      .select({
-        code: promoCodes.code,
-        grant: promoCodes.grant,
-        note: promoCodes.note,
-        createdAt: promoCodes.createdAt,
-        redeemedAt: promoCodes.redeemedAt,
-        redeemedByLogin: users.login,
-      })
-      .from(promoCodes)
-      .leftJoin(users, eq(users.id, promoCodes.redeemedByUserId))
-      .orderBy(desc(promoCodes.createdAt))
-      .all();
+    const rows = await db.select().from(promoCodes).orderBy(desc(promoCodes.createdAt)).all();
     return rows.map((r) => ({
       code: r.code,
       grant: r.grant,
+      grantAmount: r.grantAmount,
       note: r.note,
       createdAt: r.createdAt.getTime(),
-      redeemedByLogin: r.redeemedByLogin,
-      redeemedAt: r.redeemedAt ? r.redeemedAt.getTime() : null,
+      maxUses: r.maxUses,
+      usedCount: r.usedCount,
+      expiresAt: r.expiresAt ? r.expiresAt.getTime() : null,
     }));
   });
+
+  /** Who redeemed a given code (admin log; also the way to spot farming). */
+  app.get<{ Params: { code: string } }>(
+    '/api/admin/promo/:code/redemptions',
+    async (req, reply): Promise<AdminPromoRedemption[] | undefined> => {
+      const admin = await requireAdmin(req, reply);
+      if (!admin) return;
+      const rows = await db
+        .select({
+          login: users.login,
+          displayName: users.displayName,
+          createdAt: promoRedemptions.createdAt,
+        })
+        .from(promoRedemptions)
+        .innerJoin(users, eq(users.id, promoRedemptions.userId))
+        .where(eq(promoRedemptions.code, req.params.code.trim().toUpperCase()))
+        .orderBy(desc(promoRedemptions.createdAt))
+        .all();
+      return rows.map((r) => ({
+        login: r.login,
+        displayName: r.displayName,
+        createdAt: r.createdAt.getTime(),
+      }));
+    },
+  );
+
+  /** Kill a leaked code. Reuses expiresAt — the redeem path already rejects a past expiry. */
+  app.post<{ Params: { code: string } }>(
+    '/api/admin/promo/:code/revoke',
+    async (req, reply): Promise<{ ok: true } | undefined> => {
+      const admin = await requireAdmin(req, reply);
+      if (!admin) return;
+      const code = req.params.code.trim().toUpperCase();
+      const res = await db
+        .update(promoCodes)
+        .set({ expiresAt: new Date() })
+        .where(and(eq(promoCodes.code, code), isNull(promoCodes.expiresAt)));
+      if (res.rowsAffected === 0) {
+        return reply.code(404).send({ error: 'Промокод не найден или уже погашен' });
+      }
+      app.log.info({ code, admin: admin.id }, 'admin: promo code revoked');
+      return { ok: true };
+    },
+  );
 }

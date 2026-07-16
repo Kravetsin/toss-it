@@ -213,21 +213,38 @@ export const modInvites = sqliteTable('mod_invites', {
 });
 
 /**
- * One-time founder promo codes, issued by admin. Row kept on redemption
- * (not deleted); redeemedByUserId records who/when for audit.
+ * Promo codes issued by admin, redeemable up to maxUses times.
+ * Who redeemed what lives in promoRedemptions, not here.
  */
 export const promoCodes = sqliteTable('promo_codes', {
   code: text('code').primaryKey(),
   grant: text('grant').notNull().default('founder'),
+  /** Grant payload (dust amount for 'stardust'); null for grants that carry no amount. */
+  grantAmount: integer('grant_amount'),
   /** Admin note (internal only, never exposed). */
   note: text('note'),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
-  /** null = no expiry. */
+  /** null = no expiry. Admin revoke sets this to now, which the redeem check already rejects. */
   expiresAt: integer('expires_at', { mode: 'timestamp_ms' }),
-  /** Who redeemed; null = unused. */
-  redeemedByUserId: text('redeemed_by_user_id').references(() => users.id),
-  redeemedAt: integer('redeemed_at', { mode: 'timestamp_ms' }),
+  maxUses: integer('max_uses').notNull().default(1),
+  /** Claimed seats; redeem is refused once it reaches maxUses. */
+  usedCount: integer('used_count').notNull().default(0),
 });
+
+/** One row per (code, user) — the PK is what stops a viewer redeeming the same code twice. */
+export const promoRedemptions = sqliteTable(
+  'promo_redemptions',
+  {
+    code: text('code')
+      .notNull()
+      .references(() => promoCodes.code),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.code, t.userId] })],
+);
 
 /**
  * Per-channel chat activity counters (leaderboard: messages / watch time),
@@ -346,3 +363,4 @@ export type ChannelModeratorRow = typeof channelModerators.$inferSelect;
 export type ChannelIntegrationRow = typeof channelIntegrations.$inferSelect;
 export type ModInviteRow = typeof modInvites.$inferSelect;
 export type PromoCodeRow = typeof promoCodes.$inferSelect;
+export type PromoRedemptionRow = typeof promoRedemptions.$inferSelect;
