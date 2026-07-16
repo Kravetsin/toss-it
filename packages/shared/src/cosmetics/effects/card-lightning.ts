@@ -59,8 +59,8 @@ export const cardLightning: CardEffectModule = {
   // Slots 0 and 1 are the far bolt and the flood; the REST are near bolts, and their rate is what the
   // storm's rhythm is made of — so these are the old 3/4/2 with the two new planes added on top,
   // never carved out. Bolt rate ≈ bolts / dur: still ~1.5s between strikes on a card, ~1.1s on an
-  // alert, ~2.3s in a pill.
-  counts: { web: 5, overlayCard: 6, overlayChat: 3 },
+  // alert, ~2.3s in a pill (a pill needs 4 for that, since two of its slots are not bolts).
+  counts: { web: 5, overlayCard: 6, overlayChat: 4 },
   // Every strike is a NEW bolt, not the same silhouette blinking in a new column — and every flood
   // comes in from a new corner. Uniquely safe here: all three are pure geometry that no keyframe
   // animates (--bolt is a clip-path, --ar an aspect-ratio, --hx a gradient's origin), and a strike
@@ -73,9 +73,7 @@ export const cardLightning: CardEffectModule = {
     // storm of five has no room for it. Slot 0 is always the far bolt, slot 1 the near flood, and
     // everything after is the bolt — so the counts above keep exactly the bolt rate they always had
     // and the two new planes are additions, not a tax (the same rule depthCount follows).
-    // A pill gets no flood: 33px of solid violet, times every row in a leaderboard, is a fault
-    // light, not weather.
-    const kind = index === 0 ? 'distant' : index === 1 && !compact ? 'flood' : 'bolt';
+    const kind = index === 0 ? 'distant' : index === 1 ? 'flood' : 'bolt';
     // Negative delay = start mid-cycle, so nothing on the page strikes in unison on first paint.
     const timing = (d: number) => ({
       '--dur': `${d.toFixed(2)}s`,
@@ -102,8 +100,10 @@ export const cardLightning: CardEffectModule = {
         '--flare': '0',
         '--op': rnd(0.5, 0.62).toFixed(2),
         animationName: 'cardfx-lightning-flood',
-        // A near strike is rare, and its cycle IS that rarity.
-        ...timing(rnd(14, 22)),
+        // A near strike is rare, and its cycle IS that rarity. Raising the rate means shortening
+        // this — and then widening the keyframe window by the same factor, because the window is a
+        // % of the cycle and would otherwise quietly clip the flash shorter as it got more frequent.
+        ...timing(rnd(9.5, 15)),
       };
     }
 
@@ -357,22 +357,24 @@ export const cardLightning: CardEffectModule = {
 }
 /* NEAR — the strike lands ON the card and the light swallows the frame. No bolt: at this distance
    the channel is wider than the shot, so there is nothing left to see a silhouette of.
-   The window is deliberately a sliver of a very long cycle (~0.25s of 14-22s). Two reasons, and the
+   The window is deliberately a sliver of a long cycle (~0.3s of 9.5-15s). Two reasons, and the
    second is not negotiable: a close strike is a rare event, and a full-field flash is not a hairline
-   — flashing the whole card on the bolt's ~1.5s rhythm would be a strobe. Two flashes every ~18s
-   sits far inside the 3-per-second flash guidance; keep it that way if you retune this. */
+   — flashing the whole card on the bolt's ~1.5s rhythm would be a strobe. Two flashes every ~12s
+   sits far inside the 3-per-second flash guidance; keep it that way if you retune this.
+   These stops are a % of --dur, so they are the flash's LENGTH as well as its place: shortening the
+   cycle without widening them here makes the flash briefer, not just more frequent. */
 @keyframes cardfx-lightning-flood {
   0%,
-  98.3% {
+  97.6% {
     opacity: 0;
   }
-  98.6% {
+  98.05% {
     opacity: var(--op, 0.55);
   }
-  98.9% {
+  98.5% {
     opacity: calc(var(--op, 0.55) * 0.3);
   }
-  99.2% {
+  98.95% {
     opacity: var(--op, 0.55);
   }
   99.9%,
