@@ -32,9 +32,19 @@ const STAR_SVG =
 
 const DEFAULT_COLOR = '#8df0cc';
 const MAX_MESSAGES = 40;
-/** Small Twitch emote (28px) — matches the ~19px line height. */
-const emoteUrl = (id: string) =>
-  `https://static-cdn.jtvnw.net/emoticons/v2/${encodeURIComponent(id)}/default/dark/1.0`;
+/** Twitch emote CDN. Scale 1.0/2.0/3.0 = 28/56/112 px; pick the asset at or above the rendered
+ *  size, since upscaling the 28px bitmap to a giant emote is visibly mushy. */
+type EmoteScale = '1.0' | '2.0' | '3.0';
+const emoteUrl = (id: string, scale: EmoteScale) =>
+  `https://static-cdn.jtvnw.net/emoticons/v2/${encodeURIComponent(id)}/default/dark/${scale}`;
+
+/** Emote-only messages render big and shrink as the count grows (Telegram sticker logic).
+ *  `step` drives the rendered height in chat.html; `scale` is the CDN asset that covers it. */
+const BIG_EMOTE_LADDER: { upTo: number; step: string; scale: EmoteScale }[] = [
+  { upTo: 1, step: '1', scale: '3.0' }, // 6em ≈ 114px
+  { upTo: 3, step: '2', scale: '3.0' }, // 3.75em ≈ 71px
+  { upTo: 6, step: '3', scale: '2.0' }, // 2.25em ≈ 43px
+];
 
 /** Fade-out animation length (keep in sync with .msg.leaving in chat.html). */
 const FADE_ANIM_MS = 450;
@@ -63,17 +73,32 @@ if (!DEMO && !token) {
   throw new Error('chat overlay token missing');
 }
 
+/** Pick the ladder step for a message, or null to keep emotes inline at normal size.
+ *  Any non-blank text disqualifies the message — only the spaces between emotes are ignored. */
+function bigEmoteStep(fragments: ChatFragment[]): (typeof BIG_EMOTE_LADDER)[number] | null {
+  let emotes = 0;
+  for (const f of fragments) {
+    if (f.type === 'emote') emotes += 1;
+    else if (f.text.trim() !== '') return null;
+  }
+  if (emotes === 0) return null;
+  return BIG_EMOTE_LADDER.find((s) => emotes <= s.upTo) ?? null;
+}
+
 /** Build the message body from fragments — text as text nodes, emotes as <img>.
  *  Never innerHTML: chat text is arbitrary user input and must not become markup. */
 function renderFragments(parent: HTMLElement, fragments: ChatFragment[]): void {
+  const big = bigEmoteStep(fragments);
+  if (big) parent.dataset.big = big.step;
   for (const f of fragments) {
     if (f.type === 'emote') {
       const img = document.createElement('img');
       img.className = 'emote';
-      img.src = emoteUrl(f.id);
+      img.src = emoteUrl(f.id, big?.scale ?? '1.0');
       img.alt = f.text;
       parent.appendChild(img);
-    } else {
+    } else if (!big) {
+      // In big mode the only text left is the padding between emotes; flex gap replaces it.
       parent.appendChild(document.createTextNode(f.text));
     }
   }
@@ -436,6 +461,49 @@ if (DEMO) {
       badges: [SUB],
       role: 'subscriber',
       fragments: [{ type: 'text', text: 'я на сабе уже 3 месяца 💜' }],
+    },
+    // 7-9 walk the big-emote ladder: 1 → 6em, 2-3 → 3.75em, 4-6 → 2.25em.
+    {
+      id: '7',
+      userId: 'u7',
+      name: 'emote_only',
+      twitchColor: '#f5a97f',
+      cosmetics: null,
+      isFounder: false,
+      level: 4,
+      fragments: [{ type: 'emote', id: '25', text: 'Kappa' }],
+    },
+    {
+      id: '8',
+      userId: 'u8',
+      name: 'triple',
+      twitchColor: '#a6e3a1',
+      cosmetics: null,
+      isFounder: false,
+      level: 1,
+      fragments: [
+        { type: 'emote', id: '25', text: 'Kappa' },
+        { type: 'text', text: ' ' },
+        { type: 'emote', id: '354', text: '4Head' },
+        { type: 'text', text: ' ' },
+        { type: 'emote', id: '58765', text: 'NotLikeThis' },
+      ],
+    },
+    {
+      id: '9',
+      userId: 'u9',
+      name: 'spammer',
+      twitchColor: '#cba6f7',
+      cosmetics: null,
+      isFounder: false,
+      level: 6,
+      fragments: [
+        { type: 'emote', id: '25', text: 'Kappa' },
+        { type: 'emote', id: '30259', text: 'HeyGuys' },
+        { type: 'emote', id: '245', text: 'ResidentSleeper' },
+        { type: 'emote', id: '41', text: 'Kreygasm' },
+        { type: 'emote', id: '1902', text: 'Keepo' },
+      ],
     },
   ];
   // Feed one message at a time on a loop so the entry animation is visible.

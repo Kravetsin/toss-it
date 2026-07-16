@@ -214,6 +214,26 @@
         vertical-align: middle;
         margin: 0 1px;
       }
+      /* Emote-only messages (data-big from renderFragments) go big and shrink as the count grows.
+         Flex, not inline: a 6em emote on a text baseline drags the whole line box with it. */
+      .msg .body[data-big] {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 2px;
+      }
+      .msg .body[data-big] .emote {
+        margin: 0;
+      }
+      .msg .body[data-big='1'] .emote {
+        height: 6em;
+      }
+      .msg .body[data-big='2'] .emote {
+        height: 3.75em;
+      }
+      .msg .body[data-big='3'] .emote {
+        height: 2.25em;
+      }
 
       /* Auto-hide: JS adds .leaving after the fade delay, then removes on animationend. */
       .msg.leaving {
