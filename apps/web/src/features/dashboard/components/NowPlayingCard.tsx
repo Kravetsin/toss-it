@@ -24,6 +24,12 @@ export function NowPlayingCard({
   const [testOpen, setTestOpen] = useState(false);
   const tier = now?.senderLevel ? levelTier(now.senderLevel) : null;
   const levelGlow = !!tier && (now?.senderLevel ?? 0) >= LEVEL_GLOW_FROM;
+  const nick = nickProps({
+    color: now?.senderColor,
+    color2: now?.senderColor2,
+    flow: now?.senderNickFlow,
+    effect: now?.senderEffect,
+  });
 
   async function submitTest(e: FormEvent) {
     e.preventDefault();
@@ -63,10 +69,7 @@ export function NowPlayingCard({
                     {toRoman(now.senderLevel!)}
                   </span>
                 )}
-                <b
-                  className={`truncate text-text ${nickProps(now.senderColor, now.senderEffect).className}`}
-                  style={nickProps(now.senderColor, now.senderEffect).style}
-                >
+                <b className={`truncate text-text ${nick.className}`} style={nick.style}>
                   {now.senderName ?? t('common.anon')}
                 </b>
                 <PlatformIcon userId={now.senderUserId} size={13} />

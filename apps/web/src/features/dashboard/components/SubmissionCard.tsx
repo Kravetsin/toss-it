@@ -55,6 +55,12 @@ export function SubmissionCard({
   // Sender's per-channel rank: color rail on the left edge + Roman numeral by the name (glow from 6).
   const tier = s.senderLevel ? levelTier(s.senderLevel) : null;
   const levelGlow = !!tier && (s.senderLevel ?? 0) >= LEVEL_GLOW_FROM;
+  const nick = nickProps({
+    color: s.senderColor,
+    color2: s.senderColor2,
+    flow: s.senderNickFlow,
+    effect: s.senderEffect,
+  });
   const { fillRef, handlers: fillHandlers } = useFillEffect();
   const [expanded, setExpanded] = useState(false);
   const [fx, setFx] = useState<'approve' | 'reject' | null>(null);
@@ -166,10 +172,7 @@ export function SubmissionCard({
                   {toRoman(s.senderLevel!)}
                 </span>
               )}
-              <b
-                className={`truncate text-sm text-text ${nickProps(s.senderColor, s.senderEffect).className}`}
-                style={nickProps(s.senderColor, s.senderEffect).style}
-              >
+              <b className={`truncate text-sm text-text ${nick.className}`} style={nick.style}>
                 {s.senderName ?? t('common.anon')}
               </b>
               <RepChip rep={rep} />

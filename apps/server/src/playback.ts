@@ -45,17 +45,29 @@ export function emitSubmissionStatus(
   io.to(submissionRoomOf(submissionId)).emit('submission:status', { submissionId, status });
 }
 
-/** A sender's equipped cosmetics (nick color + nick effect + card effect) for rendering. */
+/** A sender's equipped cosmetics (nick color + gradient stop + nick effect + card effect). */
 export interface NickMarks {
   color: string | null;
+  /** Second gradient stop; only meaningful together with `color`. */
+  color2: string | null;
+  /** Whether the gradient drifts (nick-flow). */
+  flow: boolean;
   nickEffect: string | null;
   cardEffect: string | null;
 }
-const NO_MARKS: NickMarks = { color: null, nickEffect: null, cardEffect: null };
+const NO_MARKS: NickMarks = {
+  color: null,
+  color2: null,
+  flow: false,
+  nickEffect: null,
+  cardEffect: null,
+};
 
 function marksFromEquipped(equipped: EquippedCosmetics | null): NickMarks {
   return {
     color: equipped?.nickColor ?? null,
+    color2: equipped?.nickColor2 ?? null,
+    flow: equipped?.nickFlow ?? false,
     nickEffect: equipped?.nickEffect ?? null,
     cardEffect: equipped?.cardEffect ?? null,
   };
@@ -71,6 +83,8 @@ export function toSummary(
     senderUserId: sub.senderUserId,
     senderName: sub.senderName,
     senderColor: marks.color,
+    senderColor2: marks.color2,
+    senderNickFlow: marks.flow,
     senderEffect: marks.nickEffect,
     senderCardEffect: marks.cardEffect,
     senderLevel,
@@ -111,6 +125,7 @@ export async function equippedMarksFor(
   for (const r of rows) {
     const e = r.equipped;
     if (e?.nickColor || e?.nickEffect || e?.cardEffect) out.set(r.id, marksFromEquipped(e));
+    // nickColor2 needs no check of its own: it is only ever set alongside nickColor.
   }
   return out;
 }
@@ -339,6 +354,8 @@ export class PlaybackManager {
       tts: (channel?.ttsName ?? false) && showName && sub.senderName !== null,
       senderName: showName ? (sub.senderName ?? undefined) : undefined,
       senderColor: marks.color ?? undefined,
+      senderColor2: marks.color2 ?? undefined,
+      senderNickFlow: marks.flow || undefined,
       senderEffect: marks.nickEffect ?? undefined,
       senderCardEffect: marks.cardEffect ?? undefined,
       senderLevel: senderLevel || undefined,

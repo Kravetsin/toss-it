@@ -10,20 +10,17 @@ export const nickPulse: NickEffectModule = {
   type: 'nick_effect',
   costDust: 2000,
   className: 'nick-pulse',
+  animation: 'nick-pulse 1.8s ease-in-out infinite alternate',
   labels: { name: 'shop.nickPulse', desc: 'shop.nickPulseDesc' },
   css: `
-.nick-pulse {
-  animation: nick-pulse 1.8s ease-in-out infinite alternate;
-}
-
 @keyframes nick-pulse {
   0% {
     filter: drop-shadow(0 0 2px var(--nick-glow, currentColor))
-      drop-shadow(0 0 4px var(--nick-glow, currentColor));
+      drop-shadow(0 0 4px var(--nick-glow-2, var(--nick-glow, currentColor)));
   }
   100% {
     filter: drop-shadow(0 0 4px var(--nick-glow, currentColor))
-      drop-shadow(0 0 12px var(--nick-glow, currentColor));
+      drop-shadow(0 0 12px var(--nick-glow-2, var(--nick-glow, currentColor)));
   }
 }
 `,

@@ -144,10 +144,13 @@ export function Leaderboard({
               // Optimistic: your own row reflects your live equipped cosmetics (updated on equip)
               // instead of the leaderboard snapshot fetched at page load — no refresh needed.
               const mine = isYou ? me?.user?.equipped : undefined;
-              const nickColor = mine ? (mine.nickColor ?? null) : e.nickColor;
-              const nickEffect = mine ? (mine.nickEffect ?? null) : e.nickEffect;
               const cardEffect = mine ? (mine.cardEffect ?? null) : e.cardEffect;
-              const nick = nickProps(nickColor, nickEffect);
+              const nick = nickProps({
+                color: mine ? mine.nickColor : e.nickColor,
+                color2: mine ? mine.nickColor2 : e.nickColor2,
+                flow: mine ? mine.nickFlow : e.nickFlow,
+                effect: mine ? mine.nickEffect : e.nickEffect,
+              });
               const tier = e.level ? levelTier(e.level) : null;
               const levelGlow = !!tier && (e.level ?? 0) >= LEVEL_GLOW_FROM;
               return (

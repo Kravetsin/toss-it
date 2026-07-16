@@ -50,6 +50,11 @@ export function registerCosmeticsRoutes(app: FastifyInstance): void {
     if (!item) return reply.code(400).send({ error: 'Неизвестный предмет' });
     // Free items (e.g. base TTS voices) are available to everyone — nothing to buy.
     if (item.costDust <= 0) return reply.code(400).send({ error: 'Предмет бесплатный' });
+    // Ladder items must be bought in order: the shop only hides the later rungs, so without this
+    // a direct request could buy an upgrade that no surface can render.
+    if (item.requires && !(await owns(user.id, item.requires))) {
+      return reply.code(400).send({ error: 'Сначала нужен предыдущий предмет' });
+    }
 
     // Charge FIRST with an atomic balance guard. A grant must never exist without a paid
     // debit: otherwise a concurrent equip could lock in a color for free during a rollback
@@ -80,55 +85,91 @@ export function registerCosmeticsRoutes(app: FastifyInstance): void {
 
   /**
    * Equip/unequip cosmetics. nickColor: free-form #rrggbb (requires owning 'nick-color').
-   * nickEffect: a nick-effect item id (requires owning it). null on either unequips that slot.
+   * nickColor2: the gradient's second stop (requires owning 'nick-gradient'). nickEffect: a
+   * nick-effect item id (requires owning it). null on any of them unequips that slot.
    */
-  app.post<{ Body: { nickColor?: unknown; nickEffect?: unknown; cardEffect?: unknown } | null }>(
-    '/api/cosmetics/equip',
-    async (req, reply) => {
-      const user = await requireUser(req, reply);
-      if (!user) return;
-      // Body is unvalidated at runtime; a primitive body ("x", 5) would throw on `in`.
-      const body =
-        req.body && typeof req.body === 'object' && !Array.isArray(req.body)
-          ? (req.body as { nickColor?: unknown; nickEffect?: unknown; cardEffect?: unknown })
-          : {};
-      const equipped: EquippedCosmetics = { ...(user.equipped ?? {}) };
+  app.post<{
+    Body: {
+      nickColor?: unknown;
+      nickColor2?: unknown;
+      nickFlow?: unknown;
+      nickEffect?: unknown;
+      cardEffect?: unknown;
+    } | null;
+  }>('/api/cosmetics/equip', async (req, reply) => {
+    const user = await requireUser(req, reply);
+    if (!user) return;
+    // Body is unvalidated at runtime; a primitive body ("x", 5) would throw on `in`.
+    const body =
+      req.body && typeof req.body === 'object' && !Array.isArray(req.body)
+        ? (req.body as {
+            nickColor?: unknown;
+            nickColor2?: unknown;
+            nickFlow?: unknown;
+            nickEffect?: unknown;
+            cardEffect?: unknown;
+          })
+        : {};
+    const equipped: EquippedCosmetics = { ...(user.equipped ?? {}) };
 
-      if ('nickColor' in body) {
-        const raw = body.nickColor;
-        if (raw === null) {
-          delete equipped.nickColor;
-        } else if (typeof raw === 'string' && isHexColor(raw)) {
-          if (!(await owns(user.id, 'nick-color'))) {
-            return reply.code(403).send({ error: 'Цвет ника не куплен' });
-          }
-          equipped.nickColor = raw.toLowerCase();
-        } else {
-          return reply.code(400).send({ error: 'Некорректный цвет' });
+    for (const [field, itemId] of [
+      ['nickColor', 'nick-color'],
+      ['nickColor2', 'nick-gradient'],
+    ] as const) {
+      if (!(field in body)) continue;
+      const raw = body[field];
+      if (raw === null) {
+        delete equipped[field];
+      } else if (typeof raw === 'string' && isHexColor(raw)) {
+        if (!(await owns(user.id, itemId))) {
+          return reply.code(403).send({ error: 'Предмет не куплен' });
         }
+        equipped[field] = raw.toLowerCase();
+      } else {
+        return reply.code(400).send({ error: 'Некорректный цвет' });
       }
+    }
 
-      // Equip a nick effect (slot) or a card effect (slot). null unequips that slot.
-      for (const [field, type] of [
-        ['nickEffect', 'nick_effect'],
-        ['cardEffect', 'card_effect'],
-      ] as const) {
-        if (!(field in body)) continue;
-        const raw = body[field];
-        if (raw === null) {
-          delete equipped[field];
-        } else if (typeof raw === 'string' && isCosmeticOfType(raw, type)) {
-          if (!(await owns(user.id, raw))) {
-            return reply.code(403).send({ error: 'Эффект не куплен' });
-          }
-          equipped[field] = raw;
-        } else {
-          return reply.code(400).send({ error: 'Некорректный эффект' });
+    if ('nickFlow' in body) {
+      const raw = body.nickFlow;
+      if (raw === null || raw === false) {
+        delete equipped.nickFlow;
+      } else if (raw === true) {
+        if (!(await owns(user.id, 'nick-flow'))) {
+          return reply.code(403).send({ error: 'Предмет не куплен' });
         }
+        equipped.nickFlow = true;
+      } else {
+        return reply.code(400).send({ error: 'Некорректное значение' });
       }
+    }
 
-      await db.update(users).set({ equipped }).where(eq(users.id, user.id));
-      return cosmeticState(user.id);
-    },
-  );
+    // The colour family is a ladder: a second stop has nothing to ramp from without the base, and
+    // flow has nothing to drift between without the second stop. Drop the upgrades with their
+    // foundation rather than persisting a state no surface can render.
+    if (!equipped.nickColor) delete equipped.nickColor2;
+    if (!equipped.nickColor2) delete equipped.nickFlow;
+
+    // Equip a nick effect (slot) or a card effect (slot). null unequips that slot.
+    for (const [field, type] of [
+      ['nickEffect', 'nick_effect'],
+      ['cardEffect', 'card_effect'],
+    ] as const) {
+      if (!(field in body)) continue;
+      const raw = body[field];
+      if (raw === null) {
+        delete equipped[field];
+      } else if (typeof raw === 'string' && isCosmeticOfType(raw, type)) {
+        if (!(await owns(user.id, raw))) {
+          return reply.code(403).send({ error: 'Эффект не куплен' });
+        }
+        equipped[field] = raw;
+      } else {
+        return reply.code(400).send({ error: 'Некорректный эффект' });
+      }
+    }
+
+    await db.update(users).set({ equipped }).where(eq(users.id, user.id));
+    return cosmeticState(user.id);
+  });
 }

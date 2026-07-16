@@ -7,6 +7,7 @@ import {
   COSMETICS,
   type AccessibleChannel,
   type ChannelSettings,
+  type EquippedCosmetics,
   type HistoryEntry,
   type LeaderboardEntry,
   type ListedUser,
@@ -66,7 +67,13 @@ const MOCK_ME: MeResponse = {
     // Own everything + equip a combo so the shop shows all cosmetics equippable and the signed-in
     // user's own nick/cards demo the effects live (dev preview only).
     ownedCosmetics: COSMETICS.map((c) => c.id),
-    equipped: { nickColor: '#8df0cc', nickEffect: 'nick-pulse', cardEffect: 'card-levitation' },
+    equipped: {
+      nickColor: '#8df0cc',
+      nickColor2: '#a78bfa',
+      nickFlow: true,
+      nickEffect: 'nick-pulse',
+      cardEffect: 'card-levitation',
+    },
     // false so the "link Twitch" shop banner is visible in mock previews.
     hasTwitch: false,
   },
@@ -138,6 +145,8 @@ const sub = (
   senderUserId: null,
   senderName: null,
   senderColor: null,
+  senderColor2: null,
+  senderNickFlow: false,
   senderEffect: null,
   senderCardEffect: null,
   mime: 'text/plain',
@@ -348,6 +357,8 @@ function mockPublicChannel(login: string): PublicChannelInfo {
     description: MOCK_SETTINGS.description,
     links: MOCK_SETTINGS.links,
     nickColor: '#ff9ed8',
+    nickColor2: '#a78bfa',
+    nickFlow: true,
     nickEffect: 'nick-glow',
     cardEffect: 'card-stardust',
     // Themed on purpose: ?mock=1 is the only way to see a custom channel theme without a real
@@ -368,6 +379,8 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     value: 12,
     isFounder: false,
     nickColor: '#ffb86c',
+    nickColor2: '#ff5f6d',
+    nickFlow: true,
     nickEffect: 'nick-glow',
     cardEffect: 'card-stardust',
     level: 8,
@@ -379,6 +392,8 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     value: 12,
     isFounder: true,
     nickColor: null,
+    nickColor2: null,
+    nickFlow: false,
     nickEffect: null,
     cardEffect: null,
     level: 4,
@@ -390,6 +405,8 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     value: 6,
     isFounder: false,
     nickColor: '#a5b4fc',
+    nickColor2: null,
+    nickFlow: false,
     nickEffect: 'nick-pulse',
     cardEffect: 'card-embers',
     level: 10,
@@ -401,6 +418,8 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     value: 5,
     isFounder: false,
     nickColor: '#ffd36e',
+    nickColor2: null,
+    nickFlow: false,
     nickEffect: 'nick-glow',
     cardEffect: 'card-rain',
     level: 6,
@@ -412,6 +431,9 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     value: 2,
     isFounder: false,
     nickColor: '#b0f5c0',
+    nickColor2: '#7dd3fc',
+    // Static gradient, no flow — the contrast against the drifting rows above is the point.
+    nickFlow: false,
     nickEffect: null,
     cardEffect: 'card-snow',
     level: 2,
@@ -559,6 +581,8 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
     const u = MOCK_ME.user!;
     const body = init?.body ? (JSON.parse(String(init.body)) as { itemId?: string }) : {};
     const item = COSMETICS.find((c) => c.id === body.itemId);
+    // Mirror the server: ladder items only unlock once the rung below them is owned.
+    if (item?.requires && !u.ownedCosmetics.includes(item.requires)) return cosmeticState();
     if (item && !u.ownedCosmetics.includes(item.id)) {
       u.ownedCosmetics = [...u.ownedCosmetics, item.id];
       u.stardust -= item.costDust;
@@ -567,18 +591,16 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
   }
   if (pathname === '/api/cosmetics/equip') {
     const u = MOCK_ME.user!;
-    const body = init?.body
-      ? (JSON.parse(String(init.body)) as {
-          nickColor?: string | null;
-          nickEffect?: string | null;
-          cardEffect?: string | null;
-        })
-      : {};
-    if ('nickColor' in body) u.equipped = { ...u.equipped, nickColor: body.nickColor || undefined };
-    if ('nickEffect' in body)
-      u.equipped = { ...u.equipped, nickEffect: body.nickEffect || undefined };
-    if ('cardEffect' in body)
-      u.equipped = { ...u.equipped, cardEffect: body.cardEffect || undefined };
+    const body = init?.body ? (JSON.parse(String(init.body)) as EquippedCosmetics) : {};
+    const next: EquippedCosmetics = { ...u.equipped };
+    for (const slot of ['nickColor', 'nickColor2', 'nickEffect', 'cardEffect'] as const) {
+      if (slot in body) next[slot] = body[slot] || undefined;
+    }
+    if ('nickFlow' in body) next.nickFlow = body.nickFlow || undefined;
+    // Mirror the server's ladder: an upgrade can't outlive the rung it stands on.
+    if (!next.nickColor) next.nickColor2 = undefined;
+    if (!next.nickColor2) next.nickFlow = undefined;
+    u.equipped = next;
     return cosmeticState();
   }
 

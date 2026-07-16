@@ -105,7 +105,12 @@ export function ProfileMenu({ viewerLevel = 0 }: { viewerLevel?: number }) {
       },
     });
 
-  const nick = nickProps(user.equipped?.nickColor ?? null, user.equipped?.nickEffect ?? null);
+  const nick = nickProps({
+    color: user.equipped?.nickColor,
+    color2: user.equipped?.nickColor2,
+    flow: user.equipped?.nickFlow,
+    effect: user.equipped?.nickEffect,
+  });
   const tier = viewerLevel ? levelTier(viewerLevel) : null;
   const levelGlow = !!tier && viewerLevel >= LEVEL_GLOW_FROM;
 

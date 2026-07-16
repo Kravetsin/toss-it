@@ -3,11 +3,14 @@ import type {
   CosmeticItem,
   CosmeticModule,
   CosmeticType,
+  NickEffectModule,
   Rnd,
   Surface,
 } from './types';
 import type { TtsVoiceModule } from './types';
 import { nickColor } from './effects/nick-color';
+import { nickGradient } from './effects/nick-gradient';
+import { nickFlow } from './effects/nick-flow';
 import { nickGlow } from './effects/nick-glow';
 import { nickPulse } from './effects/nick-pulse';
 import { cardLevitation } from './effects/card-levitation';
@@ -28,6 +31,30 @@ const BASE_CSS = `
    extension) — reading the accent would repaint it per channel theme and per surface. */
 :root {
   --cos-mint: #8df0cc;
+  /* Ink a painted name ramps between when the viewer owns no nick colour — surfaces may override
+     it to their own text colour. Matches the overlays' #ededec. */
+  --nick-ink: #ededec;
+}
+/* A name drawn THROUGH its background (gradient, or any effect declaring paintsName): the colour
+   lives in --nick-base (set by nickRender) and effects stack extra layers over it from their own
+   module CSS. See ./nick.ts for the model; the gotchas below are load-bearing, don't inline them
+   back into nickRender. */
+.nick-paint {
+  background-image: var(--nick-base);
+  background-clip: text;
+  -webkit-background-clip: text;
+  /* Both: plain color covers engines without -webkit-text-fill-color. */
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  /* The ramp spans the element BOX, not the glyphs — in a full-width box the name gets only the
+     ramp's first slice and stop 2 never shows. Shrink to the text (max-width keeps truncate
+     working). Flex/grid children blockify this away and must shrink themselves (self-start). */
+  display: inline-block;
+  max-width: 100%;
+  /* Surfaces put a legibility text-shadow on the CONTAINER and the name inherits it; transparent
+     glyphs don't hide it — it paints as a black ghost of the letters. Those containers carry their
+     own dark plate, so dropping it is safe. */
+  text-shadow: none;
 }
 .card-fx {
   position: absolute;
@@ -58,6 +85,8 @@ const BASE_CSS = `
  */
 export const COSMETIC_MODULES: CosmeticModule[] = [
   nickColor,
+  nickGradient,
+  nickFlow,
   nickGlow,
   nickPulse,
   cardLevitation,
@@ -76,11 +105,14 @@ export function cosmeticModule(id: string): CosmeticModule | undefined {
 }
 
 /** Catalog metadata — the back-compat `COSMETICS` array many callers still consume. */
-export const COSMETICS: CosmeticItem[] = COSMETIC_MODULES.map(({ id, type, costDust }) => ({
-  id,
-  type,
-  costDust,
-}));
+export const COSMETICS: CosmeticItem[] = COSMETIC_MODULES.map(
+  ({ id, type, costDust, requires }) => ({
+    id,
+    type,
+    costDust,
+    requires,
+  }),
+);
 
 /** Whether an id is a buyable cosmetic of the given type. */
 export function isCosmeticOfType(id: string, type: CosmeticType): boolean {
@@ -104,8 +136,13 @@ export function cardEffectClass(id: string): string {
 
 /** Name-element class for a nick effect (e.g. 'nick-glow'), or '' if not a nick effect. */
 export function nickEffectClass(id: string): string {
+  return nickEffectModule(id)?.className ?? '';
+}
+
+/** Nick-effect module by catalog id, or undefined for unknown / non-nick-effect ids. */
+export function nickEffectModule(id: string): NickEffectModule | undefined {
   const m = BY_ID.get(id);
-  return m?.type === 'nick_effect' ? m.className : '';
+  return m?.type === 'nick_effect' ? m : undefined;
 }
 
 /** TTS voice module by catalog id, or undefined for unknown / non-voice ids. */
@@ -138,6 +175,18 @@ export function makeGroundGlows(
 ): Record<string, string>[] {
   const glow = asCardEffect(id)?.groundGlow;
   return glow ? particles.map((p) => glow(p)) : [];
+}
+
+/**
+ * Apply a style map (from makeParticles / makeGroundGlows / nickRender) to an element: `--custom`
+ * properties go through setProperty, the rest are camelCase CSSStyleDeclaration keys. For the
+ * overlays' hand-built DOM — React consumers spread the same map as a style object instead.
+ */
+export function applyStyleMap(el: HTMLElement, styles: Record<string, string>): void {
+  for (const [k, v] of Object.entries(styles)) {
+    if (k.startsWith('--')) el.style.setProperty(k, v);
+    else (el.style as unknown as Record<string, string>)[k] = v;
+  }
 }
 
 /** Concatenated CSS for the whole catalog (base layer + every module's css). */

@@ -15,10 +15,13 @@ export function ChannelHeader({ channel }: { channel: PublicChannelInfo }) {
   // (so a streamer can see their effects even without sending files). When the streamer is
   // viewing their OWN page, read live equipped state from `me` so an equip shows without a reload.
   const mine = me?.user && me.user.login === channel.login ? me.user.equipped : undefined;
-  const nickColor = mine ? (mine.nickColor ?? null) : channel.nickColor;
-  const nickEffect = mine ? (mine.nickEffect ?? null) : channel.nickEffect;
   const cardEffect = mine ? (mine.cardEffect ?? null) : channel.cardEffect;
-  const nick = nickProps(nickColor, nickEffect);
+  const nick = nickProps({
+    color: mine ? mine.nickColor : channel.nickColor,
+    color2: mine ? mine.nickColor2 : channel.nickColor2,
+    flow: mine ? mine.nickFlow : channel.nickFlow,
+    effect: mine ? mine.nickEffect : channel.nickEffect,
+  });
   return (
     <div className="relative">
       <CardEffect effect={cardEffect} />

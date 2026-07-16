@@ -369,6 +369,8 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
             'moderation:new',
             toSummary(row, {
               color: user.equipped?.nickColor ?? null,
+              color2: user.equipped?.nickColor2 ?? null,
+              flow: user.equipped?.nickFlow ?? false,
               nickEffect: user.equipped?.nickEffect ?? null,
               cardEffect: user.equipped?.cardEffect ?? null,
             }),

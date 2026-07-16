@@ -10,7 +10,12 @@ import { nickProps } from '@/lib/nick';
  * without hunting through the leaderboard.
  */
 export function ProfileCard({ user }: { user: SessionUser }) {
-  const nick = nickProps(user.equipped?.nickColor ?? null, user.equipped?.nickEffect ?? null);
+  const nick = nickProps({
+    color: user.equipped?.nickColor,
+    color2: user.equipped?.nickColor2,
+    flow: user.equipped?.nickFlow,
+    effect: user.equipped?.nickEffect,
+  });
   return (
     <div className="relative overflow-hidden border border-border bg-surface-2 p-3 shadow-1">
       <CardEffect effect={user.equipped?.cardEffect} compact />

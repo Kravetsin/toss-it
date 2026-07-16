@@ -69,10 +69,13 @@ export function Button({
   const style: CSSProperties = { ...restStyle };
   if (v.cf) (style as Record<string, string>)['--cf-color'] = v.cf;
 
+  // `relative` is load-bearing: the fill span is `absolute inset-0`, and only `.cornerframe` used to
+  // position the button — so cornerless variants (ghost) leaked their fill up to the nearest
+  // positioned ancestor and washed the whole card on hover.
   return (
     <button
       style={style}
-      className={`group inline-flex cursor-pointer select-none items-center justify-center rounded-none border-0 label-mono outline-none transition-[opacity] duration-200 ease-out focus-visible:[box-shadow:var(--shadow-focus)] disabled:pointer-events-none disabled:opacity-40 ${SIZE[size]} ${v.corners ? 'cornerframe' : ''} ${v.cls} ${className}`}
+      className={`group relative inline-flex cursor-pointer select-none items-center justify-center rounded-none border-0 label-mono outline-none transition-[opacity] duration-200 ease-out focus-visible:[box-shadow:var(--shadow-focus)] disabled:pointer-events-none disabled:opacity-40 ${SIZE[size]} ${v.corners ? 'cornerframe' : ''} ${v.cls} ${className}`}
       {...rest}
       {...fillHandlers}
     >

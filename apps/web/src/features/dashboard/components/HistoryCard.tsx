@@ -28,6 +28,12 @@ export function HistoryCard({
             const si = STATUS_ICON[h.status];
             const tier = h.senderLevel ? levelTier(h.senderLevel) : null;
             const levelGlow = !!tier && (h.senderLevel ?? 0) >= LEVEL_GLOW_FROM;
+            const nick = nickProps({
+              color: h.senderColor,
+              color2: h.senderColor2,
+              flow: h.senderNickFlow,
+              effect: h.senderEffect,
+            });
             return (
               <tr key={h.id} className="border-t border-border first:border-t-0">
                 <td className="py-1.5 pr-2 align-middle">
@@ -46,10 +52,7 @@ export function HistoryCard({
                         {toRoman(h.senderLevel!)}
                       </span>
                     )}
-                    <b
-                      className={`text-text ${nickProps(h.senderColor, h.senderEffect).className}`}
-                      style={nickProps(h.senderColor, h.senderEffect).style}
-                    >
+                    <b className={`text-text ${nick.className}`} style={nick.style}>
                       {h.senderName ?? t('common.anon')}
                     </b>
                     <PlatformIcon userId={h.senderUserId} size={13} />

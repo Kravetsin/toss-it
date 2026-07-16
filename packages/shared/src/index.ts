@@ -108,6 +108,10 @@ export interface MediaPlayPayload {
   senderName?: string;
   /** Sender's equipped nickname color (#rrggbb), absent if none/anon. */
   senderColor?: string;
+  /** Sender's second gradient stop (#rrggbb); absent unless they equipped a gradient. */
+  senderColor2?: string;
+  /** Sender's gradient drifts (nick-flow); absent unless equipped. */
+  senderNickFlow?: boolean;
   /** Sender's equipped nick effect id (e.g. 'nick-glow'); absent if none. */
   senderEffect?: string;
   /** Sender's equipped card effect id (e.g. 'card-levitation', 'card-stardust'); absent if none. */
@@ -316,6 +320,10 @@ export interface SubmissionSummary {
   senderName: string | null;
   /** Sender's equipped nickname color (#rrggbb), null if none/anon. */
   senderColor: string | null;
+  /** Sender's second gradient stop (#rrggbb), null unless they equipped a gradient. */
+  senderColor2: string | null;
+  /** Whether the sender's gradient drifts (nick-flow). */
+  senderNickFlow: boolean;
   /** Sender's equipped nick effect id, null if none. */
   senderEffect: string | null;
   /** Sender's equipped card effect id, null if none. */
@@ -565,6 +573,10 @@ export interface PublicChannelInfo {
   links: ChannelLink[];
   /** Streamer's own equipped cosmetics, shown on their channel header. */
   nickColor: string | null;
+  /** Second gradient stop (#rrggbb), null unless they equipped a gradient. */
+  nickColor2: string | null;
+  /** Whether their gradient drifts (nick-flow). */
+  nickFlow: boolean;
   nickEffect: string | null;
   cardEffect: string | null;
   /** Page theme knobs. On a full load the server already inlined these as tokens (see seo.ts);
@@ -670,6 +682,10 @@ export interface LeaderboardEntry {
   isFounder: boolean;
   /** Equipped nickname color (#rrggbb), null if none. */
   nickColor: string | null;
+  /** Second gradient stop (#rrggbb), null unless a gradient is equipped. */
+  nickColor2: string | null;
+  /** Whether the gradient drifts (nick-flow). */
+  nickFlow: boolean;
   /** Equipped nick effect id, null if none. */
   nickEffect: string | null;
   /** Equipped card effect id, null if none. */

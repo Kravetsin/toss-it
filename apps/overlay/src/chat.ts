@@ -2,13 +2,14 @@ import '@fontsource/jetbrains-mono';
 import { io, type Socket } from 'socket.io-client';
 import {
   LEVEL_GLOW_FROM,
+  applyStyleMap,
   cardEffectClass,
   injectCosmeticsStyles,
   injectLevelStyles,
   levelTier,
   makeGroundGlows,
   makeParticles,
-  nickEffectClass,
+  nickRender,
   particleCount,
   toRoman,
   type ChatFragment,
@@ -113,24 +114,18 @@ function addCardEffect(row: HTMLElement, effect: string): void {
   // `compact`: pills are short, so use the compact trajectory (crosses the row, clipped outside).
   const layer = document.createElement('div');
   layer.className = `card-fx ${cls} compact`;
-  const applyStyles = (el: HTMLElement, styles: Record<string, string>) => {
-    for (const [k, v] of Object.entries(styles)) {
-      if (k.startsWith('--')) el.style.setProperty(k, v);
-      else (el.style as unknown as Record<string, string>)[k] = v;
-    }
-  };
   const particles = makeParticles(effect, count);
   for (const ps of particles) {
     const p = document.createElement('span');
     p.className = 'p';
-    applyStyles(p, ps);
+    applyStyleMap(p, ps);
     layer.appendChild(p);
   }
   // Ground glows: thin lines phased to each particle's bottom-crossing (compact keyframes).
   for (const gs of makeGroundGlows(effect, particles)) {
     const g = document.createElement('span');
     g.className = 'g';
-    applyStyles(g, gs);
+    applyStyleMap(g, gs);
     layer.appendChild(g);
   }
   row.appendChild(layer);
@@ -199,12 +194,16 @@ function renderMessage(msg: ChatOverlayMessage): void {
   const name = document.createElement('span');
   name.className = 'name';
   name.textContent = msg.name;
-  name.style.color = color;
-  const nickFx = msg.cosmetics?.nickEffect ? nickEffectClass(msg.cosmetics.nickEffect) : '';
-  if (nickFx) {
-    name.classList.add(nickFx);
-    name.style.setProperty('--nick-glow', color);
-  }
+  // Gradient only ramps from a Tossit nick color — never from the Twitch fallback, which the
+  // viewer never picked a second stop against.
+  const nick = nickRender({
+    color,
+    color2: msg.cosmetics?.nickColor ? (msg.cosmetics.nickColor2 ?? null) : null,
+    flow: msg.cosmetics?.nickFlow ?? false,
+    effect: msg.cosmetics?.nickEffect ?? null,
+  });
+  if (nick.className) name.classList.add(nick.className);
+  applyStyleMap(name, nick.style);
   nameLine.appendChild(name);
   row.appendChild(nameLine);
 
@@ -411,7 +410,13 @@ if (DEMO) {
       userId: 'u3',
       name: 'Kravets',
       twitchColor: null,
-      cosmetics: { nickColor: '#8df0cc', nickEffect: 'nick-glow', cardEffect: 'card-stardust' },
+      cosmetics: {
+        nickColor: '#8df0cc',
+        nickColor2: '#a78bfa',
+        nickFlow: true,
+        nickEffect: 'nick-glow',
+        cardEffect: 'card-stardust',
+      },
       isFounder: true,
       level: 8,
       badges: [BROADCASTER],

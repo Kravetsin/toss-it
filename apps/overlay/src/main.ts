@@ -4,6 +4,7 @@ import {
   COSMETICS,
   LEVEL_GLOW_FROM,
   OVERLAY_POSITIONS,
+  applyStyleMap,
   cardEffectClass,
   giphyGifUrl,
   injectCosmeticsStyles,
@@ -11,7 +12,7 @@ import {
   levelTier,
   makeGroundGlows,
   makeParticles,
-  nickEffectClass,
+  nickRender,
   particleCount,
   positionToFlex,
   toRoman,
@@ -164,7 +165,14 @@ function show(payload: MediaPlayPayload): void {
     const nameEl = document.createElement('span');
     nameEl.className = 'name';
     nameEl.textContent = payload.senderName;
-    if (payload.senderColor) nameEl.style.color = payload.senderColor;
+    const nick = nickRender({
+      color: payload.senderColor ?? null,
+      color2: payload.senderColor2 ?? null,
+      flow: payload.senderNickFlow ?? false,
+      effect: payload.senderEffect ?? null,
+    });
+    if (nick.className) nameEl.classList.add(nick.className);
+    applyStyleMap(nameEl, nick.style);
     banner.appendChild(nameEl);
     // Badges (founder, future cosmetics) — mint glyphs after the name.
     const badgeSvgs = (payload.senderBadges ?? [])
@@ -175,12 +183,6 @@ function show(payload: MediaPlayPayload): void {
       badges.className = 'badges';
       badges.innerHTML = badgeSvgs.map((svg) => `<span class="badge">${svg}</span>`).join('');
       banner.appendChild(badges);
-    }
-    // Nick effect: a class on the name element (glow, …); --nick-glow carries the nick color.
-    const nickFx = payload.senderEffect ? nickEffectClass(payload.senderEffect) : '';
-    if (nickFx) {
-      nameEl.classList.add(nickFx);
-      nameEl.style.setProperty('--nick-glow', payload.senderColor || '#8df0cc');
     }
     alert.appendChild(banner);
   }
@@ -205,24 +207,18 @@ function addCardEffect(alert: HTMLElement, effect: string): void {
   if (!cls || !count) return;
   const layer = document.createElement('div');
   layer.className = `card-fx ${cls}`;
-  const applyStyles = (el: HTMLElement, styles: Record<string, string>) => {
-    for (const [k, v] of Object.entries(styles)) {
-      if (k.startsWith('--')) el.style.setProperty(k, v);
-      else (el.style as unknown as Record<string, string>)[k] = v;
-    }
-  };
   const particles = makeParticles(effect, count);
   for (const ps of particles) {
     const p = document.createElement('span');
     p.className = 'p';
-    applyStyles(p, ps);
+    applyStyleMap(p, ps);
     layer.appendChild(p);
   }
   // Ground glows: a bloom at each particle's origin/impact column, pinned to the bottom.
   for (const gs of makeGroundGlows(effect, particles)) {
     const g = document.createElement('span');
     g.className = 'g';
-    applyStyles(g, gs);
+    applyStyleMap(g, gs);
     layer.appendChild(g);
   }
   alert.appendChild(layer);
@@ -976,6 +972,10 @@ function demoPayload(kind: MediaKind, st: DemoState): MediaPlayPayload {
     senderName: st.sender ? 'demo_viewer' : undefined,
     // Sample cosmetics so the demo shows nick color + effects + badges on stream.
     senderColor: st.sender ? '#ff9ed8' : undefined,
+    // Deliberately not the brand mint: a mint 2nd stop makes the glow's outer halo look like a
+    // hardcoded default rather than the viewer's own colour.
+    senderColor2: st.sender ? '#a78bfa' : undefined,
+    senderNickFlow: st.sender || undefined,
     senderLevel: st.sender ? 7 : undefined,
     senderEffect: st.sender && st.nickGlow ? 'nick-glow' : undefined,
     senderCardEffect: st.cardEffect !== 'none' ? st.cardEffect : undefined,

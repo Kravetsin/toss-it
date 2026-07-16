@@ -27,6 +27,12 @@ export interface CosmeticItem {
   type: CosmeticType;
   /** Price in stardust. */
   costDust: number;
+  /**
+   * Catalog id that must be owned before this one can be bought (the nick-colour ladder:
+   * colour → gradient → flow). Enforced server-side on /buy, not just hidden in the shop —
+   * an upgrade with no foundation is a dead purchase. Undefined = buyable on its own.
+   */
+  requires?: string;
 }
 
 /** i18n keys for the shop; the actual strings live in apps/web i18n dictionaries (per convention). */
@@ -47,9 +53,17 @@ interface BaseModule extends CosmeticItem {
   css?: string;
 }
 
-/** Free-form nickname color — no CSS/particles of its own; the UI renders the picked color. */
+/**
+ * The nickname-colour family: the base colour and its upgrades (gradient, flow). The plain colour
+ * items carry no CSS — the UI renders the picked colour. An upgrade that animates the name (flow)
+ * ships `className` + `css` and paints over `var(--nick-base)`; see ./nick.ts for the model.
+ */
 export interface ColorModule extends BaseModule {
   type: 'nick_color';
+  /** Class nickRender puts on the name when this upgrade is equipped; the module's CSS targets it. */
+  className?: string;
+  /** See NickEffectModule.animation — nick cosmetics share one element and one `animation` slot. */
+  animation?: string;
 }
 
 /** An effect applied as a class on the name element (e.g. glow). */
@@ -57,6 +71,14 @@ export interface NickEffectModule extends BaseModule {
   type: 'nick_effect';
   /** Class added to the name element; the module's CSS targets it. */
   className: string;
+  /**
+   * The `animation` shorthand this effect runs (e.g. 'nick-glow 2s linear infinite'), declared here
+   * instead of in `css`. Several nick cosmetics land on the SAME element (a flowing gradient with a
+   * pulse), and `animation` is one property — whichever module's rule came last would silently kill
+   * the others. nickRender collects these and sets the composed list inline. Keep the @keyframes in
+   * `css`; put only the shorthand here.
+   */
+  animation?: string;
 }
 
 /** A particle swarm drawn over the whole card / row / alert. */
@@ -105,6 +127,17 @@ export type CosmeticModule = ColorModule | NickEffectModule | CardEffectModule |
 export interface EquippedCosmetics {
   /** Free-form #rrggbb nickname color; requires owning the 'nick-color' item. */
   nickColor?: string | null;
+  /**
+   * Second gradient stop (#rrggbb); requires owning 'nick-gradient' AND a `nickColor` to ramp from.
+   * Set = the name renders as a nickColor→nickColor2 gradient. The angle is deliberately NOT a
+   * knob (see nick-gradient): viewers pick hues, we keep the geometry.
+   */
+  nickColor2?: string | null;
+  /**
+   * Animate the gradient (requires owning 'nick-flow' AND a `nickColor2` to drift between). Not a
+   * slot of its own — it modifies the colour, so a flowing name keeps its nick effect too.
+   */
+  nickFlow?: boolean;
   /** Equipped nick effect item id (e.g. 'nick-glow'); requires owning it. */
   nickEffect?: string | null;
   /** Equipped card effect item id (e.g. 'card-levitation'); requires owning it. */

@@ -1,24 +1,14 @@
 import type { CSSProperties } from 'react';
-import { nickEffectClass } from '@tmw/shared';
+import { nickRender, type NickCosmetics } from '@tmw/shared';
 
 /**
- * className + inline style for rendering a nickname with its equipped nick cosmetics: color + nick
- * effect (glow, pulse, …). The effect class comes from the cosmetics registry, so any nick effect
- * works without branching here. Effects use the nick color via --nick-glow (falling back to the
- * cosmetics mint — NOT --color-accent, which a channel theme would repaint, making the same glow
- * differ between the channel page and the overlays) and render as a `filter: drop-shadow`, so they
- * are NOT clipped by the nick's `truncate`.
+ * className + inline style for rendering a nickname with its equipped nick cosmetics: colour (or a
+ * two-stop gradient, optionally drifting) + nick effect. All of it comes from the shared,
+ * render-independent `nickRender`, so the channel page, the overlays and a future Twitch-chat
+ * extension paint the same name identically — keep the logic there, not here.
  */
-export function nickProps(
-  color?: string | null,
-  effect?: string | null,
-): { className: string; style?: CSSProperties } {
-  const fxClass = effect ? nickEffectClass(effect) : '';
-  if (!color && !fxClass) return { className: '' };
-  const style: CSSProperties = {};
-  if (color) style.color = color;
-  if (fxClass) {
-    (style as Record<string, string>)['--nick-glow'] = color || 'var(--cos-mint, #8df0cc)';
-  }
-  return { className: fxClass, style };
+export function nickProps(n: NickCosmetics): { className: string; style?: CSSProperties } {
+  const { className, style } = nickRender(n);
+  if (!className && Object.keys(style).length === 0) return { className: '' };
+  return { className, style: style as CSSProperties };
 }

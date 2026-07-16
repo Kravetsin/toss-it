@@ -58,10 +58,12 @@ function MiniBoard({
           {entries.slice(0, TOP_N).map((e, i) => {
             const isYou = e.userId === meId;
             const mine = isYou ? me?.user?.equipped : undefined;
-            const nick = nickProps(
-              mine ? (mine.nickColor ?? null) : e.nickColor,
-              mine ? (mine.nickEffect ?? null) : e.nickEffect,
-            );
+            const nick = nickProps({
+              color: mine ? mine.nickColor : e.nickColor,
+              color2: mine ? mine.nickColor2 : e.nickColor2,
+              flow: mine ? mine.nickFlow : e.nickFlow,
+              effect: mine ? mine.nickEffect : e.nickEffect,
+            });
             const tier = e.level ? levelTier(e.level) : null;
             return (
               <li

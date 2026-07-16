@@ -751,6 +751,8 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
           r.sub,
           {
             color: r.equipped?.nickColor ?? null,
+            color2: r.equipped?.nickColor2 ?? null,
+            flow: r.equipped?.nickFlow ?? false,
             nickEffect: r.equipped?.nickEffect ?? null,
             cardEffect: r.equipped?.cardEffect ?? null,
           },

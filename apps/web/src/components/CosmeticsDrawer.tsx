@@ -5,6 +5,7 @@ import {
   DUST_POINTS,
   cosmeticModule,
   nickEffectClass,
+  nickEffectModule,
   type CosmeticItem,
 } from '@tmw/shared';
 import { useI18n } from '@/i18n';
@@ -16,10 +17,14 @@ import { Icon } from '@/ui/icons';
 import { DustMark } from '@/components/DustMark';
 import { CardEffect } from '@/components/CardEffect';
 import { buyCosmetic, equipCosmetic } from '@/lib/api/shop';
+import { nickProps } from '@/lib/nick';
 import { playVoicePreview } from '@/lib/voicePreview';
 
 const DEFAULT_COLOR = '#8df0cc';
+const DEFAULT_COLOR_2 = '#ff9ed8';
 const NICK_COLOR_ID = 'nick-color';
+const NICK_GRADIENT_ID = 'nick-gradient';
+const NICK_FLOW_ID = 'nick-flow';
 
 /** The whole viewer economy, in catalog order (biggest first) — see DUST_POINTS. Donations are
  *  absent on purpose: they fire an overlay effect but pay no dust yet, and promising a payout we
@@ -55,7 +60,14 @@ function CategoryBtn({
   );
 }
 
-/** Cosmetics shop, opened from the stardust wallet. Everything is bought with stardust, never money. */
+/**
+ * Cosmetics shop, opened from the stardust wallet. Everything is bought with stardust, never money.
+ *
+ * Buttons follow the app's language rather than a shop dialect: `primary` (hatched) is "make it so"
+ * — the same variant as Save/Create everywhere else, so Apply and Equip stop looking like different
+ * kinds of action. `accent` is reserved for the one thing only this drawer does: spend dust.
+ * `ghost` undoes. Keep new rows on those three.
+ */
 export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t } = useI18n();
   const { me, refresh } = useMe();
@@ -64,12 +76,18 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   const user = me?.user;
 
   const colorItem = COSMETICS.find((c) => c.id === NICK_COLOR_ID)!;
+  const gradientItem = COSMETICS.find((c) => c.id === NICK_GRADIENT_ID)!;
+  const flowItem = COSMETICS.find((c) => c.id === NICK_FLOW_ID)!;
   const nickEffects = COSMETICS.filter((c) => c.type === 'nick_effect');
   const cardEffects = COSMETICS.filter((c) => c.type === 'card_effect');
   // Every specific voice is a purchase; the free path is the "auto" option in the compose form.
   const voiceItems = COSMETICS.filter((c) => c.type === 'tts_voice');
   const ownsColor = user?.ownedCosmetics.includes(NICK_COLOR_ID) ?? false;
+  const ownsGradient = user?.ownedCosmetics.includes(NICK_GRADIENT_ID) ?? false;
+  const ownsFlow = user?.ownedCosmetics.includes(NICK_FLOW_ID) ?? false;
   const equippedColor = user?.equipped.nickColor ?? null;
+  const equippedColor2 = user?.equipped.nickColor2 ?? null;
+  const equippedFlow = user?.equipped.nickFlow ?? false;
   const equippedNickEffect = user?.equipped.nickEffect ?? null;
   const equippedCardEffect = user?.equipped.cardEffect ?? null;
   const balance = user?.stardust ?? 0;
@@ -77,10 +95,24 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
 
   const [category, setCategory] = useState<ShopCategory>('nick');
   const [color, setColor] = useState(equippedColor ?? DEFAULT_COLOR);
-  // Reflect the saved color when it changes (e.g. after a refresh) without fighting active edits.
+  const [color2, setColor2] = useState(equippedColor2 ?? DEFAULT_COLOR_2);
+  // Whether the viewer is composing a gradient right now — a second stop can be picked and previewed
+  // before Apply, so this can't be derived from the saved state alone.
+  const [gradient, setGradient] = useState(!!equippedColor2);
+  const [flow, setFlow] = useState(equippedFlow);
+  // Reflect the saved colors when they change (e.g. after a refresh) without fighting active edits.
   useEffect(() => {
     if (equippedColor) setColor(equippedColor);
   }, [equippedColor]);
+  useEffect(() => {
+    if (equippedColor2) {
+      setColor2(equippedColor2);
+      setGradient(true);
+    }
+  }, [equippedColor2]);
+  useEffect(() => {
+    if (equippedFlow) setFlow(true);
+  }, [equippedFlow]);
 
   const buy = async (id: string, label: string, cost: number) => {
     const ok = await confirm({
@@ -91,18 +123,35 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     if (!ok) return;
     void act(() => buyCosmetic(id), { after: refresh, success: t('shop.bought') });
   };
+  // One Apply for the whole name colour: colour → gradient → flow is one ladder in one slot, so
+  // sending the rungs apart would let an upgrade land without its foundation.
+  const useGradient = gradient && ownsGradient;
+  const useFlow = useGradient && flow && ownsFlow;
   const applyColor = () =>
-    void act(() => equipCosmetic({ nickColor: color }), {
-      after: refresh,
-      success: t('shop.equipped'),
-    });
+    void act(
+      () =>
+        equipCosmetic({
+          nickColor: color,
+          nickColor2: useGradient ? color2 : null,
+          nickFlow: useFlow,
+        }),
+      { after: refresh, success: t('shop.equipped') },
+    );
+  // Dropping the base colour drops the upgrades with it (the server enforces the same invariant).
   const removeColor = () =>
     void act(() => equipCosmetic({ nickColor: null }), {
       after: () => {
         setColor(DEFAULT_COLOR);
+        setColor2(DEFAULT_COLOR_2);
+        setGradient(false);
+        setFlow(false);
         return refresh();
       },
     });
+  const colorDirty =
+    color.toLowerCase() !== (equippedColor ?? '').toLowerCase() ||
+    (useGradient ? color2.toLowerCase() : '') !== (equippedColor2 ?? '').toLowerCase() ||
+    useFlow !== equippedFlow;
   // One slot per effect category; equipping another replaces it, null unequips.
   const equipEffect = (patch: { nickEffect?: string | null; cardEffect?: string | null }) =>
     void act(() => equipCosmetic(patch), {
@@ -112,6 +161,12 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
 
   // Glow demo uses the equipped nick color (or mint), without recoloring the demo text.
   const glowVar = { ['--nick-glow']: equippedColor || 'var(--color-accent)' } as CSSProperties;
+  // Preview the name through the same helper every surface uses — no separate shop-only styling.
+  const colorPreview = nickProps({
+    color: ownsColor ? color : DEFAULT_COLOR,
+    color2: useGradient ? color2 : null,
+    flow: useFlow,
+  });
 
   /** One purchasable effect row that DEMOS its own effect (so unowned items are previewable). */
   const effectRow = (
@@ -137,9 +192,15 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
         {isCard && <CardEffect effect={e.id} />}
         <div className="relative flex flex-col gap-2">
           <div className="flex items-center justify-between gap-2">
+            {/* The demo needs the effect's `animation` explicitly: nick modules declare it instead
+                of putting it in their css (they share one element — see NickEffectModule). */}
             <span
               className={`font-medium text-text ${isNick ? nickEffectClass(e.id) : ''}`}
-              style={isNick ? glowVar : undefined}
+              style={
+                isNick
+                  ? ({ ...glowVar, animation: nickEffectModule(e.id)?.animation } as CSSProperties)
+                  : undefined
+              }
             >
               {t(labels.name)}
             </span>
@@ -172,7 +233,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
                 {t('shop.unequip')}
               </Button>
             ) : (
-              <Button variant="secondary" size="sm" onClick={() => onEquip(e.id)}>
+              <Button variant="primary" size="sm" onClick={() => onEquip(e.id)}>
                 {t('shop.equip')}
               </Button>
             )}
@@ -319,8 +380,14 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
                   </span>
                 )}
               </div>
-              {/* Demo: the nick in the picked colour (or mint for a not-yet-bought teaser). */}
-              <b className="text-lg" style={{ color: ownsColor ? color : DEFAULT_COLOR }}>
+              {/* Demo: the nick exactly as the surfaces paint it (same nickProps), or a mint
+                  teaser before the colour is bought. */}
+              {/* self-start: a stretched flex item would be far wider than the name, and the
+                  gradient ramps across the box — the preview would hide the second colour. */}
+              <b
+                className={`self-start text-lg ${colorPreview.className}`}
+                style={colorPreview.style}
+              >
                 {previewName}
               </b>
               {ownsColor ? (
@@ -332,12 +399,16 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
                     aria-label={t('shop.nickColor')}
                     className="h-10 w-14 shrink-0 cursor-pointer rounded-[var(--radius-sm)] border border-border bg-surface"
                   />
-                  <Button
-                    variant="accent"
-                    size="sm"
-                    onClick={applyColor}
-                    disabled={color.toLowerCase() === (equippedColor ?? '').toLowerCase()}
-                  >
+                  {useGradient && (
+                    <input
+                      type="color"
+                      value={color2}
+                      onChange={(e) => setColor2(e.target.value)}
+                      aria-label={t('shop.color2')}
+                      className="h-10 w-14 shrink-0 cursor-pointer rounded-[var(--radius-sm)] border border-border bg-surface"
+                    />
+                  )}
+                  <Button variant="primary" size="sm" onClick={applyColor} disabled={!colorDirty}>
                     {t('shop.apply')}
                   </Button>
                   {equippedColor && (
@@ -358,6 +429,95 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
                   </Button>
                   {balance < colorItem.costDust && (
                     <span className="label-mono text-faint">{t('shop.notEnough')}</span>
+                  )}
+                </div>
+              )}
+
+              {/* The gradient is an upgrade of the colour above, so it lives in this section and
+                  only once the base colour is owned — buying a second stop with nothing to ramp
+                  from would be a dead purchase (the server drops it). */}
+              {ownsColor && (
+                <div className="mt-1 flex flex-col gap-2 border-t border-border pt-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium text-text">{t('shop.nickGradient')}</span>
+                    {ownsGradient ? (
+                      <Badge>{t('shop.owned')}</Badge>
+                    ) : (
+                      <span className="inline-flex shrink-0 items-center gap-1.5 label-mono text-accent">
+                        <DustMark size={14} />
+                        {gradientItem.costDust}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm italic text-muted">{t('shop.nickGradientDesc')}</p>
+                  {ownsGradient ? (
+                    <Button
+                      variant={gradient ? 'ghost' : 'primary'}
+                      size="sm"
+                      className="self-start"
+                      onClick={() => setGradient(!gradient)}
+                    >
+                      {t(gradient ? 'shop.gradientOff' : 'shop.gradientAdd')}
+                    </Button>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="accent"
+                        size="sm"
+                        onClick={() =>
+                          buy(NICK_GRADIENT_ID, t('shop.nickGradient'), gradientItem.costDust)
+                        }
+                        disabled={balance < gradientItem.costDust}
+                      >
+                        {t('shop.buy')}
+                      </Button>
+                      {balance < gradientItem.costDust && (
+                        <span className="label-mono text-faint">{t('shop.notEnough')}</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Top rung: flow needs two stops to drift between, so it only appears once the
+                  gradient is actually on — otherwise there is nothing to animate. */}
+              {useGradient && (
+                <div className="mt-1 flex flex-col gap-2 border-t border-border pt-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium text-text">{t('shop.nickFlow')}</span>
+                    {ownsFlow ? (
+                      <Badge>{t('shop.owned')}</Badge>
+                    ) : (
+                      <span className="inline-flex shrink-0 items-center gap-1.5 label-mono text-accent">
+                        <DustMark size={14} />
+                        {flowItem.costDust}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm italic text-muted">{t('shop.nickFlowDesc')}</p>
+                  {ownsFlow ? (
+                    <Button
+                      variant={flow ? 'ghost' : 'primary'}
+                      size="sm"
+                      className="self-start"
+                      onClick={() => setFlow(!flow)}
+                    >
+                      {t(flow ? 'shop.flowOff' : 'shop.flowOn')}
+                    </Button>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="accent"
+                        size="sm"
+                        onClick={() => buy(NICK_FLOW_ID, t('shop.nickFlow'), flowItem.costDust)}
+                        disabled={balance < flowItem.costDust}
+                      >
+                        {t('shop.buy')}
+                      </Button>
+                      {balance < flowItem.costDust && (
+                        <span className="label-mono text-faint">{t('shop.notEnough')}</span>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
