@@ -446,6 +446,7 @@ export interface UploadResponse {
  * for COSMETICS, makeParticles, the effect helpers, and the cosmetic types.
  */
 export * from './cosmetics';
+export * from './dust';
 export * from './level';
 export * from './theme';
 

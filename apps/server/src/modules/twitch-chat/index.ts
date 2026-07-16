@@ -1,6 +1,7 @@
 import { and, eq, sql } from 'drizzle-orm';
 import type { FastifyBaseLogger } from 'fastify';
 import {
+  DUST_POINTS,
   LEVEL_POINTS,
   xpToLevel,
   type ChatFragment,
@@ -20,7 +21,7 @@ import { config } from '../../config';
 import { roomOf, type RealtimeServer } from '../../playback';
 import { EventSubClient } from './eventsub';
 import { createBadgeResolver, roleFromBadges, type EventBadge } from './badges';
-import { awardChatDust } from './accrual';
+import { awardDust } from './accrual';
 import { bumpMessage, bumpWatch, flushActivity } from './stats';
 import { loadBotCredentials, refreshBotCredentials, type BotCredentials } from './token';
 
@@ -233,7 +234,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     // Accrual: not the broadcaster's own chat, not an excluded bot, only while live.
     if (!excluded && ev.chatterId !== ev.broadcasterId && live) {
       bumpMessage(channelId, ev.chatterId, ev.chatterLogin, ev.chatterName);
-      awardChatDust(ev.chatterId).catch((err) =>
+      awardDust(ev.chatterId, DUST_POINTS.message).catch((err) =>
         deps.log.warn({ err }, 'twitch-chat: accrual failed'),
       );
     }
@@ -311,10 +312,16 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     return ids;
   }
 
-  /** Credit watch minutes to everyone sitting in live channels' chats (Get Chatters). */
+  /**
+   * Credit watch minutes to everyone sitting in live channels' chats (Get Chatters), and dust for
+   * the same time — most viewers have nothing to send, so presence is their only earning path.
+   */
   async function pollChatters(): Promise<void> {
     if (!client || !creds) return;
     const minutes = Math.round(WATCH_POLL_MS / 60_000);
+    // Dust is per-account and global, while minutes are per-channel: someone sitting in several
+    // Tossit chats still only lived one minute, so pay each id once across the whole sweep.
+    const watched = new Set<string>();
     for (const [broadcasterId, channelId] of channelByBroadcaster) {
       if (!client.isSubscribed(broadcasterId) || deps.overlayCount(channelId) === 0) {
         liveChatters.delete(channelId); // not live/subscribed — drop the stale snapshot
@@ -346,12 +353,18 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
           if (c.user_id === broadcasterId) continue; // own presence is not watch time
           if (excludedLogins.has(c.user_login)) continue; // hidden bots (admin exclusions)
           bumpWatch(channelId, c.user_id, c.user_login, c.user_name, minutes);
+          watched.add(c.user_id);
           viewers.push({ id: c.user_id, login: c.user_login, name: c.user_name });
         }
         cursor = body.pagination?.cursor;
       } while (cursor);
       // Keep the previous snapshot on a partial/failed fetch rather than showing an empty list.
       if (ok) liveChatters.set(channelId, { viewers, at: Date.now() });
+    }
+    for (const twitchId of watched) {
+      awardDust(twitchId, minutes * DUST_POINTS.watchMinute).catch((err) =>
+        deps.log.warn({ err }, 'twitch-chat: watch accrual failed'),
+      );
     }
   }
 

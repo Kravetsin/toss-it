@@ -3,13 +3,13 @@ import { db } from '../../db/index';
 import { linkedIdentities, pendingDust, users } from '../../db/schema';
 
 /**
- * +1 stardust to a chatter, by raw Twitch id. Identity lookup covers both native
- * Twitch accounts and Google accounts with a linked Twitch; unknown ids accumulate
- * in pending_dust until they first log in.
- * No cooldown by design (economy: 1 msg = 1 dust, send = 10) — Twitch's own chat
- * rate limits and the live-gate are the spam ceiling.
+ * Award stardust by raw Twitch id. Identity lookup covers both native Twitch accounts and Google
+ * accounts with a linked Twitch; unknown ids accumulate in pending_dust until they first log in.
+ * Weights mirror the level XP ones (1 msg = 1, 1 watched minute = 1, aired send = 10) so there is
+ * one mental model. No cooldown by design — Twitch's own chat rate limits are the spam ceiling.
  */
-export async function awardChatDust(chatterTwitchId: string): Promise<void> {
+export async function awardDust(chatterTwitchId: string, amount = 1): Promise<void> {
+  if (amount <= 0) return;
   const identity = await db
     .select({ userId: linkedIdentities.userId })
     .from(linkedIdentities)
@@ -23,17 +23,22 @@ export async function awardChatDust(chatterTwitchId: string): Promise<void> {
   if (identity) {
     await db
       .update(users)
-      .set({ stardust: sql`${users.stardust} + 1` })
+      .set({ stardust: sql`${users.stardust} + ${amount}` })
       .where(eq(users.id, identity.userId));
     return;
   }
 
   await db
     .insert(pendingDust)
-    .values({ platform: 'twitch', platformUserId: chatterTwitchId, amount: 1, updatedAt: new Date() })
+    .values({
+      platform: 'twitch',
+      platformUserId: chatterTwitchId,
+      amount,
+      updatedAt: new Date(),
+    })
     .onConflictDoUpdate({
       target: [pendingDust.platform, pendingDust.platformUserId],
-      set: { amount: sql`${pendingDust.amount} + 1`, updatedAt: new Date() },
+      set: { amount: sql`${pendingDust.amount} + ${amount}`, updatedAt: new Date() },
     });
 }
 

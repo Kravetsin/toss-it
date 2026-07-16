@@ -7,6 +7,7 @@ import { and, count, desc, eq, gt, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { fileTypeFromFile } from 'file-type';
 import {
+  DUST_POINTS,
   TEXT_MAX_LEN,
   ttsVoiceModule,
   type MediaKind,
@@ -351,14 +352,13 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
         };
         await db.insert(submissions).values(row);
 
-        // Stardust: +10 sender and +10 owner per incoming send (even unpublished);
-        // a send is worth 10 chat messages (1 msg = 1 dust, no chat cooldown).
+        // Mirrored to sender and owner per incoming send, even if it never airs (see DUST_POINTS).
         // Owner's own test sends earn nothing (anti self-farm).
         let stardustBalance = user.stardust;
         if (!isOwner) {
-          await addStardust(user.id, 10);
-          await addStardust(channel.ownerUserId, 10);
-          stardustBalance = user.stardust + 10;
+          await addStardust(user.id, DUST_POINTS.send);
+          await addStardust(channel.ownerUserId, DUST_POINTS.send);
+          stardustBalance = user.stardust + DUST_POINTS.send;
         }
 
         let queuePosition = 0;

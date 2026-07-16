@@ -32,9 +32,10 @@ export const en: Dict = {
   'wallet.shopLabel': 'Shop',
   'wallet.about': 'Click to spend on cosmetics.',
   'wallet.howTitle': 'How to earn:',
-  'wallet.earnPost': '1 post = +10',
-  'wallet.earnChat': '1 chat message = +1',
-  'wallet.earnDonate': '1 ₴ donated = +1',
+  'wallet.earnPost': '1 post',
+  'wallet.earnChat': '1 chat message',
+  'wallet.earnWatch': '1 minute watched',
+  'wallet.earnDonate': '1 ₴ donated',
 
   'shop.open': 'Open cosmetics shop',
   'shop.title': 'Cosmetics',
@@ -122,14 +123,14 @@ export const en: Dict = {
   'mod.gifAutoApprove': 'Skip moderation for safe GIFs',
   'mod.gifAutoApproveNote':
     'GIFs with a safe Giphy rating go straight to the screen; riskier ones still go to your queue.',
-  'chatDust.title': 'Stardust for chat messages',
+  'chatDust.title': 'Stardust for watching and chatting',
   'chatDust.note':
-    'While you are live, viewers earn 1 stardust per chat message. Viewers without an account get their dust when they first sign in.',
+    'While you are live, viewers earn stardust for every minute watched and every chat message. Viewers without an account get their dust when they first sign in.',
   'chatDust.reading': 'The bot is reading your chat — dust is being earned',
   'chatDust.modHint': 'Type /mod {bot} in your chat — the bot connects within ~5 minutes.',
   'toast.dustClaimed': 'You found {n} stardust!',
   'toast.twitchLinked': 'Twitch linked',
-  'link.bannerText': 'Earn stardust for every chat message — link your Twitch',
+  'link.bannerText': 'Earn stardust for time on stream and every chat message — link your Twitch',
   'link.bannerCta': 'Link Twitch',
   'link.confirmTitle': 'This Twitch already opens another account',
   'link.confirmSubtitle':
@@ -499,9 +500,10 @@ export const ru: Dict = {
   'wallet.shopLabel': 'Магазин',
   'wallet.about': 'Нажми, чтобы потратить на косметику.',
   'wallet.howTitle': 'Как заработать:',
-  'wallet.earnPost': '1 пост = +10',
-  'wallet.earnChat': '1 сообщение в чате = +1',
-  'wallet.earnDonate': '1 ₴ доната = +1',
+  'wallet.earnPost': '1 пост',
+  'wallet.earnChat': '1 сообщение',
+  'wallet.earnWatch': '1 минута на стриме',
+  'wallet.earnDonate': '1 ₴ доната',
 
   'shop.open': 'Открыть магазин косметики',
   'shop.title': 'Косметика',
@@ -589,15 +591,15 @@ export const ru: Dict = {
   'mod.gifAutoApprove': 'Пропускать безопасные GIF без модерации',
   'mod.gifAutoApproveNote':
     'Гифки с безопасным рейтингом Giphy идут сразу на экран; рискованные всё равно попадают в очередь.',
-  'chatDust.title': 'Звёздная пыль за сообщения в чате',
+  'chatDust.title': 'Звёздная пыль за просмотр и чат',
   'chatDust.note':
-    'Пока вы в эфире, зрители получают 1 пыль за каждое сообщение в чате. Зрителям без аккаунта пыль копится и выдаётся при первом входе.',
+    'Пока вы в эфире, зрители получают пыль за каждую минуту просмотра и за каждое сообщение в чате. Зрителям без аккаунта пыль копится и выдаётся при первом входе.',
   'chatDust.reading': 'Бот читает ваш чат — пыль начисляется',
   'chatDust.modHint':
     'Напишите /mod {bot} в чате своего канала — бот подключится в течение ~5 минут.',
   'toast.dustClaimed': 'Вы нашли {n} звёздной пыли!',
   'toast.twitchLinked': 'Twitch привязан',
-  'link.bannerText': 'Получай пыль за каждое сообщение в чате — привяжи Twitch',
+  'link.bannerText': 'Получай пыль за время на стриме и за каждое сообщение — привяжи Twitch',
   'link.bannerCta': 'Привязать Twitch',
   'link.confirmTitle': 'Этот Twitch уже связан с другим аккаунтом',
   'link.confirmSubtitle':
@@ -969,9 +971,10 @@ export const uk: Dict = {
   'wallet.shopLabel': 'Магазин',
   'wallet.about': 'Натисни, щоб витратити на косметику.',
   'wallet.howTitle': 'Як заробити:',
-  'wallet.earnPost': '1 пост = +10',
-  'wallet.earnChat': '1 повідомлення в чаті = +1',
-  'wallet.earnDonate': '1 ₴ донату = +1',
+  'wallet.earnPost': '1 пост',
+  'wallet.earnChat': '1 повідомлення',
+  'wallet.earnWatch': '1 хвилина на стрімі',
+  'wallet.earnDonate': '1 ₴ донату',
 
   'shop.open': 'Відкрити магазин косметики',
   'shop.title': 'Косметика',
@@ -1059,15 +1062,15 @@ export const uk: Dict = {
   'mod.gifAutoApprove': 'Пропускати безпечні GIF без модерації',
   'mod.gifAutoApproveNote':
     'Гіфки з безпечним рейтингом Giphy йдуть одразу на екран; ризиковані все одно потрапляють у чергу.',
-  'chatDust.title': 'Зоряний пил за повідомлення в чаті',
+  'chatDust.title': 'Зоряний пил за перегляд і чат',
   'chatDust.note':
-    'Поки ви в ефірі, глядачі отримують 1 пил за кожне повідомлення в чаті. Глядачам без акаунта пил накопичується і видається при першому вході.',
+    'Поки ви в ефірі, глядачі отримують пил за кожну хвилину перегляду та за кожне повідомлення в чаті. Глядачам без акаунта пил накопичується і видається при першому вході.',
   'chatDust.reading': 'Бот читає ваш чат — пил нараховується',
   'chatDust.modHint':
     'Напишіть /mod {bot} у чаті свого каналу — бот підключиться протягом ~5 хвилин.',
   'toast.dustClaimed': 'Ви знайшли {n} зоряного пилу!',
   'toast.twitchLinked': 'Twitch прив’язано',
-  'link.bannerText': 'Отримуй пил за кожне повідомлення в чаті — прив’яжи Twitch',
+  'link.bannerText': 'Отримуй пил за час на стрімі та за кожне повідомлення — прив’яжи Twitch',
   'link.bannerCta': 'Прив’язати Twitch',
   'link.confirmTitle': 'Цей Twitch вже пов’язаний з іншим акаунтом',
   'link.confirmSubtitle':

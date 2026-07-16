@@ -1,6 +1,12 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { COSMETICS, cosmeticModule, nickEffectClass, type CosmeticItem } from '@tmw/shared';
+import {
+  COSMETICS,
+  DUST_POINTS,
+  cosmeticModule,
+  nickEffectClass,
+  type CosmeticItem,
+} from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { useMe } from '@/hooks/useMe';
 import { useApiAction } from '@/hooks/useApiAction';
@@ -14,6 +20,15 @@ import { playVoicePreview } from '@/lib/voicePreview';
 
 const DEFAULT_COLOR = '#8df0cc';
 const NICK_COLOR_ID = 'nick-color';
+
+/** The whole viewer economy, in catalog order (biggest first) — see DUST_POINTS. Donations pay by
+ *  the hryvnia rate rather than a flat weight, hence the literal. */
+const EARN_ROWS = [
+  { icon: 'send', key: 'wallet.earnPost', n: DUST_POINTS.send },
+  { icon: 'clock', key: 'wallet.earnWatch', n: DUST_POINTS.watchMinute },
+  { icon: 'message-circle', key: 'wallet.earnChat', n: DUST_POINTS.message },
+  { icon: 'gift', key: 'wallet.earnDonate', n: 1 },
+] as const;
 
 type ShopCategory = 'nick' | 'card' | 'voices';
 
@@ -235,10 +250,19 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
           </span>
         </div>
 
-        {/* Earn explainer used to hide in a hover tooltip — keep it always visible here. */}
-        <div className="rounded-[var(--radius-sm)] border border-border bg-surface-2 px-3 py-2 text-xs text-muted">
-          <span className="font-medium text-text">{t('wallet.howTitle')}</span>{' '}
-          {t('wallet.earnPost')} · {t('wallet.earnChat')} · {t('wallet.earnDonate')}
+        {/* Earn explainer used to hide in a hover tooltip — keep it always visible here (no hover
+            on mobile, and this is the only place the economy is spelled out). */}
+        <div className="rounded-[var(--radius-sm)] border border-border bg-surface-2 px-3 py-2">
+          <span className="block text-xs font-medium text-text">{t('wallet.howTitle')}</span>
+          <div className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1">
+            {EARN_ROWS.map(({ icon, key, n }) => (
+              <span key={key} className="flex items-center gap-1.5 text-xs text-muted">
+                <Icon name={icon} size={13} className="text-faint" />
+                <span className="truncate">{t(key)}</span>
+                <span className="ml-auto label-mono text-accent">+{n}</span>
+              </span>
+            ))}
+          </div>
         </div>
 
         {user && !user.hasTwitch && (
