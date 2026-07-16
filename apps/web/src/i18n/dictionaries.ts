@@ -35,7 +35,6 @@ export const en: Dict = {
   'wallet.earnPost': '1 post',
   'wallet.earnChat': '1 chat message',
   'wallet.earnWatch': '1 minute watched',
-  'wallet.earnDonate': '1 ₴ donated',
 
   'shop.open': 'Open cosmetics shop',
   'shop.title': 'Cosmetics',
@@ -503,7 +502,6 @@ export const ru: Dict = {
   'wallet.earnPost': '1 пост',
   'wallet.earnChat': '1 сообщение',
   'wallet.earnWatch': '1 минута на стриме',
-  'wallet.earnDonate': '1 ₴ доната',
 
   'shop.open': 'Открыть магазин косметики',
   'shop.title': 'Косметика',
@@ -974,7 +972,6 @@ export const uk: Dict = {
   'wallet.earnPost': '1 пост',
   'wallet.earnChat': '1 повідомлення',
   'wallet.earnWatch': '1 хвилина на стрімі',
-  'wallet.earnDonate': '1 ₴ донату',
 
   'shop.open': 'Відкрити магазин косметики',
   'shop.title': 'Косметика',

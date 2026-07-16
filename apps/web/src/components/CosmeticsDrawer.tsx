@@ -21,13 +21,13 @@ import { playVoicePreview } from '@/lib/voicePreview';
 const DEFAULT_COLOR = '#8df0cc';
 const NICK_COLOR_ID = 'nick-color';
 
-/** The whole viewer economy, in catalog order (biggest first) — see DUST_POINTS. Donations pay by
- *  the hryvnia rate rather than a flat weight, hence the literal. */
+/** The whole viewer economy, in catalog order (biggest first) — see DUST_POINTS. Donations are
+ *  absent on purpose: they fire an overlay effect but pay no dust yet, and promising a payout we
+ *  don't make is worse than staying quiet. Add the row when the Donatello webhook credits it. */
 const EARN_ROWS = [
   { icon: 'send', key: 'wallet.earnPost', n: DUST_POINTS.send },
   { icon: 'clock', key: 'wallet.earnWatch', n: DUST_POINTS.watchMinute },
   { icon: 'message-circle', key: 'wallet.earnChat', n: DUST_POINTS.message },
-  { icon: 'gift', key: 'wallet.earnDonate', n: 1 },
 ] as const;
 
 type ShopCategory = 'nick' | 'card' | 'voices';
