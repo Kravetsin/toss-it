@@ -1,5 +1,6 @@
-// Local binding for use in the interfaces below; also re-exported for consumers (see `export *`).
+// Local bindings for use in the interfaces below; also re-exported for consumers (see `export *`).
 import type { EquippedCosmetics } from './cosmetics';
+import type { ChannelTheme } from './theme';
 
 export type MediaKind = 'image' | 'video' | 'audio' | 'text' | 'youtube' | 'gif';
 
@@ -405,6 +406,8 @@ export interface ChannelSettings {
   description: string | null;
   /** Social links in viewer page header (order preserved). */
   links: ChannelLink[];
+  /** Viewer-page color theme (hues only; see @tmw/shared resolveTheme). */
+  theme: ChannelTheme;
 }
 
 export interface HistoryEntry extends SubmissionSummary {
@@ -444,6 +447,7 @@ export interface UploadResponse {
  */
 export * from './cosmetics';
 export * from './level';
+export * from './theme';
 
 /** Validate a #rrggbb hex color (exactly 6 hex digits, no alpha). */
 export function isHexColor(v: string): boolean {
@@ -559,6 +563,9 @@ export interface PublicChannelInfo {
   nickColor: string | null;
   nickEffect: string | null;
   cardEffect: string | null;
+  /** Page theme knobs. On a full load the server already inlined these as tokens (see seo.ts);
+   *  the client needs them to re-apply after a client-side nav onto this page. */
+  theme: ChannelTheme;
 }
 
 export interface PromoRedeemResult {

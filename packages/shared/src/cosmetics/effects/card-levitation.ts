@@ -34,8 +34,8 @@ export const cardLevitation: CardEffectModule = {
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: var(--color-accent, #8df0cc);
-  box-shadow: 0 0 6px var(--color-accent, #8df0cc);
+  background: var(--cos-mint, #8df0cc);
+  box-shadow: 0 0 6px var(--cos-mint, #8df0cc);
   animation: cardfx-rise var(--dur, 3.4s) linear var(--delay, 0s) infinite;
 }
 @keyframes cardfx-rise {
@@ -79,8 +79,8 @@ export const cardLevitation: CardEffectModule = {
   height: 2px;
   margin-left: -13px;
   border-radius: 2px;
-  background: linear-gradient(to right, transparent, var(--color-accent, #8df0cc), transparent);
-  box-shadow: 0 0 6px var(--color-accent, #8df0cc);
+  background: linear-gradient(to right, transparent, var(--cos-mint, #8df0cc), transparent);
+  box-shadow: 0 0 6px var(--cos-mint, #8df0cc);
   animation: cardfx-levitation-glow var(--dur, 3.4s) ease-out var(--delay, 0s) infinite;
 }
 @keyframes cardfx-levitation-glow {

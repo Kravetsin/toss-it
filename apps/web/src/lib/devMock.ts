@@ -129,6 +129,7 @@ const MOCK_SETTINGS: ChannelSettings = {
     { platform: 'telegram', url: 'https://t.me/kravetsinside' },
     { platform: 'youtube', url: 'https://youtube.com/@kravetsinside' },
   ],
+  theme: { accentHue: null, bgHue: null, bgTint: 0 },
 };
 
 const sub = (
@@ -322,6 +323,15 @@ const MOCK_REPUTATION: Record<string, ReputationStats> = {
 
 const MOCK_MODERATORS: ListedUser[] = [user('twitch:m1', 'trusty_mod', 'Trusty Mod', 60 * 24 * 20)];
 
+/** Numeric override from the query string, e.g. ?accentHue=210; null wipes the knob. */
+function mockNum(key: string, fallback: number | null): number | null {
+  const raw = new URLSearchParams(window.location.search).get(key);
+  if (raw === null) return fallback;
+  if (raw === '' || raw === 'null') return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 function mockPublicChannel(login: string): PublicChannelInfo {
   return {
     login,
@@ -340,6 +350,13 @@ function mockPublicChannel(login: string): PublicChannelInfo {
     nickColor: '#ff9ed8',
     nickEffect: 'nick-glow',
     cardEffect: 'card-stardust',
+    // Themed on purpose: ?mock=1 is the only way to see a custom channel theme without a real
+    // channel. Override per-run with ?accentHue=&bgHue=&bgTint=.
+    theme: {
+      accentHue: mockNum('accentHue', 300),
+      bgHue: mockNum('bgHue', 30),
+      bgTint: mockNum('bgTint', 40) ?? 40,
+    },
   };
 }
 

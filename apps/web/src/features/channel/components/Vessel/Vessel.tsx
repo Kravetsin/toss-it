@@ -4,6 +4,7 @@ import { useI18n } from '@/i18n';
 import { disintegrate } from '@/lib/burst';
 import { inhaleStars, launchKeepsake } from '@/components/BackgroundStars';
 import { useFidgetEnabled } from '@/hooks/useFidgetEnabled';
+import { isThemePreview } from '../../lib/themeQuery';
 import type { Phase } from '../../hooks/useMediaSubmission';
 import { SCENE, sceneFromProps } from './phaseConfig';
 import { lighten, rgba, rgbStr, tokens } from './tokens';
@@ -32,7 +33,9 @@ export function Vessel({
   children,
 }: VesselProps) {
   const { t } = useI18n();
-  const fidget = useFidgetEnabled();
+  // Static (plain div) inside the theme-preview iframe: the liquid rAF, on a scaled iframe layer,
+  // re-composites every frame and tanks the dashboard's perf. Colors still read from tokens.
+  const fidget = useFidgetEnabled() && !isThemePreview();
 
   const scene = sceneFromProps(phase, status, cooldownSec);
   const cfg = SCENE[scene];

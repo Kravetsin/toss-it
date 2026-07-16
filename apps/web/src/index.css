@@ -21,8 +21,8 @@
   --color-accent: #8df0cc;
   --color-accent-hover: #a6f4d8;
   --color-accent-contrast: #06201a;
-  --color-accent-soft: color-mix(in srgb, #8df0cc 14%, transparent);
-  --color-accent-faint: color-mix(in srgb, #8df0cc 6%, transparent);
+  --color-accent-soft: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  --color-accent-faint: color-mix(in srgb, var(--color-accent) 6%, transparent);
 
   /* Status colors; -soft = ~14% tint backing. */
   --color-ok: #34d399;
@@ -35,8 +35,8 @@
   --color-info: #a5b4fc;
   --color-info-soft: color-mix(in srgb, #a5b4fc 14%, transparent);
 
-  --color-glass-bg: color-mix(in srgb, #0d1111 80%, transparent);
-  --color-glass-border: color-mix(in srgb, #ededec 14%, transparent);
+  --color-glass-bg: color-mix(in srgb, var(--color-bg) 80%, transparent);
+  --color-glass-border: color-mix(in srgb, var(--color-text) 14%, transparent);
 
   /* Soft multi-layer shadows with negative spread. */
   --shadow-1: 0 2px 6px -2px #00000059;

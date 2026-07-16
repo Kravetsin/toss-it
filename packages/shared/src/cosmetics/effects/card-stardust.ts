@@ -41,8 +41,8 @@ export const cardStardust: CardEffectModule = {
   width: 2px;
   height: 20px;
   border-radius: 2px;
-  background: linear-gradient(to bottom, transparent, var(--color-accent, #8df0cc));
-  filter: drop-shadow(0 0 3px var(--color-accent, #8df0cc));
+  background: linear-gradient(to bottom, transparent, var(--cos-mint, #8df0cc));
+  filter: drop-shadow(0 0 3px var(--cos-mint, #8df0cc));
   animation: cardfx-fall var(--dur, 2.6s) linear var(--delay, 0s) infinite;
 }
 /* Duplicated transform lines = px fallback for engines without container-query units. */
@@ -94,8 +94,8 @@ export const cardStardust: CardEffectModule = {
   height: 2px;
   margin-left: -11px;
   border-radius: 2px;
-  background: linear-gradient(to right, transparent, var(--color-accent, #8df0cc), transparent);
-  box-shadow: 0 0 7px var(--color-accent, #8df0cc);
+  background: linear-gradient(to right, transparent, var(--cos-mint, #8df0cc), transparent);
+  box-shadow: 0 0 7px var(--cos-mint, #8df0cc);
   animation: cardfx-star-impact var(--dur, 2.6s) ease-out var(--delay, 0s) infinite;
 }
 @keyframes cardfx-star-impact {

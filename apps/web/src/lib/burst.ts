@@ -20,6 +20,11 @@ let MINT = '#8df0cc';
 const REDS = ['#fb5b6e', '#c23a4a', '#7e2533'];
 let colorsResolved = false;
 
+/** Drop the snapshot after a per-channel theme is applied or removed (see useChannelTheme). */
+export function resetBurstColors(): void {
+  colorsResolved = false;
+}
+
 function resolveColors() {
   if (colorsResolved || typeof window === 'undefined') return;
   colorsResolved = true;

@@ -114,6 +114,11 @@ export const channels = sqliteTable('channels', {
     .$type<ChannelLink[]>()
     .notNull()
     .default(sql`'[]'`),
+  // Channel page theme (see @tmw/shared resolveTheme): the streamer picks hues, we own lightness.
+  // null = knob untouched, so the hand-tuned index.css token is left alone rather than regenerated.
+  accentHue: integer('accent_hue'),
+  bgHue: integer('bg_hue'),
+  bgTint: integer('bg_tint').notNull().default(0),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 });
 

@@ -122,6 +122,10 @@ async function requireOwnerOf(
 
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 
+/** A theme hue: an integer wrapped into [0,360), or null for an untouched knob. */
+const hueOrNull = (v: unknown): number | null =>
+  typeof v === 'number' && Number.isFinite(v) ? ((Math.round(v) % 360) + 360) % 360 : null;
+
 const DAY_MS = 86_400_000;
 /** UTC 'YYYY-MM-DD' for an epoch-ms instant. */
 const utcDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
@@ -195,6 +199,7 @@ function toSettings(
     bgMusicHidden: ch.bgMusicHidden,
     description: ch.description,
     links: ch.links,
+    theme: { accentHue: ch.accentHue, bgHue: ch.bgHue, bgTint: ch.bgTint },
   };
 }
 
@@ -554,6 +559,11 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
           typeof b.bgMusicHidden === 'boolean' ? b.bgMusicHidden : channel.bgMusicHidden,
         description: 'description' in b ? sanitizeDescription(b.description) : channel.description,
         links: 'links' in b ? sanitizeLinks(b.links) : channel.links,
+        // Theme hues: 0-359 or null (untouched knob); tint 0-100. null must survive so a default
+        // channel injects nothing (see @tmw/shared resolveTheme).
+        accentHue: b.theme ? hueOrNull(b.theme.accentHue) : channel.accentHue,
+        bgHue: b.theme ? hueOrNull(b.theme.bgHue) : channel.bgHue,
+        bgTint: b.theme ? clamp(Math.round(Number(b.theme.bgTint) || 0), 0, 100) : channel.bgTint,
       };
       await db.update(channels).set(patch).where(eq(channels.id, channel.id));
       // Push chat display config live so the OBS chat source updates without a reload.

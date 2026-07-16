@@ -23,6 +23,12 @@ import { ttsVoices } from './voices';
  * (animation off) simply leaves them invisible.
  */
 const BASE_CSS = `
+/* Cosmetics' own brand mint. Deliberately NOT --color-accent: a cosmetic belongs to the VIEWER who
+   bought it and must look identical everywhere (channel page, both overlays, later the Twitch chat
+   extension) — reading the accent would repaint it per channel theme and per surface. */
+:root {
+  --cos-mint: #8df0cc;
+}
 .card-fx {
   position: absolute;
   inset: 0;

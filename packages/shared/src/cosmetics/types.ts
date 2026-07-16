@@ -40,9 +40,9 @@ export interface CosmeticLabelKeys {
 interface BaseModule extends CosmeticItem {
   labels: CosmeticLabelKeys;
   /**
-   * CSS injected once at boot on each surface (see injectCosmeticsStyles). Use
-   * `var(--color-accent, #8df0cc)` for the accent so it also works off-token on the overlay,
-   * where the web design tokens are not defined.
+   * CSS injected once at boot on each surface (see injectCosmeticsStyles). For the brand mint use
+   * `var(--cos-mint, #8df0cc)` — never `--color-accent`, which a channel theme repaints, so the
+   * same cosmetic would differ between the channel page and the overlays.
    */
   css?: string;
 }

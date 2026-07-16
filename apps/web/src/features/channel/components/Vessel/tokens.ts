@@ -53,6 +53,11 @@ export type ColorToken =
 
 let cache: Record<ColorToken, Rgb> | null = null;
 
+/** Drop the snapshot after a per-channel theme is applied or removed (see useChannelTheme). */
+export function resetVesselTokens(): void {
+  cache = null;
+}
+
 export function tokens(): Record<ColorToken, Rgb> {
   if (cache) return cache;
   const FALLBACK = '#8df0cc';

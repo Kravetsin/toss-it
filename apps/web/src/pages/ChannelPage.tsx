@@ -16,12 +16,20 @@ import { ComposeForm } from '@/features/channel/components/ComposeForm';
 import { Leaderboard } from '@/features/channel/components/Leaderboard';
 import { Vessel } from '@/features/channel/components/Vessel/Vessel';
 import { useMediaSubmission } from '@/features/channel/hooks/useMediaSubmission';
+import { useChannelTheme, useThemePreviewListener } from '@/features/channel/hooks/useChannelTheme';
+import { themeFromQuery, isThemePreview } from '@/features/channel/lib/themeQuery';
 
 export function ChannelPage() {
   const { t } = useI18n();
   const { login = '' } = useParams();
   const { me, refresh } = useMe();
   const [channel, setChannel] = useState<PublicChannelInfo | null | 'loading'>('loading');
+  // Embedded live preview (the dashboard theme constructor): the parent drives the theme via
+  // postMessage; otherwise the page owns its own saved theme. The listener re-renders this page on
+  // each update so the Vessel (which reads tokens at render) repaints with the rest.
+  const preview = isThemePreview();
+  useThemePreviewListener(preview, themeFromQuery());
+  useChannelTheme(preview ? null : typeof channel === 'object' ? channel?.theme : null);
   // Leaderboard fetches itself (tabs/periods); the key just tells it "you sent something".
   const [boardRefresh, setBoardRefresh] = useState(0);
   const composeRef = useRef<HTMLDivElement>(null);

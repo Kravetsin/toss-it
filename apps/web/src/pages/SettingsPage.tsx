@@ -14,6 +14,7 @@ import { ModerationSettings } from '@/features/dashboard/components/ModerationSe
 import { SubmissionLimits } from '@/features/dashboard/components/SubmissionLimits';
 import { ChatDustSettings } from '@/features/dashboard/components/ChatDustSettings';
 import { ChannelPageSettings } from '@/features/dashboard/components/ChannelPageSettings';
+import { ChannelThemeSettings } from '@/features/dashboard/components/ChannelThemeSettings';
 import { IntegrationsCard } from '@/features/dashboard/components/IntegrationsCard';
 import { SettingsToggles } from '@/features/dashboard/components/settings/SettingsToggles';
 import {
@@ -144,7 +145,10 @@ export function SettingsPage() {
           <SubmissionLimits settings={settings} onSave={onSave} />
         </div>
       ) : section === 'channel' ? (
-        <ChannelPageSettings settings={settings} onSave={onSave} />
+        <div className="flex flex-col gap-4">
+          <ChannelThemeSettings settings={settings} onSave={onSave} />
+          <ChannelPageSettings settings={settings} onSave={onSave} />
+        </div>
       ) : (
         <div className="flex flex-col gap-4">
           {/* The chat bot sits with the other integrations (it IS one), not under "Channel page". */}

@@ -13,6 +13,7 @@ interface StarsApi {
   launchKeepsake: (point: { x: number; y: number }) => void;
   inhale: () => void;
   populateCosmos: (count: number) => void;
+  recolor: () => void;
 }
 let starsApi: StarsApi | null = null;
 
@@ -26,6 +27,11 @@ export function inhaleStars(): void {
 
 export function populateCosmos(count: number): void {
   starsApi?.populateCosmos(count);
+}
+
+/** Re-read --color-accent and repaint with it — for the live theme preview (see useChannelTheme). */
+export function recolorStars(): void {
+  starsApi?.recolor();
 }
 
 interface Ent {
@@ -54,7 +60,7 @@ interface Ent {
 const SKIP =
   'button,a,input,textarea,select,label,[role="dialog"],[role="listbox"],[role="option"],[aria-expanded]';
 
-export function BackgroundStars() {
+export function BackgroundStars({ staticMode = false }: { staticMode?: boolean }) {
   const enabled = useFidgetEnabled();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -65,14 +71,22 @@ export function BackgroundStars() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const accent =
-      getComputedStyle(document.documentElement).getPropertyValue('--color-accent').trim() ||
-      '#8df0cc';
-    // Parse accent hex to RGB for white-blend on cosmos ignition
-    const ah = accent.replace('#', '');
-    const aR = parseInt(ah.slice(0, 2), 16) || 141;
-    const aG = parseInt(ah.slice(2, 4), 16) || 240;
-    const aB = parseInt(ah.slice(4, 6), 16) || 204;
+    // Accent + its RGB (for the white-blend on cosmos ignition), re-readable so the theme preview
+    // can repaint the sky live. Mutated in place by recolor(); the draw loop reads these each frame.
+    let accent = '#8df0cc';
+    let aR = 141;
+    let aG = 240;
+    let aB = 204;
+    const readAccent = () => {
+      accent =
+        getComputedStyle(document.documentElement).getPropertyValue('--color-accent').trim() ||
+        '#8df0cc';
+      const ah = accent.replace('#', '');
+      aR = parseInt(ah.slice(0, 2), 16) || 141;
+      aG = parseInt(ah.slice(2, 4), 16) || 240;
+      aB = parseInt(ah.slice(4, 6), 16) || 204;
+    };
+    readAccent();
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     let W = 0;
     let H = 0;
@@ -165,6 +179,8 @@ export function BackgroundStars() {
       canvas.height = H * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ensureSeed();
+      // Resizing clears the canvas; in the frozen preview there's no loop to repaint it.
+      if (staticMode && W > 0 && H > 0) drawOnce();
     };
 
     const dot = (x: number, y: number, r: number, alpha: number) => {
@@ -310,14 +326,18 @@ export function BackgroundStars() {
         }
       }
       ctx.globalAlpha = 1;
-      raf = requestAnimationFrame(frame);
+      if (!staticMode) raf = requestAnimationFrame(frame);
     };
+    // Preview embeds render one frozen frame instead of a loop: a scaled iframe re-composites its
+    // whole layer on every animated frame, which tanks the dashboard's perf. See ChannelShell.
+    const drawOnce = () => frame(performance.now());
 
     resize();
     const ro = new ResizeObserver(resize);
     ro.observe(canvas);
     window.addEventListener('pointerdown', onDown);
-    raf = requestAnimationFrame(frame);
+    if (staticMode) drawOnce();
+    else raf = requestAnimationFrame(frame);
 
     starsApi = {
       launchKeepsake: (point) => {
@@ -347,6 +367,10 @@ export function BackgroundStars() {
       inhale: () => {
         surge = 140;
       },
+      recolor: () => {
+        readAccent();
+        if (staticMode) drawOnce();
+      },
       populateCosmos: (count) => {
         const n = Math.min(Math.max(0, Math.floor(count)), MAX_COSMOS_STARS);
         for (let i = 0; i < n; i++) {
@@ -364,14 +388,17 @@ export function BackgroundStars() {
             sy: 0,
             tx: 0,
             ty: 0,
-            t: 0,
+            // Frozen preview draws a single frame: skip the staggered ignition (delay) and the
+            // fade-in ramp so every star is already at steady twinkle in that one frame.
+            t: staticMode ? 5 : 0,
             dur: 1.6 + Math.random() * 1.2,
             trail: [],
             life: 1,
-            delay: Math.random() * 4,
+            delay: staticMode ? 0 : Math.random() * 4,
           });
         }
         if (ents.length > ENT_CAP) ents.splice(0, ents.length - ENT_CAP);
+        if (staticMode) drawOnce();
       },
     };
 
@@ -381,7 +408,7 @@ export function BackgroundStars() {
       window.removeEventListener('pointerdown', onDown);
       starsApi = null;
     };
-  }, [enabled]);
+  }, [enabled, staticMode]);
 
   if (!enabled) return null;
   return (

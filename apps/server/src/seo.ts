@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { eq } from 'drizzle-orm';
 import type { FastifyInstance, FastifyReply } from 'fastify';
+import { THEME_STYLE_ID, themeCss } from '@tmw/shared';
 import { db } from './db/index';
 import { channels, users } from './db/schema';
 import { config } from './config';
@@ -95,6 +96,8 @@ interface PageMeta {
   ogLocale?: string;
   /** hreflang alternates to emit (home pages). */
   alternates?: ReadonlyArray<{ lang: string; path: string }>;
+  /** `:root` token overrides for a themed channel page; empty when the channel is default. */
+  themeCss?: string;
 }
 
 /** Global brand entity. No user data, so safe to emit as ld+json. */
@@ -224,7 +227,13 @@ async function resolve(url: string): Promise<PageMeta> {
   if (ch) {
     const login = decodeURIComponent(ch[1]!).toLowerCase();
     const row = await db
-      .select({ login: users.login, displayName: users.displayName })
+      .select({
+        login: users.login,
+        displayName: users.displayName,
+        accentHue: channels.accentHue,
+        bgHue: channels.bgHue,
+        bgTint: channels.bgTint,
+      })
       .from(channels)
       .innerJoin(users, eq(users.id, channels.ownerUserId))
       .where(eq(users.login, login))
@@ -245,6 +254,11 @@ async function resolve(url: string): Promise<PageMeta> {
       path: `/c/${row.login}`,
       index: true,
       bodyHtml: channelBody(name),
+      themeCss: themeCss({
+        accentHue: row.accentHue,
+        bgHue: row.bgHue,
+        bgTint: row.bgTint,
+      }),
     };
   }
 
@@ -257,8 +271,17 @@ function render(template: string, m: PageMeta): string {
   let html = SEO_BLOCK.test(template)
     ? template.replace(SEO_BLOCK, head)
     : template.replace(/<title>[\s\S]*?<\/title>/, head);
-  if (m.lang && m.lang !== 'en') html = html.replace(/<html lang="[^"]*">/, `<html lang="${m.lang}">`);
+  if (m.lang && m.lang !== 'en')
+    html = html.replace(/<html lang="[^"]*">/, `<html lang="${m.lang}">`);
   if (m.bodyHtml) html = html.replace(ROOT_DIV, `<div id="root">${m.bodyHtml}</div>`);
+  // Must land at the very end of <head>: Vite emits the bundle's stylesheet (which carries
+  // Tailwind's own `:root` tokens) AFTER the SEO block, and same-specificity later wins. Being in
+  // <head> at all is what makes it flash-free — CSS blocks the first paint, so no frame shows mint.
+  // The id hands ownership to useChannelTheme, which drops it when the channel page unmounts —
+  // otherwise a client-side nav away would leave the whole SPA wearing this channel's colors.
+  if (m.themeCss) {
+    html = html.replace('</head>', `<style id="${THEME_STYLE_ID}">${m.themeCss}</style></head>`);
+  }
   return html;
 }
 
@@ -345,7 +368,10 @@ export function registerSeo(app: FastifyInstance, webDist: string): void {
   );
 
   app.get('/sitemap.xml', async (_req, reply) =>
-    reply.header('cache-control', CACHE).type('application/xml; charset=utf-8').send(await sitemapXml()),
+    reply
+      .header('cache-control', CACHE)
+      .type('application/xml; charset=utf-8')
+      .send(await sitemapXml()),
   );
 
   const serve = async (reply: FastifyReply, url: string) => {

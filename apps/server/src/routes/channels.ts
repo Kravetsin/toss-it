@@ -242,13 +242,26 @@ export function registerChannelRoutes(app: FastifyInstance): void {
         links: channels.links,
         founderSince: users.founderSince,
         equipped: users.equipped,
+        accentHue: channels.accentHue,
+        bgHue: channels.bgHue,
+        bgTint: channels.bgTint,
       })
       .from(channels)
       .innerJoin(users, eq(users.id, channels.ownerUserId))
       .where(eq(users.login, req.params.login.toLowerCase()))
       .get();
     if (!row) return reply.code(404).send({ error: 'Канал не найден' });
-    const { channelId, founderSince, equipped, ttsName, ttsMessage, ...rest } = row;
+    const {
+      channelId,
+      founderSince,
+      equipped,
+      ttsName,
+      ttsMessage,
+      accentHue,
+      bgHue,
+      bgTint,
+      ...rest
+    } = row;
     // The logged-in viewer's own per-channel level — so their header card matches the chat badge.
     const viewer = await getSessionUser(req);
     const [viewerLevel = 0] = viewer
@@ -261,6 +274,7 @@ export function registerChannelRoutes(app: FastifyInstance): void {
       nickColor: equipped?.nickColor ?? null,
       nickEffect: equipped?.nickEffect ?? null,
       cardEffect: equipped?.cardEffect ?? null,
+      theme: { accentHue, bgHue, bgTint },
       viewerLevel,
     };
     return response;
