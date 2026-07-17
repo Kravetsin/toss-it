@@ -35,7 +35,7 @@ export const cardLevitation: CardEffectModule = {
   costDust: 2500,
   className: 'card-fx-levitation',
   // In-focus density; depthCount adds the off-focus planes on top rather than out of it (../depth).
-  counts: { web: depthCount(10), overlayCard: depthCount(14), overlayChat: depthCount(8) },
+  counts: { web: depthCount(10), overlayCard: depthCount(9), overlayChat: depthCount(8) },
   labels: { name: 'shop.cardLevitation', desc: 'shop.cardLevitationDesc' },
   particle: (rnd, compact, index) => {
     const plane = depthPlane(index);

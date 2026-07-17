@@ -200,13 +200,14 @@ function show(payload: MediaPlayPayload): void {
       badges.innerHTML = badgeSvgs.map((svg) => `<span class="badge">${svg}</span>`).join('');
       banner.appendChild(badges);
     }
+    // The effect belongs to the sender, so it plays on the sender's banner — not over the media,
+    // where it used to sit on top of the very thing the viewer sent. `compact`: the banner is a
+    // short row, like the chat pill. No teardown — the listeners live on the banner's own
+    // particles and go when the alert does.
+    if (payload.senderCardEffect)
+      mountCardEffect(banner, payload.senderCardEffect, 'overlayCard', true);
     alert.appendChild(banner);
   }
-  // Card effect: particle layer over the whole alert (media + sender).
-  // The alert is a full card, never a compact row. No teardown — the listeners live on the alert's
-  // own particles and go when the alert does.
-  if (payload.senderCardEffect)
-    mountCardEffect(alert, payload.senderCardEffect, 'overlayCard', false);
   stage.appendChild(alert);
 
   if (payload.sound) playChime(payload.volume);

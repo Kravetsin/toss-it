@@ -45,7 +45,7 @@ export const cardSakura: CardEffectModule = {
   className: 'card-fx-sakura',
   // Petals are far bigger than snowflakes — the same count would read as a blizzard, not a drift.
   // The numbers are the IN-FOCUS density; depthCount adds the off-focus planes on top (see ../depth).
-  counts: { web: depthCount(10), overlayCard: depthCount(13), overlayChat: depthCount(6) },
+  counts: { web: depthCount(10), overlayCard: depthCount(7), overlayChat: depthCount(6) },
   labels: { name: 'shop.cardSakura', desc: 'shop.cardSakuraDesc' },
   particle: (rnd, compact, index) => {
     const plane = depthPlane(index);

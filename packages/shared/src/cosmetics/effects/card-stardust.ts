@@ -27,7 +27,7 @@ export const cardStardust: CardEffectModule = {
   costDust: 3500,
   className: 'card-fx-stardust',
   // In-focus density; depthCount adds the off-focus planes on top rather than out of it (../depth).
-  counts: { web: depthCount(7), overlayCard: depthCount(10), overlayChat: depthCount(6) },
+  counts: { web: depthCount(7), overlayCard: depthCount(7), overlayChat: depthCount(6) },
   labels: { name: 'shop.cardStardust', desc: 'shop.cardStardustDesc' },
   particle: (rnd, compact, index) => {
     const plane = depthPlane(index);

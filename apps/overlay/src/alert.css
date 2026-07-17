@@ -72,6 +72,13 @@
 .sender .badge {
   color: #8df0cc;
 }
+/* Name, glyph and badges sit above the card-effect particle layer (injected .card-fx has no
+   z-index). Mirrors `.msg .bubble .body` in the chat overlay. */
+.sender > :not(.card-fx) {
+  position: relative;
+  z-index: 1;
+}
+
 /* Level: rarity rail on the banner's left edge (--tier) + Roman numeral rank; glow from lvl 6
    via --tier-glow (transparent below). Mirrors the chat overlay + dashboard. */
 .sender.has-level::before {
@@ -83,6 +90,7 @@
   width: 3px;
   background: var(--tier);
   box-shadow: 0 0 7px var(--tier-glow, transparent);
+  z-index: 1;
 }
 
 /* Nick effects (.nick-glow on the name) and card effects (.card-fx*) are injected at boot

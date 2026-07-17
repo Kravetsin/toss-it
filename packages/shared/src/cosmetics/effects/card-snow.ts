@@ -39,7 +39,7 @@ export const cardSnow: CardEffectModule = {
   costDust: 3000,
   className: 'card-fx-snow',
   // In-focus density; depthCount adds the off-focus planes on top rather than out of it (../depth).
-  counts: { web: depthCount(12), overlayCard: depthCount(16), overlayChat: depthCount(8) },
+  counts: { web: depthCount(12), overlayCard: depthCount(9), overlayChat: depthCount(8) },
   labels: { name: 'shop.cardSnow', desc: 'shop.cardSnowDesc' },
   particle: (rnd, compact, index) => {
     const plane = depthPlane(index);

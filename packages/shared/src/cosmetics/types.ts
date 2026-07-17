@@ -14,7 +14,11 @@ export type CosmeticType = 'nick_color' | 'nick_effect' | 'card_effect' | 'entra
 /** Languages the TTS voices cover (matches piper voice models on the server). */
 export type TtsLang = 'ru' | 'uk' | 'en';
 
-/** Render surfaces a card effect is drawn on; particle counts are tuned per surface. */
+/**
+ * Render surfaces a card effect is drawn on; particle counts are tuned per surface. All three are
+ * the SENDER's own card — 'overlayCard' is the media overlay's name banner, not the alert: an
+ * effect belongs to the viewer, and drawing it over their media covered the thing they sent.
+ */
 export type Surface = 'web' | 'overlayCard' | 'overlayChat';
 
 /** Randomness helper handed to a particle factory: uniform float in [min, max). */

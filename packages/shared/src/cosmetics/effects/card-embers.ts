@@ -25,7 +25,7 @@ export const cardEmbers: CardEffectModule = {
   costDust: 3000,
   className: 'card-fx-embers',
   // In-focus density; depthCount adds the off-focus planes on top rather than out of it (../depth).
-  counts: { web: depthCount(12), overlayCard: depthCount(16), overlayChat: depthCount(8) },
+  counts: { web: depthCount(12), overlayCard: depthCount(9), overlayChat: depthCount(8) },
   labels: { name: 'shop.cardEmbers', desc: 'shop.cardEmbersDesc' },
   particle: (rnd, compact, index) => {
     const plane = depthPlane(index);

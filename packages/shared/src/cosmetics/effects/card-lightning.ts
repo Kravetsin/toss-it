@@ -60,7 +60,7 @@ export const cardLightning: CardEffectModule = {
   // storm's rhythm is made of — so these are the old 3/4/2 with the two new planes added on top,
   // never carved out. Bolt rate ≈ bolts / dur: still ~1.5s between strikes on a card, ~1.1s on an
   // alert, ~2.3s in a pill (a pill needs 4 for that, since two of its slots are not bolts).
-  counts: { web: 5, overlayCard: 6, overlayChat: 4 },
+  counts: { web: 5, overlayCard: 5, overlayChat: 4 },
   // Every strike is a NEW bolt, not the same silhouette blinking in a new column — and every flood
   // comes in from a new corner. Uniquely safe here: all three are pure geometry that no keyframe
   // animates (--bolt is a clip-path, --ar an aspect-ratio, --hx a gradient's origin), and a strike
