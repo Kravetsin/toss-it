@@ -1,0 +1,33 @@
+/* What every overlay is, before it is anything else: a transparent pane the size of the stream,
+   living inside an OBS Browser Source. Both overlays declared this identically; it is here so the
+   next one cannot get it subtly wrong.
+   Cosmetic CSS (nick effects, card effects, entrances) is NOT here — it is injected at boot from the
+   shared registry (injectCosmeticsStyles), which is the single source across web and overlays. */
+html,
+body {
+  margin: 0;
+  background: transparent;
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* A viewer's rank numeral. Written out twice before — once per overlay — and the copies had already
+   drifted apart (1px/0.5 alpha of shadow), so the same numeral rendered differently depending on
+   which overlay you looked at. Nobody chose that; it is just what two copies do. */
+.lvl-num {
+  color: var(--tier);
+  font-weight: 700;
+  font-size: 0.8em;
+  letter-spacing: 0.04em;
+  text-shadow:
+    0 0 6px var(--tier-glow, transparent),
+    0 1px 2px rgba(0, 0, 0, 0.5);
+}
+/* The off switch, hung on the ROOT rather than on #chat: the numeral now appears on both overlays,
+   so the thing that hides it has to be somewhere both can reach. Both set it from the same
+   chat:config the server already sends to both. */
+[data-level='off'] .lvl-num {
+  display: none;
+}

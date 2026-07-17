@@ -1,0 +1,188 @@
+#stage {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.alert {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+/* Smooth entrance/exit with the house easing — no pixel-step stutter.
+   The stage's OWN entrance, and only while the viewer has none equipped: popping up off the
+   stage is this surface's identity, not a viewer's choice. `:not([data-fx])` hands the slot
+   over — an entrance module's `[data-fx='x']` is weaker than `.alert.enter` and would never
+   win otherwise. */
+.alert.enter:not([data-fx]) {
+  animation: pop-in 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.alert.exit {
+  animation: pop-out 0.22s cubic-bezier(0.4, 0, 1, 1) both;
+}
+.alert img,
+.alert video {
+  /* Размер задаётся настройкой канала через --overlay-size (% вьюпорта). */
+  max-width: calc(var(--overlay-size, 80) * 1vw);
+  max-height: calc(var(--overlay-size, 80) * 1vh);
+  border-radius: 6px;
+  box-shadow: 0 18px 50px -14px rgba(0, 0, 0, 0.7);
+}
+
+/* Dark-glass name bar with a mint top edge; the semi-opaque bg keeps it readable
+   over any stream background even if backdrop-filter is unsupported. */
+.sender {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  font-size: 24px;
+  color: #ededec;
+  padding: 8px 18px;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  background: rgba(13, 17, 17, 0.72);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(141, 240, 204, 0.22);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+  box-shadow:
+    inset 0 1px 0 0 rgba(141, 240, 204, 0.5),
+    0 10px 30px -10px rgba(0, 0, 0, 0.6);
+}
+.sender .glyph,
+.sender .badges,
+.sender .badge {
+  display: flex;
+  align-items: center;
+}
+.sender .glyph {
+  color: #8df0cc;
+  opacity: 0.85;
+}
+.sender .badges {
+  gap: 6px;
+}
+.sender .badge {
+  color: #8df0cc;
+}
+/* Level: rarity rail on the banner's left edge (--tier) + Roman numeral rank; glow from lvl 6
+   via --tier-glow (transparent below). Mirrors the chat overlay + dashboard. */
+.sender.has-level::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--tier);
+  box-shadow: 0 0 7px var(--tier-glow, transparent);
+}
+
+/* Nick effects (.nick-glow on the name) and card effects (.card-fx*) are injected at boot
+   from the shared cosmetics registry (injectCosmeticsStyles) — single source with the web. */
+
+/* Музыкальный плеер: пиксельная карточка с эквалайзером, прогрессом и временем.
+   Ширина масштабируется настройкой размера (--overlay-size). */
+.music {
+  box-sizing: border-box;
+  /* Компактный фикс. размер: плеер живёт в уголке как индикатор «когда закончится
+     музыка», а не как большое медиа — поэтому НЕ зависит от размера медиа (--overlay-size). */
+  width: min(320px, 80vw);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  background: rgba(13, 17, 17, 0.78);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(141, 240, 204, 0.2);
+  box-shadow:
+    inset 0 1px 0 0 rgba(141, 240, 204, 0.5),
+    0 14px 40px -12px rgba(0, 0, 0, 0.65);
+}
+.music .progress {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+.music .fill {
+  height: 100%;
+  width: 0;
+  background: #8df0cc;
+}
+.music .time {
+  display: flex;
+  justify-content: space-between;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  color: #b9c2c0;
+}
+
+/* Текст-онли: карточка-сообщение. Ширина — от настройки размера (--overlay-size). */
+.text-card {
+  box-sizing: border-box;
+  max-width: calc(var(--overlay-size, 80) * 1vw);
+  padding: 22px 26px;
+  background: rgba(13, 17, 17, 0.78);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(141, 240, 204, 0.2);
+  color: #ededec;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 30px;
+  line-height: 1.4;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  box-shadow:
+    inset 0 1px 0 0 rgba(141, 240, 204, 0.5),
+    0 16px 44px -12px rgba(0, 0, 0, 0.7);
+}
+/* Подпись под медиа — компактнее карточки. */
+.caption {
+  box-sizing: border-box;
+  max-width: calc(var(--overlay-size, 80) * 1vw);
+  padding: 10px 18px;
+  background: rgba(13, 17, 17, 0.72);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #ededec;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 21px;
+  line-height: 1.35;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.6) translateY(40px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+@keyframes pop-out {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.85) translateY(-20px);
+  }
+}

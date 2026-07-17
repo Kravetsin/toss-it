@@ -73,6 +73,7 @@ const MOCK_ME: MeResponse = {
       nickFlow: true,
       nickEffect: 'nick-pulse',
       cardEffect: 'card-levitation',
+      entrance: 'entrance-glitch',
     },
     // false so the "link Twitch" shop banner is visible in mock previews.
     hasTwitch: false,
@@ -625,7 +626,13 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
     const u = MOCK_ME.user!;
     const body = init?.body ? (JSON.parse(String(init.body)) as EquippedCosmetics) : {};
     const next: EquippedCosmetics = { ...u.equipped };
-    for (const slot of ['nickColor', 'nickColor2', 'nickEffect', 'cardEffect'] as const) {
+    for (const slot of [
+      'nickColor',
+      'nickColor2',
+      'nickEffect',
+      'cardEffect',
+      'entrance',
+    ] as const) {
       if (slot in body) next[slot] = body[slot] || undefined;
     }
     if ('nickFlow' in body) next.nickFlow = body.nickFlow || undefined;

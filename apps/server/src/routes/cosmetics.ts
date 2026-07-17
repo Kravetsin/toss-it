@@ -85,8 +85,9 @@ export function registerCosmeticsRoutes(app: FastifyInstance): void {
 
   /**
    * Equip/unequip cosmetics. nickColor: free-form #rrggbb (requires owning 'nick-color').
-   * nickColor2: the gradient's second stop (requires owning 'nick-gradient'). nickEffect: a
-   * nick-effect item id (requires owning it). null on any of them unequips that slot.
+   * nickColor2: the gradient's second stop (requires owning 'nick-gradient'). nickEffect /
+   * cardEffect / entrance: an item id of that category (requires owning it). null on any of them
+   * unequips that slot.
    */
   app.post<{
     Body: {
@@ -95,21 +96,14 @@ export function registerCosmeticsRoutes(app: FastifyInstance): void {
       nickFlow?: unknown;
       nickEffect?: unknown;
       cardEffect?: unknown;
+      entrance?: unknown;
     } | null;
   }>('/api/cosmetics/equip', async (req, reply) => {
     const user = await requireUser(req, reply);
     if (!user) return;
     // Body is unvalidated at runtime; a primitive body ("x", 5) would throw on `in`.
     const body =
-      req.body && typeof req.body === 'object' && !Array.isArray(req.body)
-        ? (req.body as {
-            nickColor?: unknown;
-            nickColor2?: unknown;
-            nickFlow?: unknown;
-            nickEffect?: unknown;
-            cardEffect?: unknown;
-          })
-        : {};
+      req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
     const equipped: EquippedCosmetics = { ...(user.equipped ?? {}) };
 
     for (const [field, itemId] of [
@@ -150,10 +144,12 @@ export function registerCosmeticsRoutes(app: FastifyInstance): void {
     if (!equipped.nickColor) delete equipped.nickColor2;
     if (!equipped.nickColor2) delete equipped.nickFlow;
 
-    // Equip a nick effect (slot) or a card effect (slot). null unequips that slot.
+    // One slot per category; null unequips it. A table rather than a branch per field, so a new
+    // category is a line here and nothing else.
     for (const [field, type] of [
       ['nickEffect', 'nick_effect'],
       ['cardEffect', 'card_effect'],
+      ['entrance', 'entrance'],
     ] as const) {
       if (!(field in body)) continue;
       const raw = body[field];

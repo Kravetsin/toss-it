@@ -57,6 +57,7 @@ import {
   emitSubmissionStatus,
   equippedMarksFor,
   equippedMarksOf,
+  marksFromEquipped,
   roomOf,
   toSummary,
   type PlaybackManager,
@@ -749,13 +750,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
       return rows.map((r) => ({
         ...toSummary(
           r.sub,
-          {
-            color: r.equipped?.nickColor ?? null,
-            color2: r.equipped?.nickColor2 ?? null,
-            flow: r.equipped?.nickFlow ?? false,
-            nickEffect: r.equipped?.nickEffect ?? null,
-            cardEffect: r.equipped?.cardEffect ?? null,
-          },
+          marksFromEquipped(r.equipped ?? null),
           levels.get(r.sub.senderUserId ?? '') ?? 0,
         ),
         status: r.sub.status,

@@ -8,8 +8,8 @@
  */
 
 /** Cosmetic categories: nick color, nick effects (on the name), card effects (particle swarm),
- *  TTS voices (picked per submission, not equipped). */
-export type CosmeticType = 'nick_color' | 'nick_effect' | 'card_effect' | 'tts_voice';
+ *  entrances (how a thing ARRIVES), TTS voices (picked per submission, not equipped). */
+export type CosmeticType = 'nick_color' | 'nick_effect' | 'card_effect' | 'entrance' | 'tts_voice';
 
 /** Languages the TTS voices cover (matches piper voice models on the server). */
 export type TtsLang = 'ru' | 'uk' | 'en';
@@ -128,6 +128,33 @@ export interface CardEffectModule extends BaseModule {
 }
 
 /**
+ * How a viewer's thing ARRIVES, on the surfaces that have an arrival: a pill appearing in chat, an
+ * alert hitting the stage. A one-shot, unlike a card effect's endless swarm — the two are different
+ * axes and stack freely (a glitching arrival can still drift sakura afterwards).
+ *
+ * The slot REPLACES the surface's own entrance rather than joining it, and that is not a taste call:
+ * `animation` is a single property, so a second one on the same element silently deletes the first
+ * (see NickEffectModule.animation for where this catalog already learned that). One arrival, one
+ * owner.
+ *
+ * What it does NOT own is the surface's default. A chat bubble unfolds from its star and an alert
+ * pops off the stage — those are two different SURFACE identities, not two viewer choices, so they
+ * stay in each surface's own css, guarded by `:not([data-fx])`. A module's `[data-fx='x']` is weaker
+ * than `.msg .bubble`, so that guard is what makes the replacement work at all — without it the
+ * default would keep winning and only `!important` would help.
+ */
+export interface EntranceModule extends BaseModule {
+  type: 'entrance';
+  /**
+   * Value of the `data-fx` attribute the surface puts on the arriving element; the module's css
+   * targets `[data-fx='<fx>']`. An ATTRIBUTE rather than a class, because the surfaces need to ask
+   * "is anything equipped?" (`:not([data-fx])`) to know whether to run their own default — with
+   * classes that guard would have to list every entrance that exists.
+   */
+  fx: string;
+}
+
+/**
  * A TTS voice. costDust 0 = free for everyone; paid ones are bought like any cosmetic but are
  * chosen per submission in the compose form rather than equipped. The server maps `model` +
  * `speaker` to a piper invocation; web only shows labels and plays /api/tts/preview/:id.
@@ -142,7 +169,12 @@ export interface TtsVoiceModule extends BaseModule {
   speaker?: number;
 }
 
-export type CosmeticModule = ColorModule | NickEffectModule | CardEffectModule | TtsVoiceModule;
+export type CosmeticModule =
+  | ColorModule
+  | NickEffectModule
+  | CardEffectModule
+  | EntranceModule
+  | TtsVoiceModule;
 
 /** What a user currently has equipped (one slot per category). */
 export interface EquippedCosmetics {
@@ -163,6 +195,11 @@ export interface EquippedCosmetics {
   nickEffect?: string | null;
   /** Equipped card effect item id (e.g. 'card-levitation'); requires owning it. */
   cardEffect?: string | null;
+  /**
+   * Equipped entrance item id (e.g. 'entrance-glitch'); requires owning it. Only surfaces that HAVE
+   * an arrival honour it — the chat pill and the stage alert. Unset = the surface's own entrance.
+   */
+  entrance?: string | null;
 }
 
 /** Returned by /api/cosmetics/buy and /equip — the user's post-mutation cosmetic state. */

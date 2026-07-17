@@ -1,20 +1,20 @@
 import '@fontsource/jetbrains-mono';
+// The stage's looks, next to the code that builds it (see the note in chat.ts).
+import './overlay-base.css';
+import './alert.css';
 import { io, type Socket } from 'socket.io-client';
 import {
   COSMETICS,
   LEVEL_GLOW_FROM,
   OVERLAY_POSITIONS,
+  applyEntrance,
   applyStyleMap,
-  bindRespawn,
-  cardEffectClass,
   giphyGifUrl,
   injectCosmeticsStyles,
   injectLevelStyles,
   levelTier,
-  makeGroundGlows,
-  makeParticles,
+  mountCardEffect,
   nickRender,
-  particleCount,
   positionToFlex,
   toRoman,
   youtubePlaylistId,
@@ -88,6 +88,10 @@ const SERVER_URL = import.meta.env.DEV ? 'http://127.0.0.1:3000' : window.locati
 
 const stage = document.getElementById('stage')!;
 
+// A viewer's cosmetic must not override someone's accessibility setting, so an equipped entrance is
+// simply not applied here (the stage's own pop-in predates this and is untouched).
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 // ?demo=1 renders sample media without server/token (look-and-feel check, incl. OBS).
 const DEMO = import.meta.env.DEV && new URLSearchParams(window.location.search).has('demo');
 
@@ -117,6 +121,12 @@ socket.on('media:skip', (submissionId) => {
   if (submissionId === currentId) finish();
 });
 socket.on('donation:fx', triggerDonationFx);
+// The server sends chat:config to both overlays; this one used to drop it on the floor. It takes
+// exactly one field: the rank numeral appears here too, so the switch that hides it must reach here
+// too. Everything else in that config is the chat's own business.
+socket.on('chat:config', (cfg) => {
+  document.documentElement.dataset.level = cfg.showLevel === false ? 'off' : 'on';
+});
 socket.on('music:config', applyMusicConfig);
 socket.on('music:command', handleMusicCommand);
 
@@ -135,6 +145,9 @@ function show(payload: MediaPlayPayload): void {
   const url = resolveMediaUrl(payload.url);
   const alert = document.createElement('div');
   alert.className = 'alert enter';
+  // The alert IS the thing arriving, so it wears the entrance itself. Unequipped leaves the stage's
+  // own pop-in running (see .alert.enter:not([data-fx]) in index.html).
+  applyEntrance(alert, payload.senderEntrance, reduceMotion);
   // Caption ABOVE media so it doesn't shift the player when it disappears.
   if (payload.text && payload.kind !== 'text') {
     const cap = document.createElement('div');
@@ -190,7 +203,10 @@ function show(payload: MediaPlayPayload): void {
     alert.appendChild(banner);
   }
   // Card effect: particle layer over the whole alert (media + sender).
-  if (payload.senderCardEffect) addCardEffect(alert, payload.senderCardEffect);
+  // The alert is a full card, never a compact row. No teardown — the listeners live on the alert's
+  // own particles and go when the alert does.
+  if (payload.senderCardEffect)
+    mountCardEffect(alert, payload.senderCardEffect, 'overlayCard', false);
   stage.appendChild(alert);
 
   if (payload.sound) playChime(payload.volume);
@@ -201,34 +217,6 @@ function show(payload: MediaPlayPayload): void {
   if (payload.durationMs > 0) {
     hideTimer = window.setTimeout(finish, payload.durationMs);
   }
-}
-
-/** Add a card-effect particle layer over the whole alert (effect looked up in the registry). */
-function addCardEffect(alert: HTMLElement, effect: string): void {
-  const cls = cardEffectClass(effect);
-  const count = particleCount(effect, 'overlayCard');
-  if (!cls || !count) return;
-  const layer = document.createElement('div');
-  layer.className = `card-fx ${cls}`;
-  // The alert is a full card, never a compact row.
-  const particles = makeParticles(effect, count, false);
-  for (const ps of particles) {
-    const p = document.createElement('span');
-    p.className = 'p';
-    applyStyleMap(p, ps);
-    layer.appendChild(p);
-  }
-  // Ground glows: a bloom at each particle's origin/impact column, pinned to the bottom.
-  for (const gs of makeGroundGlows(effect, particles)) {
-    const g = document.createElement('span');
-    g.className = 'g';
-    applyStyleMap(g, gs);
-    layer.appendChild(g);
-  }
-  alert.appendChild(layer);
-  // Fresh spawn column per cycle, so a particle doesn't loop in the one column it was born in.
-  // No teardown: the listeners live on the alert's own particles and go when the alert does.
-  bindRespawn(layer, effect, particles, false);
 }
 
 function createMediaElement(payload: MediaPlayPayload, url: string): HTMLElement {
@@ -966,6 +954,8 @@ interface DemoState {
   founder: boolean;
   nickGlow: boolean;
   cardEffect: string;
+  /** Catalog id, or 'none' for the stage's own pop-in. */
+  entrance: string;
 }
 
 function demoPayload(kind: MediaKind, st: DemoState): MediaPlayPayload {
@@ -986,6 +976,7 @@ function demoPayload(kind: MediaKind, st: DemoState): MediaPlayPayload {
     senderLevel: st.sender ? 7 : undefined,
     senderEffect: st.sender && st.nickGlow ? 'nick-glow' : undefined,
     senderCardEffect: st.cardEffect !== 'none' ? st.cardEffect : undefined,
+    senderEntrance: st.entrance !== 'none' ? st.entrance : undefined,
     senderBadges: st.sender && st.founder ? ['founder'] : undefined,
     tts: false,
     ttsText: false,
@@ -1012,6 +1003,9 @@ function mountDemoPanel(): void {
     founder: true,
     nickGlow: true,
     cardEffect: 'card-levitation',
+    // On by default: an entrance is invisible unless you happen to fire an alert while looking, so
+    // the demo shows it rather than hiding it behind a click nobody knows to make.
+    entrance: 'entrance-glitch',
   };
 
   const style = document.createElement('style');
@@ -1129,6 +1123,29 @@ function mountDemoPanel(): void {
     return b;
   });
   panel.appendChild(fxRow);
+
+  section('появление');
+  const entRow = document.createElement('div');
+  entRow.className = 'row';
+  // Same registry-driven shape as the card effects above: a new entrance shows up here for free.
+  // An entrance is a ONE-SHOT, so it only speaks when an alert is fired — pick it, then fire.
+  const entButtons = (
+    [
+      ['none', 'Обычное'],
+      ...COSMETICS.filter((c) => c.type === 'entrance').map(
+        (c) => [c.id, c.id.replace(/^entrance-/, '')] as [string, string],
+      ),
+    ] as [string, string][]
+  ).map(([val, label]) => {
+    const b = btn(label, () => {
+      st.entrance = val;
+      entButtons.forEach((x) => x.classList.toggle('on', x === b));
+    });
+    if (val === st.entrance) b.classList.add('on');
+    entRow.appendChild(b);
+    return b;
+  });
+  panel.appendChild(entRow);
 
   section('донат');
   panel.appendChild(

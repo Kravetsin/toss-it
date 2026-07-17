@@ -1,17 +1,18 @@
 import '@fontsource/jetbrains-mono';
+// The pill's looks, next to the code that builds it — the two used to live in different files and
+// different languages, and chat.html was 293 lines of CSS wrapped around 12 of markup.
+import './overlay-base.css';
+import './chat.css';
 import { io, type Socket } from 'socket.io-client';
 import {
   LEVEL_GLOW_FROM,
+  applyEntrance,
   applyStyleMap,
-  bindRespawn,
-  cardEffectClass,
   injectCosmeticsStyles,
   injectLevelStyles,
   levelTier,
-  makeGroundGlows,
-  makeParticles,
+  mountCardEffect,
   nickRender,
-  particleCount,
   toRoman,
   type ChatFragment,
   type ChatOverlayConfig,
@@ -106,35 +107,6 @@ function renderFragments(parent: HTMLElement, fragments: ChatFragment[]): void {
   }
 }
 
-/** Particle layer for card cosmetics; rendered behind the text, clipped to the pill. */
-function addCardEffect(row: HTMLElement, effect: string): void {
-  const cls = cardEffectClass(effect);
-  // Fewer particles than the full media card — chat pills are small.
-  const count = particleCount(effect, 'overlayChat');
-  if (!cls || !count) return;
-  // `compact`: pills are short, so use the compact trajectory (crosses the row, clipped outside).
-  const layer = document.createElement('div');
-  layer.className = `card-fx ${cls} compact`;
-  const particles = makeParticles(effect, count, true);
-  for (const ps of particles) {
-    const p = document.createElement('span');
-    p.className = 'p';
-    applyStyleMap(p, ps);
-    layer.appendChild(p);
-  }
-  // Ground glows: thin lines phased to each particle's bottom-crossing (compact keyframes).
-  for (const gs of makeGroundGlows(effect, particles)) {
-    const g = document.createElement('span');
-    g.className = 'g';
-    applyStyleMap(g, gs);
-    layer.appendChild(g);
-  }
-  row.appendChild(layer);
-  // Fresh spawn column per cycle, so a particle doesn't loop in the one column it was born in.
-  // No teardown: the listeners live on the pill's own particles and go when the row does.
-  bindRespawn(layer, effect, particles, true);
-}
-
 function renderMessage(msg: ChatOverlayMessage): void {
   const row = document.createElement('div');
   row.className = 'msg';
@@ -216,7 +188,14 @@ function renderMessage(msg: ChatOverlayMessage): void {
   // Message bubble; card-effect particles render behind the text, clipped to the bubble.
   const bubble = document.createElement('div');
   bubble.className = 'bubble';
-  if (msg.cosmetics?.cardEffect) addCardEffect(bubble, msg.cosmetics.cardEffect);
+  // Particles render behind the text, clipped to the pill. `compact`: a pill is short, so the
+  // trajectory crosses it and starts/ends outside. No teardown — the listeners live on the pill's
+  // own particles and go when the row does.
+  if (msg.cosmetics?.cardEffect)
+    mountCardEffect(bubble, msg.cosmetics.cardEffect, 'overlayChat', true);
+  // The bubble is what arrives, so the bubble wears the entrance. Unequipped leaves the chat's own
+  // unfold-from-the-star running (see .bubble:not([data-fx]) in chat.html).
+  applyEntrance(bubble, msg.cosmetics?.entrance, reduceMotion);
   const body = document.createElement('span');
   body.className = 'body';
   renderFragments(body, msg.fragments);
@@ -346,11 +325,13 @@ function applyConfig(cfg: ChatOverlayConfig): void {
   // On :root so both #chat and #rail (a sibling) pick it up.
   document.documentElement.style.setProperty('--chat-font', `${cfg.fontSize}px`);
   fadeSeconds = cfg.fadeSeconds;
-  // Per-element toggles are applied via CSS on the container (chat.html), so flipping one
-  // instantly affects every message, old and new. Default on: only 'off' when explicitly false.
+  // Per-element toggles are applied via CSS on the container (chat.css), so flipping one instantly
+  // affects every message, old and new. Default on: only 'off' when explicitly false.
   chat.dataset.badges = cfg.showBadges === false ? 'off' : 'on';
-  chat.dataset.level = cfg.showLevel === false ? 'off' : 'on';
   chat.dataset.roleBorders = cfg.roleBorders === false ? 'off' : 'on';
+  // Level goes on the ROOT, not on #chat: the numeral is on both overlays now, so one switch has to
+  // reach both — and the media overlay has no #chat to hang it on. See overlay-base.css.
+  document.documentElement.dataset.level = cfg.showLevel === false ? 'off' : 'on';
   // Adapt already-visible messages to the new setting (schedule, cancel, or hide overdue).
   for (const row of Array.from(chat.children)) scheduleFade(row as HTMLElement);
   updateRail();
@@ -500,6 +481,35 @@ if (DEMO) {
       isFounder: false,
       level: 3,
       fragments: [{ type: 'text', text: 'горит и не гаснет' }],
+    },
+    // Entrance, alone: no card effect, so the arrival is the only thing happening and a broken one
+    // has nowhere to hide. It is a one-shot — watch the pill land, not the pill sitting there.
+    {
+      id: '13',
+      userId: 'u13',
+      name: 'ghost_in_the_wire',
+      twitchColor: null,
+      cosmetics: { nickColor: '#00f0ff', entrance: 'entrance-glitch' },
+      isFounder: false,
+      level: 6,
+      fragments: [{ type: 'text', text: 'сигнал нестабилен, но я тут' }],
+    },
+    // ...and stacked with a card effect, because they are different axes and must not fight: the
+    // arrival glitches, then the swarm carries on as if nothing happened.
+    {
+      id: '14',
+      userId: 'u14',
+      name: 'static_bloom',
+      twitchColor: null,
+      cosmetics: {
+        nickColor: '#ff6ad5',
+        nickEffect: 'nick-glow',
+        cardEffect: 'card-sakura',
+        entrance: 'entrance-glitch',
+      },
+      isFounder: false,
+      level: 9,
+      fragments: [{ type: 'text', text: 'помехи прошли, лепестки остались' }],
     },
     {
       id: '12',

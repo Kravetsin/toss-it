@@ -1,9 +1,10 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import {
   COSMETICS,
   DUST_POINTS,
   cosmeticModule,
+  entranceModule,
   nickEffectClass,
   nickEffectModule,
   type CosmeticItem,
@@ -35,7 +36,42 @@ const EARN_ROWS = [
   { icon: 'message-circle', key: 'wallet.earnChat', n: DUST_POINTS.message },
 ] as const;
 
-type ShopCategory = 'nick' | 'card' | 'voices';
+type ShopCategory = 'nick' | 'card' | 'entrance' | 'voices';
+
+/**
+ * Demo for an entrance: a stand-in for the thing that arrives, replaying the effect on demand.
+ *
+ * Every other row in this drawer demos itself by just existing — a swarm drifts, a name pulses. An
+ * entrance is an EVENT, so there is nothing to stand and look at, and the drawer already has a word
+ * for that: the voice rows have a preview button. This is the same idea with a different sense.
+ */
+function EntranceDemo({ fx, label }: { fx: string; label: string }) {
+  const { t } = useI18n();
+  const ref = useRef<HTMLDivElement>(null);
+  const play = () => {
+    const el = ref.current;
+    if (!el) return;
+    delete el.dataset.fx;
+    // Force a reflow between the removal and the re-add: without it the browser coalesces both into
+    // one style change, sees no difference, and never restarts the animation.
+    void el.offsetWidth;
+    el.dataset.fx = fx;
+  };
+  // Play once when the row appears, so the shop shows the effect rather than describing it.
+  useEffect(play, [fx]);
+  return (
+    <div className="flex items-center gap-2">
+      <div
+        ref={ref}
+        data-fx={fx}
+        className="rounded-[var(--radius-sm)] border border-border bg-surface-2 px-3 py-1.5 text-sm text-text"
+      >
+        {label}
+      </div>
+      <IconButton name="reload" size="sm" variant="ghost" label={t('shop.replay')} onClick={play} />
+    </div>
+  );
+}
 
 function CategoryBtn({
   active,
@@ -80,6 +116,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   const flowItem = COSMETICS.find((c) => c.id === NICK_FLOW_ID)!;
   const nickEffects = COSMETICS.filter((c) => c.type === 'nick_effect');
   const cardEffects = COSMETICS.filter((c) => c.type === 'card_effect');
+  const entrances = COSMETICS.filter((c) => c.type === 'entrance');
   // Every specific voice is a purchase; the free path is the "auto" option in the compose form.
   const voiceItems = COSMETICS.filter((c) => c.type === 'tts_voice');
   const ownsColor = user?.ownedCosmetics.includes(NICK_COLOR_ID) ?? false;
@@ -90,6 +127,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   const equippedFlow = user?.equipped.nickFlow ?? false;
   const equippedNickEffect = user?.equipped.nickEffect ?? null;
   const equippedCardEffect = user?.equipped.cardEffect ?? null;
+  const equippedEntrance = user?.equipped.entrance ?? null;
   const balance = user?.stardust ?? 0;
   const previewName = user?.displayName ?? 'nickname';
 
@@ -174,7 +212,11 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     (useGradient ? color2.toLowerCase() : '') !== (equippedColor2 ?? '').toLowerCase() ||
     useFlow !== equippedFlow;
   // One slot per effect category; equipping another replaces it, null unequips.
-  const equipEffect = (patch: { nickEffect?: string | null; cardEffect?: string | null }) =>
+  const equipEffect = (patch: {
+    nickEffect?: string | null;
+    cardEffect?: string | null;
+    entrance?: string | null;
+  }) =>
     void act(() => equipCosmetic(patch), {
       after: refresh,
       success: t('shop.equipped'),
@@ -201,6 +243,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     if (!labels) return null;
     const isCard = e.type === 'card_effect';
     const isNick = e.type === 'nick_effect';
+    const entranceFx = e.type === 'entrance' ? entranceModule(e.id)?.fx : undefined;
     return (
       <div
         key={e.id}
@@ -239,6 +282,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
           {/* Flavor, not instruction: the row already animates the effect, so describing it would
               only restate what's on screen — and risk contradicting what the viewer sees. */}
           <p className="text-sm italic text-muted">{t(labels.desc)}</p>
+          {entranceFx && <EntranceDemo fx={entranceFx} label={previewName} />}
           <div className="flex items-center gap-2">
             {!owned ? (
               <Button
@@ -316,9 +360,11 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     );
   };
 
-  const section = (title: string, body: ReactNode) => (
+  /** `note`: a caveat the whole category shares — said once at the top, not per row. */
+  const section = (title: string, body: ReactNode, note?: string) => (
     <Card corners>
       <h3 className="font-display">{title}</h3>
+      {note && <p className="mt-1 text-sm text-muted">{note}</p>}
       <div className="mt-3 flex flex-col gap-3">{body}</div>
     </Card>
   );
@@ -378,6 +424,11 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
             active={category === 'card'}
             onClick={() => setCategory('card')}
             label={t('shop.catCard')}
+          />
+          <CategoryBtn
+            active={category === 'entrance'}
+            onClick={() => setCategory('entrance')}
+            label={t('shop.catEntrance')}
           />
           <CategoryBtn
             active={category === 'voices'}
@@ -559,6 +610,18 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
             cardEffects.map((e) =>
               effectRow(e, equippedCardEffect, (id) => equipEffect({ cardEffect: id })),
             ),
+          )}
+
+        {category === 'entrance' &&
+          section(
+            t('shop.entrances'),
+            entrances.map((e) =>
+              effectRow(e, equippedEntrance, (id) => equipEffect({ entrance: id })),
+            ),
+            // Said once, in the only place a viewer decides to spend on this: the entrance lands on
+            // the stream, and the chat pill only exists if the streamer runs that overlay. Selling
+            // it without saying so would be a catch, and this product's whole pitch is no catches.
+            t('shop.entrancesNote'),
           )}
 
         {category === 'voices' &&

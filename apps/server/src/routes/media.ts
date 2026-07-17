@@ -36,7 +36,13 @@ import { parseYoutube, validateYoutube } from '../media/youtube';
 import { isGiphyId } from '../media/giphy';
 import { requireUser } from '../auth';
 import { synthesize } from '../tts';
-import { dashboardRoomOf, toSummary, type PlaybackManager, type RealtimeServer } from '../playback';
+import {
+  dashboardRoomOf,
+  marksFromEquipped,
+  toSummary,
+  type PlaybackManager,
+  type RealtimeServer,
+} from '../playback';
 import type { Storage } from '../storage';
 
 export interface MediaRoutesDeps {
@@ -367,13 +373,7 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
         } else {
           io.to(dashboardRoomOf(channel.id)).emit(
             'moderation:new',
-            toSummary(row, {
-              color: user.equipped?.nickColor ?? null,
-              color2: user.equipped?.nickColor2 ?? null,
-              flow: user.equipped?.nickFlow ?? false,
-              nickEffect: user.equipped?.nickEffect ?? null,
-              cardEffect: user.equipped?.cardEffect ?? null,
-            }),
+            toSummary(row, marksFromEquipped(user.equipped ?? null)),
           );
         }
 

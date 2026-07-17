@@ -124,7 +124,6 @@ export function ChatSettings({ settings, onSave }: { settings: ChannelSettings; 
   const [chatFont, setChatFont] = useState(settings.chatFontSize);
   const [chatFade, setChatFade] = useState(settings.chatFadeSeconds);
   const [showBadges, setShowBadges] = useState(settings.chatShowBadges);
-  const [showLevel, setShowLevel] = useState(settings.chatShowLevel);
   const [roleBorders, setRoleBorders] = useState(settings.chatRoleBorders);
   return (
     <div className="flex flex-col gap-4">
@@ -161,12 +160,10 @@ export function ChatSettings({ settings, onSave }: { settings: ChannelSettings; 
             checked={showBadges}
             onChange={setShowBadges}
           />
-          <Switch
-            icon="star"
-            label={t('dash.chatLevel')}
-            checked={showLevel}
-            onChange={setShowLevel}
-          />
+          {/* The level switch is NOT here: the numeral shows on the media overlay too, and this
+              whole block disappears when the chat overlay is off — a streamer who turned chat off
+              would have had no way left to control it. It lives with the other "what shows on a
+              viewer's stuff" flags, in SettingsToggles. */}
           <Switch
             icon="shield"
             label={t('dash.chatRoleBorders')}
@@ -182,7 +179,6 @@ export function ChatSettings({ settings, onSave }: { settings: ChannelSettings; 
             chatFontSize: chatFont,
             chatFadeSeconds: chatFade,
             chatShowBadges: showBadges,
-            chatShowLevel: showLevel,
             chatRoleBorders: roleBorders,
           })
         }

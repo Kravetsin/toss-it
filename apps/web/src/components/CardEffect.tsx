@@ -1,12 +1,5 @@
-import { useEffect, useMemo, useRef, type CSSProperties } from 'react';
-import {
-  bindRespawn,
-  cardEffectClass,
-  makeGroundGlows,
-  makeParticles,
-  particleCount,
-  type Surface,
-} from '@tmw/shared';
+import { useEffect, useRef } from 'react';
+import { cardEffectLayerClass, fillCardEffect, type Surface } from '@tmw/shared';
 
 /**
  * Particle layer for an equipped card effect (levitation / stardust). Render as the first child
@@ -28,33 +21,17 @@ export function CardEffect({
   compact?: boolean;
   surface?: Surface;
 }) {
-  const count = effect ? particleCount(effect, surface) : 0;
-  const particles = useMemo(
-    () => makeParticles(effect ?? '', count, compact),
-    [effect, count, compact],
-  );
-  // Ground glows bloom at each particle's bottom-edge crossing. Compact rows use per-effect
-  // `.compact .g` keyframes phased to the clipped trajectory's actual crossing moment.
-  const glows = useMemo(() => makeGroundGlows(effect ?? '', particles), [effect, particles]);
-  // Each particle gets a fresh spawn column at the end of every cycle — without this a particle
-  // loops in the one column it was born in, and the swarm reads as a row of taps rather than
-  // weather. Imperative on purpose: it fires per animation cycle, which is no business of React's.
+  // React owns the layer ELEMENT — it must, it is part of its tree, and its `border-radius: inherit`
+  // has to read the card directly. The registry owns everything inside it: React never rendered the
+  // particles as JSX anyway in any honest sense, since their spawn columns are rewritten from a
+  // per-cycle animation event that React neither sees nor should.
   const layerRef = useRef<HTMLSpanElement>(null);
   useEffect(() => {
     const el = layerRef.current;
     if (!el || !effect) return;
-    return bindRespawn(el, effect, particles, compact);
-  }, [effect, particles, compact]);
-  if (!count) return null;
-  const cls = cardEffectClass(effect ?? '');
-  return (
-    <span ref={layerRef} className={`card-fx ${cls} ${compact ? 'compact' : ''}`} aria-hidden>
-      {particles.map((style, i) => (
-        <span key={i} className="p" style={style as CSSProperties} />
-      ))}
-      {glows.map((style, i) => (
-        <span key={`g${i}`} className="g" style={style as CSSProperties} />
-      ))}
-    </span>
-  );
+    return fillCardEffect(el, effect, surface, compact);
+  }, [effect, compact, surface]);
+  const cls = effect ? cardEffectLayerClass(effect, surface, compact) : '';
+  if (!cls) return null;
+  return <span ref={layerRef} className={cls} aria-hidden />;
 }

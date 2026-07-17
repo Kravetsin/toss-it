@@ -3,6 +3,7 @@ import type {
   CosmeticItem,
   CosmeticModule,
   CosmeticType,
+  EntranceModule,
   NickEffectModule,
   Rnd,
   Surface,
@@ -20,6 +21,7 @@ import { cardSakura } from './effects/card-sakura';
 import { cardStardust } from './effects/card-stardust';
 import { cardRain } from './effects/card-rain';
 import { cardSnow } from './effects/card-snow';
+import { entranceGlitch } from './effects/entrance-glitch';
 import { ttsVoices } from './voices';
 
 /**
@@ -98,6 +100,7 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   cardSnow,
   cardSakura,
   cardLightning,
+  entranceGlitch,
   ...ttsVoices,
 ];
 
@@ -149,6 +152,32 @@ export function nickEffectModule(id: string): NickEffectModule | undefined {
   return m?.type === 'nick_effect' ? m : undefined;
 }
 
+/** Entrance module by catalog id, or undefined for unknown / non-entrance ids. */
+export function entranceModule(id: string): EntranceModule | undefined {
+  const m = BY_ID.get(id);
+  return m?.type === 'entrance' ? m : undefined;
+}
+
+/**
+ * Mark `el` as the thing that is ARRIVING, wearing the viewer's entrance if they have one equipped.
+ * Call it on the element the surface animates in (the chat bubble, the stage alert). No-ops for an
+ * unequipped/unknown id, which is what leaves the surface's own `:not([data-fx])` default running.
+ *
+ * `reduceMotion`: pass the surface's own media-query result. Handled HERE rather than in each
+ * module's css because a module cannot be trusted to remember, and the cost of forgetting is a
+ * viewer's cosmetic overriding someone's accessibility setting — the entrance simply isn't applied,
+ * and the surface's default (already killed by its own reduced-motion rule) leaves a plain appear.
+ */
+export function applyEntrance(
+  el: HTMLElement,
+  id: string | null | undefined,
+  reduceMotion: boolean,
+): void {
+  if (!id || reduceMotion) return;
+  const m = BY_ID.get(id);
+  if (m?.type === 'entrance') el.dataset.fx = m.fx;
+}
+
 /** TTS voice module by catalog id, or undefined for unknown / non-voice ids. */
 export function ttsVoiceModule(id: string): TtsVoiceModule | undefined {
   const m = BY_ID.get(id);
@@ -185,6 +214,90 @@ export function makeGroundGlows(
 ): Record<string, string>[] {
   const glow = asCardEffect(id)?.groundGlow;
   return glow ? particles.map((p) => glow(p)) : [];
+}
+
+/**
+ * Class for a card effect's particle layer on a given surface, or '' when there is nothing to draw
+ * (unknown id, or a surface this effect has no count for).
+ *
+ * This and fillCardEffect split the job along the only line that actually differs between consumers:
+ * the ELEMENT belongs to whoever renders (React must own its own node), everything about what goes
+ * inside it belongs here. Before the split, "mount a card effect" existed three times — twice in the
+ * overlays byte-for-byte identical but for the surface and `compact` literals, and once more in
+ * React — so every new axis of cosmetics was a copy-paste tax paid three ways.
+ */
+export function cardEffectLayerClass(id: string, surface: Surface, compact: boolean): string {
+  const cls = cardEffectClass(id);
+  if (!cls || !particleCount(id, surface)) return '';
+  return `card-fx ${cls}${compact ? ' compact' : ''}`;
+}
+
+/**
+ * Fill a layer element with its particles and their ground glows, and keep the spawn columns fresh
+ * (see bindRespawn). Returns a teardown. The layer need not be in the document yet.
+ *
+ * The teardown REMOVES what it added, and that is not a nicety: a caller that re-runs this on the
+ * same layer (a React effect re-firing on a prop change — or twice on mount, as StrictMode does in
+ * dev) would otherwise stack a second swarm on top of the first, and the effect would quietly render
+ * at double density.
+ */
+export function fillCardEffect(
+  layer: HTMLElement,
+  id: string,
+  surface: Surface,
+  compact: boolean,
+): () => void {
+  const count = particleCount(id, surface);
+  if (!count) return () => {};
+  const particles = makeParticles(id, count, compact);
+  const added: HTMLElement[] = [];
+  for (const ps of particles) {
+    const p = document.createElement('span');
+    p.className = 'p';
+    applyStyleMap(p, ps);
+    layer.appendChild(p);
+    added.push(p);
+  }
+  // Ground glows: a bloom at each particle's origin/impact column, pinned to the bottom. The module
+  // decides which particles get one (an off-focus plane never lands on this card).
+  for (const gs of makeGroundGlows(id, particles)) {
+    const g = document.createElement('span');
+    g.className = 'g';
+    applyStyleMap(g, gs);
+    layer.appendChild(g);
+    added.push(g);
+  }
+  const off = bindRespawn(layer, id, particles, compact);
+  return () => {
+    off();
+    for (const el of added) el.remove();
+  };
+}
+
+/**
+ * Create the layer, fill it and hang it on `host` — the whole job, for consumers that build DOM by
+ * hand (both overlays). Returns a teardown; no-ops when the effect draws nothing on this surface.
+ * React renders its own layer instead and calls fillCardEffect: handing its node to this would mean
+ * an extra wrapper, and the layer's `border-radius: inherit` reads its PARENT — one element in
+ * between and every rounded card gets square corners under its particles.
+ */
+export function mountCardEffect(
+  host: HTMLElement,
+  id: string,
+  surface: Surface,
+  compact: boolean,
+): () => void {
+  const cls = cardEffectLayerClass(id, surface, compact);
+  if (!cls) return () => {};
+  const layer = document.createElement('span');
+  layer.className = cls;
+  layer.setAttribute('aria-hidden', 'true');
+  const off = fillCardEffect(layer, id, surface, compact);
+  host.appendChild(layer);
+  return () => {
+    off();
+    layer.remove();
+  };
 }
 
 /**

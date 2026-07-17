@@ -17,6 +17,9 @@ export function SettingsToggles({
 }) {
   const { t } = useI18n();
   const [showSender, setShowSender] = useState(settings.showSenderName);
+  // Field name still says "chat" — it predates the numeral appearing on the media overlay too. The
+  // column keeps the name; the setting does not mean "in chat" any more.
+  const [showLevel, setShowLevel] = useState(settings.chatShowLevel);
   const [soundAlert, setSoundAlert] = useState(settings.soundAlert);
   const [ttsName, setTtsName] = useState(settings.ttsName);
   const [ttsMessage, setTtsMessage] = useState(settings.ttsMessage);
@@ -36,6 +39,17 @@ export function SettingsToggles({
           label={t('dash.showSender')}
           checked={showSender}
           onChange={(v) => flip(setShowSender, 'showSenderName', v)}
+        />
+      </div>
+      {/* Next to the sender's name on purpose: both answer "what shows on a viewer's stuff", and
+          both overlays honour them. It used to sit inside the chat-overlay section, which hid it
+          entirely whenever that overlay was off. */}
+      <div className="py-3">
+        <Switch
+          icon="star"
+          label={t('dash.showLevel')}
+          checked={showLevel}
+          onChange={(v) => flip(setShowLevel, 'chatShowLevel', v)}
         />
       </div>
       <div className="py-3">

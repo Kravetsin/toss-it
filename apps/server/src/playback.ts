@@ -54,6 +54,8 @@ export interface NickMarks {
   flow: boolean;
   nickEffect: string | null;
   cardEffect: string | null;
+  /** How the alert arrives on stage; null = the stage's own pop-in. */
+  entrance: string | null;
 }
 const NO_MARKS: NickMarks = {
   color: null,
@@ -61,15 +63,22 @@ const NO_MARKS: NickMarks = {
   flow: false,
   nickEffect: null,
   cardEffect: null,
+  entrance: null,
 };
 
-function marksFromEquipped(equipped: EquippedCosmetics | null): NickMarks {
+/**
+ * The one place equipped cosmetics become the marks a summary/alert carries. Exported because two
+ * routes used to hand-roll this object literal, which is how they silently stayed on four fields
+ * while the type grew a fifth.
+ */
+export function marksFromEquipped(equipped: EquippedCosmetics | null): NickMarks {
   return {
     color: equipped?.nickColor ?? null,
     color2: equipped?.nickColor2 ?? null,
     flow: equipped?.nickFlow ?? false,
     nickEffect: equipped?.nickEffect ?? null,
     cardEffect: equipped?.cardEffect ?? null,
+    entrance: equipped?.entrance ?? null,
   };
 }
 
@@ -124,7 +133,8 @@ export async function equippedMarksFor(
     .all();
   for (const r of rows) {
     const e = r.equipped;
-    if (e?.nickColor || e?.nickEffect || e?.cardEffect) out.set(r.id, marksFromEquipped(e));
+    if (e?.nickColor || e?.nickEffect || e?.cardEffect || e?.entrance)
+      out.set(r.id, marksFromEquipped(e));
     // nickColor2 needs no check of its own: it is only ever set alongside nickColor.
   }
   return out;
@@ -358,6 +368,7 @@ export class PlaybackManager {
       senderNickFlow: marks.flow || undefined,
       senderEffect: marks.nickEffect ?? undefined,
       senderCardEffect: marks.cardEffect ?? undefined,
+      senderEntrance: marks.entrance ?? undefined,
       senderLevel: senderLevel || undefined,
       senderBadges: marks.badges.length ? marks.badges : undefined,
       text: sub.text ?? undefined,
