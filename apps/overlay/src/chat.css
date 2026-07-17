@@ -187,6 +187,31 @@
   position: relative;
   z-index: 1;
 }
+/* Reply indicator: a small muted "↳ @name" line above the message body. Sits above the
+   particle layer like the body, and a hair smaller/dimmer so it reads as context, not content. */
+.msg .bubble .reply-to {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.25em;
+  margin-bottom: 0.15em;
+  font-size: 0.78em;
+  line-height: 1.2;
+  color: rgba(237, 237, 236, 0.62);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.msg .bubble .reply-to .reply-arrow {
+  color: #8df0cc;
+  opacity: 0.85;
+}
+.msg .bubble .reply-to .reply-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .msg .emote {
   height: 1.5em;
   vertical-align: middle;

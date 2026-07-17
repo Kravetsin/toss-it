@@ -78,6 +78,16 @@ export const TEST_CHAT_MESSAGES: Omit<ChatOverlayMessage, 'id'>[] = [
     fragments: [KAPPA, { type: 'text', text: ' ' }, LUL, { type: 'text', text: ' ' }, POG],
   },
   {
+    userId: 'test-5r',
+    name: 'quick_reply',
+    twitchColor: '#89dceb',
+    cosmetics: null,
+    isFounder: false,
+    level: 2,
+    reply: { name: 'emote_spammer' },
+    fragments: [KAPPA],
+  },
+  {
     userId: 'test-6',
     name: 'trusty_mod',
     twitchColor: '#00d68f',

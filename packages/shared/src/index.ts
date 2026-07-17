@@ -171,10 +171,13 @@ export interface IntegrationStatus {
   key: string | null;
 }
 
-/** One piece of a chat message: plain text or a native Twitch emote. */
+/** One piece of a chat message: plain text, a native Twitch emote, or an @mention.
+ *  `mention` is Twitch's own classification (`@user`); kept distinct from text so the
+ *  overlay can ignore it in the emote-only check (a reply prefix must not block gigantify). */
 export type ChatFragment =
   | { type: 'text'; text: string }
-  | { type: 'emote'; id: string; text: string };
+  | { type: 'emote'; id: string; text: string }
+  | { type: 'mention'; text: string };
 
 /** A resolved platform chat badge (mod/vip/broadcaster/subscriber…) ready to render:
  *  the server turns Twitch's set_id/version into a CDN image URL so the overlay stays dumb. */
@@ -208,6 +211,9 @@ export interface ChatOverlayMessage {
   badges?: ChatBadge[];
   /** Highlighted role (broadcaster/mod/vip) for the tinted message border; absent otherwise. */
   role?: ChatRole;
+  /** Present when this message is a reply; drives the "↳ @name" indicator above the bubble.
+   *  `name` is the parent author's display name (without the leading @). */
+  reply?: { name: string };
   fragments: ChatFragment[];
 }
 

@@ -227,6 +227,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     color: string | null;
     badges: EventBadge[];
     fragments: ChatFragment[];
+    reply?: { name: string };
   }): void {
     const channelId = channelByBroadcaster.get(ev.broadcasterId);
     if (!channelId) return;
@@ -260,6 +261,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
           level,
           badges,
           role: roleFromBadges(ev.badges),
+          reply: ev.reply,
           fragments: ev.fragments,
         });
       })

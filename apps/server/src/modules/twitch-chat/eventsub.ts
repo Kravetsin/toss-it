@@ -32,8 +32,10 @@ export interface ChatMessageEvent {
   color: string | null;
   /** Native platform badges assigned to the message (unresolved set_id/version). */
   badges: EventBadge[];
-  /** Message split into text/emote fragments (native Twitch emotes only). */
+  /** Message split into text/emote/mention fragments (native Twitch emotes only). */
   fragments: ChatFragment[];
+  /** Set when the message is a reply; carries the parent author's display name. */
+  reply?: { name: string };
 }
 
 export interface EventSubDeps {
@@ -55,6 +57,13 @@ interface EventFragment {
   type?: string;
   text?: string;
   emote?: { id?: string };
+  mention?: { user_login?: string; user_name?: string };
+}
+
+/** Reply metadata Twitch attaches to a threaded message. */
+interface EventReply {
+  parent_user_login?: string;
+  parent_user_name?: string;
 }
 
 interface EventSubMessage {
@@ -72,6 +81,7 @@ interface EventSubMessage {
       color?: string;
       badges?: { set_id?: string; id?: string }[];
       message?: { text?: string; fragments?: EventFragment[] };
+      reply?: EventReply | null;
     };
   };
 }
@@ -86,14 +96,25 @@ function toBadges(raw: { set_id?: string; id?: string }[] | undefined): EventBad
   return out;
 }
 
-/** Map Twitch fragments to our text/emote shape; non-emote parts render as plain text. */
+/** Map Twitch fragments to our text/emote/mention shape. Twitch already classifies an @mention
+ *  as its own fragment type; we preserve that so the overlay can keep an emote-only reply big. */
 function toFragments(raw: EventFragment[] | undefined, fallbackText: string): ChatFragment[] {
   if (!raw || raw.length === 0) return fallbackText ? [{ type: 'text', text: fallbackText }] : [];
-  return raw.map((f) =>
-    f.type === 'emote' && f.emote?.id
-      ? { type: 'emote', id: f.emote.id, text: f.text ?? '' }
-      : { type: 'text', text: f.text ?? '' },
-  );
+  return raw.map((f) => {
+    if (f.type === 'emote' && f.emote?.id) return { type: 'emote', id: f.emote.id, text: f.text ?? '' };
+    if (f.type === 'mention') return { type: 'mention', text: f.text ?? '' };
+    return { type: 'text', text: f.text ?? '' };
+  });
+}
+
+/** On a reply, Twitch prepends the parent's `@name` as a mention fragment. We surface that as the
+ *  reply indicator instead, so drop the leading mention (and the blank text that follows it) from
+ *  the body — otherwise it shows twice and, being non-blank text, would block big-emote mode. */
+function stripReplyPrefix(fragments: ChatFragment[]): ChatFragment[] {
+  if (fragments[0]?.type !== 'mention') return fragments;
+  let i = 1;
+  while (fragments[i]?.type === 'text' && fragments[i]!.text.trim() === '') i += 1;
+  return fragments.slice(i);
 }
 
 /**
@@ -278,6 +299,8 @@ export class EventSubClient {
       const bid = ev?.broadcaster_user_id;
       if (!ev || !bid) return;
       if (subType === 'channel.chat.message' && ev.chatter_user_id) {
+        const parentName = ev.reply?.parent_user_name ?? ev.reply?.parent_user_login;
+        const fragments = toFragments(ev.message?.fragments, ev.message?.text ?? '');
         this.deps.onChatMessage({
           broadcasterId: bid,
           chatterId: ev.chatter_user_id,
@@ -286,7 +309,8 @@ export class EventSubClient {
           messageId: ev.message_id ?? '',
           color: ev.color || null,
           badges: toBadges(ev.badges),
-          fragments: toFragments(ev.message?.fragments, ev.message?.text ?? ''),
+          fragments: parentName ? stripReplyPrefix(fragments) : fragments,
+          reply: parentName ? { name: parentName } : undefined,
         });
       } else if (subType === 'channel.chat.message_delete' && ev.message_id) {
         this.deps.onChatDelete(bid, ev.message_id);

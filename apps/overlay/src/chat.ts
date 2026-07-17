@@ -77,11 +77,13 @@ if (!DEMO && !token) {
 }
 
 /** Pick the ladder step for a message, or null to keep emotes inline at normal size.
- *  Any non-blank text disqualifies the message — only the spaces between emotes are ignored. */
+ *  Any non-blank text disqualifies the message — only the spaces between emotes are ignored.
+ *  Mentions (@user, e.g. a reply prefix) are transparent, so "@nick Kappa" still goes big. */
 function bigEmoteStep(fragments: ChatFragment[]): (typeof BIG_EMOTE_LADDER)[number] | null {
   let emotes = 0;
   for (const f of fragments) {
     if (f.type === 'emote') emotes += 1;
+    else if (f.type === 'mention') continue;
     else if (f.text.trim() !== '') return null;
   }
   if (emotes === 0) return null;
@@ -196,6 +198,20 @@ function renderMessage(msg: ChatOverlayMessage): void {
   // The bubble is what arrives, so the bubble wears the entrance. Unequipped leaves the chat's own
   // unfold-from-the-star running (see .bubble:not([data-fx]) in chat.html).
   applyEntrance(bubble, msg.cosmetics?.entrance, reduceMotion);
+  // Reply indicator: a small "↳ @name" line above the body. The parent @mention is stripped from
+  // the fragments server-side, so an emote-only reply still gigantizes below this line.
+  if (msg.reply) {
+    const replyTo = document.createElement('div');
+    replyTo.className = 'reply-to';
+    const arrow = document.createElement('span');
+    arrow.className = 'reply-arrow';
+    arrow.textContent = '↳';
+    const who = document.createElement('span');
+    who.className = 'reply-name';
+    who.textContent = `@${msg.reply.name}`;
+    replyTo.append(arrow, who);
+    bubble.appendChild(replyTo);
+  }
   const body = document.createElement('span');
   body.className = 'body';
   renderFragments(body, msg.fragments);
@@ -530,6 +546,18 @@ if (DEMO) {
       cosmetics: null,
       isFounder: false,
       level: 4,
+      fragments: [{ type: 'emote', id: '25', text: 'Kappa' }],
+    },
+    // Reply carrying only an emote — the @mention is a separate fragment, so it still goes big.
+    {
+      id: '7r',
+      userId: 'u7r',
+      name: 'replier',
+      twitchColor: '#89dceb',
+      cosmetics: null,
+      isFounder: false,
+      level: 3,
+      reply: { name: 'emote_only' },
       fragments: [{ type: 'emote', id: '25', text: 'Kappa' }],
     },
     {
