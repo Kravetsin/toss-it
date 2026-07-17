@@ -9,6 +9,7 @@ import {
   deleteReward,
   deleteSub,
   fulfillRedemption,
+  getManageableRewards,
   getRedemptions,
 } from './helix';
 import { refreshStreamerCreds, type StreamerCreds } from './token';
@@ -268,24 +269,34 @@ export function createChannelPointsModule(deps: {
         input.cost === undefined
           ? CHANNEL_POINTS.defaultCost
           : CHANNEL_POINTS.clampCost(input.cost);
+      const token = input.creds.accessToken;
+      let rewardId: string | undefined;
       const res = await createReward(
-        input.creds.accessToken,
+        token,
         input.broadcasterId,
         REWARD_TITLE,
         cost,
         rewardPrompt(cost),
       );
-      if (!res.ok) {
+      if (res.ok) {
+        rewardId = ((await res.json()) as { data?: { id: string }[] }).data?.[0]?.id;
+      } else if (res.status === 400) {
+        // Our reward already exists (a prior disconnect didn't delete it, or it was recreated).
+        // Recover its id and reuse it instead of failing — makes reconnect idempotent.
+        log.warn({ channelId: input.channelId }, 'channel-points: reward exists, reusing it');
+        const listRes = await getManageableRewards(token, input.broadcasterId);
+        if (listRes.ok) {
+          const list = (await listRes.json()) as { data?: { id: string; title: string }[] };
+          rewardId = list.data?.find((r) => r.title === REWARD_TITLE)?.id;
+        }
+      } else {
         const body = await res.text();
         log.warn(
           { channelId: input.channelId, status: res.status, body },
           'channel-points: create reward failed',
         );
-        // 400 usually = a reward with this title already exists on the channel.
-        return { ok: false, error: res.status === 400 ? 'reward_exists' : 'create_failed' };
+        return { ok: false, error: 'create_failed' };
       }
-      const data = (await res.json()) as { data?: { id: string }[] };
-      const rewardId = data.data?.[0]?.id;
       if (!rewardId) return { ok: false, error: 'create_failed' };
       await upsertReward({
         channelId: input.channelId,

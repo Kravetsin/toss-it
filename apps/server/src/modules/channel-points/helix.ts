@@ -42,6 +42,15 @@ export function createReward(
   });
 }
 
+/** List the rewards THIS app created on the channel (only_manageable_rewards). Used to recover our
+ *  reward's id when create returns 400 (it already exists — e.g. a prior disconnect didn't delete). */
+export function getManageableRewards(token: string, broadcasterId: string): Promise<Response> {
+  const url = new URL(REWARDS);
+  url.searchParams.set('broadcaster_id', broadcasterId);
+  url.searchParams.set('only_manageable_rewards', 'true');
+  return helix('GET', url.toString(), token);
+}
+
 export function deleteReward(
   token: string,
   broadcasterId: string,
