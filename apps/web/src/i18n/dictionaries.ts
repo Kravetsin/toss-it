@@ -365,6 +365,7 @@ export const en: Dict = {
   'dash.channelPoints': 'Channel points → stardust',
   'dash.channelPointsDesc':
     'Viewers redeem a reward the app creates on your channel and get stardust ({cost} points → {dust} dust). Each redemption triggers the overlay effect.',
+  'dash.channelPointsCost': 'Reward cost: {cost} points → {dust} dust',
   'dash.channelPointsConnect': 'Connect channel points',
   'dash.channelPointsConnectedAs': 'Connected as {name}',
   'dash.channelPointsDisconnect': 'Disconnect',
@@ -892,6 +893,7 @@ export const ru: Dict = {
   'dash.channelPoints': 'Баллы канала → пыль',
   'dash.channelPointsDesc':
     'Зрители активируют награду, которую приложение создаёт на твоём канале, и получают звёздную пыль ({cost} баллов → {dust} пыли). Каждая активация запускает эффект на оверлее.',
+  'dash.channelPointsCost': 'Цена награды: {cost} баллов → {dust} пыли',
   'dash.channelPointsConnect': 'Подключить баллы канала',
   'dash.channelPointsConnectedAs': 'Подключено как {name}',
   'dash.channelPointsDisconnect': 'Отключить',
@@ -1420,6 +1422,7 @@ export const uk: Dict = {
   'dash.channelPoints': 'Бали каналу → пил',
   'dash.channelPointsDesc':
     'Глядачі активують нагороду, яку застосунок створює на твоєму каналі, і отримують зоряний пил ({cost} балів → {dust} пилу). Кожна активація запускає ефект на оверлеї.',
+  'dash.channelPointsCost': 'Ціна нагороди: {cost} балів → {dust} пилу',
   'dash.channelPointsConnect': 'Підключити бали каналу',
   'dash.channelPointsConnectedAs': 'Підключено як {name}',
   'dash.channelPointsDisconnect': 'Відключити',

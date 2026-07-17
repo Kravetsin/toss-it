@@ -7,6 +7,7 @@ export function Slider({
   label,
   min,
   max,
+  step,
   value,
   onChange,
   onCommit,
@@ -15,6 +16,8 @@ export function Slider({
   label: string;
   min: number;
   max: number;
+  /** Snap increment; omit for the default of 1. */
+  step?: number;
   value: number;
   onChange: (v: number) => void;
   /** Fires on release (pointer up / key up) — for instant-save sliders, to avoid saving mid-drag. */
@@ -33,6 +36,7 @@ export function Slider({
         type="range"
         min={min}
         max={max}
+        step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
         onPointerUp={commit}

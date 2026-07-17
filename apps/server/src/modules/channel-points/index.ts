@@ -24,6 +24,13 @@ import {
 
 /** Title of the reward we create on the streamer's channel (must be unique per channel). */
 const REWARD_TITLE = 'Купить звёздную пыль (Tossit)';
+/** Viewer-facing description; spells out the exact conversion so viewers know what they get. The
+ *  streamer can edit it in Twitch afterwards. */
+function rewardPrompt(cost: number): string {
+  return `Обменять баллы канала на звёздную пыль Tossit: ${cost} баллов = ${CHANNEL_POINTS.dustFor(
+    cost,
+  )} ⭐. Косметика в чате и на странице канала.`;
+}
 
 export interface ChannelPointsModule {
   start(): void;
@@ -34,6 +41,8 @@ export interface ChannelPointsModule {
     broadcasterId: string;
     creds: StreamerCreds;
     externalName: string | null;
+    /** Point cost the streamer picked; clamped to CHANNEL_POINTS bounds (default if omitted). */
+    cost?: number;
   }): Promise<{ ok: boolean; error?: string }>;
   disconnect(channelId: string): Promise<void>;
   status(channelId: string): Promise<{ connected: boolean; externalName: string | null }>;
@@ -107,6 +116,10 @@ export function createChannelPointsModule(deps: {
       );
       return;
     }
+    // Anti-self-farm: the broadcaster redeems their OWN rewards for free (Twitch never charges the
+    // channel owner points), so crediting them would be an unlimited faucet. Fulfill to clear the
+    // queue, but never mint dust for the owner. Mirrors the self-send guard elsewhere.
+    if (ev.redeemerId === row.broadcasterId) return;
     const dust = CHANNEL_POINTS.dustFor(ev.cost);
     await awardDust(ev.redeemerId, dust);
     io.to(roomOf(row.channelId)).emit('donation:fx', {
@@ -155,11 +168,16 @@ export function createChannelPointsModule(deps: {
       eventsub.stop();
     },
     async connectChannel(input): Promise<{ ok: boolean; error?: string }> {
+      const cost =
+        input.cost === undefined
+          ? CHANNEL_POINTS.defaultCost
+          : CHANNEL_POINTS.clampCost(input.cost);
       const res = await createReward(
         input.creds.accessToken,
         input.broadcasterId,
         REWARD_TITLE,
-        CHANNEL_POINTS.defaultCost,
+        cost,
+        rewardPrompt(cost),
       );
       if (!res.ok) {
         const body = await res.text();

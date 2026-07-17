@@ -30,8 +30,17 @@ export const CHANNEL_POINTS = {
   pointsPerDust: 2,
   /** Default point cost when we create the reward (streamer can change it in Twitch). */
   defaultCost: 200,
+  /** Slider bounds + snap for the point cost the streamer picks at creation (round numbers only). */
+  minCost: 50,
+  maxCost: 10_000,
+  costStep: 50,
   /** Dust granted for a redemption of `cost` points. */
   dustFor(cost: number): number {
     return Math.max(1, Math.floor(cost / CHANNEL_POINTS.pointsPerDust));
+  },
+  /** Clamp an arbitrary requested cost into the allowed range (NaN → default). */
+  clampCost(cost: number): number {
+    if (!Number.isFinite(cost)) return CHANNEL_POINTS.defaultCost;
+    return Math.min(CHANNEL_POINTS.maxCost, Math.max(CHANNEL_POINTS.minCost, Math.round(cost)));
   },
 } as const;

@@ -18,20 +18,23 @@ function helix(method: string, url: string, token: string, body?: unknown): Prom
   });
 }
 
-/** Create the app-owned reward. Returns the new reward id, or null with the response for the caller. */
+/** Create the app-owned reward. Returns the new reward id, or null with the response for the caller.
+ *  Icon/image can't be set via the API (dashboard-only) — the streamer uploads one if they want. */
 export function createReward(
   token: string,
   broadcasterId: string,
   title: string,
   cost: number,
+  prompt: string,
 ): Promise<Response> {
   const url = new URL(REWARDS);
   url.searchParams.set('broadcaster_id', broadcasterId);
-  // is_max_per_stream_enabled etc. left off: no cap by design (see plan). should_redemptions_skip
-  // _request_queue MUST stay false — we fulfill each redemption ourselves after crediting dust.
+  // No caps by design. should_redemptions_skip_request_queue MUST stay false — we fulfill each
+  // redemption ourselves after crediting dust (that's what makes it terminal/unrefundable).
   return helix('POST', url.toString(), token, {
     title,
     cost,
+    prompt,
     is_enabled: true,
     should_redemptions_skip_request_queue: false,
     is_user_input_required: false,

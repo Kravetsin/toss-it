@@ -7,6 +7,7 @@ import {
 } from '@/lib/api';
 import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
+import { Slider } from '@/features/dashboard/components/settings/controls';
 import { Button, Card } from '@/ui';
 
 /**
@@ -19,6 +20,7 @@ export function ChannelPointsCard() {
   const { t } = useI18n();
   const [status, setStatus] = useState<ChannelPointsStatus | null>(null);
   const [busy, setBusy] = useState(false);
+  const [cost, setCost] = useState<number>(CHANNEL_POINTS.defaultCost);
 
   useEffect(() => {
     let cancelled = false;
@@ -42,7 +44,7 @@ export function ChannelPointsCard() {
     }
   };
 
-  const dust = CHANNEL_POINTS.dustFor(CHANNEL_POINTS.defaultCost);
+  const dust = CHANNEL_POINTS.dustFor(cost);
 
   return (
     <Card className="flex flex-col gap-3">
@@ -50,9 +52,7 @@ export function ChannelPointsCard() {
         <Icon name="sparkles" size={16} className="text-accent" />
         {t('dash.channelPoints')}
       </h3>
-      <p className="text-sm text-muted">
-        {t('dash.channelPointsDesc', { cost: CHANNEL_POINTS.defaultCost, dust })}
-      </p>
+      <p className="text-sm text-muted">{t('dash.channelPointsDesc', { cost, dust })}</p>
 
       {status?.connected ? (
         <div className="mt-1 flex items-center justify-between gap-2">
@@ -65,15 +65,26 @@ export function ChannelPointsCard() {
           </Button>
         </div>
       ) : (
-        <Button
-          variant="primary"
-          disabled={busy}
-          onClick={() => {
-            window.location.href = channelPointsConnectUrl(window.location.pathname);
-          }}
-        >
-          {t('dash.channelPointsConnect')}
-        </Button>
+        <>
+          <Slider
+            icon="star"
+            label={t('dash.channelPointsCost', { cost, dust })}
+            min={CHANNEL_POINTS.minCost}
+            max={CHANNEL_POINTS.maxCost}
+            step={CHANNEL_POINTS.costStep}
+            value={cost}
+            onChange={setCost}
+          />
+          <Button
+            variant="primary"
+            disabled={busy}
+            onClick={() => {
+              window.location.href = channelPointsConnectUrl(window.location.pathname, cost);
+            }}
+          >
+            {t('dash.channelPointsConnect')}
+          </Button>
+        </>
       )}
     </Card>
   );
