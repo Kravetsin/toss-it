@@ -144,6 +144,10 @@ export class ChannelPointsEventSub {
       if (sec) this.keepaliveMs = sec * 1000;
       this.reconnectDelayMs = 1_000;
       this.subs.clear(); // new session — old subs are gone
+      this.deps.log.info(
+        { session: this.sessionId, channels: this.deps.wantedChannels().length },
+        'channel-points: eventsub session welcome, subscribing',
+      );
       this.bumpKeepalive();
       void this.reconcile();
       return;

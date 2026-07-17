@@ -9,6 +9,7 @@ import {
   deleteReward,
   deleteSub,
   fulfillRedemption,
+  getRedemptions,
 } from './helix';
 import { refreshStreamerCreds, type StreamerCreds } from './token';
 import {
@@ -83,7 +84,13 @@ export function createChannelPointsModule(deps: {
     const row = await getReward(channelId);
     if (!row) return null;
     const creds = decodeCreds(row);
-    if (!creds) return null;
+    if (!creds) {
+      log.warn(
+        { channelId },
+        'channel-points: could not decode stored token (encryption key changed?)',
+      );
+      return null;
+    }
     let res = await run(creds.accessToken, row);
     if (res.status === 401) {
       const next = await refreshStreamerCreds(creds);
@@ -101,13 +108,15 @@ export function createChannelPointsModule(deps: {
     return res;
   }
 
-  async function onRedemption(ev: RedemptionEvent): Promise<void> {
-    const row = await getRewardByBroadcaster(ev.broadcasterId);
-    if (!row || row.rewardId !== ev.rewardId) return; // not our reward
-    // Fulfill-first: FULFILLED is terminal (unrefundable), so a successful fulfill is what makes the
-    // spent points irreversible. Only then do we mint dust — this closes the refund-loop exploit.
+  /**
+   * Fulfill-first, then credit. FULFILLED is terminal (unrefundable), so a successful fulfill is
+   * what makes the spent points irreversible — only then do we mint dust (closes the refund loop).
+   * Shared by live events and the backlog sweep; both are safe to run on the same redemption because
+   * only one PATCH from UNFULFILLED→FULFILLED wins, so dust is credited at most once.
+   */
+  async function processRedemption(row: RewardRecord, ev: RedemptionEvent): Promise<void> {
     const fres = await authorized(row.channelId, (token) =>
-      fulfillRedemption(token, ev.broadcasterId, ev.rewardId, ev.redemptionId),
+      fulfillRedemption(token, row.broadcasterId, row.rewardId, ev.redemptionId),
     );
     if (!fres || !fres.ok) {
       log.warn(
@@ -122,6 +131,10 @@ export function createChannelPointsModule(deps: {
     if (ev.redeemerId === row.broadcasterId) return;
     const dust = CHANNEL_POINTS.dustFor(ev.cost);
     await awardDust(ev.redeemerId, dust);
+    log.info(
+      { channelId: row.channelId, redeemerId: ev.redeemerId, cost: ev.cost, dust },
+      'channel-points: credited dust',
+    );
     io.to(roomOf(row.channelId)).emit('donation:fx', {
       provider: 'channel-points',
       donorName: ev.redeemerName,
@@ -129,6 +142,52 @@ export function createChannelPointsModule(deps: {
       currency: '⭐',
       message: null,
     });
+  }
+
+  async function onRedemption(ev: RedemptionEvent): Promise<void> {
+    const row = await getRewardByBroadcaster(ev.broadcasterId);
+    if (!row || row.rewardId !== ev.rewardId) return; // not our reward
+    await processRedemption(row, ev);
+  }
+
+  /**
+   * Drain the UNFULFILLED backlog for a channel — redemptions that came in while we were offline
+   * (EventSub never replays them). Runs after each (re)subscribe, so a restart self-heals.
+   */
+  async function sweepUnfulfilled(channelId: string): Promise<void> {
+    const row = await getReward(channelId);
+    if (!row) return;
+    let after: string | undefined;
+    let total = 0;
+    do {
+      const res = await authorized(channelId, (token, r) =>
+        getRedemptions(token, r.broadcasterId, r.rewardId, 'UNFULFILLED', after),
+      );
+      if (!res || !res.ok) return;
+      const body = (await res.json()) as {
+        data?: {
+          id: string;
+          user_id: string;
+          user_name?: string;
+          user_login?: string;
+          reward?: { cost?: number };
+        }[];
+        pagination?: { cursor?: string };
+      };
+      for (const r of body.data ?? []) {
+        await processRedemption(row, {
+          broadcasterId: row.broadcasterId,
+          redemptionId: r.id,
+          rewardId: row.rewardId,
+          redeemerId: r.user_id,
+          redeemerName: r.user_name ?? r.user_login ?? r.user_id,
+          cost: typeof r.reward?.cost === 'number' ? r.reward.cost : 0,
+        });
+        total += 1;
+      }
+      after = body.pagination?.cursor;
+    } while (after);
+    if (total > 0) log.info({ channelId, total }, 'channel-points: swept unfulfilled backlog');
   }
 
   const eventsub = new ChannelPointsEventSub({
@@ -139,11 +198,22 @@ export function createChannelPointsModule(deps: {
         createRedemptionSub(token, row.broadcasterId, row.rewardId, sessionId),
       );
       if (!res || !res.ok) {
-        log.warn({ channelId, status: res?.status }, 'channel-points: subscribe failed');
+        log.warn(
+          { channelId, status: res?.status, body: res ? await res.text() : null },
+          'channel-points: subscribe failed',
+        );
         return null;
       }
       const data = (await res.json()) as { data?: { id: string }[] };
-      return data.data?.[0]?.id ?? null;
+      const subId = data.data?.[0]?.id ?? null;
+      log.info({ channelId, subId }, 'channel-points: subscribed to redemptions');
+      // Catch up on anything redeemed while we were offline (fire-and-forget so the 10s
+      // subscribe window isn't blocked by the sweep's paging).
+      if (subId)
+        void sweepUnfulfilled(channelId).catch((err) =>
+          log.warn({ err }, 'channel-points: sweep failed'),
+        );
+      return subId;
     },
     unsubscribeChannel: async (channelId, subId) => {
       await authorized(channelId, (token) => deleteSub(token, subId));
@@ -159,6 +229,7 @@ export function createChannelPointsModule(deps: {
       void getAllRewards()
         .then((rows) => {
           for (const r of rows) enabled.add(r.channelId);
+          log.info({ count: rows.length }, 'channel-points: loaded rewards on start');
           ensureRunning();
         })
         .catch((err) => log.warn({ err }, 'channel-points: load rewards failed'));

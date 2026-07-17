@@ -70,6 +70,27 @@ export function fulfillRedemption(
   return helix('PATCH', url.toString(), token, { status: 'FULFILLED' });
 }
 
+/**
+ * List redemptions of our reward in a given status (paginated). Used to sweep the UNFULFILLED
+ * backlog after a (re)subscribe — EventSub does not replay events missed during downtime, so
+ * anything redeemed while we were offline would otherwise sit stuck in the queue forever.
+ */
+export function getRedemptions(
+  token: string,
+  broadcasterId: string,
+  rewardId: string,
+  status: string,
+  after?: string,
+): Promise<Response> {
+  const url = new URL(REDEMPTIONS);
+  url.searchParams.set('broadcaster_id', broadcasterId);
+  url.searchParams.set('reward_id', rewardId);
+  url.searchParams.set('status', status);
+  url.searchParams.set('first', '50');
+  if (after) url.searchParams.set('after', after);
+  return helix('GET', url.toString(), token);
+}
+
 /** Subscribe to redemptions of our reward on the shared WebSocket session (streamer-authorized). */
 export function createRedemptionSub(
   token: string,
