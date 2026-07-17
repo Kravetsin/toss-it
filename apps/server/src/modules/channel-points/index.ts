@@ -7,7 +7,6 @@ import {
   createRedemptionSub,
   createReward,
   deleteReward,
-  deleteSub,
   fulfillRedemption,
   getManageableRewards,
   getRedemptions,
@@ -71,11 +70,10 @@ export function createChannelPointsModule(deps: {
   log: FastifyBaseLogger;
 }): ChannelPointsModule {
   const { io, log } = deps;
-  /** channelId set of currently-enabled rewards; eventsub reads this synchronously. */
+  /** channelId set of currently-enabled rewards; eventsub reads this synchronously to (re)subscribe. */
   const enabled = new Set<string>();
-  /** Whether the EventSub socket is up. Twitch force-closes a socket with no subscriptions after
-   *  ~10s, so we only hold it open while at least one channel is enabled. */
-  let running = false;
+  /** Whether start() has run (and stop() hasn't) — reported as `running` in the diagnostic. */
+  let started = false;
   // Diagnostics surfaced via debugState() so we don't depend on log level in prod.
   const lastSubscribe = new Map<
     string,
@@ -88,19 +86,6 @@ export function createChannelPointsModule(deps: {
     matched: boolean;
     at: number;
   } | null = null;
-
-  function ensureRunning(): void {
-    if (running || enabled.size === 0) return;
-    running = true;
-    eventsub.start();
-  }
-
-  function stopIfIdle(): void {
-    if (running && enabled.size === 0) {
-      running = false;
-      eventsub.stop();
-    }
-  }
 
   /**
    * Run a Helix call with a channel's streamer token, refreshing once on 401 and persisting the
@@ -128,7 +113,6 @@ export function createChannelPointsModule(deps: {
         enabled.delete(channelId);
         await deleteRewardRow(channelId);
         eventsub.sync();
-        stopIfIdle();
         return null;
       }
       await saveCreds(channelId, next);
@@ -275,9 +259,6 @@ export function createChannelPointsModule(deps: {
         );
       return subId;
     },
-    unsubscribeChannel: async (channelId, subId) => {
-      await authorized(channelId, (token) => deleteSub(token, subId));
-    },
     onRedemption: (ev) =>
       void onRedemption(ev).catch((err) =>
         log.warn({ err }, 'channel-points: redemption handler failed'),
@@ -290,12 +271,13 @@ export function createChannelPointsModule(deps: {
         .then((rows) => {
           for (const r of rows) enabled.add(r.channelId);
           log.info({ count: rows.length }, 'channel-points: loaded rewards on start');
-          ensureRunning();
+          started = true;
+          eventsub.start();
         })
         .catch((err) => log.warn({ err }, 'channel-points: load rewards failed'));
     },
     stop(): void {
-      running = false;
+      started = false;
       eventsub.stop();
     },
     async connectChannel(input): Promise<{ ok: boolean; error?: string }> {
@@ -340,7 +322,6 @@ export function createChannelPointsModule(deps: {
         externalName: input.externalName,
       });
       enabled.add(input.channelId);
-      ensureRunning();
       eventsub.sync();
       return { ok: true };
     },
@@ -352,7 +333,6 @@ export function createChannelPointsModule(deps: {
       ).catch(() => {});
       await deleteRewardRow(channelId);
       eventsub.sync();
-      stopIfIdle();
     },
     async status(channelId): Promise<{ connected: boolean; externalName: string | null }> {
       const row = await getReward(channelId);
@@ -360,7 +340,7 @@ export function createChannelPointsModule(deps: {
     },
     debugState() {
       return {
-        running,
+        running: started,
         enabled: [...enabled],
         eventsub: eventsub.debug(),
         lastSubscribe: Object.fromEntries(lastSubscribe),

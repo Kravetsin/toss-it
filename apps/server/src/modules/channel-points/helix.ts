@@ -100,7 +100,8 @@ export function getRedemptions(
   return helix('GET', url.toString(), token);
 }
 
-/** Subscribe to redemptions of our reward on the shared WebSocket session (streamer-authorized). */
+/** Subscribe to redemptions of our reward on this channel's own WebSocket session (each streamer's
+ *  connection is separate — Twitch forbids multiple users' subs on one session). */
 export function createRedemptionSub(
   token: string,
   broadcasterId: string,
@@ -113,10 +114,4 @@ export function createRedemptionSub(
     condition: { broadcaster_user_id: broadcasterId, reward_id: rewardId },
     transport: { method: 'websocket', session_id: sessionId },
   });
-}
-
-export function deleteSub(token: string, subId: string): Promise<Response> {
-  const url = new URL(SUBS);
-  url.searchParams.set('id', subId);
-  return helix('DELETE', url.toString(), token);
 }

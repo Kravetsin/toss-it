@@ -22,10 +22,8 @@ export interface CpEventSubDeps {
   log: FastifyBaseLogger;
   /** Channel ids that currently want a redemption subscription. */
   wantedChannels(): string[];
-  /** Create the redemption sub for a channel on this session; returns the Twitch sub id (or null). */
+  /** Create the redemption sub for a channel on its session; returns the Twitch sub id (or null). */
   subscribeChannel(channelId: string, sessionId: string): Promise<string | null>;
-  /** Best-effort delete of a live subscription (channel disabled mid-session). */
-  unsubscribeChannel(channelId: string, subId: string): Promise<void>;
   onRedemption(ev: RedemptionEvent): void;
 }
 
@@ -39,76 +37,51 @@ interface EventSubMessage {
 }
 
 /**
- * Minimal EventSub WebSocket client for channel-point redemptions. Separate from the chat client
- * because these subs are authorized by each streamer's own token (broadcaster scope), not the bot's,
- * and their lifecycle is independent of chat. One socket, one sub per opted-in channel.
+ * One WebSocket connection dedicated to a SINGLE channel's redemption subscription. Twitch requires
+ * every subscription on a WebSocket session to be authorized by the same user, so each streamer's
+ * token needs its own connection — a shared socket 400s with "cannot have subscriptions created by
+ * different users". This owns one channel's socket lifecycle: connect, welcome, subscribe, keepalive,
+ * reconnect.
  */
-export class ChannelPointsEventSub {
+class ChannelConn {
   private ws: WebSocket | null = null;
   private pending: WebSocket | null = null;
   private sessionId: string | null = null;
-  /** channelId -> Twitch subscription id. */
-  private subs = new Map<string, string>();
+  private subId: string | null = null;
   private keepaliveMs = 60_000;
   private keepaliveTimer: NodeJS.Timeout | null = null;
   private welcomeTimer: NodeJS.Timeout | null = null;
   private reconnectTimer: NodeJS.Timeout | null = null;
-  private watchdogTimer: NodeJS.Timeout | null = null;
   private reconnectDelayMs = 1_000;
   private stopped = false;
 
-  constructor(private deps: CpEventSubDeps) {}
+  constructor(
+    private channelId: string,
+    private deps: CpEventSubDeps,
+  ) {}
+
+  get welcomed(): boolean {
+    return !!this.sessionId;
+  }
+  get subscribed(): boolean {
+    return !!this.subId;
+  }
 
   start(): void {
     this.stopped = false;
     this.connect(EVENTSUB_WS_URL);
-    this.watchdogTimer = setInterval(() => {
-      if (!this.ws && !this.pending && !this.reconnectTimer) {
-        this.deps.log.warn('channel-points: watchdog found dead client, reconnecting');
-        this.connect(EVENTSUB_WS_URL);
-      }
-    }, WATCHDOG_MS);
   }
 
   stop(): void {
     this.stopped = true;
     for (const t of [this.keepaliveTimer, this.welcomeTimer, this.reconnectTimer])
       if (t) clearTimeout(t);
-    if (this.watchdogTimer) clearInterval(this.watchdogTimer);
-    this.keepaliveTimer = this.welcomeTimer = this.reconnectTimer = this.watchdogTimer = null;
+    this.keepaliveTimer = this.welcomeTimer = this.reconnectTimer = null;
     this.pending?.close();
     this.ws?.close();
     this.pending = this.ws = null;
     this.sessionId = null;
-    this.subs.clear();
-  }
-
-  /** Live state for the diagnostic endpoint: is the socket welcomed, and which channels are subbed. */
-  debug(): { hasSession: boolean; subChannels: string[] } {
-    return { hasSession: !!this.sessionId, subChannels: [...this.subs.keys()] };
-  }
-
-  /** Reconcile live: subscribe newly-enabled channels, drop disabled ones. Safe to call anytime. */
-  sync(): void {
-    if (!this.sessionId) return; // welcome handler subscribes everything wanted
-    void this.reconcile();
-  }
-
-  private async reconcile(): Promise<void> {
-    const session = this.sessionId;
-    if (!session) return;
-    const wanted = new Set(this.deps.wantedChannels());
-    for (const channelId of wanted) {
-      if (this.subs.has(channelId)) continue;
-      const subId = await this.deps.subscribeChannel(channelId, session);
-      if (this.sessionId !== session) return; // reconnected mid-reconcile
-      if (subId) this.subs.set(channelId, subId);
-    }
-    for (const [channelId, subId] of [...this.subs]) {
-      if (wanted.has(channelId)) continue;
-      this.subs.delete(channelId);
-      await this.deps.unsubscribeChannel(channelId, subId).catch(() => {});
-    }
+    this.subId = null;
   }
 
   private connect(url: string): void {
@@ -124,7 +97,10 @@ export class ChannelPointsEventSub {
       try {
         this.handleMessage(JSON.parse(String(e.data)) as EventSubMessage, ws);
       } catch (err) {
-        this.deps.log.warn({ err }, 'channel-points: bad eventsub message');
+        this.deps.log.warn(
+          { err, channelId: this.channelId },
+          'channel-points: bad eventsub message',
+        );
       }
     };
     ws.onclose = () => {
@@ -145,16 +121,12 @@ export class ChannelPointsEventSub {
       this.welcomeTimer = null;
       this.ws = ws;
       this.sessionId = msg.payload?.session?.id ?? null;
+      this.subId = null;
       const sec = msg.payload?.session?.keepalive_timeout_seconds;
       if (sec) this.keepaliveMs = sec * 1000;
       this.reconnectDelayMs = 1_000;
-      this.subs.clear(); // new session — old subs are gone
-      this.deps.log.info(
-        { session: this.sessionId, channels: this.deps.wantedChannels().length },
-        'channel-points: eventsub session welcome, subscribing',
-      );
       this.bumpKeepalive();
-      void this.reconcile();
+      if (this.sessionId) void this.subscribe(this.sessionId);
       return;
     }
     if (ws !== this.ws) return; // stale socket
@@ -187,10 +159,18 @@ export class ChannelPointsEventSub {
     }
   }
 
+  private async subscribe(session: string): Promise<void> {
+    const subId = await this.deps.subscribeChannel(this.channelId, session);
+    if (this.sessionId === session) this.subId = subId; // ignore if we reconnected meanwhile
+  }
+
   private bumpKeepalive(): void {
     if (this.keepaliveTimer) clearTimeout(this.keepaliveTimer);
     this.keepaliveTimer = setTimeout(() => {
-      this.deps.log.warn('channel-points: keepalive timeout, reconnecting');
+      this.deps.log.warn(
+        { channelId: this.channelId },
+        'channel-points: keepalive timeout, reconnecting',
+      );
       this.ws?.close();
     }, this.keepaliveMs + KEEPALIVE_GRACE_MS);
   }
@@ -199,6 +179,7 @@ export class ChannelPointsEventSub {
     const old = this.ws;
     this.ws = null;
     this.sessionId = null;
+    this.subId = null;
     old?.close();
     if (this.keepaliveTimer) clearTimeout(this.keepaliveTimer);
     if (this.reconnectTimer || this.stopped) return;
@@ -207,5 +188,57 @@ export class ChannelPointsEventSub {
       this.connect(EVENTSUB_WS_URL);
     }, this.reconnectDelayMs);
     this.reconnectDelayMs = Math.min(this.reconnectDelayMs * 2, RECONNECT_MAX_MS);
+  }
+}
+
+/**
+ * Manages one {@link ChannelConn} per opted-in channel. `sync()` spins up connections for newly
+ * enabled channels and tears down disabled ones; a watchdog re-syncs periodically so a channel can
+ * never be left without a connection.
+ */
+export class ChannelPointsEventSub {
+  private conns = new Map<string, ChannelConn>();
+  private watchdog: NodeJS.Timeout | null = null;
+  private stopped = false;
+
+  constructor(private deps: CpEventSubDeps) {}
+
+  start(): void {
+    this.stopped = false;
+    this.sync();
+    this.watchdog = setInterval(() => this.sync(), WATCHDOG_MS);
+  }
+
+  stop(): void {
+    this.stopped = true;
+    if (this.watchdog) clearInterval(this.watchdog);
+    this.watchdog = null;
+    for (const c of this.conns.values()) c.stop();
+    this.conns.clear();
+  }
+
+  /** Reconcile the live connections to the wanted channel set. Safe to call anytime. */
+  sync(): void {
+    if (this.stopped) return;
+    const wanted = new Set(this.deps.wantedChannels());
+    for (const channelId of wanted) {
+      if (this.conns.has(channelId)) continue;
+      const conn = new ChannelConn(channelId, this.deps);
+      this.conns.set(channelId, conn);
+      conn.start();
+    }
+    for (const [channelId, conn] of [...this.conns]) {
+      if (wanted.has(channelId)) continue;
+      conn.stop();
+      this.conns.delete(channelId);
+    }
+  }
+
+  /** Live state for the diagnostic endpoint. */
+  debug(): { hasSession: boolean; subChannels: string[] } {
+    return {
+      hasSession: [...this.conns.values()].some((c) => c.welcomed),
+      subChannels: [...this.conns].filter(([, c]) => c.subscribed).map(([id]) => id),
+    };
   }
 }
