@@ -27,6 +27,7 @@ import {
   type SubmissionSummary,
 } from '@tmw/shared';
 import { db } from '../db/index';
+import { TEST_CHAT_MESSAGES } from '../testChat';
 import {
   bans,
   channelActivity,
@@ -34,6 +35,7 @@ import {
   channelIntegrations,
   channelModerators,
   channels,
+  excludeSelfSends,
   linkedIdentities,
   modInvites,
   submissions,
@@ -318,6 +320,30 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
     },
   );
 
+  /**
+   * Owner fires one sample line at their chat overlay. The dashboard drives the cadence (it calls
+   * this per line and stops on the second click), so nothing has to be tracked server-side.
+   */
+  app.post<{ Params: { channelId: string }; Body: { index?: unknown } | null }>(
+    '/api/dashboard/:channelId/test-chat',
+    async (req, reply) => {
+      const channel = await requireOwnerOf(req, reply, req.params.channelId);
+      if (!channel) return;
+      if (playback.overlayCount(channel.id) === 0) {
+        return reply
+          .code(409)
+          .send({ error: 'Оверлей не подключён — добавь Browser Source в OBS и открой его' });
+      }
+      const raw = req.body?.index;
+      const index = typeof raw === 'number' && Number.isFinite(raw) ? Math.abs(Math.trunc(raw)) : 0;
+      const sample = TEST_CHAT_MESSAGES[index % TEST_CHAT_MESSAGES.length]!;
+      // Fresh id per emit: the same sample can air twice in one run, and the overlay keys
+      // messages by id (moderation deletes target it).
+      io.to(roomOf(channel.id)).emit('chat:message', { ...sample, id: crypto.randomUUID() });
+      return { count: TEST_CHAT_MESSAGES.length };
+    },
+  );
+
   // Donation-service integrations (owner-only). Money never flows through us, only events.
 
   app.get<{ Params: { channelId: string } }>(
@@ -437,12 +463,16 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
     async (req, reply): Promise<OnboardingStatus | undefined> => {
       const channel = await requireOwnerOf(req, reply, req.params.channelId);
       if (!channel) return;
+      // Deliberately counts the owner's own sends (no excludeSelfSends): the question here is "did
+      // media ever reach an overlay", and a played self-send answers it — otherwise the tick would
+      // un-tick itself as soon as OBS closes.
       const played = await db
         .select({ id: submissions.id })
         .from(submissions)
         .where(and(eq(submissions.channelId, channel.id), eq(submissions.status, 'played')))
         .limit(1)
         .get();
+      // Needs no excludeSelfSends: it already filters the owner out by id.
       const viewerSend = await db
         .select({ id: submissions.id })
         .from(submissions)
@@ -738,6 +768,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
           and(
             eq(submissions.channelId, channel.id),
             inArray(submissions.status, ['played', 'rejected', 'expired']),
+            excludeSelfSends,
           ),
         )
         .orderBy(desc(submissions.updatedAt))
@@ -783,7 +814,11 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         })
         .from(submissions)
         .where(
-          and(eq(submissions.channelId, channel.id), gte(submissions.createdAt, new Date(sinceMs))),
+          and(
+            eq(submissions.channelId, channel.id),
+            gte(submissions.createdAt, new Date(sinceMs)),
+            excludeSelfSends,
+          ),
         )
         .groupBy(dayExpr)
         .all();
@@ -818,7 +853,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
       const byKindRows = await db
         .select({ kind: submissions.kind, count: sql<number>`count(*)` })
         .from(submissions)
-        .where(eq(submissions.channelId, channel.id))
+        .where(and(eq(submissions.channelId, channel.id), excludeSelfSends))
         .groupBy(submissions.kind)
         .all();
       const byKind: KindStat[] = byKindRows
@@ -835,7 +870,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
           contributors: sql<number>`count(distinct ${submissions.senderUserId})`,
         })
         .from(submissions)
-        .where(eq(submissions.channelId, channel.id))
+        .where(and(eq(submissions.channelId, channel.id), excludeSelfSends))
         .get();
 
       const chatMonth = await db
@@ -940,6 +975,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
           and(
             inArray(submissions.senderUserId, ids),
             inArray(submissions.status, ['played', 'rejected']),
+            excludeSelfSends,
           ),
         )
         .groupBy(submissions.senderUserId, submissions.status)

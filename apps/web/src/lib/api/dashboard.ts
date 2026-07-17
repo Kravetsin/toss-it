@@ -150,6 +150,15 @@ export function sendTestDonation(channelId: string, amount = 50): Promise<unknow
   }).then((r) => json(r));
 }
 
+/** Channel owner: fire one sample line at the chat overlay (the caller drives the cadence). */
+export function sendTestChatMessage(channelId: string, index: number): Promise<{ count: number }> {
+  return fetch(`${dash(channelId)}/test-chat`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ index }),
+  }).then((r) => json<{ count: number }>(r));
+}
+
 export function getIntegrations(channelId: string): Promise<IntegrationStatus[]> {
   return fetch(`${dash(channelId)}/integrations`).then((r) => json<IntegrationStatus[]>(r));
 }

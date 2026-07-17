@@ -9,6 +9,7 @@ import { AuthButtons } from '@/components/AuthButtons';
 import { DashboardTopbar } from '@/features/dashboard/components/DashboardTopbar';
 import { TeamCard } from '@/features/home/components/TeamCard';
 import { NowPlayingCard } from '@/features/dashboard/components/NowPlayingCard';
+import { TestSendModal } from '@/features/dashboard/components/TestSendModal';
 import { MusicPlayerCard } from '@/features/dashboard/components/MusicPlayerCard';
 import { ModerationQueue } from '@/features/dashboard/components/ModerationQueue';
 import { MembersPanel } from '@/features/dashboard/components/MembersPanel';
@@ -30,9 +31,9 @@ export function DashboardPage() {
   const { soundOnRef } = useNotifications();
   const data = useChannelData(channelId, isOwner, soundOnRef);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [testOpen, setTestOpen] = useState(false);
   const actions = useModerationActions({
     channelId,
-    current,
     refreshLists: data.refreshLists,
   });
 
@@ -97,7 +98,7 @@ export function DashboardPage() {
             now={data.now}
             isOwner={isOwner}
             onSkip={actions.skip}
-            onSendTest={actions.sendTest}
+            onOpenTest={() => setTestOpen(true)}
           />
           {isOwner && channelId && (
             <MusicPlayerCard
@@ -148,7 +149,7 @@ export function DashboardPage() {
               now={data.now}
               isOwner={isOwner}
               onSkip={actions.skip}
-              onSendTest={actions.sendTest}
+              onOpenTest={() => setTestOpen(true)}
             />
             {isOwner && channelId && (
               <MusicPlayerCard
@@ -205,6 +206,10 @@ export function DashboardPage() {
           {isOwner && channelId && <TeamCard channelId={channelId} />}
         </div>
       </div>
+
+      {isOwner && (
+        <TestSendModal open={testOpen} onClose={() => setTestOpen(false)} login={current.login} />
+      )}
 
       <Drawer
         open={historyOpen}

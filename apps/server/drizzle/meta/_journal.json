@@ -253,6 +253,13 @@
       "when": 1784199493693,
       "tag": "0035_cynical_overlord",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "6",
+      "when": 1784295528069,
+      "tag": "0036_strong_photon",
+      "breakpoints": true
     }
   ]
 }

@@ -18,6 +18,7 @@ import { db } from '../db/index';
 import {
   bans,
   channels,
+  excludeSelfSends,
   submissions,
   userCosmetics,
   users,
@@ -91,6 +92,14 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
         return reply.code(403).send({ error: 'Стример приостановил приём отправок' });
       }
 
+      // An owner sending to themselves is always testing something. With no overlay connected
+      // there is nothing to test: the post would sit in the queue and ambush the next stream.
+      if (isOwner && playback.overlayCount(channel.id) === 0) {
+        return reply
+          .code(409)
+          .send({ error: 'Оверлей не подключён — добавь Browser Source в OBS и открой его' });
+      }
+
       if (!isOwner) {
         // Ban = silent reject: response is indistinguishable from "sent to
         // moderation", but the file is never processed or stored.
@@ -137,6 +146,8 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
             and(
               eq(submissions.channelId, channel.id),
               gt(submissions.createdAt, new Date(Date.now() - 3_600_000)),
+              // The owner's own tests must not eat the viewers' hourly budget.
+              excludeSelfSends,
             ),
           )
           .get();
@@ -355,6 +366,7 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
           youtubeStart,
           giphyId,
           ttsVoice,
+          isSelfSend: isOwner,
         };
         await db.insert(submissions).values(row);
 

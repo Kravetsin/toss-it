@@ -1,0 +1,1 @@
+ALTER TABLE `submissions` ADD `is_self_send` integer DEFAULT false NOT NULL;

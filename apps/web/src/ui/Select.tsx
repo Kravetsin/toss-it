@@ -103,7 +103,9 @@ export function Select({
               width: pos.width,
               transform: pos.up ? 'translateY(-100%)' : undefined,
             }}
-            className="glass glass-strong z-50 max-h-64 overflow-auto border border-glass-border p-1 shadow-3"
+            // Above the z-[70] modals: the list is portaled to body, so a lower layer would
+            // render it *behind* whatever dialog opened it.
+            className="glass glass-strong z-[80] max-h-64 overflow-auto border border-glass-border p-1 shadow-3"
           >
             {options.map((o) => {
               const active = o.value === value;

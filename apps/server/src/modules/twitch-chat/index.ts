@@ -12,6 +12,7 @@ import { db } from '../../db/index';
 import {
   channelActivity,
   channels,
+  excludeSelfSends,
   leaderboardExclusions,
   linkedIdentities,
   submissions,
@@ -125,6 +126,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
             eq(submissions.channelId, channelId),
             eq(submissions.senderUserId, identity.userId),
             eq(submissions.status, 'played'),
+            excludeSelfSends,
           ),
         )
         .get();

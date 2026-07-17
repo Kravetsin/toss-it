@@ -1,4 +1,4 @@
-import { and, inArray, isNotNull, lt, eq } from 'drizzle-orm';
+import { and, inArray, isNotNull, isNull, lt, eq } from 'drizzle-orm';
 import type { FastifyBaseLogger } from 'fastify';
 import { db } from './db/index';
 import { submissions } from './db/schema';
@@ -56,4 +56,19 @@ async function sweep(storage: Storage, log: FastifyBaseLogger): Promise<void> {
       log.error({ err, submissionId: row.id }, 'failed to delete media file');
     }
   }
+
+  // The owner's own sends are not history, so once they can no longer play the row goes too.
+  // isNull(filePath) is the guard, not an optimization: if the delete above failed, dropping the
+  // row here would strand its file with nothing left pointing at it.
+  const { rowsAffected } = await db
+    .delete(submissions)
+    .where(
+      and(
+        eq(submissions.isSelfSend, true),
+        isNull(submissions.filePath),
+        inArray(submissions.status, ['played', 'rejected', 'expired']),
+        lt(submissions.updatedAt, new Date(now - config.cleanup.terminalRetentionMs)),
+      ),
+    );
+  if (rowsAffected) log.info({ n: rowsAffected }, 'self-send submissions purged');
 }

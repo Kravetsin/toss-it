@@ -1,7 +1,7 @@
 import { and, eq, inArray, or, sql } from 'drizzle-orm';
 import { LEVEL_POINTS, xpToLevel } from '@tmw/shared';
 import { db } from './db/index';
-import { channelActivity, linkedIdentities, submissions } from './db/schema';
+import { channelActivity, excludeSelfSends, linkedIdentities, submissions } from './db/schema';
 
 export interface LevelKey {
   userId: string | null;
@@ -82,6 +82,7 @@ export async function levelsForKeys(channelId: string, keys: LevelKey[]): Promis
           eq(submissions.channelId, channelId),
           inArray(submissions.senderUserId, allUsers),
           eq(submissions.status, 'played'),
+          excludeSelfSends,
         ),
       )
       .groupBy(submissions.senderUserId)

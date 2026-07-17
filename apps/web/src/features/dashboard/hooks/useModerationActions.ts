@@ -1,16 +1,14 @@
-import type { AccessibleChannel, SubmissionSummary } from '@tmw/shared';
-import { approveSubmission, banUser, rejectSubmission, skipCurrent, uploadMedia } from '@/lib/api';
+import type { SubmissionSummary } from '@tmw/shared';
+import { approveSubmission, banUser, rejectSubmission, skipCurrent } from '@/lib/api';
 import { useApiAction } from '@/hooks/useApiAction';
 import { useConfirm } from '@/providers/ConfirmProvider';
 import { useI18n } from '@/i18n';
 
 export function useModerationActions({
   channelId,
-  current,
   refreshLists,
 }: {
   channelId: string | null;
-  current: AccessibleChannel | null;
   refreshLists: () => void;
 }) {
   const { t } = useI18n();
@@ -70,10 +68,5 @@ export function useModerationActions({
   const skip = () => {
     if (channelId) void act(() => skipCurrent(channelId), { success: t('toast.skipped') });
   };
-  const sendTest = (file: File) => {
-    if (!current) return Promise.resolve();
-    return act(() => uploadMedia(current.login, file), { success: t('toast.testSent') });
-  };
-
-  return { onApprove, onTrust, onReject, onBan, banById, skip, sendTest };
+  return { onApprove, onTrust, onReject, onBan, banById, skip };
 }

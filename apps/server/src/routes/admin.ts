@@ -13,6 +13,7 @@ import { db } from '../db/index';
 import {
   bans,
   channels,
+  excludeSelfSends,
   leaderboardExclusions,
   linkedIdentities,
   pendingDust,
@@ -151,7 +152,7 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminRoutesDeps)
           n: sql<number>`count(*)`,
         })
         .from(submissions)
-        .where(inArray(submissions.senderUserId, ids))
+        .where(and(inArray(submissions.senderUserId, ids), excludeSelfSends))
         .groupBy(submissions.senderUserId, submissions.status)
         .all();
       const whitelistRows = await db

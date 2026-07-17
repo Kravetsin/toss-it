@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { sqliteTable, text, integer, index, primaryKey } from 'drizzle-orm/sqlite-core';
 import type {
   ChannelLink,
@@ -343,6 +343,11 @@ export const submissions = sqliteTable(
     giphyId: text('giphy_id'),
     /** TTS voice picked by the sender (catalog id from ttsVoices), null = auto by language. */
     ttsVoice: text('tts_voice'),
+    /**
+     * The channel owner sending to their own channel (tests, mostly). Derived at insert, never
+     * taken from the client. Plays for real, but counts nowhere and the sweep drops the row.
+     */
+    isSelfSend: integer('is_self_send', { mode: 'boolean' }).notNull().default(false),
   },
   (t) => [
     index('idx_submissions_channel_status').on(t.channelId, t.status),
@@ -354,6 +359,12 @@ export const submissions = sqliteTable(
       .where(sql`file_path IS NOT NULL`),
   ],
 );
+
+/**
+ * Belongs in the WHERE of every read that counts submissions (history, stats, levels, leaderboards,
+ * limits). Playback is the one place that must NOT use it — a self-send has to actually play.
+ */
+export const excludeSelfSends = eq(submissions.isSelfSend, false);
 
 export type UserRow = typeof users.$inferSelect;
 export type UserCosmeticRow = typeof userCosmetics.$inferSelect;

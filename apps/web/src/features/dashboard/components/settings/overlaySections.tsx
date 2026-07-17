@@ -3,6 +3,7 @@ import type { ChannelSettings, OverlayPosition } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { Button, Switch } from '@/ui';
 import { LayoutPreview, PositionGrid, Slider } from './controls';
+import { ChatBurstButton } from './ChatBurstButton';
 
 type Save = (patch: Partial<ChannelSettings>) => void;
 
@@ -118,7 +119,15 @@ export function MusicSettings({ settings, onSave }: { settings: ChannelSettings;
 }
 
 /** Chat overlay toggle + its font size and fade. (Grows over time.) */
-export function ChatSettings({ settings, onSave }: { settings: ChannelSettings; onSave: Save }) {
+export function ChatSettings({
+  settings,
+  onSave,
+  channelId,
+}: {
+  settings: ChannelSettings;
+  onSave: Save;
+  channelId: string;
+}) {
   const { t } = useI18n();
   const [chatOverlay, setChatOverlay] = useState(settings.chatOverlayEnabled);
   const [chatFont, setChatFont] = useState(settings.chatFontSize);
@@ -170,6 +179,8 @@ export function ChatSettings({ settings, onSave }: { settings: ChannelSettings; 
             checked={roleBorders}
             onChange={setRoleBorders}
           />
+          {/* Right next to the sliders it exists to serve: the lines keep coming while they move. */}
+          <ChatBurstButton channelId={channelId} />
         </div>
       )}
       <SaveRow

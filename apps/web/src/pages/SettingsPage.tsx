@@ -17,6 +17,7 @@ import { ChannelPageSettings } from '@/features/dashboard/components/ChannelPage
 import { ChannelThemeSettings } from '@/features/dashboard/components/ChannelThemeSettings';
 import { IntegrationsCard } from '@/features/dashboard/components/IntegrationsCard';
 import { SettingsToggles } from '@/features/dashboard/components/settings/SettingsToggles';
+import { OverlayTestCard } from '@/features/dashboard/components/settings/OverlayTestCard';
 import {
   ChatSettings,
   MediaLayoutSettings,
@@ -42,7 +43,7 @@ export function SettingsPage() {
   const { section: raw } = useParams();
   const section: Section = SECTIONS.includes(raw as Section) ? (raw as Section) : 'overlay';
 
-  const { channelId, isOwner } = useChannels();
+  const { channelId, current, isOwner } = useChannels();
   const { settings, loading, save } = useSettingsData(channelId, isOwner);
 
   // The overlay URLs live here too (same card as Home): the URL and its settings
@@ -129,6 +130,7 @@ export function SettingsPage() {
             />
           )}
           <SettingsToggles settings={settings} onSave={onSave} />
+          {current && <OverlayTestCard login={current.login} />}
           <Accordion title={t('settings.mediaLayout')} icon="image">
             <MediaLayoutSettings settings={settings} onSave={onSave} />
           </Accordion>
@@ -136,7 +138,7 @@ export function SettingsPage() {
             <MusicSettings settings={settings} onSave={onSave} />
           </Accordion>
           <Accordion title={t('settings.chat')} icon="message-circle">
-            <ChatSettings settings={settings} onSave={onSave} />
+            <ChatSettings settings={settings} onSave={onSave} channelId={channelId} />
           </Accordion>
         </div>
       ) : section === 'moderation' ? (

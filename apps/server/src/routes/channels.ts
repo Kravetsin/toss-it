@@ -12,6 +12,7 @@ import { db } from '../db/index';
 import {
   channelActivity,
   channels,
+  excludeSelfSends,
   leaderboardExclusions,
   linkedIdentities,
   submissions,
@@ -77,6 +78,7 @@ async function sendsBoard(
         eq(submissions.channelId, channelId),
         eq(submissions.status, 'played'),
         isNotNull(submissions.senderUserId),
+        excludeSelfSends,
         ...(period === 'month' ? [gte(submissions.createdAt, monthStartUtc())] : []),
         ...(excluded.length ? [notInArray(users.login, excluded)] : []),
       ),
