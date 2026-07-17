@@ -146,6 +146,27 @@ export const channelIntegrations = sqliteTable(
   (t) => [primaryKey({ columns: [t.channelId, t.provider] })],
 );
 
+/**
+ * Channel-points → stardust opt-in. Our app creates and OWNS a Twitch custom reward on the
+ * streamer's channel (needs the streamer's `channel:manage:redemptions` token, stored encrypted so
+ * we can refresh it, fulfill redemptions, and delete the reward on disconnect). One per channel.
+ */
+export const channelPointRewards = sqliteTable('channel_point_rewards', {
+  channelId: text('channel_id')
+    .primaryKey()
+    .references(() => channels.id),
+  /** Raw numeric Twitch id of the broadcaster (the reward lives on this channel). */
+  broadcasterId: text('broadcaster_id').notNull(),
+  /** Id of the custom reward we created — the redemption subscription filters on it. */
+  rewardId: text('reward_id').notNull(),
+  /** AES-GCM encrypted JSON {accessToken, refreshToken}; never sent to the client. */
+  encTokens: text('enc_tokens').notNull(),
+  /** Broadcaster login/name for the dashboard's "Connected as X". */
+  externalName: text('external_name'),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+});
+
 /** Whitelist: these viewers' submissions go on screen without moderation. */
 export const whitelist = sqliteTable(
   'whitelist',
@@ -372,6 +393,7 @@ export type ChannelRow = typeof channels.$inferSelect;
 export type SubmissionRow = typeof submissions.$inferSelect;
 export type ChannelModeratorRow = typeof channelModerators.$inferSelect;
 export type ChannelIntegrationRow = typeof channelIntegrations.$inferSelect;
+export type ChannelPointRewardRow = typeof channelPointRewards.$inferSelect;
 export type ModInviteRow = typeof modInvites.$inferSelect;
 export type PromoCodeRow = typeof promoCodes.$inferSelect;
 export type PromoRedemptionRow = typeof promoRedemptions.$inferSelect;

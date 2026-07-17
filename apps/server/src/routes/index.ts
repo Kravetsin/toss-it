@@ -11,10 +11,11 @@ import { registerMediaRoutes, type MediaRoutesDeps } from './media';
 import { registerPromoRoutes } from './promo';
 import { registerDonationRoutes } from './donations';
 import type { TwitchChatModule } from '../modules/twitch-chat/index';
+import type { ChannelPointsModule } from '../modules/channel-points/index';
 
 export function registerRoutes(
   app: FastifyInstance,
-  deps: MediaRoutesDeps & { twitchChat: TwitchChatModule },
+  deps: MediaRoutesDeps & { twitchChat: TwitchChatModule; channelPoints: ChannelPointsModule },
 ): void {
   /** Lightweight uptime-monitor ping; does not touch the DB. */
   app.get('/api/ping', async () => ({ ok: true }));
@@ -29,7 +30,7 @@ export function registerRoutes(
     return { ok: true, healthChecks: count, time: new Date().toISOString() };
   });
 
-  registerAuthRoutes(app, { twitchChat: deps.twitchChat });
+  registerAuthRoutes(app, { twitchChat: deps.twitchChat, channelPoints: deps.channelPoints });
   registerChannelRoutes(app);
   registerCosmeticsRoutes(app);
   registerMediaRoutes(app, deps);

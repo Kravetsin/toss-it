@@ -161,6 +161,13 @@ export interface DonationFx {
   message: string | null;
 }
 
+/** Channel-points → stardust opt-in status (dashboard). */
+export interface ChannelPointsStatus {
+  connected: boolean;
+  /** Broadcaster display name the reward was created on ("Connected as X"). */
+  externalName: string | null;
+}
+
 /** Donation integration status (dashboard). Callback model: provider POSTs to us. */
 export interface IntegrationStatus {
   provider: string;

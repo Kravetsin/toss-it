@@ -16,6 +16,7 @@ import { ChatDustSettings } from '@/features/dashboard/components/ChatDustSettin
 import { ChannelPageSettings } from '@/features/dashboard/components/ChannelPageSettings';
 import { ChannelThemeSettings } from '@/features/dashboard/components/ChannelThemeSettings';
 import { IntegrationsCard } from '@/features/dashboard/components/IntegrationsCard';
+import { ChannelPointsCard } from '@/features/dashboard/components/ChannelPointsCard';
 import { SettingsToggles } from '@/features/dashboard/components/settings/SettingsToggles';
 import { OverlayTestCard } from '@/features/dashboard/components/settings/OverlayTestCard';
 import {
@@ -161,6 +162,7 @@ export function SettingsPage() {
               void act(() => sendTestDonation(channelId), { success: t('toast.donationSent') })
             }
           />
+          <ChannelPointsCard />
         </div>
       )}
     </Content>

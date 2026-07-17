@@ -260,6 +260,13 @@
       "when": 1784295528069,
       "tag": "0036_strong_photon",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "6",
+      "when": 1784311901155,
+      "tag": "0037_steep_vin_gonzales",
+      "breakpoints": true
     }
   ]
 }

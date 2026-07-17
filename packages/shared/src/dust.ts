@@ -18,3 +18,20 @@ export const DUST_POINTS = {
   /** One submission received (mirrored to the streamer — their dust tracks real inbox use). */
   send: 50,
 } as const;
+
+/**
+ * Channel-points → stardust exchange (an app-owned Twitch reward the streamer opts into). Not a cap
+ * risk: every dust sink is a permanent, non-transferable unlock, so the ceiling of any dust pile is
+ * "own the whole catalog once" — the accepted whale outcome. The streamer sets the reward's point
+ * cost; we derive dust from it live, so changing the cost auto-adjusts the payout.
+ */
+export const CHANNEL_POINTS = {
+  /** Channel points per 1 dust. dust = floor(cost / this), min 1. */
+  pointsPerDust: 2,
+  /** Default point cost when we create the reward (streamer can change it in Twitch). */
+  defaultCost: 200,
+  /** Dust granted for a redemption of `cost` points. */
+  dustFor(cost: number): number {
+    return Math.max(1, Math.floor(cost / CHANNEL_POINTS.pointsPerDust));
+  },
+} as const;

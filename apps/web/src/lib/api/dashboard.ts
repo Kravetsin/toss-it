@@ -1,4 +1,5 @@
 import type {
+  ChannelPointsStatus,
   ChannelSettings,
   HistoryEntry,
   IntegrationStatus,
@@ -174,6 +175,19 @@ export function disconnectDonatello(channelId: string): Promise<unknown> {
   return fetch(`${dash(channelId)}/integrations/donatello`, { method: 'DELETE' }).then((r) =>
     json(r),
   );
+}
+
+export function getChannelPointsStatus(): Promise<ChannelPointsStatus> {
+  return fetch('/api/channel-points/status').then((r) => json<ChannelPointsStatus>(r));
+}
+
+/** Full-page redirect into the streamer's channel:manage:redemptions OAuth (not a fetch). */
+export function channelPointsConnectUrl(returnTo: string): string {
+  return `/api/channel-points/connect?returnTo=${encodeURIComponent(returnTo)}`;
+}
+
+export function disconnectChannelPoints(): Promise<unknown> {
+  return fetch('/api/channel-points/disconnect', { method: 'POST' }).then((r) => json(r));
 }
 
 export function getSettings(channelId: string): Promise<ChannelSettings> {

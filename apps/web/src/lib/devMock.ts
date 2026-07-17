@@ -610,6 +610,10 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
     };
   }
 
+  if (pathname === '/api/channel-points/status') {
+    return { connected: false, externalName: null };
+  }
+
   if (pathname === '/api/cosmetics/buy') {
     const u = MOCK_ME.user!;
     const body = init?.body ? (JSON.parse(String(init.body)) as { itemId?: string }) : {};

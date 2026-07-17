@@ -33,18 +33,24 @@ import {
 import { claimPendingDust } from '../modules/twitch-chat/accrual';
 import { saveBotCredentials } from '../modules/twitch-chat/token';
 import type { TwitchChatModule } from '../modules/twitch-chat/index';
+import type { ChannelPointsModule } from '../modules/channel-points/index';
 
 export const STATE_COOKIE = 'oauth_state';
 /** Pending "choose primary account" conflict, set by the link callback. */
 const LINK_COOKIE = 'link_pending';
 const FAKE_LOGIN_RE = /^[a-z0-9_]{2,25}$/i;
+/** Manage this channel's custom rewards + redemptions — the streamer's channel-points opt-in. */
+const CHANNEL_POINTS_SCOPE = 'channel:manage:redemptions';
 
-/** OAuth state cookie payload. bot = admin's bot-connect; link = attach Twitch to session user. */
+/** OAuth state cookie payload. bot = admin's bot-connect; link = attach Twitch to session user;
+ *  cp = streamer's channel-points opt-in (channelId carries which channel gets the reward). */
 export interface OAuthState {
   state: string;
   returnTo: string;
   bot?: boolean;
   link?: boolean;
+  cp?: boolean;
+  channelId?: string;
 }
 
 interface LinkPending {
@@ -84,6 +90,7 @@ function safeReturnTo(value: unknown): string {
 
 export interface AuthRoutesDeps {
   twitchChat: TwitchChatModule;
+  channelPoints: ChannelPointsModule;
 }
 
 export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): void {
@@ -167,6 +174,37 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
         });
         deps.twitchChat.credentialsChanged();
         return reply.redirect(config.webUrl + safeReturnTo(saved.returnTo));
+      }
+
+      // Channel-points opt-in: store the streamer's token and create our app-owned reward on their
+      // channel. Authorized separately (channel:manage:redemptions), so it never logs anyone in.
+      if (saved.cp && saved.channelId) {
+        const owner = await requireUser(req, reply);
+        if (!owner) return;
+        const channel = await db
+          .select()
+          .from(channels)
+          .where(and(eq(channels.id, saved.channelId), eq(channels.ownerUserId, owner.id)))
+          .get();
+        const returnToCp = safeReturnTo(saved.returnTo);
+        if (!channel) {
+          return reply.redirect(config.webUrl + withParams(returnToCp, { cpError: 'not_owner' }));
+        }
+        const tokens = await exchangeTwitchCode(req.query.code);
+        const broadcaster = await fetchTwitchUser(tokens.accessToken);
+        const result = await deps.channelPoints.connectChannel({
+          channelId: channel.id,
+          broadcasterId: broadcaster.id,
+          creds: { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken },
+          externalName: broadcaster.displayName,
+        });
+        return reply.redirect(
+          config.webUrl +
+            withParams(
+              returnToCp,
+              result.ok ? { cp: 'connected' } : { cpError: result.error ?? 'failed' },
+            ),
+        );
       }
 
       const info = await exchangeCodeForUser(req.query.code);
@@ -407,6 +445,61 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
 
   app.post('/api/auth/logout', async (req, reply) => {
     await destroySession(req, reply);
+    return { ok: true };
+  });
+
+  /** Start the channel-points opt-in: a separate OAuth for channel:manage:redemptions. */
+  app.get<{ Querystring: { returnTo?: string } }>(
+    '/api/channel-points/connect',
+    async (req, reply) => {
+      const user = await requireUser(req, reply);
+      if (!user) return;
+      if (!config.twitch.clientId) {
+        return reply.code(503).send({ error: 'TWITCH_CLIENT_ID не настроен' });
+      }
+      const channel = await db
+        .select({ id: channels.id })
+        .from(channels)
+        .where(eq(channels.ownerUserId, user.id))
+        .get();
+      if (!channel) return reply.code(400).send({ error: 'Нет канала' });
+      const returnTo = safeReturnTo(req.query.returnTo);
+      const state = crypto.randomBytes(16).toString('hex');
+      const payload: OAuthState = { state, returnTo, cp: true, channelId: channel.id };
+      reply.setCookie(STATE_COOKIE, JSON.stringify(payload), {
+        signed: true,
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: config.isProd,
+        path: '/api/auth',
+        maxAge: 600,
+      });
+      // force_verify so the streamer explicitly picks the channel account the reward lands on.
+      return reply.redirect(buildAuthorizeUrl(state, true, CHANNEL_POINTS_SCOPE));
+    },
+  );
+
+  app.get('/api/channel-points/status', async (req, reply) => {
+    const user = await requireUser(req, reply);
+    if (!user) return;
+    const channel = await db
+      .select({ id: channels.id })
+      .from(channels)
+      .where(eq(channels.ownerUserId, user.id))
+      .get();
+    if (!channel) return { connected: false, externalName: null };
+    return deps.channelPoints.status(channel.id);
+  });
+
+  app.post('/api/channel-points/disconnect', async (req, reply) => {
+    const user = await requireUser(req, reply);
+    if (!user) return;
+    const channel = await db
+      .select({ id: channels.id })
+      .from(channels)
+      .where(eq(channels.ownerUserId, user.id))
+      .get();
+    if (channel) await deps.channelPoints.disconnect(channel.id);
     return { ok: true };
   });
 }

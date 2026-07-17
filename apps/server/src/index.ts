@@ -87,7 +87,13 @@ const twitchChat = createTwitchChatModule({
   log: app.log,
 });
 
-registerRoutes(app, { playback, storage, tmpDir, io, twitchChat });
+// Optional channel-points → stardust module: reads redemptions of app-owned rewards on opted-in
+// channels (each authorized by the streamer's own token), credits dust, fires the donation FX.
+const { createChannelPointsModule } = await import('./modules/channel-points/index');
+const channelPoints = createChannelPointsModule({ io, log: app.log });
+channelPoints.start();
+
+registerRoutes(app, { playback, storage, tmpDir, io, twitchChat, channelPoints });
 
 const { ttsAvailable, ttsBinPath } = await import('./tts');
 app.log.info(`TTS: piper ${ttsAvailable() ? 'available' : 'MISSING'} at ${ttsBinPath}`);
@@ -100,6 +106,7 @@ if (config.allowFakeAuth) {
 
 app.addHook('onClose', async () => {
   twitchChat.stop();
+  channelPoints.stop();
   await io.close();
 });
 
