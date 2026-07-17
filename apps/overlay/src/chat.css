@@ -72,7 +72,7 @@
 .msg .star {
   position: absolute;
   left: 0.06em;
-  top: 0.3em;
+  top: 0.22em;
   width: 0.95em;
   height: 0.95em;
   color: var(--tier, #8df0cc);
@@ -91,7 +91,7 @@
 .msg .dot {
   position: absolute;
   left: 0.353em;
-  top: 0.575em;
+  top: 0.5em;
   width: 0.4em;
   height: 0.4em;
   border-radius: 50%;
@@ -306,6 +306,8 @@
   display: inline-flex;
   width: 0.92em;
   height: 0.92em;
+  /* Digits have no descenders, so their ink sits above the box centre — lift the star to match. */
+  transform: translateY(-0.07em);
   filter: drop-shadow(0 0 4px rgba(141, 240, 204, 0.7));
 }
 .msg.redeem .redeem-star svg {
