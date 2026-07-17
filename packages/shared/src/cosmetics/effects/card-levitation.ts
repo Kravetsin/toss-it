@@ -90,12 +90,18 @@ export const cardLevitation: CardEffectModule = {
   box-shadow: 0 0 6px var(--cos-mint, #8df0cc);
   animation: cardfx-rise-shrink var(--dur, 3.4s) linear var(--delay, 0s) infinite;
 }
+/* The dot RISES INTO the card from under its edge instead of fading in mid-air. A plain 100%
+   translate parked the dot's box exactly ON the bottom edge, so a near-plane dot poked in — and then
+   the fade-in did the rest: by 14% of the cycle it was 12px INSIDE the card, blooming out of
+   nothing. The extra 4px×--s is the dot's own rendered size, which is the only distance that clears
+   it whatever the plane made it, and the layer's overflow clip does the reveal.
+   Opacity now starts full: parked outside, there is nothing to hide. It still fades out on the way
+   up (the dot dissolves as it climbs) and it stays IN the keyframes, so animation-less
+   reduced-motion still falls back to the base 0. Compact is untouched: its trajectory already
+   starts a whole row below (135%), which is exactly what this teaches the full-size one. */
 @keyframes cardfx-rise {
   0% {
-    translate: 0 100%;
-    opacity: 0;
-  }
-  14% {
+    translate: 0 calc(100% + 4px * var(--s, 1));
     opacity: var(--op, 0.8);
   }
   100% {

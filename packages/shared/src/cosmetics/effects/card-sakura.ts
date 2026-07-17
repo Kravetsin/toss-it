@@ -124,13 +124,16 @@ export const cardSakura: CardEffectModule = {
     cardfx-sakura-tumble var(--spin, 2.2s) linear var(--delay, 0s) infinite,
     cardfx-sakura-sway var(--dur, 5.7s) ease-in-out var(--delay, 0s) infinite;
 }
-/* Pure vertical: -8% → 104% of the column (= of the card), linear, no midpoint stop needed. */
+/* Pure vertical: -8% → 104% of the column (= of the card), linear, no midpoint stop needed.
+   The petal ENTERS from above the edge. -8% alone only lifted the column 8% of the card, so a
+   near-plane petal hung into frame and then FADED IN there — it did not glide in, it appeared. The
+   extra --h is the petal's own height, the one distance that clears it on any card at any plane;
+   the layer's overflow clip does the reveal. It still fades out at the bottom — that fade IS the
+   settling, and the glow blooms into it. Opacity stays in the keyframes so animation-less
+   reduced-motion still falls back to the base 0. */
 @keyframes cardfx-sakura-fall {
   0% {
-    translate: 0 -8%;
-    opacity: 0;
-  }
-  12% {
+    translate: 0 calc(-8% - var(--h, 6px));
     opacity: var(--op, 0.92);
   }
   88% {

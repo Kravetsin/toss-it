@@ -75,9 +75,13 @@ export const cardEmbers: CardEffectModule = {
   box-shadow: 0 0 5px #ff6a1a, 0 0 10px #ff2d00;
   animation: cardfx-embers-burnout var(--dur, 1.2s) ease-out var(--delay, 0s) infinite;
 }
+/* The spark IGNITES BELOW the edge and rises into frame, rather than fading in mid-air: a plain
+   100% top parked its box exactly ON the bottom edge, so a near-plane spark poked in, and the fade-in
+   finished the job a few px inside. The extra 3px×--s is the spark's own rendered size — the only
+   distance that clears it whatever the plane made it. Compact is untouched: it already starts a
+   whole row below (135%). */
 @keyframes cardfx-embers-burn {
-  0% { top: 100%; opacity: 0; transform: translateX(0); }
-  6% { opacity: var(--op, 1); }
+  0% { top: calc(100% + 3px * var(--s, 1)); opacity: var(--op, 1); transform: translateX(0); }
   30% { opacity: var(--op, 1); }
   60% {
     opacity: calc(var(--op, 1) * 0.7);

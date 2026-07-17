@@ -99,13 +99,17 @@ export const cardSnow: CardEffectModule = {
   scale: var(--s, 1);
   animation: cardfx-snow-sway var(--dur, 5.5s) ease-in-out var(--delay, 0s) infinite;
 }
-/* Pure vertical: -8% → 104% of the column (= of the card), linear, no midpoint stop needed. */
+/* Pure vertical: -8% → 104% of the column (= of the card), linear, no midpoint stop needed.
+   The flake ENTERS from above the edge. -8% alone only lifted the column 8% of the card — on a 40px
+   row that is 3px, so a near-plane flake hung into frame and then FADED IN there, blooming out of
+   nothing a few px inside. The extra 3px×--s is the flake's own rendered size (the ::before is a 3px
+   box wearing --s), which is the one distance that clears it on any card at any plane; the layer's
+   overflow clip does the reveal. It still fades out at the bottom — that fade IS the settling, and
+   the ground glow blooms into it. Opacity stays in the keyframes so animation-less reduced-motion
+   still falls back to the base 0. */
 @keyframes cardfx-snow-fall {
   0% {
-    translate: 0 -8%;
-    opacity: 0;
-  }
-  12% {
+    translate: 0 calc(-8% - 3px * var(--s, 1));
     opacity: var(--op, 0.8);
   }
   88% {
