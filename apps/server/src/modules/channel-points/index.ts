@@ -53,6 +53,16 @@ export interface ChannelPointsModule {
     running: boolean;
     enabled: string[];
     eventsub: { hasSession: boolean; subChannels: string[] };
+    /** Per-channel outcome of the last subscribe attempt (why a channel isn't subscribed). */
+    lastSubscribe: Record<string, { ok: boolean; status?: number; body?: string; at: number }>;
+    /** How many redemption events have arrived at all (0 = events never reach the server). */
+    redemptionsSeen: number;
+    lastRedemption: {
+      broadcasterId: string;
+      rewardId: string;
+      matched: boolean;
+      at: number;
+    } | null;
   };
 }
 
@@ -66,6 +76,18 @@ export function createChannelPointsModule(deps: {
   /** Whether the EventSub socket is up. Twitch force-closes a socket with no subscriptions after
    *  ~10s, so we only hold it open while at least one channel is enabled. */
   let running = false;
+  // Diagnostics surfaced via debugState() so we don't depend on log level in prod.
+  const lastSubscribe = new Map<
+    string,
+    { ok: boolean; status?: number; body?: string; at: number }
+  >();
+  let redemptionsSeen = 0;
+  let lastRedemption: {
+    broadcasterId: string;
+    rewardId: string;
+    matched: boolean;
+    at: number;
+  } | null = null;
 
   function ensureRunning(): void {
     if (running || enabled.size === 0) return;
@@ -159,7 +181,14 @@ export function createChannelPointsModule(deps: {
   }
 
   async function onRedemption(ev: RedemptionEvent): Promise<void> {
+    redemptionsSeen += 1;
     const row = await getRewardByBroadcaster(ev.broadcasterId);
+    lastRedemption = {
+      broadcasterId: ev.broadcasterId,
+      rewardId: ev.rewardId,
+      matched: !!row && row.rewardId === ev.rewardId,
+      at: Date.now(),
+    };
     // Log every event so it's clear whether they arrive at all, and flag a reward-id mismatch (e.g.
     // the streamer deleted our reward and recreated one manually — that one isn't app-owned).
     if (!row || row.rewardId !== ev.rewardId) {
@@ -224,14 +253,19 @@ export function createChannelPointsModule(deps: {
         createRedemptionSub(token, row.broadcasterId, row.rewardId, sessionId),
       );
       if (!res || !res.ok) {
-        log.warn(
-          { channelId, status: res?.status, body: res ? await res.text() : null },
-          'channel-points: subscribe failed',
-        );
+        const body = res ? await res.text() : 'no response (token decrypt/refresh failed)';
+        lastSubscribe.set(channelId, {
+          ok: false,
+          status: res?.status,
+          body: body.slice(0, 400),
+          at: Date.now(),
+        });
+        log.warn({ channelId, status: res?.status, body }, 'channel-points: subscribe failed');
         return null;
       }
       const data = (await res.json()) as { data?: { id: string }[] };
       const subId = data.data?.[0]?.id ?? null;
+      lastSubscribe.set(channelId, { ok: true, at: Date.now() });
       log.info({ channelId, subId }, 'channel-points: subscribed to redemptions');
       // Catch up on anything redeemed while we were offline (fire-and-forget so the 10s
       // subscribe window isn't blocked by the sweep's paging).
@@ -325,7 +359,14 @@ export function createChannelPointsModule(deps: {
       return { connected: !!row, externalName: row?.externalName ?? null };
     },
     debugState() {
-      return { running, enabled: [...enabled], eventsub: eventsub.debug() };
+      return {
+        running,
+        enabled: [...enabled],
+        eventsub: eventsub.debug(),
+        lastSubscribe: Object.fromEntries(lastSubscribe),
+        redemptionsSeen,
+        lastRedemption,
+      };
     },
   };
 }
