@@ -23,14 +23,30 @@ import {
   type RewardRecord,
 } from './store';
 
-/** Title of the reward we create on the streamer's channel (must be unique per channel). */
-const REWARD_TITLE = 'Купить звёздную пыль (Tossit)';
-/** Viewer-facing description; spells out the exact conversion so viewers know what they get. The
- *  streamer can edit it in Twitch afterwards. */
-function rewardPrompt(cost: number): string {
-  return `Обменять баллы канала на звёздную пыль Tossit: ${cost} баллов = ${CHANNEL_POINTS.dustFor(
-    cost,
-  )} ⭐. Косметика в чате и на странице канала.`;
+/**
+ * Reward title + viewer-facing description, in the streamer's language (falls back to ru). The
+ * description states the RATIO (points per dust), not an absolute amount, because the streamer can
+ * change the point cost in Twitch — a "200 → 100" text would then lie, but "every 2 points = 1 ⭐"
+ * stays true. Every title contains "(Tossit)" so we can find our reward across languages.
+ */
+const N = CHANNEL_POINTS.pointsPerDust;
+const REWARD_TEXT = {
+  ru: {
+    title: 'Купить звёздную пыль (Tossit)',
+    prompt: `Обменять баллы канала на звёздную пыль Tossit — каждые ${N} балла = 1 ⭐. Косметика в чате и на странице канала.`,
+  },
+  uk: {
+    title: 'Купити зоряний пил (Tossit)',
+    prompt: `Обміняти бали каналу на зоряний пил Tossit — кожні ${N} бали = 1 ⭐. Косметика в чаті та на сторінці каналу.`,
+  },
+  en: {
+    title: 'Buy stardust (Tossit)',
+    prompt: `Trade channel points for Tossit stardust — every ${N} points = 1 ⭐. Cosmetics in chat and on the channel page.`,
+  },
+} as const;
+
+function rewardText(lang: string | undefined): { title: string; prompt: string } {
+  return REWARD_TEXT[lang as keyof typeof REWARD_TEXT] ?? REWARD_TEXT.ru;
 }
 
 export interface ChannelPointsModule {
@@ -44,6 +60,8 @@ export interface ChannelPointsModule {
     externalName: string | null;
     /** Point cost the streamer picked; clamped to CHANNEL_POINTS bounds (default if omitted). */
     cost?: number;
+    /** Streamer's UI language ('ru'|'uk'|'en') for the reward title/description; ru if omitted. */
+    lang?: string;
   }): Promise<{ ok: boolean; error?: string }>;
   disconnect(channelId: string): Promise<void>;
   status(channelId: string): Promise<{ connected: boolean; externalName: string | null }>;
@@ -154,6 +172,8 @@ export function createChannelPointsModule(deps: {
         { channelId: row.channelId, redeemerId: ev.redeemerId, cost: ev.cost, dust },
         'channel-points: credited dust',
       );
+      // Stardust line in the chat overlay so the (often unregistered) viewer sees what they got.
+      io.to(roomOf(row.channelId)).emit('chat:redemption', { name: ev.redeemerName, dust });
     }
     io.to(roomOf(row.channelId)).emit('donation:fx', {
       provider: 'channel-points',
@@ -286,14 +306,9 @@ export function createChannelPointsModule(deps: {
           ? CHANNEL_POINTS.defaultCost
           : CHANNEL_POINTS.clampCost(input.cost);
       const token = input.creds.accessToken;
+      const text = rewardText(input.lang);
       let rewardId: string | undefined;
-      const res = await createReward(
-        token,
-        input.broadcasterId,
-        REWARD_TITLE,
-        cost,
-        rewardPrompt(cost),
-      );
+      const res = await createReward(token, input.broadcasterId, text.title, cost, text.prompt);
       if (res.ok) {
         rewardId = ((await res.json()) as { data?: { id: string }[] }).data?.[0]?.id;
       } else if (res.status === 400) {
@@ -303,7 +318,8 @@ export function createChannelPointsModule(deps: {
         const listRes = await getManageableRewards(token, input.broadcasterId);
         if (listRes.ok) {
           const list = (await listRes.json()) as { data?: { id: string; title: string }[] };
-          rewardId = list.data?.find((r) => r.title === REWARD_TITLE)?.id;
+          // Match by the "(Tossit)" marker, not exact title — it differs across languages.
+          rewardId = list.data?.find((r) => r.title.includes('(Tossit)'))?.id;
         }
       } else {
         const body = await res.text();

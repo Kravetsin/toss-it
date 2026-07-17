@@ -181,9 +181,10 @@ export function getChannelPointsStatus(): Promise<ChannelPointsStatus> {
   return fetch('/api/channel-points/status').then((r) => json<ChannelPointsStatus>(r));
 }
 
-/** Full-page redirect into the streamer's channel:manage:redemptions OAuth (not a fetch). */
-export function channelPointsConnectUrl(returnTo: string, cost: number): string {
-  return `/api/channel-points/connect?returnTo=${encodeURIComponent(returnTo)}&cost=${cost}`;
+/** Full-page redirect into the streamer's channel:manage:redemptions OAuth (not a fetch). `lang`
+ *  sets the reward's title/description language. */
+export function channelPointsConnectUrl(returnTo: string, cost: number, lang: string): string {
+  return `/api/channel-points/connect?returnTo=${encodeURIComponent(returnTo)}&cost=${cost}&lang=${lang}`;
 }
 
 export function disconnectChannelPoints(): Promise<unknown> {

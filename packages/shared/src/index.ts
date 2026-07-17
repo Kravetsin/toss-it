@@ -309,6 +309,9 @@ export interface ServerToOverlayEvents {
   'music:command': (cmd: MusicCommand) => void;
   /** New chat line for the chat overlay source. */
   'chat:message': (msg: ChatOverlayMessage) => void;
+  /** A viewer traded channel points for stardust — a special stardust line in the chat overlay.
+   *  Kept language-neutral (name + amount + brand) so unregistered viewers still get it. */
+  'chat:redemption': (event: { name: string; dust: number }) => void;
   /** A single message was deleted on Twitch (by id). */
   'chat:delete': (messageId: string) => void;
   /** All of a user's messages were removed (timeout/ban) — by twitch user id. */

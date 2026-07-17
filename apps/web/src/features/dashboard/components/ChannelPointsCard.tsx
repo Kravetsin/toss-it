@@ -17,7 +17,7 @@ import { Button, Card } from '@/ui';
  * redirect; disconnect deletes the reward.
  */
 export function ChannelPointsCard() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [status, setStatus] = useState<ChannelPointsStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [cost, setCost] = useState<number>(CHANNEL_POINTS.defaultCost);
@@ -79,7 +79,7 @@ export function ChannelPointsCard() {
             variant="primary"
             disabled={busy}
             onClick={() => {
-              window.location.href = channelPointsConnectUrl(window.location.pathname, cost);
+              window.location.href = channelPointsConnectUrl(window.location.pathname, cost, lang);
             }}
           >
             {t('dash.channelPointsConnect')}

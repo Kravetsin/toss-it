@@ -231,6 +231,75 @@ function renderMessage(msg: ChatOverlayMessage): void {
   scheduleFade(row);
 }
 
+/**
+ * A stardust line for a channel-points redemption. Deliberately language-neutral — name + "+N ⭐" +
+ * the domain — so unregistered viewers still grasp they earned Tossit stardust. Reuses the chat's
+ * thread/flow (marker, rise, fade); a one-shot particle burst greets it.
+ */
+function renderRedemption(ev: { name: string; dust: number }): void {
+  const row = document.createElement('div');
+  row.className = 'msg redeem';
+
+  const star = document.createElement('span');
+  star.className = 'star';
+  star.innerHTML = STAR_SVG; // constant, trusted markup — not user input
+  row.appendChild(star);
+
+  const card = document.createElement('div');
+  card.className = 'redeem-card';
+
+  // One-shot stardust burst radiating from the star (positions randomized per particle).
+  const fx = document.createElement('span');
+  fx.className = 'redeem-fx';
+  if (!reduceMotion) {
+    for (let i = 0; i < 12; i++) {
+      const p = document.createElement('i');
+      const a = Math.random() * Math.PI * 2;
+      const d = 16 + Math.random() * 26;
+      p.style.setProperty('--tx', `${Math.cos(a) * d}px`);
+      p.style.setProperty('--ty', `${Math.sin(a) * d}px`);
+      p.style.setProperty('--sz', `${2 + Math.random() * 3}px`);
+      p.style.setProperty('--delay', `${Math.random() * 140}ms`);
+      fx.appendChild(p);
+    }
+  }
+  card.appendChild(fx);
+
+  const text = document.createElement('span');
+  text.className = 'redeem-text';
+  const line = document.createElement('span');
+  line.className = 'redeem-line';
+  const name = document.createElement('b');
+  name.className = 'redeem-name';
+  name.textContent = ev.name;
+  const amt = document.createElement('span');
+  amt.className = 'redeem-amt';
+  const num = document.createElement('span');
+  num.textContent = `+${ev.dust}`;
+  const icon = document.createElement('span');
+  icon.className = 'redeem-star';
+  icon.innerHTML = STAR_SVG; // constant, trusted markup — our brand star, not the ⭐ emoji
+  amt.append(num, icon);
+  line.append(name, amt);
+  const brand = document.createElement('span');
+  brand.className = 'redeem-brand';
+  brand.textContent = 'toss-it.win';
+  text.append(line, brand);
+  card.appendChild(text);
+
+  row.appendChild(card);
+  row.dataset.ts = String(Date.now());
+  chat.appendChild(row);
+  while (chat.children.length > MAX_MESSAGES) chat.firstElementChild?.remove();
+
+  smoothRise(row.offsetHeight, row);
+  const prevTip = lastTipY;
+  updateRail();
+  animateMarker(row, prevTip);
+  fireWake('#8df0cc');
+  scheduleFade(row);
+}
+
 /** Y of the thread tip inside a row: the marker's center (name line's if somehow absent).
  *  offset* is used instead of rects so running FLIP transforms don't skew the numbers. */
 function tipY(row: HTMLElement): number {
@@ -600,9 +669,18 @@ if (DEMO) {
     renderMessage({ ...demo[i % demo.length]!, id: `d${i}` });
     i += 1;
   };
+  const redeem = () =>
+    renderRedemption({
+      name: ['stardust_fan', 'new_viewer', 'kravets'][Math.floor(Math.random() * 3)]!,
+      dust: [50, 100, 250][Math.floor(Math.random() * 3)]!,
+    });
   (window as unknown as Record<string, unknown>).__push = push;
+  (window as unknown as Record<string, unknown>).__redeem = redeem;
   push();
-  if (!q.has('manual')) window.setInterval(push, 1900);
+  if (!q.has('manual')) {
+    window.setInterval(push, 1900);
+    window.setInterval(redeem, 6100); // periodic stardust line among the chatter
+  }
 } else {
   const socket: Socket<ServerToOverlayEvents, OverlayToServerEvents> = io(SERVER_URL, {
     query: { role: 'overlay', token: token ?? '' },
@@ -610,6 +688,7 @@ if (DEMO) {
   socket.on('connect', () => console.log('[chat-overlay] connected'));
   socket.on('chat:config', applyConfig);
   socket.on('chat:message', renderMessage);
+  socket.on('chat:redemption', renderRedemption);
   socket.on('chat:delete', removeMessage);
   socket.on('chat:clearUser', removeUser);
   socket.on('chat:clear', clearAll);

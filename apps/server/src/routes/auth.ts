@@ -53,6 +53,8 @@ export interface OAuthState {
   channelId?: string;
   /** Channel-points reward cost the streamer picked (clamped when the reward is created). */
   cpCost?: number;
+  /** Streamer's UI language, for the reward's title/description. */
+  cpLang?: string;
 }
 
 interface LinkPending {
@@ -200,6 +202,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
           creds: { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken },
           externalName: broadcaster.displayName,
           cost: saved.cpCost,
+          lang: saved.cpLang,
         });
         return reply.redirect(
           config.webUrl +
@@ -452,7 +455,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
   });
 
   /** Start the channel-points opt-in: a separate OAuth for channel:manage:redemptions. */
-  app.get<{ Querystring: { returnTo?: string; cost?: string } }>(
+  app.get<{ Querystring: { returnTo?: string; cost?: string; lang?: string } }>(
     '/api/channel-points/connect',
     async (req, reply) => {
       const user = await requireUser(req, reply);
@@ -468,8 +471,16 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
       if (!channel) return reply.code(400).send({ error: 'Нет канала' });
       const returnTo = safeReturnTo(req.query.returnTo);
       const cpCost = req.query.cost ? Number(req.query.cost) : undefined;
+      const cpLang = req.query.lang;
       const state = crypto.randomBytes(16).toString('hex');
-      const payload: OAuthState = { state, returnTo, cp: true, channelId: channel.id, cpCost };
+      const payload: OAuthState = {
+        state,
+        returnTo,
+        cp: true,
+        channelId: channel.id,
+        cpCost,
+        cpLang,
+      };
       reply.setCookie(STATE_COOKIE, JSON.stringify(payload), {
         signed: true,
         httpOnly: true,
