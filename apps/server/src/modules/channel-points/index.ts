@@ -125,16 +125,23 @@ export function createChannelPointsModule(deps: {
       );
       return;
     }
-    // Anti-self-farm: the broadcaster redeems their OWN rewards for free (Twitch never charges the
-    // channel owner points), so crediting them would be an unlimited faucet. Fulfill to clear the
-    // queue, but never mint dust for the owner. Mirrors the self-send guard elsewhere.
-    if (ev.redeemerId === row.broadcasterId) return;
     const dust = CHANNEL_POINTS.dustFor(ev.cost);
-    await awardDust(ev.redeemerId, dust);
-    log.info(
-      { channelId: row.channelId, redeemerId: ev.redeemerId, cost: ev.cost, dust },
-      'channel-points: credited dust',
-    );
+    // Anti-self-farm: the broadcaster redeems their OWN rewards for free (Twitch never charges the
+    // channel owner points), so crediting them would be an unlimited faucet — skip the DUST for the
+    // owner. The overlay burst still fires for everyone: it's harmless, and it's how the streamer
+    // verifies the reward works when testing on their own account.
+    if (ev.redeemerId === row.broadcasterId) {
+      log.info(
+        { channelId: row.channelId },
+        'channel-points: owner self-redeem — FX only, no dust',
+      );
+    } else {
+      await awardDust(ev.redeemerId, dust);
+      log.info(
+        { channelId: row.channelId, redeemerId: ev.redeemerId, cost: ev.cost, dust },
+        'channel-points: credited dust',
+      );
+    }
     io.to(roomOf(row.channelId)).emit('donation:fx', {
       provider: 'channel-points',
       donorName: ev.redeemerName,
