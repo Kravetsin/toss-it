@@ -506,4 +506,12 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
     if (channel) await deps.channelPoints.disconnect(channel.id);
     return { ok: true };
   });
+
+  /** Admin diagnostic: live runtime state of the channel-points module (is the socket up, which
+   *  channels are subscribed). Read this when redemptions aren't being processed. */
+  app.get('/api/channel-points/debug', async (req, reply) => {
+    const user = await requireAdmin(req, reply);
+    if (!user) return;
+    return deps.channelPoints.debugState();
+  });
 }

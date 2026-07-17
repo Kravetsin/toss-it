@@ -47,6 +47,12 @@ export interface ChannelPointsModule {
   }): Promise<{ ok: boolean; error?: string }>;
   disconnect(channelId: string): Promise<void>;
   status(channelId: string): Promise<{ connected: boolean; externalName: string | null }>;
+  /** Live runtime state for the admin diagnostic endpoint. */
+  debugState(): {
+    running: boolean;
+    enabled: string[];
+    eventsub: { hasSession: boolean; subChannels: string[] };
+  };
 }
 
 export function createChannelPointsModule(deps: {
@@ -153,7 +159,19 @@ export function createChannelPointsModule(deps: {
 
   async function onRedemption(ev: RedemptionEvent): Promise<void> {
     const row = await getRewardByBroadcaster(ev.broadcasterId);
-    if (!row || row.rewardId !== ev.rewardId) return; // not our reward
+    // Log every event so it's clear whether they arrive at all, and flag a reward-id mismatch (e.g.
+    // the streamer deleted our reward and recreated one manually — that one isn't app-owned).
+    if (!row || row.rewardId !== ev.rewardId) {
+      log.warn(
+        { broadcasterId: ev.broadcasterId, eventRewardId: ev.rewardId, ourRewardId: row?.rewardId },
+        'channel-points: redemption ignored — no matching app-owned reward',
+      );
+      return;
+    }
+    log.info(
+      { channelId: row.channelId, redeemerId: ev.redeemerId, cost: ev.cost },
+      'channel-points: redemption received',
+    );
     await processRedemption(row, ev);
   }
 
@@ -294,6 +312,9 @@ export function createChannelPointsModule(deps: {
     async status(channelId): Promise<{ connected: boolean; externalName: string | null }> {
       const row = await getReward(channelId);
       return { connected: !!row, externalName: row?.externalName ?? null };
+    },
+    debugState() {
+      return { running, enabled: [...enabled], eventsub: eventsub.debug() };
     },
   };
 }

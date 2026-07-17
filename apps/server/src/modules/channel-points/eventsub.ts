@@ -83,6 +83,11 @@ export class ChannelPointsEventSub {
     this.subs.clear();
   }
 
+  /** Live state for the diagnostic endpoint: is the socket welcomed, and which channels are subbed. */
+  debug(): { hasSession: boolean; subChannels: string[] } {
+    return { hasSession: !!this.sessionId, subChannels: [...this.subs.keys()] };
+  }
+
   /** Reconcile live: subscribe newly-enabled channels, drop disabled ones. Safe to call anytime. */
   sync(): void {
     if (!this.sessionId) return; // welcome handler subscribes everything wanted
