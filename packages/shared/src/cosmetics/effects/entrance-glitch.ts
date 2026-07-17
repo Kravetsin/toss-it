@@ -4,13 +4,21 @@ import type { EntranceModule } from '../types';
  * The message doesn't fade in, it FAILS in: a few frames of a bad signal — the box arrives in
  * horizontal slices that don't line up, jittering sideways, before it snaps into place.
  *
- * `steps(1, end)` is the whole look. Interpolating between the slices would give a smooth morph,
- * which reads as liquid, not as broken: a glitch is a sequence of WRONG FRAMES, so each keyframe
- * must hold and then jump. It is also why the stops are unevenly spaced — a regular beat reads as a
- * pulse, an irregular one reads as a fault.
+ * Two shapes, and the arc runs between them:
+ * - `inset()` — one band, the rest of the box not there yet. Arrival. Frames 0-27%.
+ * - `polygon()` with a NOTCH — the box whole, one band pulled out to the side. Only a RELAPSE can
+ *   wear one: it says "arrived, then broke", which is a lie before the box has arrived.
+ * Mixing the two in one animation is normally a non-starter — they do not interpolate — and works
+ * here only because of the timing below.
  *
- * `clip-path` does the slicing on the element itself, no extra markup — which the module system
- * could not give us anyway (a module emits styles, never DOM).
+ * `steps(1, end)` is the whole look, and also the reason the above is legal: progress inside a
+ * segment is pinned to 0, so every value is HELD and then jumped, never blended. Interpolating would
+ * give a smooth morph, which reads as liquid — a glitch is a sequence of WRONG FRAMES. The stops are
+ * unevenly spaced for the same reason: a regular beat is a pulse, an irregular one is a fault.
+ *
+ * PURE GEOMETRY: clip-path, translate, opacity. Nothing painted on, nothing scaled. Colour was tried
+ * (magenta/cyan fringes, cyan scanlines) and read as a costume rather than a fault; a vertical crush
+ * was tried and read as a bounce. Neither is coming back — the box is wronged, not dressed up.
  *
  * NO chromatic split, and that is the interesting constraint. The classic one duplicates the text
  * into two coloured layers; with no second layer the only lever is `text-shadow` — and text-shadow
@@ -18,8 +26,7 @@ import type { EntranceModule } from '../types';
  * long as it holds. Worse, under `steps(1)` a value holds until the next keyframe that declares it,
  * so a fringe lit at 8% stays lit to 100%: the text would spend the whole arrival stripped of its
  * dark plate. That is the exact opposite of the rule this category is built on — chrome distorts,
- * glyphs do not. The split comes back when the surface hands us an ink variable or a second layer to
- * paint on, not before.
+ * glyphs do not.
  *
  * 0.45s total: the chat overlay exists to be READ, on someone else's stream, and the streamer pays
  * for a viewer's cosmetic in legibility.
@@ -27,7 +34,10 @@ import type { EntranceModule } from '../types';
 export const entranceGlitch: EntranceModule = {
   id: 'entrance-glitch',
   type: 'entrance',
-  costDust: 4500,
+  // Top shelf, level with lightning and rain — not above them. 4500 made this the single dearest
+  // thing in the catalog, and an entrance is a 0.45s flash where a card effect is weather that never
+  // stops. It earns the top shelf by playing on every message; it does not out-earn the showpiece.
+  costDust: 4000,
   fx: 'glitch',
   labels: { name: 'shop.entranceGlitch', desc: 'shop.entranceGlitchDesc' },
   css: `
@@ -57,17 +67,25 @@ export const entranceGlitch: EntranceModule = {
     clip-path: inset(0 0 0 0);
     transform: translateX(3px);
   }
-  /* The relapse: settling and then breaking once more is what sells a bad signal over a transition. */
+  /* The relapses: settling and then breaking once more is what sells a bad signal over a
+     transition. These two are NOTCHES rather than bands, and the difference is the whole point of
+     them — an inset() shows one band and hides the rest, which reads as "not arrived yet"; a notch
+     keeps the box whole and pulls one band out to the side, which reads as "arrived, then broke".
+     Only a relapse can use one: before 38% the box genuinely is not all there.
+     Honest about its limit: a notch does not MOVE the slice, it bites a piece off the edge. Really
+     displacing one needs the content duplicated into a second layer, and a module emits styles,
+     never DOM. At a tenth of a second nobody counts the pixels; they read the break. */
   52% {
-    clip-path: inset(28% 0 44% 0);
+    clip-path: polygon(0 0, 100% 0, 100% 20%, 78% 20%, 78% 32%, 100% 32%, 100% 100%, 0 100%);
     transform: translateX(-3px);
   }
   61% {
     clip-path: inset(0 0 0 0);
     transform: translateX(2px);
   }
+  /* Second notch bites the other side, lower and shallower — the fault dying out, not stopping dead. */
   74% {
-    clip-path: inset(52% 0 30% 0);
+    clip-path: polygon(0 0, 100% 0, 100% 66%, 22% 66%, 22% 76%, 100% 76%, 100% 100%, 0 100%);
     transform: translateX(-1px);
   }
   84% {
