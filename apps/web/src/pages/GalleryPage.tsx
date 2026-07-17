@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import type { LiveStatus, UploadResponse } from '@tmw/shared';
+import type {
+  EquippedCosmetics,
+  LeaderboardEntry,
+  LiveStatus,
+  SubmissionSummary,
+  UploadResponse,
+} from '@tmw/shared';
+import { COSMETICS, cosmeticModule, particleCount } from '@tmw/shared';
 import {
   Alert,
   Avatar,
@@ -13,11 +20,15 @@ import {
   Input,
   Loader,
   ProgressBar,
+  Select,
   Surface,
   Textarea,
   Tooltip,
 } from '@/ui';
 import type { IconName } from '@/ui/icons';
+import { useI18n } from '@/i18n';
+import { LeaderboardRow } from '@/features/channel/components/Leaderboard';
+import { SubmissionCard } from '@/features/dashboard/components/SubmissionCard';
 import { ComposeForm } from '@/features/channel/components/ComposeForm';
 import { Vessel } from '@/features/channel/components/Vessel/Vessel';
 import type { Phase } from '@/features/channel/hooks/useMediaSubmission';
@@ -102,6 +113,223 @@ const DEMO_RESULT: UploadResponse = {
   cooldownSec: 60,
   stardustBalance: 0,
 };
+
+/**
+ * Test benches for card + nick cosmetics: the REAL components a viewer's cosmetics land in, driven
+ * by one switch, at the width their own page gives them.
+ *
+ * Real components, not lookalikes, and that is the whole point. A hand-built stand-in drifts from
+ * the thing it stands for the first time either is touched, and then it lies exactly when you trust
+ * it. It also cannot reproduce what actually breaks: the feed card here EXPANDS, which is where a
+ * particle layer stops covering the box it grew into (see the `%`-vs-`cqh` note in the effects).
+ *
+ * The two overlay surfaces are deliberately absent: they are built with document.createElement in
+ * apps/overlay against their own CSS, so a React copy of them here would be a fake — which is the
+ * one thing this section exists not to be. They have their own demos; the links point there.
+ */
+const BENCH_WIDTH = {
+  /** Dashboard queue column. */
+  feed: 520,
+  /** Channel page is PageShell maxWidth="xl" (576) minus its padding — the row is far narrower
+   *  than this gallery, and a swarm judged at gallery width is judged at the wrong density. */
+  channel: 544,
+};
+
+const DEMO_SUBMISSION: SubmissionSummary = {
+  id: 'bench',
+  senderUserId: 'twitch:bench',
+  senderName: 'thunderstruck',
+  senderColor: null,
+  senderColor2: null,
+  senderNickFlow: false,
+  senderEffect: null,
+  senderCardEffect: null,
+  senderLevel: 8,
+  kind: 'text',
+  mime: 'text/plain',
+  text: 'бахнуло знатно, го смотреть',
+  durationMs: 6000,
+  createdAt: Date.now(),
+  url: '',
+};
+
+const DEMO_ENTRY: LeaderboardEntry = {
+  userId: 'twitch:bench',
+  login: 'thunderstruck',
+  displayName: 'thunderstruck',
+  value: 12,
+  isFounder: false,
+  nickColor: null,
+  nickColor2: null,
+  nickFlow: false,
+  nickEffect: null,
+  cardEffect: null,
+  level: 8,
+};
+
+function Bench({
+  label,
+  hint,
+  width,
+  children,
+}: {
+  label: string;
+  hint: string;
+  width: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-baseline gap-2">
+        <span className="label-mono text-muted">{label}</span>
+        <span className="text-sm text-faint">{hint}</span>
+      </div>
+      {/* The real page's width, not the gallery's: density reads wrong at any other. */}
+      <div style={{ maxWidth: width }}>{children}</div>
+    </div>
+  );
+}
+
+function CosmeticsShowcase() {
+  const { t } = useI18n();
+  // Straight from the registry, so a new cosmetic shows up here the day it is registered and nobody
+  // has to remember this page exists.
+  const cardEffects = COSMETICS.filter((c) => c.type === 'card_effect');
+  const nickEffects = COSMETICS.filter((c) => c.type === 'nick_effect');
+  const [effect, setEffect] = useState(cardEffects[0]?.id ?? '');
+  const [nickEffect, setNickEffect] = useState('');
+  const [color, setColor] = useState('#8df0cc');
+  const [color2, setColor2] = useState('#a78bfa');
+  const [gradient, setGradient] = useState(false);
+  const [flow, setFlow] = useState(false);
+  // Remounts the benches, so a re-roll gives fresh particles — the swarm is randomised per mount.
+  const [roll, setRoll] = useState(0);
+
+  const label = (id: string) => t(cosmeticModule(id)?.labels.name ?? id);
+  const cosmetics: EquippedCosmetics = {
+    nickColor: color,
+    nickColor2: gradient ? color2 : null,
+    nickFlow: gradient && flow,
+    nickEffect: nickEffect || null,
+    cardEffect: effect,
+  };
+  // The same cosmetics, in the shape a submission carries them.
+  const submission: SubmissionSummary = {
+    ...DEMO_SUBMISSION,
+    senderColor: color,
+    senderColor2: gradient ? color2 : null,
+    senderNickFlow: gradient && flow,
+    senderEffect: nickEffect || null,
+    senderCardEffect: effect,
+  };
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-end gap-3">
+        <Select
+          value={effect}
+          onChange={setEffect}
+          options={cardEffects.map((e) => ({ value: e.id, label: label(e.id) }))}
+          label="Card effect"
+        />
+        <Select
+          value={nickEffect}
+          onChange={setNickEffect}
+          options={[{ value: '', label: '— no nick effect —' }].concat(
+            nickEffects.map((e) => ({ value: e.id, label: label(e.id) })),
+          )}
+          label="Nick effect"
+        />
+        <input
+          type="color"
+          value={color}
+          onChange={(e) => setColor(e.target.value)}
+          aria-label="Nick color"
+          className="h-9 w-12 shrink-0 cursor-pointer rounded-[var(--radius-sm)] border border-border bg-surface"
+        />
+        {gradient && (
+          <input
+            type="color"
+            value={color2}
+            onChange={(e) => setColor2(e.target.value)}
+            aria-label="Second color"
+            className="h-9 w-12 shrink-0 cursor-pointer rounded-[var(--radius-sm)] border border-border bg-surface"
+          />
+        )}
+        <Button
+          variant={gradient ? 'ghost' : 'primary'}
+          size="sm"
+          onClick={() => setGradient((g) => !g)}
+        >
+          Gradient
+        </Button>
+        <Button
+          variant={flow ? 'ghost' : 'primary'}
+          size="sm"
+          onClick={() => setFlow((f) => !f)}
+          disabled={!gradient}
+        >
+          Flow
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => setRoll((r) => r + 1)}>
+          Re-roll swarm
+        </Button>
+      </div>
+
+      <div key={`${effect}-${nickEffect}-${roll}`} className="flex flex-col gap-6">
+        <Bench
+          label="Feed card"
+          hint={`dashboard queue · ${BENCH_WIDTH.feed}px · ${particleCount(effect, 'web')} particles · CLICK IT — the layer must grow with the card`}
+          width={BENCH_WIDTH.feed}
+        >
+          <SubmissionCard
+            s={submission}
+            onApprove={() => {}}
+            onTrust={() => {}}
+            onReject={() => {}}
+            onBan={() => {}}
+          />
+        </Bench>
+
+        <Bench
+          label="Leaderboard row"
+          hint={`channel page · ${BENCH_WIDTH.channel}px · compact · ${particleCount(effect, 'web')} particles`}
+          width={BENCH_WIDTH.channel}
+        >
+          <Card>
+            <ol className="flex flex-col gap-1.5">
+              <LeaderboardRow entry={DEMO_ENTRY} rank={1} metric="sends" cosmetics={cosmetics} />
+              <LeaderboardRow
+                entry={{ ...DEMO_ENTRY, userId: 'twitch:you', displayName: 'you' }}
+                rank={2}
+                metric="sends"
+                isYou
+                cosmetics={cosmetics}
+              />
+            </ol>
+          </Card>
+        </Bench>
+
+        {/* Not faked here on purpose — see the note above SHOWCASE benches. */}
+        <div className="flex flex-col gap-1.5">
+          <span className="label-mono text-muted">Overlay alert & chat pill</span>
+          <p className="text-sm text-faint">
+            Built imperatively in apps/overlay with their own CSS — a React copy here would drift
+            from the real thing. They have their own demos, and the chat pill is the smallest
+            surface any effect has to survive:{' '}
+            <a className="text-accent underline" href="http://localhost:5198/?demo">
+              overlay alert
+            </a>{' '}
+            ·{' '}
+            <a className="text-accent underline" href="http://localhost:5198/chat.html?demo">
+              chat pill
+            </a>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function VesselDemo() {
   const [phase, setPhase] = useState<Phase>({ name: 'idle' });
@@ -215,6 +443,10 @@ export function GalleryPage() {
           уголки «выезжают», диагональная заливка вытирает фон, лейбл инвертируется.
         </p>
       </header>
+
+      <Section title="Card effects — every surface, one switch">
+        <CosmeticsShowcase />
+      </Section>
 
       <Section title="Vessel — отправка зрителя (Phase 4)">
         <VesselDemo />

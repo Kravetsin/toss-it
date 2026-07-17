@@ -3,6 +3,7 @@ import {
   LEVEL_GLOW_FROM,
   levelTier,
   toRoman,
+  type EquippedCosmetics,
   type LeaderboardEntry,
   type LeaderboardMetric,
   type LeaderboardPeriod,
@@ -51,6 +52,111 @@ function TabBtn({
   );
 }
 
+/**
+ * One leaderboard row. Split out of the list so the gallery can stand a REAL row on a bench instead
+ * of a lookalike — a copy would drift from this the first time either is touched, and a bench that
+ * lies is worse than no bench. Everything it needs arrives as props; it fetches nothing.
+ */
+export function LeaderboardRow({
+  entry,
+  rank,
+  metric,
+  isYou = false,
+  cosmetics,
+}: {
+  entry: LeaderboardEntry;
+  /** 1-based; the top three wear the accent badge. */
+  rank: number;
+  metric: LeaderboardMetric;
+  isYou?: boolean;
+  /**
+   * Overrides the entry's own cosmetics. The list passes the live equipped state for YOUR row, so it
+   * reflects an equip immediately instead of the snapshot fetched at page load; the gallery passes
+   * whatever its switcher is set to.
+   */
+  cosmetics?: EquippedCosmetics;
+}) {
+  const { t } = useI18n();
+  const e = entry;
+  const formatValue = (value: number): string => {
+    if (metric !== 'watch') return String(value);
+    const h = Math.floor(value / 60);
+    const m = value % 60;
+    return h > 0 ? t('dur.hourMin', { h, m }) : t('dur.min', { n: m });
+  };
+  const mine = cosmetics;
+  const cardEffect = mine ? (mine.cardEffect ?? null) : e.cardEffect;
+  const nick = nickProps({
+    color: mine ? mine.nickColor : e.nickColor,
+    color2: mine ? mine.nickColor2 : e.nickColor2,
+    flow: mine ? mine.nickFlow : e.nickFlow,
+    effect: mine ? mine.nickEffect : e.nickEffect,
+  });
+  const tier = e.level ? levelTier(e.level) : null;
+  const levelGlow = !!tier && (e.level ?? 0) >= LEVEL_GLOW_FROM;
+  return (
+    <li className="relative">
+      <CardEffect effect={cardEffect} compact />
+      {tier && (
+        <span
+          aria-hidden
+          className={`pointer-events-none absolute inset-y-0 left-0 z-[1] w-[3px] ${tier.iris ? 'lvl-iris' : ''}`}
+          style={{
+            background: tier.color,
+            boxShadow: levelGlow ? `0 0 7px ${tier.color}` : undefined,
+          }}
+        />
+      )}
+      <div
+        className={`relative flex items-center gap-3 px-2 py-2 ${isYou ? 'bg-accent-soft' : ''}`}
+      >
+        <span
+          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-sm font-semibold ${
+            rank <= 3 ? 'border-accent bg-accent text-accent-contrast' : 'border-border text-muted'
+          }`}
+        >
+          {rank}
+        </span>
+        {tier && (
+          <span
+            className={`shrink-0 text-xs font-bold ${tier.iris ? 'lvl-iris' : ''}`}
+            style={{
+              color: tier.color,
+              textShadow: levelGlow ? `0 0 6px ${tier.color}` : undefined,
+            }}
+          >
+            {toRoman(e.level!)}
+          </span>
+        )}
+        <b
+          className={`${isYou ? 'text-accent' : 'text-text'} ${nick.className}`}
+          style={nick.style}
+        >
+          {e.displayName}
+        </b>
+        <PlatformIcon userId={e.userId} size={13} />
+        <UserBadges isFounder={e.isFounder} variant="icons" />
+        {isYou && <span className="label-mono text-accent">{t('channel.you')}</span>}
+        {/* Level tab: the rank rail + Roman numeral already show the level — no value. */}
+        {metric !== 'level' && (
+          <span className="ml-auto flex items-center gap-1.5 whitespace-nowrap text-muted">
+            {metric === 'sends' ? (
+              <StarMark size={13} className="text-accent" />
+            ) : (
+              <Icon
+                name={METRIC_TABS.find((m) => m.key === metric)!.icon}
+                size={13}
+                className="text-accent"
+              />
+            )}
+            {formatValue(e.value)}
+          </span>
+        )}
+      </div>
+    </li>
+  );
+}
+
 /** Per-channel leaderboard: sends / chat messages / watch time / level, month or all-time. */
 export function Leaderboard({
   login,
@@ -81,13 +187,6 @@ export function Leaderboard({
     const timer = window.setInterval(load, 60_000);
     return () => window.clearInterval(timer);
   }, [load]);
-
-  const formatValue = (value: number): string => {
-    if (metric !== 'watch') return String(value);
-    const h = Math.floor(value / 60);
-    const m = value % 60;
-    return h > 0 ? t('dur.hourMin', { h, m }) : t('dur.min', { n: m });
-  };
 
   const totalShown = board.reduce((sum, e) => sum + e.value, 0);
   return (
@@ -141,80 +240,17 @@ export function Leaderboard({
           <ol className="flex flex-col gap-1.5">
             {board.map((e, i) => {
               const isYou = e.userId === meId;
-              // Optimistic: your own row reflects your live equipped cosmetics (updated on equip)
-              // instead of the leaderboard snapshot fetched at page load — no refresh needed.
-              const mine = isYou ? me?.user?.equipped : undefined;
-              const cardEffect = mine ? (mine.cardEffect ?? null) : e.cardEffect;
-              const nick = nickProps({
-                color: mine ? mine.nickColor : e.nickColor,
-                color2: mine ? mine.nickColor2 : e.nickColor2,
-                flow: mine ? mine.nickFlow : e.nickFlow,
-                effect: mine ? mine.nickEffect : e.nickEffect,
-              });
-              const tier = e.level ? levelTier(e.level) : null;
-              const levelGlow = !!tier && (e.level ?? 0) >= LEVEL_GLOW_FROM;
               return (
-                <li key={e.userId} className="relative">
-                  <CardEffect effect={cardEffect} compact />
-                  {tier && (
-                    <span
-                      aria-hidden
-                      className={`pointer-events-none absolute inset-y-0 left-0 z-[1] w-[3px] ${tier.iris ? 'lvl-iris' : ''}`}
-                      style={{
-                        background: tier.color,
-                        boxShadow: levelGlow ? `0 0 7px ${tier.color}` : undefined,
-                      }}
-                    />
-                  )}
-                  <div
-                    className={`relative flex items-center gap-3 px-2 py-2 ${isYou ? 'bg-accent-soft' : ''}`}
-                  >
-                    <span
-                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-sm font-semibold ${
-                        i < 3
-                          ? 'border-accent bg-accent text-accent-contrast'
-                          : 'border-border text-muted'
-                      }`}
-                    >
-                      {i + 1}
-                    </span>
-                    {tier && (
-                      <span
-                        className={`shrink-0 text-xs font-bold ${tier.iris ? 'lvl-iris' : ''}`}
-                        style={{
-                          color: tier.color,
-                          textShadow: levelGlow ? `0 0 6px ${tier.color}` : undefined,
-                        }}
-                      >
-                        {toRoman(e.level!)}
-                      </span>
-                    )}
-                    <b
-                      className={`${isYou ? 'text-accent' : 'text-text'} ${nick.className}`}
-                      style={nick.style}
-                    >
-                      {e.displayName}
-                    </b>
-                    <PlatformIcon userId={e.userId} size={13} />
-                    <UserBadges isFounder={e.isFounder} variant="icons" />
-                    {isYou && <span className="label-mono text-accent">{t('channel.you')}</span>}
-                    {/* Level tab: the rank rail + Roman numeral already show the level — no value. */}
-                    {metric !== 'level' && (
-                      <span className="ml-auto flex items-center gap-1.5 whitespace-nowrap text-muted">
-                        {metric === 'sends' ? (
-                          <StarMark size={13} className="text-accent" />
-                        ) : (
-                          <Icon
-                            name={METRIC_TABS.find((m) => m.key === metric)!.icon}
-                            size={13}
-                            className="text-accent"
-                          />
-                        )}
-                        {formatValue(e.value)}
-                      </span>
-                    )}
-                  </div>
-                </li>
+                <LeaderboardRow
+                  key={e.userId}
+                  entry={e}
+                  rank={i + 1}
+                  metric={metric}
+                  isYou={isYou}
+                  // Optimistic: your own row reflects your live equipped cosmetics (updated on
+                  // equip) rather than the snapshot fetched at page load — no refresh needed.
+                  cosmetics={isYou ? me?.user?.equipped : undefined}
+                />
               );
             })}
           </ol>

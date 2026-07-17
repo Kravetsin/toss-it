@@ -5,6 +5,7 @@ import {
   makeGroundGlows,
   makeParticles,
   particleCount,
+  type Surface,
 } from '@tmw/shared';
 
 /**
@@ -14,15 +15,20 @@ import {
  * `compact`: for very short containers (leaderboard rows) — particles travel a trajectory that
  * starts/ends OUTSIDE the row but is only visible while crossing it (clipped), so a whole comet
  * flies past quickly & smoothly without spilling onto neighbouring rows.
+ * `surface`: which count to draw (see CardEffectModule.counts). Every real caller here is a web
+ * surface and should leave it alone — it exists so the gallery can stand an overlay's density up
+ * next to the web one, and a showcase that quietly drew the wrong count would be worse than none.
  */
 export function CardEffect({
   effect,
   compact = false,
+  surface = 'web',
 }: {
   effect?: string | null;
   compact?: boolean;
+  surface?: Surface;
 }) {
-  const count = effect ? particleCount(effect, 'web') : 0;
+  const count = effect ? particleCount(effect, surface) : 0;
   const particles = useMemo(
     () => makeParticles(effect ?? '', count, compact),
     [effect, count, compact],
