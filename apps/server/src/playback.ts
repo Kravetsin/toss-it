@@ -350,6 +350,23 @@ export class PlaybackManager {
     }
   }
 
+  /**
+   * The last overlay for a channel dropped. A *paused* show carries no watchdog — pause() drops it
+   * on the assumption the live overlay drives completion. With no overlay left, that assumption is
+   * gone: the show would hang as `current` forever and get replayed from the top on every reconnect
+   * (restarting the clip, audibly). Arm a backstop so an abandoned show self-completes.
+   */
+  onOverlayDisconnected(channelId: string): void {
+    const st = this.state(channelId);
+    // Only the paused/watchdog-less strand needs rescuing; a playing show already has a watchdog
+    // that will fire. Skip if another overlay is still connected — it drives completion.
+    if (!st.current || st.watchdog || this.overlayCount(channelId) > 0) return;
+    const sub = st.current;
+    const ms =
+      sub.durationMs > 0 ? sub.durationMs + config.watchdogGraceMs : config.youtube.loadGraceMs;
+    st.watchdog = setTimeout(() => void this.onDone(channelId, sub.id), ms);
+  }
+
   async onDone(channelId: string, submissionId: string): Promise<void> {
     const st = this.state(channelId);
     if (st.current?.id !== submissionId) return;
@@ -672,6 +689,8 @@ export function setupRealtime(io: RealtimeServer, app: FastifyInstance): Playbac
           socket.on('music:state', (state) => {
             io.to(dashboardRoomOf(channel.id)).emit('music:state', state);
           });
+          // Last overlay gone → rescue a paused show from stranding as `current` forever.
+          socket.on('disconnect', () => playback.onOverlayDisconnected(channel.id));
           void playback.onOverlayConnected(channel.id, (payload) =>
             socket.emit('media:play', payload),
           );
