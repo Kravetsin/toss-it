@@ -651,7 +651,7 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
     // Mirror the server's ladder: an upgrade can't outlive the rung it stands on.
     if (!next.nickColor) next.nickColor2 = undefined;
     if (!next.nickColor2) next.nickFlow = undefined;
-    if (next.entrance !== 'entrance-portal') next.entranceColor = undefined;
+    // entranceColor persists across entrance changes (the render gates on the portal being equipped).
     u.equipped = next;
     return cosmeticState();
   }

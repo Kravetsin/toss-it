@@ -173,9 +173,11 @@ export function registerCosmeticsRoutes(app: FastifyInstance): void {
       }
     }
 
-    // The portal colour is a ladder rung: it tints only the portal, so drop it whenever the equipped
-    // entrance isn't the portal (mirrors the nick-colour cleanup above).
-    if (equipped.entrance !== 'entrance-portal') delete equipped.entranceColor;
+    // The portal colour PERSISTS across entrance changes (unlike the nick ladder, which is rendered
+    // straight from the equipped state): the render already ignores it unless the portal is equipped
+    // (see marksFromEquipped / the chat overlay), so a stored-but-inactive tint is harmless and means
+    // the viewer's colour survives switching to another entrance and back. Owning it already requires
+    // the portal, so it can never be an orphan.
 
     await db.update(users).set({ equipped }).where(eq(users.id, user.id));
     return cosmeticState(user.id);
