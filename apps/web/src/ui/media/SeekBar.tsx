@@ -78,10 +78,11 @@ export function SeekBar({
       } group/seek`}
     >
       {indeterminate ? (
-        <div
-          className="progress-indeterminate absolute inset-y-0 left-0 w-1/3 bg-accent/70"
-          aria-hidden
-        />
+        // Clip the sliding loader to the bar — its keyframe runs from -120% to +420%, so without a
+        // clip it spills past both edges. Can't clip on the root (that would cut the drag thumb).
+        <div className="absolute inset-0 overflow-hidden" aria-hidden>
+          <div className="progress-indeterminate absolute inset-y-0 left-0 w-1/3 bg-accent/70" />
+        </div>
       ) : (
         <>
           <div
