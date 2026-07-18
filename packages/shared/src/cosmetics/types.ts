@@ -156,6 +156,19 @@ export interface EntranceModule extends BaseModule {
    * classes that guard would have to list every entrance that exists.
    */
   fx: string;
+  /**
+   * Optional JS-driven entrance (a canvas particle system, not a CSS keyframe). When present,
+   * applyEntrance still sets `data-fx` (so the surface's own default stands down) and then calls this
+   * to run the effect; such a module usually ships no `css`. Returns a teardown, or nothing for a
+   * self-cleaning one-shot. MUST be browser-only — it has to no-op when there is no `document`, since
+   * the server also imports this catalog. See ./effects/entrance-portal.
+   *
+   * `mount` hosts the effect's own canvas. Default is a body-level layer, which is correct for the
+   * transparent OBS overlays (a behind-the-block layer composites over the stream). Inside an OPAQUE
+   * surface — the shop preview drawer — pass that surface's stacking-context root so the layer is
+   * visible there instead of hidden behind it.
+   */
+  play?: (el: HTMLElement, mount?: HTMLElement) => (() => void) | void;
 }
 
 /**

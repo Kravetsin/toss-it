@@ -73,7 +73,7 @@ const MOCK_ME: MeResponse = {
       nickFlow: true,
       nickEffect: 'nick-pulse',
       cardEffect: 'card-levitation',
-      entrance: 'entrance-glitch',
+      entrance: 'entrance-portal',
     },
     // false so the "link Twitch" shop banner is visible in mock previews.
     hasTwitch: false,

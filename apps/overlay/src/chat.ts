@@ -596,6 +596,18 @@ if (DEMO) {
       level: 9,
       fragments: [{ type: 'text', text: 'помехи прошли, лепестки остались' }],
     },
+    // Premium JS entrance: a portal opens and the whole pill drives out through it. A one-shot like
+    // the others — watch the pill emerge, not the pill sitting there.
+    {
+      id: '15',
+      userId: 'u15',
+      name: 'starfall',
+      twitchColor: null,
+      cosmetics: { nickColor: '#8df0cc', entrance: 'entrance-portal' },
+      isFounder: false,
+      level: 7,
+      fragments: [{ type: 'text', text: 'вышел из портала ✨' }],
+    },
     {
       id: '12',
       userId: 'u12',

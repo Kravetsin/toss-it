@@ -28,8 +28,9 @@ import type { EntranceModule } from '../types';
  * dark plate. That is the exact opposite of the rule this category is built on — chrome distorts,
  * glyphs do not.
  *
- * 0.45s total: the chat overlay exists to be READ, on someone else's stream, and the streamer pays
- * for a viewer's cosmetic in legibility.
+ * 0.6s total: slowed a touch from 0.45s so the fault has room to be enjoyed — still short, because
+ * the chat overlay exists to be READ, on someone else's stream, and the streamer pays for a viewer's
+ * cosmetic in legibility.
  */
 export const entranceGlitch: EntranceModule = {
   id: 'entrance-glitch',
@@ -42,7 +43,7 @@ export const entranceGlitch: EntranceModule = {
   labels: { name: 'shop.entranceGlitch', desc: 'shop.entranceGlitchDesc' },
   css: `
 [data-fx='glitch'] {
-  animation: cosfx-glitch-in 0.45s steps(1, end) both;
+  animation: cosfx-glitch-in 0.6s steps(1, end) both;
 }
 @keyframes cosfx-glitch-in {
   0% {

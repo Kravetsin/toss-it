@@ -22,6 +22,7 @@ import { cardStardust } from './effects/card-stardust';
 import { cardRain } from './effects/card-rain';
 import { cardSnow } from './effects/card-snow';
 import { entranceGlitch } from './effects/entrance-glitch';
+import { entrancePortal } from './effects/entrance-portal';
 import { ttsVoices } from './voices';
 
 /**
@@ -101,6 +102,7 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   cardSakura,
   cardLightning,
   entranceGlitch,
+  entrancePortal,
   ...ttsVoices,
 ];
 
@@ -175,7 +177,12 @@ export function applyEntrance(
 ): void {
   if (!id || reduceMotion) return;
   const m = BY_ID.get(id);
-  if (m?.type === 'entrance') el.dataset.fx = m.fx;
+  if (m?.type !== 'entrance') return;
+  // Set data-fx in every case: it's what makes the surface's `:not([data-fx])` default stand down.
+  // For a CSS entrance that attribute IS the effect; a JS entrance additionally runs `play`, which
+  // owns the animation itself (the fire-and-forget teardown is fine — the effect self-cleans).
+  el.dataset.fx = m.fx;
+  m.play?.(el);
 }
 
 /** TTS voice module by catalog id, or undefined for unknown / non-voice ids. */

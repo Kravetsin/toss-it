@@ -45,26 +45,41 @@ type ShopCategory = 'nick' | 'card' | 'entrance' | 'voices';
  * entrance is an EVENT, so there is nothing to stand and look at, and the drawer already has a word
  * for that: the voice rows have a preview button. This is the same idea with a different sense.
  */
-function EntranceDemo({ fx, label }: { fx: string; label: string }) {
+function EntranceDemo({ id, label }: { id: string; label: string }) {
   const { t } = useI18n();
   const ref = useRef<HTMLDivElement>(null);
+  // Cancels an in-flight JS entrance before a replay starts a second one on the same node.
+  const teardown = useRef<(() => void) | null>(null);
+  const mod = entranceModule(id);
   const play = () => {
     const el = ref.current;
-    if (!el) return;
-    delete el.dataset.fx;
-    // Force a reflow between the removal and the re-add: without it the browser coalesces both into
-    // one style change, sees no difference, and never restarts the animation.
-    void el.offsetWidth;
-    el.dataset.fx = fx;
+    if (!el || !mod) return;
+    teardown.current?.();
+    teardown.current = null;
+    if (mod.play) {
+      // JS entrance (portal): it drives the block out and renders its canvas. Host that canvas inside
+      // the drawer panel — the effect's default body layer would hide behind the opaque drawer.
+      const mount = el.closest('[data-drawer-panel]');
+      const off = mod.play(el, mount instanceof HTMLElement ? mount : undefined);
+      teardown.current = typeof off === 'function' ? off : null;
+    } else {
+      // CSS entrance: retrigger by removing and re-adding data-fx. Force a reflow between the two,
+      // or the browser coalesces them into one style change, sees no difference, and never restarts.
+      delete el.dataset.fx;
+      void el.offsetWidth;
+      el.dataset.fx = mod.fx;
+    }
   };
-  // Play once when the row appears, so the shop shows the effect rather than describing it.
-  useEffect(play, [fx]);
+  // Play once when the row appears, so the shop shows the effect rather than describing it. No unmount
+  // cleanup needed for the JS path: the swarm engine drops any swarm whose node has left the DOM.
+  useEffect(play, [id]);
   return (
     <div className="flex items-center gap-2">
       <div
         ref={ref}
-        data-fx={fx}
-        className="rounded-[var(--radius-sm)] border border-border bg-surface-2 px-3 py-1.5 text-sm text-text"
+        // relative z-[1]: a JS entrance hosts its canvas at the drawer's base (z-0), so the block must
+        // sit above it to read as emerging IN FRONT of the effect.
+        className="relative z-[1] rounded-[var(--radius-sm)] border border-border bg-surface-2 px-3 py-1.5 text-sm text-text"
       >
         {label}
       </div>
@@ -243,7 +258,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     if (!labels) return null;
     const isCard = e.type === 'card_effect';
     const isNick = e.type === 'nick_effect';
-    const entranceFx = e.type === 'entrance' ? entranceModule(e.id)?.fx : undefined;
+    const isEntrance = e.type === 'entrance';
     return (
       <div
         key={e.id}
@@ -282,7 +297,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
           {/* Flavor, not instruction: the row already animates the effect, so describing it would
               only restate what's on screen — and risk contradicting what the viewer sees. */}
           <p className="text-sm italic text-muted">{t(labels.desc)}</p>
-          {entranceFx && <EntranceDemo fx={entranceFx} label={previewName} />}
+          {isEntrance && <EntranceDemo id={e.id} label={previewName} />}
           <div className="flex items-center gap-2">
             {!owned ? (
               <Button

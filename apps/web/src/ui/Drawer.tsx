@@ -49,6 +49,9 @@ export function Drawer({
         role={open ? 'dialog' : undefined}
         aria-modal={open ? true : undefined}
         aria-hidden={!open}
+        // A JS entrance preview (see EntranceDemo) hosts its canvas here: the panel's slide `transform`
+        // makes it the containing block for a `fixed` layer, so the effect stays inside the drawer.
+        data-drawer-panel=""
         className={`glass glass-strong absolute inset-y-0 right-0 flex w-full ${width} flex-col border-l border-glass-border shadow-4 transition-transform duration-[var(--dur)] ease-out ${
           open ? 'translate-x-0' : 'translate-x-full'
         }`}
