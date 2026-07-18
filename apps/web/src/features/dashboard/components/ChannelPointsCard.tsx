@@ -13,8 +13,30 @@ import { useI18n, type TFn } from '@/i18n';
 import { Icon, type IconName } from '@/ui/icons';
 import { Slider } from '@/features/dashboard/components/settings/controls';
 import { Button, Card } from '@/ui';
+import { DustMark } from '@/components/DustMark';
 
 type RewardKind = 'stardust' | 'youtube';
+
+/** Split a translated string on the ⭐ marker and swap it for our own stardust glyph (DustMark) —
+ *  the dictionary keeps '⭐' as a language-agnostic placeholder, never rendered as the raw emoji. */
+function withDustIcon(text: string): ReactNode {
+  const parts = text.split('⭐');
+  if (parts.length === 1) return text;
+  const out: ReactNode[] = [];
+  parts.forEach((part, i) => {
+    if (i > 0) {
+      out.push(
+        <DustMark
+          key={`dust-${i}`}
+          size={12}
+          className="inline-block shrink-0 align-[-1px] text-accent"
+        />,
+      );
+    }
+    out.push(part);
+  });
+  return out;
+}
 
 /**
  * Channel-points integration. Two fully independent rewards, each its own tile with its own price:
@@ -144,7 +166,7 @@ export function ChannelPointsCard() {
       <RewardTile
         icon="youtube"
         title={t('dash.channelPointsYoutubeTitle')}
-        description={t('dash.channelPointsYoutubeNote')}
+        description={withDustIcon(t('dash.channelPointsYoutubeNote'))}
         badge={status?.hasYoutube ? <ActiveBadge t={t} /> : undefined}
       >
         {status?.hasYoutube ? (
@@ -190,7 +212,7 @@ function RewardTile({
 }: {
   icon: IconName;
   title: string;
-  description: string;
+  description: ReactNode;
   badge?: ReactNode;
   children?: ReactNode;
 }) {
