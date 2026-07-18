@@ -76,6 +76,9 @@ export const channels = sqliteTable('channels', {
   accepting: integer('accepting', { mode: 'boolean' }).notNull().default(true),
   // Streamer opt-in: YouTube links bypass moderation (they're already moderated by YouTube).
   autoApproveYoutube: integer('auto_approve_youtube', { mode: 'boolean' }).notNull().default(false),
+  // With auto-approve on, YouTube links this long or shorter air automatically; longer ones fall to
+  // moderation instead (a viewer-requested 1h video shouldn't auto-play). Minutes; 1–10.
+  youtubeAutoMaxMinutes: integer('youtube_auto_max_minutes').notNull().default(10),
   // Streamer opt-in (default on): GIFs with a safe Giphy rating bypass moderation.
   autoApproveGifs: integer('auto_approve_gifs', { mode: 'boolean' }).notNull().default(true),
   showSenderName: integer('show_sender_name', { mode: 'boolean' }).notNull().default(true),
@@ -147,22 +150,38 @@ export const channelIntegrations = sqliteTable(
 );
 
 /**
- * Channel-points → stardust opt-in. Our app creates and OWNS a Twitch custom reward on the
- * streamer's channel (needs the streamer's `channel:manage:redemptions` token, stored encrypted so
- * we can refresh it, fulfill redemptions, and delete the reward on disconnect). One per channel.
+ * Channel-points opt-in: the streamer's OAuth token, one per channel. Our app creates and OWNS
+ * custom rewards on their channel (needs the `channel:manage:redemptions` token, stored encrypted so
+ * we can refresh it, fulfill redemptions, and delete rewards on disconnect). The rewards themselves
+ * live in channelPointRewards (many per channel, different kinds).
  */
-export const channelPointRewards = sqliteTable('channel_point_rewards', {
+export const channelPointConnections = sqliteTable('channel_point_connections', {
   channelId: text('channel_id')
     .primaryKey()
     .references(() => channels.id),
-  /** Raw numeric Twitch id of the broadcaster (the reward lives on this channel). */
+  /** Raw numeric Twitch id of the broadcaster (the rewards live on this channel). */
   broadcasterId: text('broadcaster_id').notNull(),
-  /** Id of the custom reward we created — the redemption subscription filters on it. */
-  rewardId: text('reward_id').notNull(),
   /** AES-GCM encrypted JSON {accessToken, refreshToken}; never sent to the client. */
   encTokens: text('enc_tokens').notNull(),
   /** Broadcaster login/name for the dashboard's "Connected as X". */
   externalName: text('external_name'),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+});
+
+/**
+ * One app-owned channel-point reward. Many per channel; `kind` routes a redemption to its handler
+ * ('stardust' = buy dust, 'youtube' = submit a YouTube link). Cost is not stored — read live from the
+ * redemption event so a streamer editing the price in Twitch just works.
+ */
+export const channelPointRewards = sqliteTable('channel_point_rewards', {
+  /** Id of the custom reward we created — the redemption subscription filters on it. */
+  rewardId: text('reward_id').primaryKey(),
+  channelId: text('channel_id')
+    .notNull()
+    .references(() => channelPointConnections.channelId),
+  /** 'stardust' | 'youtube'. */
+  kind: text('kind').notNull(),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
 });
@@ -393,6 +412,7 @@ export type ChannelRow = typeof channels.$inferSelect;
 export type SubmissionRow = typeof submissions.$inferSelect;
 export type ChannelModeratorRow = typeof channelModerators.$inferSelect;
 export type ChannelIntegrationRow = typeof channelIntegrations.$inferSelect;
+export type ChannelPointConnectionRow = typeof channelPointConnections.$inferSelect;
 export type ChannelPointRewardRow = typeof channelPointRewards.$inferSelect;
 export type ModInviteRow = typeof modInvites.$inferSelect;
 export type PromoCodeRow = typeof promoCodes.$inferSelect;

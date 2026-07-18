@@ -267,6 +267,20 @@
       "when": 1784311901155,
       "tag": "0037_steep_vin_gonzales",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "6",
+      "when": 1784362784225,
+      "tag": "0038_cp_rewards_split",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "6",
+      "when": 1784363879367,
+      "tag": "0039_slim_retro_girl",
+      "breakpoints": true
     }
   ]
 }

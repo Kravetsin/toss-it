@@ -136,6 +136,7 @@ export const en: Dict = {
   'mod.ytAutoApprove': 'Skip moderation for YouTube',
   'mod.ytAutoApproveNote':
     'YouTube links go straight to the screen, skipping the moderation queue. YouTube already moderates its content — but you are responsible for what airs.',
+  'mod.ytMaxMinutes': 'Auto-approve up to {n} min (longer → moderation)',
   'mod.ytConfirmTitle': 'Skip moderation for YouTube?',
   'mod.ytConfirmMsg':
     'Any YouTube link — together with its caption — will air without your review. Enable only if you trust your viewers.',
@@ -369,6 +370,9 @@ export const en: Dict = {
   'dash.channelPointsConnect': 'Connect channel points',
   'dash.channelPointsConnectedAs': 'Connected as {name}',
   'dash.channelPointsDisconnect': 'Disconnect',
+  'dash.channelPointsYoutube': 'YouTube requests',
+  'dash.channelPointsYoutubeNote':
+    'Viewers spend points to drop a YouTube link into your inbox (+50 ⭐, no login needed).',
   'dash.accepting': 'Accepting',
   'dash.acceptingOff': 'Submissions paused',
   'dash.sliderVideo': 'Video: up to {n}s',
@@ -661,6 +665,7 @@ export const ru: Dict = {
   'mod.ytAutoApprove': 'Пропускать YouTube без модерации',
   'mod.ytAutoApproveNote':
     'Ссылки на YouTube попадают сразу на экран, минуя очередь модерации. YouTube и так модерирует контент — но ответственность за то, что выйдет в эфир, на вас.',
+  'mod.ytMaxMinutes': 'Автопропуск до {n} мин (длиннее → в модерацию)',
   'mod.ytConfirmTitle': 'Пропускать YouTube без модерации?',
   'mod.ytConfirmMsg':
     'Любая ссылка на YouTube — вместе с подписью к ней — выйдет в эфир без вашей проверки. Включайте, только если доверяете зрителям.',
@@ -897,6 +902,9 @@ export const ru: Dict = {
   'dash.channelPointsConnect': 'Подключить баллы канала',
   'dash.channelPointsConnectedAs': 'Подключено как {name}',
   'dash.channelPointsDisconnect': 'Отключить',
+  'dash.channelPointsYoutube': 'Заказ видео с YouTube',
+  'dash.channelPointsYoutubeNote':
+    'Зрители тратят баллы, чтобы закинуть YouTube-ссылку в предложку (+50 ⭐, без логина).',
   'dash.accepting': 'Приём включён',
   'dash.acceptingOff': 'Приём остановлен',
   'dash.sliderVideo': 'Видео: до {n} с',
@@ -1189,6 +1197,7 @@ export const uk: Dict = {
   'mod.ytAutoApprove': 'Пропускати YouTube без модерації',
   'mod.ytAutoApproveNote':
     'Посилання на YouTube потрапляють одразу на екран, оминаючи чергу модерації. YouTube і так модерує контент — але відповідальність за те, що вийде в ефір, на вас.',
+  'mod.ytMaxMinutes': 'Автопропуск до {n} хв (довші → на модерацію)',
   'mod.ytConfirmTitle': 'Пропускати YouTube без модерації?',
   'mod.ytConfirmMsg':
     'Будь-яке посилання на YouTube — разом із підписом до нього — вийде в ефір без вашої перевірки. Вмикайте, лише якщо довіряєте глядачам.',
@@ -1426,6 +1435,9 @@ export const uk: Dict = {
   'dash.channelPointsConnect': 'Підключити бали каналу',
   'dash.channelPointsConnectedAs': 'Підключено як {name}',
   'dash.channelPointsDisconnect': 'Відключити',
+  'dash.channelPointsYoutube': 'Замовлення відео з YouTube',
+  'dash.channelPointsYoutubeNote':
+    'Глядачі витрачають бали, щоб закинути YouTube-посилання в предложку (+50 ⭐, без логіну).',
   'dash.accepting': 'Прийом увімкнено',
   'dash.acceptingOff': 'Прийом зупинено',
   'dash.sliderVideo': 'Відео: до {n} с',

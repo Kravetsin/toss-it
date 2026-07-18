@@ -191,6 +191,18 @@ export function disconnectChannelPoints(): Promise<unknown> {
   return fetch('/api/channel-points/disconnect', { method: 'POST' }).then((r) => json(r));
 }
 
+export function addChannelPointsYoutube(lang: string): Promise<unknown> {
+  return fetch('/api/channel-points/youtube', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ lang }),
+  }).then((r) => json(r));
+}
+
+export function removeChannelPointsYoutube(): Promise<unknown> {
+  return fetch('/api/channel-points/youtube', { method: 'DELETE' }).then((r) => json(r));
+}
+
 export function getSettings(channelId: string): Promise<ChannelSettings> {
   return fetch(`${dash(channelId)}/settings`).then((r) => json<ChannelSettings>(r));
 }

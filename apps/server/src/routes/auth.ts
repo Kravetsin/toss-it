@@ -518,6 +518,39 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
     return { ok: true };
   });
 
+  /** Add the YouTube-request reward to the caller's already-connected channel. */
+  app.post<{ Body: { cost?: number; lang?: string } | null }>(
+    '/api/channel-points/youtube',
+    async (req, reply) => {
+      const user = await requireUser(req, reply);
+      if (!user) return;
+      const channel = await db
+        .select({ id: channels.id })
+        .from(channels)
+        .where(eq(channels.ownerUserId, user.id))
+        .get();
+      if (!channel) return reply.code(400).send({ error: 'Нет канала' });
+      const result = await deps.channelPoints.addYoutubeReward(channel.id, {
+        cost: req.body?.cost,
+        lang: req.body?.lang,
+      });
+      if (!result.ok) return reply.code(400).send({ error: result.error ?? 'failed' });
+      return { ok: true };
+    },
+  );
+
+  app.delete('/api/channel-points/youtube', async (req, reply) => {
+    const user = await requireUser(req, reply);
+    if (!user) return;
+    const channel = await db
+      .select({ id: channels.id })
+      .from(channels)
+      .where(eq(channels.ownerUserId, user.id))
+      .get();
+    if (channel) await deps.channelPoints.removeYoutubeReward(channel.id);
+    return { ok: true };
+  });
+
   /** Admin diagnostic: live runtime state of the channel-points module (is the socket up, which
    *  channels are subscribed). Read this when redemptions aren't being processed. */
   app.get('/api/channel-points/debug', async (req, reply) => {

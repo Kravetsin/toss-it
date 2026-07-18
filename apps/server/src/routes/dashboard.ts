@@ -177,6 +177,7 @@ function toSettings(
     volume: ch.volume,
     accepting: ch.accepting,
     autoApproveYoutube: ch.autoApproveYoutube,
+    youtubeAutoMaxMinutes: ch.youtubeAutoMaxMinutes,
     autoApproveGifs: ch.autoApproveGifs,
     showSenderName: ch.showSenderName,
     soundAlert: ch.soundAlert,
@@ -524,6 +525,10 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
           typeof b.autoApproveYoutube === 'boolean'
             ? b.autoApproveYoutube
             : channel.autoApproveYoutube,
+        youtubeAutoMaxMinutes:
+          typeof b.youtubeAutoMaxMinutes === 'number'
+            ? clamp(Math.round(b.youtubeAutoMaxMinutes), 1, 10)
+            : channel.youtubeAutoMaxMinutes,
         autoApproveGifs:
           typeof b.autoApproveGifs === 'boolean' ? b.autoApproveGifs : channel.autoApproveGifs,
         showSenderName:

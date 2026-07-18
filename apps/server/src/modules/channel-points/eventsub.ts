@@ -16,6 +16,8 @@ export interface RedemptionEvent {
   redeemerName: string;
   /** Point cost of the reward at redemption time — dust is derived from this live. */
   cost: number;
+  /** Free text the viewer typed (the YouTube link, for a song/video request); '' if none. */
+  userInput: string;
 }
 
 export interface CpEventSubDeps {
@@ -155,6 +157,7 @@ class ChannelConn {
         redeemerId,
         redeemerName: (ev.user_name as string) ?? (ev.user_login as string) ?? redeemerId,
         cost: typeof reward.cost === 'number' ? reward.cost : 0,
+        userInput: typeof ev.user_input === 'string' ? ev.user_input : '',
       });
     }
   }

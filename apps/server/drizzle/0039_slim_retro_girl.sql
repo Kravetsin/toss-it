@@ -1,0 +1,1 @@
+ALTER TABLE `channels` ADD `youtube_auto_max_minutes` integer DEFAULT 10 NOT NULL;

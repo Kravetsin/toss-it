@@ -99,6 +99,7 @@ const MOCK_SETTINGS: ChannelSettings = {
   volume: 70,
   accepting: true,
   autoApproveYoutube: false,
+  youtubeAutoMaxMinutes: 10,
   autoApproveGifs: true,
   chatBotLogin: 'tossitbot',
   chatBotReading: false,
@@ -611,8 +612,9 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
   }
 
   if (pathname === '/api/channel-points/status') {
-    return { connected: false, externalName: null };
+    return { connected: false, externalName: null, hasYoutube: false };
   }
+  if (pathname === '/api/channel-points/youtube') return { ok: true }; // add (POST) / remove (DELETE)
 
   if (pathname === '/api/cosmetics/buy') {
     const u = MOCK_ME.user!;

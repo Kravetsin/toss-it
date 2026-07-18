@@ -90,7 +90,7 @@ const twitchChat = createTwitchChatModule({
 // Optional channel-points → stardust module: reads redemptions of app-owned rewards on opted-in
 // channels (each authorized by the streamer's own token), credits dust, fires the donation FX.
 const { createChannelPointsModule } = await import('./modules/channel-points/index');
-const channelPoints = createChannelPointsModule({ io, log: app.log });
+const channelPoints = createChannelPointsModule({ io, playback, log: app.log });
 channelPoints.start();
 
 registerRoutes(app, { playback, storage, tmpDir, io, twitchChat, channelPoints });

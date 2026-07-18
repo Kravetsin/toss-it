@@ -26,6 +26,8 @@ export function createReward(
   title: string,
   cost: number,
   prompt: string,
+  /** true = viewer must type text (the YouTube link for a song/video request). */
+  requireInput = false,
 ): Promise<Response> {
   const url = new URL(REWARDS);
   url.searchParams.set('broadcaster_id', broadcasterId);
@@ -37,7 +39,7 @@ export function createReward(
     prompt,
     is_enabled: true,
     should_redemptions_skip_request_queue: false,
-    is_user_input_required: false,
+    is_user_input_required: requireInput,
     background_color: '#8DF0CC',
   });
 }
@@ -77,6 +79,20 @@ export function fulfillRedemption(
   url.searchParams.set('broadcaster_id', broadcasterId);
   url.searchParams.set('reward_id', rewardId);
   return helix('PATCH', url.toString(), token, { status: 'FULFILLED' });
+}
+
+/** Cancel a redemption — refunds the viewer's points. Used when a YouTube link is unplayable. */
+export function cancelRedemption(
+  token: string,
+  broadcasterId: string,
+  rewardId: string,
+  redemptionId: string,
+): Promise<Response> {
+  const url = new URL(REDEMPTIONS);
+  url.searchParams.set('id', redemptionId);
+  url.searchParams.set('broadcaster_id', broadcasterId);
+  url.searchParams.set('reward_id', rewardId);
+  return helix('PATCH', url.toString(), token, { status: 'CANCELED' });
 }
 
 /**

@@ -166,6 +166,8 @@ export interface ChannelPointsStatus {
   connected: boolean;
   /** Broadcaster display name the reward was created on ("Connected as X"). */
   externalName: string | null;
+  /** Whether the optional YouTube-request reward is set up. */
+  hasYoutube: boolean;
 }
 
 /** Donation integration status (dashboard). Callback model: provider POSTs to us. */
@@ -386,6 +388,8 @@ export interface ChannelSettings {
   accepting: boolean;
   /** Streamer opt-in: YouTube submissions skip moderation (go straight to screen). */
   autoApproveYoutube: boolean;
+  /** With auto-approve on, YouTube videos longer than this (minutes, 1–10) fall to moderation. */
+  youtubeAutoMaxMinutes: number;
   /** Streamer opt-in: GIFs with a safe Giphy rating skip moderation (risky ones still queue). */
   autoApproveGifs: boolean;
   /** Read-only: chat bot login to /mod, or null when unavailable for this channel. */

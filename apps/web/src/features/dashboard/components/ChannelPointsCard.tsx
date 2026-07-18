@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
 import { CHANNEL_POINTS, type ChannelPointsStatus } from '@tmw/shared';
 import {
+  addChannelPointsYoutube,
   channelPointsConnectUrl,
   disconnectChannelPoints,
   getChannelPointsStatus,
+  removeChannelPointsYoutube,
 } from '@/lib/api';
 import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
 import { Slider } from '@/features/dashboard/components/settings/controls';
-import { Button, Card } from '@/ui';
+import { Button, Card, Switch } from '@/ui';
 
 /**
  * Channel-points → stardust opt-in. Our app creates and owns a Twitch reward on the streamer's
@@ -38,7 +40,18 @@ export function ChannelPointsCard() {
     setBusy(true);
     try {
       await disconnectChannelPoints();
-      setStatus({ connected: false, externalName: null });
+      setStatus({ connected: false, externalName: null, hasYoutube: false });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toggleYoutube = async (next: boolean) => {
+    setBusy(true);
+    try {
+      if (next) await addChannelPointsYoutube(lang);
+      else await removeChannelPointsYoutube();
+      setStatus((s) => (s ? { ...s, hasYoutube: next } : s));
     } finally {
       setBusy(false);
     }
@@ -55,14 +68,24 @@ export function ChannelPointsCard() {
       <p className="text-sm text-muted">{t('dash.channelPointsDesc', { cost, dust })}</p>
 
       {status?.connected ? (
-        <div className="mt-1 flex items-center justify-between gap-2">
-          <span className="flex items-center gap-1.5 text-sm text-ok">
-            <Icon name="check" size={14} />
-            {t('dash.channelPointsConnectedAs', { name: status.externalName ?? '' })}
-          </span>
-          <Button variant="ghost" size="sm" onClick={() => void disconnect()} disabled={busy}>
-            {t('dash.channelPointsDisconnect')}
-          </Button>
+        <div className="mt-1 flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-2">
+            <span className="flex items-center gap-1.5 text-sm text-ok">
+              <Icon name="check" size={14} />
+              {t('dash.channelPointsConnectedAs', { name: status.externalName ?? '' })}
+            </span>
+            <Button variant="ghost" size="sm" onClick={() => void disconnect()} disabled={busy}>
+              {t('dash.channelPointsDisconnect')}
+            </Button>
+          </div>
+          {/* Optional add-on reward: viewers spend points to put a YouTube link in the предложка. */}
+          <Switch
+            icon="youtube"
+            label={t('dash.channelPointsYoutube')}
+            description={t('dash.channelPointsYoutubeNote')}
+            checked={status.hasYoutube}
+            onChange={(v) => void toggleYoutube(v)}
+          />
         </div>
       ) : (
         <>
