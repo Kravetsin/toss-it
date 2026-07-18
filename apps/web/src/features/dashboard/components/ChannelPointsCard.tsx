@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { CHANNEL_POINTS, type ChannelPointsStatus } from '@tmw/shared';
 import {
   addChannelPointsStardust,
@@ -168,6 +169,7 @@ export function ChannelPointsCard() {
         title={t('dash.channelPointsYoutubeTitle')}
         description={withDustIcon(t('dash.channelPointsYoutubeNote'))}
         badge={status?.hasYoutube ? <ActiveBadge t={t} /> : undefined}
+        note={<OverlayNote t={t} />}
       >
         {status?.hasYoutube ? (
           <RemoveRow t={t} busy={busy} onRemove={() => remove('youtube')} />
@@ -208,12 +210,15 @@ function RewardTile({
   title,
   description,
   badge,
+  note,
   children,
 }: {
   icon: IconName;
   title: string;
   description: ReactNode;
   badge?: ReactNode;
+  /** Optional requirement/hint under the description (e.g. "needs the media overlay"). */
+  note?: ReactNode;
   children?: ReactNode;
 }) {
   return (
@@ -228,6 +233,7 @@ function RewardTile({
             {badge}
           </div>
           <p className="mt-0.5 text-xs leading-snug text-muted">{description}</p>
+          {note}
           {children && <div className="mt-3 flex flex-col gap-2">{children}</div>}
         </div>
       </div>
@@ -242,6 +248,24 @@ function ActiveBadge({ t }: { t: TFn }) {
       <Icon name="check" size={11} />
       {t('dash.channelPointsRewardActive')}
     </span>
+  );
+}
+
+/** Playback needs a connected media overlay — remind the streamer and link to the overlay links. */
+function OverlayNote({ t }: { t: TFn }) {
+  return (
+    <p className="mt-2 flex items-start gap-1.5 text-xs text-faint">
+      <Icon name="monitor" size={13} className="mt-px shrink-0" />
+      <span>
+        {t('dash.channelPointsOverlayNote')}{' '}
+        <Link
+          to="/dashboard/settings/overlay"
+          className="text-accent underline-offset-2 outline-none hover:underline focus-visible:underline"
+        >
+          {t('dash.channelPointsOverlaySetup')}
+        </Link>
+      </span>
+    </p>
   );
 }
 

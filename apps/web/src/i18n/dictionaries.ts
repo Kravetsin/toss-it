@@ -388,6 +388,9 @@ export const en: Dict = {
   'dash.channelPointsRewardRemove': 'Remove',
   'dash.channelPointsAuthNote':
     'Creating your first reward asks you to authorize channel points on Twitch (one time).',
+  'dash.channelPointsOverlayNote':
+    'Requested videos play on the media overlay — it must be added to OBS.',
+  'dash.channelPointsOverlaySetup': 'Set up overlay',
   'dash.channelPointsYoutubeNote':
     'Viewers spend points to drop a YouTube link into your inbox (+50 ⭐, no login needed).',
   'dash.accepting': 'Accepting',
@@ -937,6 +940,9 @@ export const ru: Dict = {
   'dash.channelPointsRewardRemove': 'Удалить',
   'dash.channelPointsAuthNote':
     'Создание первой награды попросит авторизовать баллы канала в Twitch (один раз).',
+  'dash.channelPointsOverlayNote':
+    'Заказанное видео играет на медиа-оверлее — его нужно добавить в OBS.',
+  'dash.channelPointsOverlaySetup': 'Настроить оверлей',
   'dash.channelPointsYoutubeNote':
     'Зрители тратят баллы, чтобы закинуть YouTube-ссылку в предложку (+50 ⭐, без логина).',
   'dash.accepting': 'Приём включён',
@@ -1487,6 +1493,9 @@ export const uk: Dict = {
   'dash.channelPointsRewardRemove': 'Видалити',
   'dash.channelPointsAuthNote':
     'Створення першої нагороди попросить авторизувати бали каналу в Twitch (один раз).',
+  'dash.channelPointsOverlayNote':
+    'Замовлене відео грає на медіа-оверлеї — його потрібно додати в OBS.',
+  'dash.channelPointsOverlaySetup': 'Налаштувати оверлей',
   'dash.channelPointsYoutubeNote':
     'Глядачі витрачають бали, щоб закинути YouTube-посилання в предложку (+50 ⭐, без логіну).',
   'dash.accepting': 'Прийом увімкнено',
