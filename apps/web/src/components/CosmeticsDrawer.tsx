@@ -48,6 +48,8 @@ type ShopCategory = 'nick' | 'card' | 'entrance' | 'voices';
 function EntranceDemo({ id, label }: { id: string; label: string }) {
   const { t } = useI18n();
   const ref = useRef<HTMLDivElement>(null);
+  // The effect's canvas is hosted here, so this row must be its OWN stacking context.
+  const rowRef = useRef<HTMLDivElement>(null);
   // Cancels an in-flight JS entrance before a replay starts a second one on the same node.
   const teardown = useRef<(() => void) | null>(null);
   const mod = entranceModule(id);
@@ -57,10 +59,11 @@ function EntranceDemo({ id, label }: { id: string; label: string }) {
     teardown.current?.();
     teardown.current = null;
     if (mod.play) {
-      // JS entrance (portal): it drives the block out and renders its canvas. Host that canvas inside
-      // the drawer panel — the effect's default body layer would hide behind the opaque drawer.
-      const mount = el.closest('[data-drawer-panel]');
-      const off = mod.play(el, mount instanceof HTMLElement ? mount : undefined);
+      // JS entrance (portal): it drives the block out and renders its canvas. On the transparent
+      // overlays the canvas goes behind everything, but the shop is opaque — so host it in THIS row,
+      // which is an isolated stacking context (`isolate`) with the block lifted above it (z-[1]). That
+      // guarantees the block sits in front of the portal regardless of the drawer's nesting.
+      const off = mod.play(el, rowRef.current ?? undefined);
       teardown.current = typeof off === 'function' ? off : null;
     } else {
       // CSS entrance: retrigger by removing and re-adding data-fx. Force a reflow between the two,
@@ -71,14 +74,14 @@ function EntranceDemo({ id, label }: { id: string; label: string }) {
     }
   };
   // Play once when the row appears, so the shop shows the effect rather than describing it. No unmount
-  // cleanup needed for the JS path: the swarm engine drops any swarm whose node has left the DOM.
+  // cleanup needed for the JS path: the engine drops any effect whose node has left the DOM.
   useEffect(play, [id]);
   return (
-    <div className="flex items-center gap-2">
+    <div ref={rowRef} className="relative isolate flex items-center gap-2">
       <div
         ref={ref}
-        // relative z-[1]: a JS entrance hosts its canvas at the drawer's base (z-0), so the block must
-        // sit above it to read as emerging IN FRONT of the effect.
+        // relative z-[1]: the JS entrance hosts its canvas in this isolated row at z-0, so the block
+        // must sit above it to read as emerging IN FRONT of the effect, not behind the sparks.
         className="relative z-[1] rounded-[var(--radius-sm)] border border-border bg-surface-2 px-3 py-1.5 text-sm text-text"
       >
         {label}
