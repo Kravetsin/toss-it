@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { giphyGifUrl, type SubmissionSummary } from '@tmw/shared';
-import { reorderQueue } from '@/lib/api';
+import { clearQueue, removeFromQueue, reorderQueue } from '@/lib/api';
 import { youtubeThumbnail } from '@/lib/youtube';
 import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
-import { Card } from '@/ui';
+import { Card, IconButton } from '@/ui';
 import { KIND_ICON, formatTrackDuration } from '../constants';
 import { useReorderList } from '../hooks/useReorderList';
 
@@ -32,11 +32,50 @@ export function QueueCard({ channelId, queue }: { channelId: string; queue: Subm
     if (!dragging.current) setItems(queue);
   }, [queue]);
 
+  // Drop one item: optimistic (the server's echo confirms). The streamer can't vet what's incoming,
+  // so pulling it from the queue is the guard.
+  const remove = (id: string) => {
+    setItems((prev) => prev.filter((s) => s.id !== id));
+    void removeFromQueue(channelId, id).catch(() => {});
+  };
+
+  // Clear all is destructive and one-shot, so it arms on the first click and fires on the second.
+  const [clearArmed, setClearArmed] = useState(false);
+  const clearTimer = useRef(0);
+  useEffect(() => () => window.clearTimeout(clearTimer.current), []);
+  const clearAll = () => {
+    if (!clearArmed) {
+      setClearArmed(true);
+      clearTimer.current = window.setTimeout(() => setClearArmed(false), 3000);
+      return;
+    }
+    window.clearTimeout(clearTimer.current);
+    setClearArmed(false);
+    setItems([]);
+    void clearQueue(channelId).catch(() => {});
+  };
+
   return (
     <Card>
       <div className="flex items-center justify-between gap-3">
         <h2 className="label-mono text-muted">{t('dash.queue')}</h2>
-        <span className="label-mono text-faint">{items.length}</span>
+        <div className="flex items-center gap-2">
+          {items.length > 0 && (
+            <button
+              type="button"
+              onClick={clearAll}
+              className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 label-mono outline-none transition-colors focus-visible:[box-shadow:var(--shadow-focus)] ${
+                clearArmed
+                  ? 'border-danger bg-danger/10 text-danger'
+                  : 'border-border text-muted hover:border-danger hover:text-danger'
+              }`}
+            >
+              <Icon name="trash" size={14} />
+              {clearArmed ? t('music.clearConfirm') : t('music.clearAll')}
+            </button>
+          )}
+          <span className="label-mono text-faint">{items.length}</span>
+        </div>
       </div>
       {/* `relative`: makes this <ul> the offsetParent of its rows, so the drag hook's offsetTop math
           is measured from the list (not the card header) — otherwise the grabbed row flies upward. */}
@@ -69,6 +108,13 @@ export function QueueCard({ channelId, queue }: { channelId: string; queue: Subm
             <span className="shrink-0 text-xs tabular-nums text-faint">
               {formatTrackDuration(s.kind, s.durationMs, t)}
             </span>
+            <IconButton
+              name="close"
+              label={t('music.remove')}
+              variant="ghost"
+              size="sm"
+              onClick={() => remove(s.id)}
+            />
           </li>
         ))}
       </ul>

@@ -305,6 +305,28 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
     },
   );
 
+  /** Drop a single waiting item from the queue (marks it rejected). */
+  app.delete<{ Params: { channelId: string; id: string } }>(
+    '/api/dashboard/:channelId/queue/:id',
+    async (req, reply) => {
+      const channel = await requireChannelAccess(req, reply, req.params.channelId);
+      if (!channel) return;
+      const ok = await playback.removeFromQueue(channel.id, req.params.id);
+      return { ok };
+    },
+  );
+
+  /** Clear the whole waiting queue (the current show keeps playing). */
+  app.delete<{ Params: { channelId: string } }>(
+    '/api/dashboard/:channelId/queue',
+    async (req, reply) => {
+      const channel = await requireChannelAccess(req, reply, req.params.channelId);
+      if (!channel) return;
+      const removed = await playback.clearQueue(channel.id);
+      return { removed };
+    },
+  );
+
   /** Skip current display: instantly clears overlay and advances the queue. */
   app.post<{ Params: { channelId: string } }>(
     '/api/dashboard/:channelId/skip',

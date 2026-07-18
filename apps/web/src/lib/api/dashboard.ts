@@ -149,6 +149,20 @@ export function reorderQueue(channelId: string, ids: string[]): Promise<{ ok: bo
   }).then((r) => json<{ ok: boolean }>(r));
 }
 
+/** Drop a single waiting item from the queue. */
+export function removeFromQueue(channelId: string, id: string): Promise<{ ok: boolean }> {
+  return fetch(`${dash(channelId)}/queue/${encodeURIComponent(id)}`, { method: 'DELETE' }).then(
+    (r) => json<{ ok: boolean }>(r),
+  );
+}
+
+/** Clear the whole waiting queue. */
+export function clearQueue(channelId: string): Promise<{ removed: number }> {
+  return fetch(`${dash(channelId)}/queue`, { method: 'DELETE' }).then((r) =>
+    json<{ removed: number }>(r),
+  );
+}
+
 export function pauseResumePlayback(
   channelId: string,
   action: 'pause' | 'resume',

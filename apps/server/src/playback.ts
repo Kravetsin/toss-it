@@ -225,6 +225,36 @@ export class PlaybackManager {
     return true;
   }
 
+  /** Streamer drops a waiting item from the queue (never the current show). Marks it rejected so it
+   *  won't play. Returns false if it wasn't in the waiting queue. */
+  async removeFromQueue(channelId: string, submissionId: string): Promise<boolean> {
+    const st = this.state(channelId);
+    const idx = st.queue.findIndex((s) => s.id === submissionId);
+    if (idx === -1) return false;
+    st.queue.splice(idx, 1);
+    await db
+      .update(submissions)
+      .set({ status: 'rejected', updatedAt: new Date() })
+      .where(eq(submissions.id, submissionId));
+    emitSubmissionStatus(this.io, submissionId, 'rejected');
+    void this.emitQueue(channelId);
+    return true;
+  }
+
+  /** Streamer clears the whole waiting queue (the current show keeps playing). Returns the count. */
+  async clearQueue(channelId: string): Promise<number> {
+    const st = this.state(channelId);
+    if (st.queue.length === 0) return 0;
+    const ids = st.queue.splice(0, st.queue.length).map((s) => s.id);
+    await db
+      .update(submissions)
+      .set({ status: 'rejected', updatedAt: new Date() })
+      .where(inArray(submissions.id, ids));
+    for (const id of ids) emitSubmissionStatus(this.io, id, 'rejected');
+    void this.emitQueue(channelId);
+    return ids.length;
+  }
+
   /** On server start, requeue everything that never got played. */
   async recoverFromDb(): Promise<void> {
     const rows = await db
