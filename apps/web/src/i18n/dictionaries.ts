@@ -133,13 +133,16 @@ export const en: Dict = {
   'settings.musicSeparateNote': 'Music player sits in its own spot, not over media',
   'settings.ownerOnly': 'Settings are available to the channel owner.',
   'settings.loadError': "Couldn't load settings.",
-  'mod.ytAutoApprove': 'Skip moderation for YouTube',
-  'mod.ytAutoApproveNote':
-    'YouTube links go straight to the screen, skipping the moderation queue. YouTube already moderates its content — but you are responsible for what airs.',
+  'mod.ytMusicAutoApprove': 'Skip moderation for music',
+  'mod.ytMusicNote':
+    'YouTube music (by category) plays automatically in the compact corner player — low-risk, so this is on by default.',
+  'mod.ytVideoAutoApprove': 'Skip moderation for video',
+  'mod.ytVideoNote':
+    'YouTube videos play full-screen and can take over the whole stream. Off by default — enable only if you trust your viewers.',
   'mod.ytMaxMinutes': 'Auto-approve up to {n} min (longer → moderation)',
-  'mod.ytConfirmTitle': 'Skip moderation for YouTube?',
+  'mod.ytConfirmTitle': 'Auto-approve YouTube video?',
   'mod.ytConfirmMsg':
-    'Any YouTube link — together with its caption — will air without your review. Enable only if you trust your viewers.',
+    'Videos play full-screen and cover your stream — any auto-approved one airs without your review. Enable only if you trust your viewers.',
   'mod.ytConfirmOk': 'Enable',
   'mod.gifAutoApprove': 'Skip moderation for safe GIFs',
   'mod.gifAutoApproveNote':
@@ -667,13 +670,16 @@ export const ru: Dict = {
   'settings.musicSeparateNote': 'Плеер музыки в своём месте, не поверх медиа',
   'settings.ownerOnly': 'Настройки доступны владельцу канала.',
   'settings.loadError': 'Не удалось загрузить настройки.',
-  'mod.ytAutoApprove': 'Пропускать YouTube без модерации',
-  'mod.ytAutoApproveNote':
-    'Ссылки на YouTube попадают сразу на экран, минуя очередь модерации. YouTube и так модерирует контент — но ответственность за то, что выйдет в эфир, на вас.',
+  'mod.ytMusicAutoApprove': 'Пропускать музыку без модерации',
+  'mod.ytMusicNote':
+    'Музыка с YouTube (по категории) играет автоматически в компактном плеере в углу — риск небольшой, поэтому по умолчанию включено.',
+  'mod.ytVideoAutoApprove': 'Пропускать видео без модерации',
+  'mod.ytVideoNote':
+    'Видео с YouTube играет на весь экран и может перекрыть весь стрим. По умолчанию выключено — включайте, только если доверяете зрителям.',
   'mod.ytMaxMinutes': 'Автопропуск до {n} мин (длиннее → в модерацию)',
-  'mod.ytConfirmTitle': 'Пропускать YouTube без модерации?',
+  'mod.ytConfirmTitle': 'Автопропуск видео с YouTube?',
   'mod.ytConfirmMsg':
-    'Любая ссылка на YouTube — вместе с подписью к ней — выйдет в эфир без вашей проверки. Включайте, только если доверяете зрителям.',
+    'Видео играет на весь экран и перекрывает стрим — любое автопропущенное выйдет в эфир без вашей проверки. Включайте, только если доверяете зрителям.',
   'mod.ytConfirmOk': 'Включить',
   'mod.gifAutoApprove': 'Пропускать безопасные GIF без модерации',
   'mod.gifAutoApproveNote':
@@ -1204,13 +1210,16 @@ export const uk: Dict = {
   'settings.musicSeparateNote': 'Плеєр музики у своєму місці, не поверх медіа',
   'settings.ownerOnly': 'Налаштування доступні власнику каналу.',
   'settings.loadError': 'Не вдалося завантажити налаштування.',
-  'mod.ytAutoApprove': 'Пропускати YouTube без модерації',
-  'mod.ytAutoApproveNote':
-    'Посилання на YouTube потрапляють одразу на екран, оминаючи чергу модерації. YouTube і так модерує контент — але відповідальність за те, що вийде в ефір, на вас.',
+  'mod.ytMusicAutoApprove': 'Пропускати музику без модерації',
+  'mod.ytMusicNote':
+    'Музика з YouTube (за категорією) грає автоматично в компактному плеєрі в кутку — ризик невеликий, тому за замовчуванням увімкнено.',
+  'mod.ytVideoAutoApprove': 'Пропускати відео без модерації',
+  'mod.ytVideoNote':
+    'Відео з YouTube грає на весь екран і може перекрити весь стрім. За замовчуванням вимкнено — вмикайте, лише якщо довіряєте глядачам.',
   'mod.ytMaxMinutes': 'Автопропуск до {n} хв (довші → на модерацію)',
-  'mod.ytConfirmTitle': 'Пропускати YouTube без модерації?',
+  'mod.ytConfirmTitle': 'Автопропуск відео з YouTube?',
   'mod.ytConfirmMsg':
-    'Будь-яке посилання на YouTube — разом із підписом до нього — вийде в ефір без вашої перевірки. Вмикайте, лише якщо довіряєте глядачам.',
+    'Відео грає на весь екран і перекриває стрім — будь-яке автопропущене вийде в ефір без вашої перевірки. Вмикайте, лише якщо довіряєте глядачам.',
   'mod.ytConfirmOk': 'Увімкнути',
   'mod.gifAutoApprove': 'Пропускати безпечні GIF без модерації',
   'mod.gifAutoApproveNote':

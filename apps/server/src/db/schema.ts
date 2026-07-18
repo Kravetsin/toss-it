@@ -74,8 +74,16 @@ export const channels = sqliteTable('channels', {
     .default(50 * 1024 * 1024),
   volume: integer('volume').notNull().default(100),
   accepting: integer('accepting', { mode: 'boolean' }).notNull().default(true),
-  // Streamer opt-in: YouTube links bypass moderation (they're already moderated by YouTube).
-  autoApproveYoutube: integer('auto_approve_youtube', { mode: 'boolean' }).notNull().default(false),
+  // Streamer opt-in: viewer YouTube links bypass moderation. Split by type because a full-screen
+  // video can take over the whole stream, while music is a compact corner player — so music defaults
+  // ON (low-risk) and video must be enabled deliberately. Music vs video is decided by the YouTube
+  // category (music.youtube.com OR category 10), not just the URL.
+  autoApproveYoutubeMusic: integer('auto_approve_youtube_music', { mode: 'boolean' })
+    .notNull()
+    .default(true),
+  autoApproveYoutubeVideo: integer('auto_approve_youtube_video', { mode: 'boolean' })
+    .notNull()
+    .default(false),
   // With auto-approve on, YouTube links this long or shorter air automatically; longer ones fall to
   // moderation instead (a viewer-requested 1h video shouldn't auto-play). Minutes; 1–10.
   youtubeAutoMaxMinutes: integer('youtube_auto_max_minutes').notNull().default(10),

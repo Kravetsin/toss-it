@@ -407,9 +407,11 @@ export interface ChannelSettings {
   volume: number;
   /** Kill switch: false = submissions paused. */
   accepting: boolean;
-  /** Streamer opt-in: YouTube submissions skip moderation (go straight to screen). */
-  autoApproveYoutube: boolean;
-  /** With auto-approve on, YouTube videos longer than this (minutes, 1–10) fall to moderation. */
+  /** Streamer opt-in: YouTube *music* skips moderation (compact corner player — low-risk). */
+  autoApproveYoutubeMusic: boolean;
+  /** Streamer opt-in: YouTube *video* skips moderation (full-screen — can take over the stream). */
+  autoApproveYoutubeVideo: boolean;
+  /** With auto-approve on, YouTube longer than this (minutes, 1–10) falls to moderation. */
   youtubeAutoMaxMinutes: number;
   /** Streamer opt-in: GIFs with a safe Giphy rating skip moderation (risky ones still queue). */
   autoApproveGifs: boolean;

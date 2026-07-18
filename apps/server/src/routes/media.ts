@@ -33,7 +33,12 @@ import {
   transcodeAudio,
   transcodeVideo,
 } from '../media/process';
-import { parseYoutube, validateYoutube } from '../media/youtube';
+import {
+  fetchVideoInfo,
+  parseYoutube,
+  validateYoutube,
+  YT_MUSIC_CATEGORY_ID,
+} from '../media/youtube';
 import { isGiphyId } from '../media/giphy';
 import { requireUser } from '../auth';
 import { synthesize } from '../tts';
@@ -223,6 +228,9 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
         let youtubeId: string | null = null;
         let youtubeStart = 0;
         let giphyId: string | null = null;
+        // YouTube auto-approve is decided in the link branch (needs the video's category + length),
+        // then folded into `autoApproved` below with the whitelist/GIF bypasses.
+        let ytAutoApprove = false;
 
         if (hasFile) {
           // Global limit is enforced by multipart; per-channel limit checked here.
@@ -316,14 +324,26 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
                 .send({ error: 'Не удалось открыть видео с YouTube (приватное/удалённое?)' });
             }
             kind = 'youtube';
-            // music.youtube.com → mark as music (overlay shows a compact player).
-            outMime = yt.isMusic ? 'audio/youtube' : 'video/youtube';
+            // Music by category (10) or music.youtube.com — a plain youtube.com song still renders as
+            // the compact player. Falls back to the URL signal when there's no API key.
+            const info = (await fetchVideoInfo([yt.videoId])).get(yt.videoId);
+            const ytIsMusic = yt.isMusic || info?.categoryId === YT_MUSIC_CATEGORY_ID;
+            const ytDurationSec = info?.durationSec ?? 0;
+            outMime = ytIsMusic ? 'audio/youtube' : 'video/youtube';
             youtubeId = yt.videoId;
             youtubeStart = yt.startSeconds;
-            // Duration unknown ahead of time (plays to end); overlay reports real value.
-            durationMs = 0;
+            // Store the real length for display (queue/history); overlay still gets 0 and ends on its
+            // own event. 0 when unknown (no API key).
+            durationMs = ytDurationSec > 0 ? ytDurationSec * 1000 : 0;
             // Caption: leftover text minus the link, else the video title (clipped).
             text = (yt.caption ?? (meta.title || undefined))?.slice(0, TEXT_MAX_LEN) || undefined;
+            // Auto-approve: video gated separately from music (full-screen can take over the stream).
+            // The length cap applies only when we know the length; unknown → no cap (prior behavior).
+            const withinCap =
+              ytDurationSec === 0 || ytDurationSec <= channel.youtubeAutoMaxMinutes * 60;
+            ytAutoApprove =
+              (ytIsMusic ? channel.autoApproveYoutubeMusic : channel.autoApproveYoutubeVideo) &&
+              withinCap;
           } else {
             // Text-only: no transcode. Display time scales with reading time but
             // caps at 15s (enough for 280 chars); longer TTS finishes off-screen.
@@ -341,11 +361,9 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
               .from(whitelist)
               .where(and(eq(whitelist.channelId, channel.id), eq(whitelist.userId, user.id)))
               .get()) !== undefined;
-        // Opt-in bypasses: YouTube and GIFs (both moderated by their source platform).
+        // Opt-in bypasses: YouTube (per music/video, decided above) and GIFs (source-moderated).
         const autoApproved =
-          whitelisted ||
-          (kind === 'youtube' && channel.autoApproveYoutube) ||
-          (kind === 'gif' && channel.autoApproveGifs);
+          whitelisted || ytAutoApprove || (kind === 'gif' && channel.autoApproveGifs);
 
         const now = new Date();
         const row: SubmissionRow = {

@@ -16,7 +16,8 @@ export function ModerationSettings({
   const { t } = useI18n();
   const confirm = useConfirm();
   const [gifAuto, setGifAuto] = useState(settings.autoApproveGifs);
-  const [ytAuto, setYtAuto] = useState(settings.autoApproveYoutube);
+  const [ytMusic, setYtMusic] = useState(settings.autoApproveYoutubeMusic);
+  const [ytVideo, setYtVideo] = useState(settings.autoApproveYoutubeVideo);
   const [ytMax, setYtMax] = useState(settings.youtubeAutoMaxMinutes);
 
   const toggleGif = (next: boolean) => {
@@ -24,8 +25,14 @@ export function ModerationSettings({
     onSave({ autoApproveGifs: next });
   };
 
-  // Enabling skips moderation — gate it behind a risk reminder; disabling is instant.
-  const toggleYt = async (next: boolean) => {
+  // Music plays in a compact corner player (low-risk) — toggle instantly.
+  const toggleMusic = (next: boolean) => {
+    setYtMusic(next);
+    onSave({ autoApproveYoutubeMusic: next });
+  };
+
+  // Video is full-screen and can take over the stream — gate enabling behind a risk reminder.
+  const toggleVideo = async (next: boolean) => {
     if (next) {
       const ok = await confirm({
         title: t('mod.ytConfirmTitle'),
@@ -35,8 +42,8 @@ export function ModerationSettings({
       });
       if (!ok) return;
     }
-    setYtAuto(next);
-    onSave({ autoApproveYoutube: next });
+    setYtVideo(next);
+    onSave({ autoApproveYoutubeVideo: next });
   };
 
   return (
@@ -53,13 +60,20 @@ export function ModerationSettings({
       <div className="flex flex-col gap-3 pt-4">
         <Switch
           icon="youtube"
-          label={t('mod.ytAutoApprove')}
-          description={t('mod.ytAutoApproveNote')}
-          checked={ytAuto}
-          onChange={(v) => void toggleYt(v)}
+          label={t('mod.ytMusicAutoApprove')}
+          description={t('mod.ytMusicNote')}
+          checked={ytMusic}
+          onChange={toggleMusic}
         />
-        {/* The cap only matters while auto-approve is on — longer videos fall to moderation. */}
-        {ytAuto && (
+        <Switch
+          icon="youtube"
+          label={t('mod.ytVideoAutoApprove')}
+          description={t('mod.ytVideoNote')}
+          checked={ytVideo}
+          onChange={(v) => void toggleVideo(v)}
+        />
+        {/* The cap only matters while some auto-approve is on — longer clips fall to moderation. */}
+        {(ytMusic || ytVideo) && (
           <Slider
             icon="youtube"
             label={t('mod.ytMaxMinutes', { n: ytMax })}
