@@ -31,14 +31,9 @@ import type { EntranceModule } from '../types';
 
 const DUR = 1700; // ms — the whole open → drive-out → close
 const SPIN = 0.0016; // rad/ms ring rotation
-// Brand mint, NOT --color-accent: a cosmetic belongs to the viewer and must look identical on every
-// surface, so it can't read a channel theme's accent.
-const MINT: [number, string][] = [
-  [0, 'rgba(255,255,255,1)'],
-  [0.4, 'rgba(205,255,238,0.95)'],
-  [0.75, 'rgba(141,240,204,0.35)'],
-  [1, 'rgba(141,240,204,0)'],
-];
+// Brand mint default. NOT --color-accent (a cosmetic belongs to the viewer and must look identical on
+// every surface); overridden per viewer by the 'entrance-portal-color' upgrade.
+const DEFAULT_COLOR = '#8df0cc';
 
 interface Spark {
   a: number; // base angle on the ellipse
@@ -55,6 +50,8 @@ interface VParticle {
 }
 interface Portal {
   el: HTMLElement;
+  color: string; // #rrggbb tint for the sparks (default mint, or the equipped upgrade colour)
+  sprite: HTMLCanvasElement | null; // the glow sprite for `color`, built on the first laid-out frame
   sparks: Spark[] | null; // ring, built on the first laid-out frame when the block height is known
   vortex: VParticle[] | null; // interior swirl, built alongside the ring
   lastTx: number; // the translateX currently applied — used to recover the block's natural position
@@ -98,20 +95,40 @@ function ringScale(g: number): number {
 
 let canvas: HTMLCanvasElement | null = null;
 let ctx: CanvasRenderingContext2D | null = null;
-let sprite: HTMLCanvasElement | null = null;
 let raf = 0;
 let dpr = 1;
 let resizeBound = false;
 const active: Portal[] = [];
+const spriteCache = new Map<string, HTMLCanvasElement>();
 
-function makeSprite(): HTMLCanvasElement {
+function hexToRgb(hex: string): [number, number, number] {
+  const h = hex.replace('#', '');
+  const s = h.length === 3 ? h[0]! + h[0]! + h[1]! + h[1]! + h[2]! + h[2]! : h;
+  const n = parseInt(s, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+/** A glow sprite tinted to `color`: white-hot core → a light tint of the colour → the colour, fading
+ *  out. Cached, since a viewer keeps one colour and every spark reuses the same sprite. */
+function spriteFor(color: string): HTMLCanvasElement {
+  const cached = spriteCache.get(color);
+  if (cached) return cached;
+  const [r, g, b] = hexToRgb(color);
+  // 60% toward white — the bright inner halo that keeps sparks reading as light, not flat colour.
+  const lr = Math.round(r + (255 - r) * 0.6);
+  const lg = Math.round(g + (255 - g) * 0.6);
+  const lb = Math.round(b + (255 - b) * 0.6);
   const s = document.createElement('canvas');
   s.width = s.height = 32;
   const c = s.getContext('2d')!;
-  const g = c.createRadialGradient(16, 16, 0, 16, 16, 16);
-  for (const [o, col] of MINT) g.addColorStop(o, col);
-  c.fillStyle = g;
+  const grad = c.createRadialGradient(16, 16, 0, 16, 16, 16);
+  grad.addColorStop(0, 'rgba(255,255,255,1)');
+  grad.addColorStop(0.4, `rgba(${lr},${lg},${lb},0.95)`);
+  grad.addColorStop(0.75, `rgba(${r},${g},${b},0.35)`);
+  grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
+  c.fillStyle = grad;
   c.fillRect(0, 0, 32, 32);
+  spriteCache.set(color, s);
   return s;
 }
 function resize(): void {
@@ -141,7 +158,6 @@ function ensureCanvas(mount: HTMLElement): void {
   st.zIndex = mount === document.body ? '-1' : '0';
   mount.appendChild(canvas);
   ctx = canvas.getContext('2d');
-  sprite = sprite ?? makeSprite();
   resize();
   if (!resizeBound) {
     window.addEventListener('resize', resize);
@@ -192,7 +208,7 @@ function remove(sw: Portal): void {
 
 function frame(now: number): void {
   raf = 0;
-  if (!ctx || !canvas || !sprite) return;
+  if (!ctx || !canvas) return;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   const cRect = canvas.getBoundingClientRect();
   for (let s = active.length - 1; s >= 0; s--) {
@@ -211,6 +227,7 @@ function frame(now: number): void {
       sw.start = now;
       sw.sparks = buildSparks(h);
       sw.vortex = buildVortex(h);
+      sw.sprite = spriteFor(sw.color);
     }
     const g = clamp((now - sw.start) / DUR, 0, 1);
 
@@ -262,7 +279,7 @@ function frame(now: number): void {
       const fade = clamp(ph / 0.12, 0, 1) * clamp((1 - ph) / 0.32, 0, 1);
       const size = (0.9 + 2.4 * r) * sc; // big near the rim, tiny deep in — the depth cue
       ctx.globalAlpha = clamp((0.2 + 0.7 * r) * fade * sc, 0, 1);
-      ctx.drawImage(sprite, x - size / 2, y - size / 2, size, size);
+      ctx.drawImage(sw.sprite!, x - size / 2, y - size / 2, size, size);
     }
     // 3) The full spinning ring of sparks + outward embers. The far half is behind the block and
     //    simply covered by it, which is what keeps the ellipse whole.
@@ -273,14 +290,14 @@ function frame(now: number): void {
       const fl = 0.55 + 0.45 * Math.sin(now * p.fs + p.fl);
       const size = (2.8 + 3.0 * fl) * sc; // bolder sparks so the ring reads over any stream, not just a dark one
       ctx.globalAlpha = clamp((0.5 + 0.5 * fl) * sc, 0, 1);
-      ctx.drawImage(sprite, bx - size / 2, by - size / 2, size, size);
+      ctx.drawImage(sw.sprite!, bx - size / 2, by - size / 2, size, size);
       const ee = (now * 0.0006 * p.es + p.ep) % 1;
       const er = ee * 40 * sc;
       const ex = bx + Math.cos(ang) * er;
       const ey = by + Math.sin(ang) * er;
       const es = (2.2 * (1 - ee) + 0.8) * sc;
       ctx.globalAlpha = clamp((1 - ee) * 0.7 * sc, 0, 1);
-      ctx.drawImage(sprite, ex - es / 2, ey - es / 2, es, es);
+      ctx.drawImage(sw.sprite!, ex - es / 2, ey - es / 2, es, es);
     }
 
     if (g >= 1) drop(sw, s);
@@ -289,7 +306,11 @@ function frame(now: number): void {
   if (active.length) raf = requestAnimationFrame(frame);
 }
 
-function play(el: HTMLElement, mount: HTMLElement = document.body): (() => void) | void {
+function play(
+  el: HTMLElement,
+  mount: HTMLElement = document.body,
+  color?: string,
+): (() => void) | void {
   if (typeof document === 'undefined') return; // server-safe: the module can be imported anywhere
   if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   ensureCanvas(mount);
@@ -299,6 +320,9 @@ function play(el: HTMLElement, mount: HTMLElement = document.body): (() => void)
   setClip(el, 'inset(0 0 0 100%)');
   const sw: Portal = {
     el,
+    // Only a full #rrggbb is honoured; anything else (absent, malformed) falls back to the brand mint.
+    color: color && /^#[0-9a-f]{6}$/i.test(color) ? color.toLowerCase() : DEFAULT_COLOR,
+    sprite: null,
     sparks: null,
     vortex: null,
     lastTx: 0,

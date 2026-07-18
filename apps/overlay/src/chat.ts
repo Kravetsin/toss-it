@@ -197,7 +197,7 @@ function renderMessage(msg: ChatOverlayMessage): void {
     mountCardEffect(bubble, msg.cosmetics.cardEffect, 'overlayChat', true);
   // The bubble is what arrives, so the bubble wears the entrance. Unequipped leaves the chat's own
   // unfold-from-the-star running (see .bubble:not([data-fx]) in chat.html).
-  applyEntrance(bubble, msg.cosmetics?.entrance, reduceMotion);
+  applyEntrance(bubble, msg.cosmetics?.entrance, reduceMotion, msg.cosmetics?.entranceColor);
   // Reply indicator: a small "↳ @name" line above the body. The parent @mention is stripped from
   // the fragments server-side, so an emote-only reply still gigantizes below this line.
   if (msg.reply) {
@@ -603,7 +603,7 @@ if (DEMO) {
       userId: 'u15',
       name: 'starfall',
       twitchColor: null,
-      cosmetics: { nickColor: '#8df0cc', entrance: 'entrance-portal' },
+      cosmetics: { nickColor: '#8df0cc', entrance: 'entrance-portal', entranceColor: '#ff8a3d' },
       isFounder: false,
       level: 7,
       fragments: [{ type: 'text', text: 'вышел из портала ✨' }],

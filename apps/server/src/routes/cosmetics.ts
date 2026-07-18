@@ -97,6 +97,7 @@ export function registerCosmeticsRoutes(app: FastifyInstance): void {
       nickEffect?: unknown;
       cardEffect?: unknown;
       entrance?: unknown;
+      entranceColor?: unknown;
     } | null;
   }>('/api/cosmetics/equip', async (req, reply) => {
     const user = await requireUser(req, reply);
@@ -109,6 +110,7 @@ export function registerCosmeticsRoutes(app: FastifyInstance): void {
     for (const [field, itemId] of [
       ['nickColor', 'nick-color'],
       ['nickColor2', 'nick-gradient'],
+      ['entranceColor', 'entrance-portal-color'],
     ] as const) {
       if (!(field in body)) continue;
       const raw = body[field];
@@ -155,7 +157,13 @@ export function registerCosmeticsRoutes(app: FastifyInstance): void {
       const raw = body[field];
       if (raw === null) {
         delete equipped[field];
-      } else if (typeof raw === 'string' && isCosmeticOfType(raw, type)) {
+      } else if (
+        typeof raw === 'string' &&
+        isCosmeticOfType(raw, type) &&
+        // An upgrade (e.g. 'entrance-portal-color') is bought but never equipped as its category — it
+        // renders nothing, so equipping it would blank the slot.
+        !COSMETICS.find((c) => c.id === raw)?.upgrade
+      ) {
         if (!(await owns(user.id, raw))) {
           return reply.code(403).send({ error: 'Эффект не куплен' });
         }
@@ -164,6 +172,10 @@ export function registerCosmeticsRoutes(app: FastifyInstance): void {
         return reply.code(400).send({ error: 'Некорректный эффект' });
       }
     }
+
+    // The portal colour is a ladder rung: it tints only the portal, so drop it whenever the equipped
+    // entrance isn't the portal (mirrors the nick-colour cleanup above).
+    if (equipped.entrance !== 'entrance-portal') delete equipped.entranceColor;
 
     await db.update(users).set({ equipped }).where(eq(users.id, user.id));
     return cosmeticState(user.id);

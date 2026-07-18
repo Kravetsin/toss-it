@@ -74,6 +74,7 @@ const MOCK_ME: MeResponse = {
       nickEffect: 'nick-pulse',
       cardEffect: 'card-levitation',
       entrance: 'entrance-portal',
+      entranceColor: '#ff8a3d',
     },
     // false so the "link Twitch" shop banner is visible in mock previews.
     hasTwitch: false,
@@ -642,6 +643,7 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
       'nickEffect',
       'cardEffect',
       'entrance',
+      'entranceColor',
     ] as const) {
       if (slot in body) next[slot] = body[slot] || undefined;
     }
@@ -649,6 +651,7 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
     // Mirror the server's ladder: an upgrade can't outlive the rung it stands on.
     if (!next.nickColor) next.nickColor2 = undefined;
     if (!next.nickColor2) next.nickFlow = undefined;
+    if (next.entrance !== 'entrance-portal') next.entranceColor = undefined;
     u.equipped = next;
     return cosmeticState();
   }

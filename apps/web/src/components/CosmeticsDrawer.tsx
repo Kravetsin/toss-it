@@ -26,6 +26,9 @@ const DEFAULT_COLOR_2 = '#ff9ed8';
 const NICK_COLOR_ID = 'nick-color';
 const NICK_GRADIENT_ID = 'nick-gradient';
 const NICK_FLOW_ID = 'nick-flow';
+const PORTAL_ID = 'entrance-portal';
+const PORTAL_COLOR_ID = 'entrance-portal-color';
+const DEFAULT_PORTAL_COLOR = '#8df0cc';
 
 /** The whole viewer economy, in catalog order (biggest first) — see DUST_POINTS. Donations are
  *  absent on purpose: they fire an overlay effect but pay no dust yet, and promising a payout we
@@ -45,7 +48,7 @@ type ShopCategory = 'nick' | 'card' | 'entrance' | 'voices';
  * entrance is an EVENT, so there is nothing to stand and look at, and the drawer already has a word
  * for that: the voice rows have a preview button. This is the same idea with a different sense.
  */
-function EntranceDemo({ id, label }: { id: string; label: string }) {
+function EntranceDemo({ id, label, color }: { id: string; label: string; color?: string }) {
   const { t } = useI18n();
   const ref = useRef<HTMLDivElement>(null);
   // The effect's canvas is hosted here, so this row must be its OWN stacking context.
@@ -63,7 +66,7 @@ function EntranceDemo({ id, label }: { id: string; label: string }) {
       // overlays the canvas goes behind everything, but the shop is opaque — so host it in THIS row,
       // which is an isolated stacking context (`isolate`) with the block lifted above it (z-[1]). That
       // guarantees the block sits in front of the portal regardless of the drawer's nesting.
-      const off = mod.play(el, rowRef.current ?? undefined);
+      const off = mod.play(el, rowRef.current ?? undefined, color);
       teardown.current = typeof off === 'function' ? off : null;
     } else {
       // CSS entrance: retrigger by removing and re-adding data-fx. Force a reflow between the two,
@@ -73,9 +76,9 @@ function EntranceDemo({ id, label }: { id: string; label: string }) {
       el.dataset.fx = mod.fx;
     }
   };
-  // Play once when the row appears, so the shop shows the effect rather than describing it. No unmount
-  // cleanup needed for the JS path: the engine drops any effect whose node has left the DOM.
-  useEffect(play, [id]);
+  // Play once when the row appears (and replay when the tint changes) so the shop shows the effect
+  // rather than describing it. No unmount cleanup for the JS path: the engine drops orphaned effects.
+  useEffect(play, [id, color]);
   return (
     <div ref={rowRef} className="relative isolate flex items-center gap-2">
       <div
@@ -134,7 +137,9 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   const flowItem = COSMETICS.find((c) => c.id === NICK_FLOW_ID)!;
   const nickEffects = COSMETICS.filter((c) => c.type === 'nick_effect');
   const cardEffects = COSMETICS.filter((c) => c.type === 'card_effect');
-  const entrances = COSMETICS.filter((c) => c.type === 'entrance');
+  // `upgrade` items (the portal colour) aren't equippable entrances — they're a rung, rendered below.
+  const entrances = COSMETICS.filter((c) => c.type === 'entrance' && !c.upgrade);
+  const portalColorItem = COSMETICS.find((c) => c.id === PORTAL_COLOR_ID)!;
   // Every specific voice is a purchase; the free path is the "auto" option in the compose form.
   const voiceItems = COSMETICS.filter((c) => c.type === 'tts_voice');
   const ownsColor = user?.ownedCosmetics.includes(NICK_COLOR_ID) ?? false;
@@ -146,6 +151,8 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   const equippedNickEffect = user?.equipped.nickEffect ?? null;
   const equippedCardEffect = user?.equipped.cardEffect ?? null;
   const equippedEntrance = user?.equipped.entrance ?? null;
+  const ownsPortalColor = user?.ownedCosmetics.includes(PORTAL_COLOR_ID) ?? false;
+  const equippedEntranceColor = user?.equipped.entranceColor ?? null;
   const balance = user?.stardust ?? 0;
   const previewName = user?.displayName ?? 'nickname';
 
@@ -156,6 +163,10 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   // before Apply, so this can't be derived from the saved state alone.
   const [gradient, setGradient] = useState(!!equippedColor2);
   const [flow, setFlow] = useState(equippedFlow);
+  const [portalColor, setPortalColor] = useState(equippedEntranceColor ?? DEFAULT_PORTAL_COLOR);
+  useEffect(() => {
+    if (equippedEntranceColor) setPortalColor(equippedEntranceColor);
+  }, [equippedEntranceColor]);
   // Reflect the saved colors when they change (e.g. after a refresh) without fighting active edits.
   useEffect(() => {
     if (equippedColor) setColor(equippedColor);
@@ -239,6 +250,17 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
       after: refresh,
       success: t('shop.equipped'),
     });
+  // Portal colour rung: a free #rrggbb tint saved to the entranceColor slot. Fires on every colour
+  // drag like the nick pickers, so it keeps an Apply button rather than committing on change.
+  const applyPortalColor = () =>
+    void act(() => equipCosmetic({ entranceColor: portalColor }), {
+      after: refresh,
+      success: t('shop.equipped'),
+    });
+  const removePortalColor = () =>
+    void act(() => equipCosmetic({ entranceColor: null }), { after: refresh });
+  const portalColorDirty =
+    portalColor.toLowerCase() !== (equippedEntranceColor ?? '').toLowerCase();
 
   // Glow demo uses the equipped nick color (or mint), without recoloring the demo text.
   const glowVar = { ['--nick-glow']: equippedColor || 'var(--color-accent)' } as CSSProperties;
@@ -300,7 +322,13 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
           {/* Flavor, not instruction: the row already animates the effect, so describing it would
               only restate what's on screen — and risk contradicting what the viewer sees. */}
           <p className="text-sm italic text-muted">{t(labels.desc)}</p>
-          {isEntrance && <EntranceDemo id={e.id} label={previewName} />}
+          {isEntrance && (
+            <EntranceDemo
+              id={e.id}
+              label={previewName}
+              color={e.id === PORTAL_ID ? (equippedEntranceColor ?? undefined) : undefined}
+            />
+          )}
           <div className="flex items-center gap-2">
             {!owned ? (
               <Button
@@ -633,9 +661,74 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
         {category === 'entrance' &&
           section(
             t('shop.entrances'),
-            entrances.map((e) =>
-              effectRow(e, equippedEntrance, (id) => equipEffect({ entrance: id })),
-            ),
+            <>
+              {entrances.map((e) =>
+                effectRow(e, equippedEntrance, (id) => equipEffect({ entrance: id })),
+              )}
+              {/* Portal colour rung: an upgrade shown only while the portal is equipped (it tints
+                  nothing else). Buy it, then a free colour picker feeds the entranceColor slot —
+                  mirrors the nick-colour → gradient → flow ladder above. */}
+              {equippedEntrance === PORTAL_ID && (
+                <div className="mt-1 flex flex-col gap-2 border-t border-border pt-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium text-text">{t('shop.entrancePortalColor')}</span>
+                    {ownsPortalColor ? (
+                      <Badge>{t('shop.owned')}</Badge>
+                    ) : (
+                      <span className="inline-flex shrink-0 items-center gap-1.5 label-mono text-accent">
+                        <DustMark size={14} />
+                        {portalColorItem.costDust}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm italic text-muted">{t('shop.entrancePortalColorDesc')}</p>
+                  {ownsPortalColor ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        type="color"
+                        value={portalColor}
+                        onChange={(e) => setPortalColor(e.target.value)}
+                        aria-label={t('shop.entrancePortalColor')}
+                        className="h-10 w-14 shrink-0 cursor-pointer rounded-[var(--radius-sm)] border border-border bg-surface"
+                      />
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={applyPortalColor}
+                        disabled={!portalColorDirty}
+                      >
+                        {t('shop.apply')}
+                      </Button>
+                      {equippedEntranceColor && (
+                        <Button variant="ghost" size="sm" onClick={removePortalColor}>
+                          {t('shop.remove')}
+                        </Button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="accent"
+                        size="sm"
+                        onClick={() =>
+                          buy(
+                            PORTAL_COLOR_ID,
+                            t('shop.entrancePortalColor'),
+                            portalColorItem.costDust,
+                          )
+                        }
+                        disabled={balance < portalColorItem.costDust}
+                      >
+                        {t('shop.buy')}
+                      </Button>
+                      {balance < portalColorItem.costDust && (
+                        <span className="label-mono text-faint">{t('shop.notEnough')}</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>,
             // Said once, in the only place a viewer decides to spend on this: the entrance lands on
             // the stream, and the chat pill only exists if the streamer runs that overlay. Selling
             // it without saying so would be a catch, and this product's whole pitch is no catches.

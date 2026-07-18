@@ -56,6 +56,8 @@ export interface NickMarks {
   cardEffect: string | null;
   /** How the alert arrives on stage; null = the stage's own pop-in. */
   entrance: string | null;
+  /** Portal entrance tint (#rrggbb); only set when `entrance` is the portal. */
+  entranceColor: string | null;
 }
 const NO_MARKS: NickMarks = {
   color: null,
@@ -64,6 +66,7 @@ const NO_MARKS: NickMarks = {
   nickEffect: null,
   cardEffect: null,
   entrance: null,
+  entranceColor: null,
 };
 
 /**
@@ -79,6 +82,9 @@ export function marksFromEquipped(equipped: EquippedCosmetics | null): NickMarks
     nickEffect: equipped?.nickEffect ?? null,
     cardEffect: equipped?.cardEffect ?? null,
     entrance: equipped?.entrance ?? null,
+    // The colour tints only the portal; a stray colour with another entrance renders nothing.
+    entranceColor:
+      equipped?.entrance === 'entrance-portal' ? (equipped.entranceColor ?? null) : null,
   };
 }
 
@@ -490,6 +496,7 @@ export class PlaybackManager {
       senderEffect: marks.nickEffect ?? undefined,
       senderCardEffect: marks.cardEffect ?? undefined,
       senderEntrance: marks.entrance ?? undefined,
+      senderEntranceColor: marks.entranceColor ?? undefined,
       senderLevel: senderLevel || undefined,
       senderBadges: marks.badges.length ? marks.badges : undefined,
       text: sub.text ?? undefined,

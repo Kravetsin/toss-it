@@ -37,6 +37,12 @@ export interface CosmeticItem {
    * an upgrade with no foundation is a dead purchase. Undefined = buyable on its own.
    */
   requires?: string;
+  /**
+   * An UPGRADE of another cosmetic, not an equippable item of its own category (e.g.
+   * 'entrance-portal-color' unlocks the portal's colour picker but is never equipped as an entrance).
+   * Owning it turns on a customisation slot instead. Excluded from the category's equip/demo lists.
+   */
+  upgrade?: boolean;
 }
 
 /** i18n keys for the shop; the actual strings live in apps/web i18n dictionaries (per convention). */
@@ -167,8 +173,11 @@ export interface EntranceModule extends BaseModule {
    * transparent OBS overlays (a behind-the-block layer composites over the stream). Inside an OPAQUE
    * surface — the shop preview drawer — pass that surface's stacking-context root so the layer is
    * visible there instead of hidden behind it.
+   *
+   * `color` is an optional #rrggbb tint (an equipped upgrade); the module recolours accordingly, and
+   * falls back to its own default when absent.
    */
-  play?: (el: HTMLElement, mount?: HTMLElement) => (() => void) | void;
+  play?: (el: HTMLElement, mount?: HTMLElement, color?: string) => (() => void) | void;
 }
 
 /**
@@ -217,6 +226,12 @@ export interface EquippedCosmetics {
    * an arrival honour it — the chat pill and the stage alert. Unset = the surface's own entrance.
    */
   entrance?: string | null;
+  /**
+   * Free-form #rrggbb tint for the Portal entrance's sparks; requires owning 'entrance-portal-color'
+   * AND having 'entrance-portal' equipped. Dropped server-side the moment the entrance isn't the
+   * portal (a colour with nothing to tint is a dead slot). Unset = the portal's default mint.
+   */
+  entranceColor?: string | null;
 }
 
 /** Returned by /api/cosmetics/buy and /equip — the user's post-mutation cosmetic state. */

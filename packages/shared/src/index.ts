@@ -118,6 +118,8 @@ export interface MediaPlayPayload {
   senderCardEffect?: string;
   /** Sender's equipped entrance id (e.g. 'entrance-glitch'); absent = the stage's own pop-in. */
   senderEntrance?: string;
+  /** Portal entrance tint (#rrggbb) from the 'entrance-portal-color' upgrade; absent = default mint. */
+  senderEntranceColor?: string;
   /** Sender's per-channel level 0–10 (0/absent = no rank) — rarity rail + Roman numeral. */
   senderLevel?: number;
   /** Sender's badge ids (e.g. 'founder', future cosmetic badges); absent if none. */

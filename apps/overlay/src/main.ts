@@ -177,7 +177,7 @@ function show(payload: MediaPlayPayload): void {
   alert.className = 'alert enter';
   // The alert IS the thing arriving, so it wears the entrance itself. Unequipped leaves the stage's
   // own pop-in running (see .alert.enter:not([data-fx]) in index.html).
-  applyEntrance(alert, payload.senderEntrance, reduceMotion);
+  applyEntrance(alert, payload.senderEntrance, reduceMotion, payload.senderEntranceColor);
 
   const media = createMediaElement(payload, url);
   // Music (uploaded audio + a YouTube *song* request) renders as one compact player card: media on
@@ -703,9 +703,14 @@ function handleMusicCommand(cmd: MusicCommand): void {
   switch (cmd.action) {
     case 'play':
       musicPlayer.playVideo();
+      // Re-assert state to the dashboard: a redundant play/pause (player already in that state)
+      // fires no onStateChange, so without this the dashboard's toggle stays stuck on the wrong
+      // icon and every press is a silent no-op. Reporting here always resyncs the remote.
+      reportMusicState(true);
       break;
     case 'pause':
       musicPlayer.pauseVideo();
+      reportMusicState(false);
       break;
     case 'next':
       if (musicMode === 'list') stepMusic(1);
@@ -1236,6 +1241,8 @@ function demoPayload(kind: MediaKind, st: DemoState): MediaPlayPayload {
     senderEffect: st.sender && st.nickGlow ? 'nick-glow' : undefined,
     senderCardEffect: st.cardEffect !== 'none' ? st.cardEffect : undefined,
     senderEntrance: st.entrance !== 'none' ? st.entrance : undefined,
+    // Demo a non-default portal tint so the colour upgrade is visible on the stage without a picker.
+    senderEntranceColor: st.entrance === 'entrance-portal' ? '#b57bff' : undefined,
     senderBadges: st.sender && st.founder ? ['founder'] : undefined,
     tts: false,
     ttsText: false,
@@ -1394,7 +1401,7 @@ function mountDemoPanel(): void {
   const entButtons = (
     [
       ['none', 'Обычное'],
-      ...COSMETICS.filter((c) => c.type === 'entrance').map(
+      ...COSMETICS.filter((c) => c.type === 'entrance' && !c.upgrade).map(
         (c) => [c.id, c.id.replace(/^entrance-/, '')] as [string, string],
       ),
     ] as [string, string][]

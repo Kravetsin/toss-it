@@ -23,6 +23,7 @@ import { cardRain } from './effects/card-rain';
 import { cardSnow } from './effects/card-snow';
 import { entranceGlitch } from './effects/entrance-glitch';
 import { entrancePortal } from './effects/entrance-portal';
+import { entrancePortalColor } from './effects/entrance-portal-color';
 import { ttsVoices } from './voices';
 
 /**
@@ -103,6 +104,7 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   cardLightning,
   entranceGlitch,
   entrancePortal,
+  entrancePortalColor,
   ...ttsVoices,
 ];
 
@@ -115,11 +117,12 @@ export function cosmeticModule(id: string): CosmeticModule | undefined {
 
 /** Catalog metadata — the back-compat `COSMETICS` array many callers still consume. */
 export const COSMETICS: CosmeticItem[] = COSMETIC_MODULES.map(
-  ({ id, type, costDust, requires }) => ({
+  ({ id, type, costDust, requires, upgrade }) => ({
     id,
     type,
     costDust,
     requires,
+    upgrade,
   }),
 );
 
@@ -174,15 +177,17 @@ export function applyEntrance(
   el: HTMLElement,
   id: string | null | undefined,
   reduceMotion: boolean,
+  color?: string | null,
 ): void {
   if (!id || reduceMotion) return;
   const m = BY_ID.get(id);
   if (m?.type !== 'entrance') return;
   // Set data-fx in every case: it's what makes the surface's `:not([data-fx])` default stand down.
   // For a CSS entrance that attribute IS the effect; a JS entrance additionally runs `play`, which
-  // owns the animation itself (the fire-and-forget teardown is fine — the effect self-cleans).
+  // owns the animation itself (the fire-and-forget teardown is fine — the effect self-cleans). The
+  // optional `color` (an equipped upgrade) is forwarded; mount stays the default body layer here.
   el.dataset.fx = m.fx;
-  m.play?.(el);
+  m.play?.(el, undefined, color ?? undefined);
 }
 
 /** TTS voice module by catalog id, or undefined for unknown / non-voice ids. */
