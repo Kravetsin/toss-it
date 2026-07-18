@@ -24,6 +24,8 @@ export async function createYoutubeSubmission(
     /** Caption (leftover text) or the video title. */
     title: string | undefined;
     autoApproved: boolean;
+    /** The broadcaster requested their own video — plays fine, but excluded from stats. */
+    isSelfSend?: boolean;
   },
 ): Promise<SubmissionRow> {
   const now = new Date();
@@ -46,7 +48,7 @@ export async function createYoutubeSubmission(
     youtubeStart: input.parsed.startSeconds,
     giphyId: null,
     ttsVoice: null,
-    isSelfSend: false,
+    isSelfSend: input.isSelfSend ?? false,
   };
   await db.insert(submissions).values(row);
   if (row.status === 'approved') {

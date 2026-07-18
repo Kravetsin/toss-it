@@ -237,6 +237,20 @@ export class ChannelPointsEventSub {
     }
   }
 
+  /**
+   * Re-establish a channel's socket so it re-subscribes to its CURRENT reward set. Needed after a
+   * reward is added/removed on an already-connected channel — subscribeChannel only runs on a fresh
+   * welcome, so sync() alone (which is per-channel) would never pick up the new reward.
+   */
+  restartChannel(channelId: string): void {
+    const existing = this.conns.get(channelId);
+    if (existing) {
+      existing.stop();
+      this.conns.delete(channelId);
+    }
+    this.sync(); // recreates the ChannelConn (still wanted) → fresh welcome subscribes all rewards
+  }
+
   /** Live state for the diagnostic endpoint. */
   debug(): { hasSession: boolean; subChannels: string[] } {
     return {

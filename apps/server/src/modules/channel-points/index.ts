@@ -269,6 +269,7 @@ export function createChannelPointsModule(deps: {
         parsed,
         title: (parsed.caption ?? meta.title ?? undefined)?.slice(0, 280),
         autoApproved,
+        isSelfSend: ev.redeemerId === conn.broadcasterId,
       },
     );
     log.info(
@@ -501,7 +502,9 @@ export function createChannelPointsModule(deps: {
       if (!rewardId) return { ok: false, error: 'create_failed' };
       await deleteRewardsByChannelKind(channelId, 'youtube');
       await insertReward({ rewardId, channelId, kind: 'youtube' });
-      eventsub.sync();
+      // restart (not sync): the channel is already connected, so the socket must re-subscribe to
+      // pick up this new reward — sync() alone would leave it unsubscribed.
+      eventsub.restartChannel(channelId);
       return { ok: true };
     },
     async removeYoutubeReward(channelId): Promise<void> {
@@ -513,7 +516,7 @@ export function createChannelPointsModule(deps: {
         ).catch(() => {});
       }
       await deleteRewardsByChannelKind(channelId, 'youtube');
-      eventsub.sync();
+      eventsub.restartChannel(channelId);
     },
     async status(
       channelId,
