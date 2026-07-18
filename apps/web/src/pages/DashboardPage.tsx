@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { removeBan, removeFromWhitelist, saveSettings } from '@/lib/api';
+import { removeBan, removeFromWhitelist, saveSettings, setContentVolume } from '@/lib/api';
 import { useMe } from '@/hooks/useMe';
 import { useApiAction } from '@/hooks/useApiAction';
 import { useI18n } from '@/i18n';
@@ -9,6 +9,7 @@ import { AuthButtons } from '@/components/AuthButtons';
 import { DashboardTopbar } from '@/features/dashboard/components/DashboardTopbar';
 import { TeamCard } from '@/features/home/components/TeamCard';
 import { NowPlayingCard } from '@/features/dashboard/components/NowPlayingCard';
+import { QueueCard } from '@/features/dashboard/components/QueueCard';
 import { TestSendModal } from '@/features/dashboard/components/TestSendModal';
 import { MusicPlayerCard } from '@/features/dashboard/components/MusicPlayerCard';
 import { ModerationQueue } from '@/features/dashboard/components/ModerationQueue';
@@ -36,6 +37,14 @@ export function DashboardPage() {
     channelId,
     refreshLists: data.refreshLists,
   });
+
+  // Now-playing content-volume slider (owner): persist + push live, and keep settings in sync.
+  const onContentVolume = (v: number) => {
+    if (!channelId) return;
+    void setContentVolume(channelId, v)
+      .then((r) => data.setSettings((s) => (s ? { ...s, volume: r.volume } : s)))
+      .catch(() => {});
+  };
 
   const bannedIds = new Set(data.banned.map((b) => b.userId));
 
@@ -99,10 +108,15 @@ export function DashboardPage() {
             progress={data.progress}
             live={data.progress !== null}
             isOwner={isOwner}
+            volume={isOwner ? data.settings?.volume : undefined}
+            onVolumeChange={isOwner ? onContentVolume : undefined}
             onSkip={actions.skip}
             onPauseResume={actions.pauseResume}
             onOpenTest={() => setTestOpen(true)}
           />
+          {channelId && data.queue.length > 0 && (
+            <QueueCard channelId={channelId} queue={data.queue} />
+          )}
           {isOwner && channelId && (
             <MusicPlayerCard
               channelId={channelId}
@@ -153,10 +167,15 @@ export function DashboardPage() {
               progress={data.progress}
               live={data.progress !== null}
               isOwner={isOwner}
+              volume={isOwner ? data.settings?.volume : undefined}
+              onVolumeChange={isOwner ? onContentVolume : undefined}
               onSkip={actions.skip}
               onPauseResume={actions.pauseResume}
               onOpenTest={() => setTestOpen(true)}
             />
+            {channelId && data.queue.length > 0 && (
+              <QueueCard channelId={channelId} queue={data.queue} />
+            )}
             {isOwner && channelId && (
               <MusicPlayerCard
                 channelId={channelId}

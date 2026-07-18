@@ -34,6 +34,7 @@ export function useChannelData(
 ) {
   const [pending, setPending] = useState<SubmissionSummary[]>([]);
   const [now, setNow] = useState<SubmissionSummary | null>(null);
+  const [queue, setQueue] = useState<SubmissionSummary[]>([]);
   const [progress, setProgress] = useState<PlaybackProgress | null>(null);
   const [settings, setSettings] = useState<ChannelSettings | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -98,6 +99,7 @@ export function useChannelData(
     if (!channelId) return;
     setPending([]);
     setNow(null);
+    setQueue([]);
     setProgress(null);
     setSettings(null);
     setAllowed([]);
@@ -108,7 +110,10 @@ export function useChannelData(
       .then(setPending)
       .catch(() => {});
     void getNowPlaying(channelId)
-      .then((r) => setNow(r.now))
+      .then((r) => {
+        setNow(r.now);
+        setQueue(r.queue);
+      })
       .catch(() => {});
     // Settings accessible to owner only.
     if (isOwner)
@@ -140,6 +145,7 @@ export function useChannelData(
         .then(setHistory)
         .catch(() => {});
     });
+    socket.on('playback:queue', (q: SubmissionSummary[]) => setQueue(q));
     socket.on('playback:progress', (p: PlaybackProgress) => setProgress(p));
     socket.on('music:state', (s: MusicState) => setMusicState(s));
     return () => {
@@ -151,6 +157,7 @@ export function useChannelData(
     pending,
     setPending,
     now,
+    queue,
     progress,
     settings,
     setSettings,

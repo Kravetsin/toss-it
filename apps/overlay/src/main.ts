@@ -134,6 +134,13 @@ socket.on('media:control', (action) => {
   if (action === 'pause') pausePlayback();
   else resumePlayback();
 });
+socket.on('media:volume', (volume) => {
+  if (!currentId) return;
+  const v = Math.min(100, Math.max(0, volume));
+  // video + audio (incl. the music widget's <audio>) go through mediaEl; YouTube via its player.
+  if (mediaEl) mediaEl.volume = v / 100;
+  else if (currentKind === 'youtube') ytPlayer?.setVolume(v);
+});
 socket.on('donation:fx', triggerDonationFx);
 // The server sends chat:config to both overlays; this one used to drop it on the floor. It takes
 // exactly one field: the rank numeral appears here too, so the switch that hides it must reach here
@@ -150,7 +157,7 @@ function show(payload: MediaPlayPayload): void {
   finishing = false;
   paused = false;
   currentKind = payload.kind;
-  duckMusic(true); // post on screen → dip the background music
+  suspendMusic(true); // post on screen → fade out, pause and hide the background music
 
   const { justify, align } = positionToFlex(payload.position);
   stage.style.justifyContent = justify;
@@ -164,65 +171,59 @@ function show(payload: MediaPlayPayload): void {
   // The alert IS the thing arriving, so it wears the entrance itself. Unequipped leaves the stage's
   // own pop-in running (see .alert.enter:not([data-fx]) in index.html).
   applyEntrance(alert, payload.senderEntrance, reduceMotion);
-  // Caption ABOVE media so it doesn't shift the player when it disappears.
-  if (payload.text && payload.kind !== 'text') {
-    const cap = document.createElement('div');
-    cap.className = 'caption';
-    cap.textContent = payload.text;
-    alert.appendChild(cap);
-  }
-  alert.appendChild(createMediaElement(payload, url));
-  if (payload.senderName) {
-    const banner = document.createElement('div');
-    banner.className = 'sender';
-    banner.innerHTML = `<span class="glyph">${GIFT_SVG}</span>`;
-    // Level: rarity rail on the banner's left edge + Roman numeral rank before the name (glow from 6).
-    const tier = payload.senderLevel ? levelTier(payload.senderLevel) : null;
-    if (tier) {
-      banner.classList.add('has-level');
-      if (tier.iris) banner.dataset.iris = ''; // Eternal (10): iridescent shimmer on rail + numeral.
-      banner.style.setProperty('--tier', tier.color);
-      banner.style.setProperty(
-        '--tier-glow',
-        payload.senderLevel! >= LEVEL_GLOW_FROM ? tier.color : 'transparent',
-      );
-      const ln = document.createElement('span');
-      ln.className = 'lvl-num';
-      ln.textContent = toRoman(payload.senderLevel!);
-      banner.appendChild(ln);
+
+  const media = createMediaElement(payload, url);
+  // Music (uploaded audio + a YouTube *song* request) renders as one compact player card: media on
+  // top, then a single meta row — sender + caption as a marquee — instead of three stacked cards.
+  // The two used to look unrelated (a thin bar widget vs a bare video box); this gives them one frame.
+  const isMusic =
+    payload.kind === 'audio' || (payload.kind === 'youtube' && !!payload.youtubeMusic);
+  if (isMusic) {
+    const player = document.createElement('div');
+    player.className = payload.kind === 'youtube' ? 'player is-youtube' : 'player';
+    const mediaBox = document.createElement('div');
+    mediaBox.className = 'player-media';
+    mediaBox.appendChild(media);
+    player.appendChild(mediaBox);
+    if (payload.senderName || payload.text) {
+      const meta = document.createElement('div');
+      meta.className = 'player-meta';
+      if (payload.senderName) decorateSender(meta, payload);
+      if (payload.text) {
+        if (payload.senderName) {
+          const sep = document.createElement('span');
+          sep.className = 'meta-sep';
+          sep.textContent = '·';
+          meta.appendChild(sep);
+        }
+        // Caption viewport clips; the inner track scrolls (ping-pong) only when it overflows.
+        const cap = document.createElement('span');
+        cap.className = 'player-caption';
+        const track = document.createElement('span');
+        track.className = 'marq-track';
+        track.textContent = payload.text;
+        cap.appendChild(track);
+        meta.appendChild(cap);
+        applyMarquee(cap, track);
+      }
+      player.appendChild(meta);
     }
-    // Wrap the name so an equipped nick color tints only the name, not the glyph/badges.
-    const nameEl = document.createElement('span');
-    nameEl.className = 'name';
-    nameEl.textContent = payload.senderName;
-    const nick = nickRender({
-      color: payload.senderColor ?? null,
-      color2: payload.senderColor2 ?? null,
-      flow: payload.senderNickFlow ?? false,
-      effect: payload.senderEffect ?? null,
-    });
-    // split(): nickRender composes several classes (paint + flow + effect) and classList.add throws
-    // on a string containing spaces.
-    if (nick.className) nameEl.classList.add(...nick.className.split(' '));
-    applyStyleMap(nameEl, nick.style);
-    banner.appendChild(nameEl);
-    // Badges (founder, future cosmetics) — mint glyphs after the name.
-    const badgeSvgs = (payload.senderBadges ?? [])
-      .map((id) => BADGE_SVG[id])
-      .filter((svg): svg is string => Boolean(svg));
-    if (badgeSvgs.length) {
-      const badges = document.createElement('span');
-      badges.className = 'badges';
-      badges.innerHTML = badgeSvgs.map((svg) => `<span class="badge">${svg}</span>`).join('');
-      banner.appendChild(badges);
+    alert.appendChild(player);
+  } else {
+    // Caption ABOVE media so it doesn't shift the player when it disappears.
+    if (payload.text && payload.kind !== 'text') {
+      const cap = document.createElement('div');
+      cap.className = 'caption';
+      cap.textContent = payload.text;
+      alert.appendChild(cap);
     }
-    // The effect belongs to the sender, so it plays on the sender's banner — not over the media,
-    // where it used to sit on top of the very thing the viewer sent. `compact`: the banner is a
-    // short row, like the chat pill. No teardown — the listeners live on the banner's own
-    // particles and go when the alert does.
-    if (payload.senderCardEffect)
-      mountCardEffect(banner, payload.senderCardEffect, 'overlayCard', true);
-    alert.appendChild(banner);
+    alert.appendChild(media);
+    if (payload.senderName) {
+      const banner = document.createElement('div');
+      banner.className = 'sender';
+      decorateSender(banner, payload);
+      alert.appendChild(banner);
+    }
   }
   stage.appendChild(alert);
 
@@ -244,6 +245,72 @@ function show(payload: MediaPlayPayload): void {
     timedStartTs = Date.now();
   }
   progressTimer = window.setInterval(emitProgress, 350);
+}
+
+/**
+ * Fill a sender container — the `.sender` banner (image/video) or the music player's `.player-meta`
+ * footer — with the gift glyph, level rail + numeral, the cosmetic-tinted name, and badges. Shared
+ * so both surfaces stay identical. The card effect belongs to the sender, so it plays here, on the
+ * short name row, not over the media the viewer sent.
+ */
+function decorateSender(el: HTMLElement, payload: MediaPlayPayload): void {
+  const glyph = document.createElement('span');
+  glyph.className = 'glyph';
+  glyph.innerHTML = GIFT_SVG;
+  el.appendChild(glyph);
+  // Level: rarity rail on the left edge + Roman numeral rank before the name (glow from lvl 6).
+  const tier = payload.senderLevel ? levelTier(payload.senderLevel) : null;
+  if (tier) {
+    el.classList.add('has-level');
+    if (tier.iris) el.dataset.iris = ''; // Eternal (10): iridescent shimmer on rail + numeral.
+    el.style.setProperty('--tier', tier.color);
+    el.style.setProperty(
+      '--tier-glow',
+      payload.senderLevel! >= LEVEL_GLOW_FROM ? tier.color : 'transparent',
+    );
+    const ln = document.createElement('span');
+    ln.className = 'lvl-num';
+    ln.textContent = toRoman(payload.senderLevel!);
+    el.appendChild(ln);
+  }
+  // Wrap the name so an equipped nick color tints only the name, not the glyph/badges.
+  const nameEl = document.createElement('span');
+  nameEl.className = 'name';
+  nameEl.textContent = payload.senderName ?? '';
+  const nick = nickRender({
+    color: payload.senderColor ?? null,
+    color2: payload.senderColor2 ?? null,
+    flow: payload.senderNickFlow ?? false,
+    effect: payload.senderEffect ?? null,
+  });
+  // split(): nickRender composes several classes (paint + flow + effect) and classList.add throws
+  // on a string containing spaces.
+  if (nick.className) nameEl.classList.add(...nick.className.split(' '));
+  applyStyleMap(nameEl, nick.style);
+  el.appendChild(nameEl);
+  // Badges (founder, future cosmetics) — mint glyphs after the name.
+  const badgeSvgs = (payload.senderBadges ?? [])
+    .map((id) => BADGE_SVG[id])
+    .filter((svg): svg is string => Boolean(svg));
+  if (badgeSvgs.length) {
+    const badges = document.createElement('span');
+    badges.className = 'badges';
+    badges.innerHTML = badgeSvgs.map((svg) => `<span class="badge">${svg}</span>`).join('');
+    el.appendChild(badges);
+  }
+  if (payload.senderCardEffect) mountCardEffect(el, payload.senderCardEffect, 'overlayCard', true);
+}
+
+/** Scroll long caption text horizontally (ping-pong) inside the player meta row, only when it
+ *  actually overflows — short captions stay put. Measured after layout via rAF. */
+function applyMarquee(viewport: HTMLElement, track: HTMLElement): void {
+  requestAnimationFrame(() => {
+    const overflow = track.scrollWidth - viewport.clientWidth;
+    if (overflow <= 4 || reduceMotion) return;
+    track.style.setProperty('--marq', `${overflow}px`);
+    const dur = Math.max(5, overflow / 40); // ~40px/s
+    track.style.animation = `overlay-marquee ${dur.toFixed(1)}s linear 1s infinite alternate`;
+  });
 }
 
 /** Report the current show's position to the server (relayed to the dashboard). */
@@ -402,12 +469,21 @@ function createMusicWidget(payload: MediaPlayPayload, url: string, volume: numbe
 function createYoutubePlayer(payload: MediaPlayPayload): HTMLElement {
   const container = document.createElement('div');
   container.className = 'youtube';
-  // Explicit 16:9 WITHOUT css aspect-ratio: old OBS CEF builds don't support it and
-  // collapse the container to height 0. calc/min work everywhere. Music = capped width.
-  const widthExpr = payload.youtubeMusic ? `min(${payload.size}vw, 460px)` : `${payload.size}vw`;
-  container.style.width = widthExpr;
-  container.style.height = `calc(${widthExpr} * 9 / 16)`;
-  container.style.maxWidth = '100%';
+  if (payload.youtubeMusic) {
+    // A song request lives inside the unified `.player` card: fill its 16:9 ratio box (which handles
+    // the sizing the old-OBS-safe way, see .player.is-youtube .player-media in alert.css).
+    container.style.position = 'absolute';
+    container.style.inset = '0';
+    container.style.width = '100%';
+    container.style.height = '100%';
+  } else {
+    // Explicit 16:9 WITHOUT css aspect-ratio: old OBS CEF builds don't support it and
+    // collapse the container to height 0. calc/min work everywhere.
+    const widthExpr = `${payload.size}vw`;
+    container.style.width = widthExpr;
+    container.style.height = `calc(${widthExpr} * 9 / 16)`;
+    container.style.maxWidth = '100%';
+  }
 
   const mount = document.createElement('div');
   container.appendChild(mount);
@@ -472,14 +548,15 @@ function reportYoutubeDuration(submissionId: string, player: YTPlayer): void {
 }
 
 // ── Background music ────────────────────────────────────────────────────────
-// A second YouTube player plays music between posts. It ducks (not pauses) while a post is on
-// screen, and can be hidden in OBS (audio-only) via settings. Config arrives via 'music:config'.
+// A second YouTube player plays music between posts. While ANY post is on screen it fades to
+// silence, pauses, and hides itself (the visible pause also tells the streamer a post arrived, even
+// with no sound alert); it fades back up when the screen clears. Can be hidden in OBS (audio-only)
+// via settings. Config arrives via 'music:config'.
 //
 // The owned track list ("list" mode) keeps the queue HERE, not inside the YT player: the player
 // only ever loads the current video, and next/prev/shuffle/auto-advance run off musicIds. That
 // way list edits (reorder/add/delete) just swap the array and NEVER touch playback — no reload,
 // no micro-freeze. The playlistId fallback ("playlist" mode) still uses YT's native playlist.
-const MUSIC_DUCK = 0.75; // during a post, drop to 75% of the set volume
 let musicPlayer: YTPlayer | null = null;
 // The container div; the mount we pass to YT.Player gets REPLACED by an iframe (inside this wrap),
 // so we keep the wrap reference rather than reaching through the now-detached mount.
@@ -492,7 +569,9 @@ let musicPlaylistId: string | null = null; // fallback source (playlist mode)
 let musicShuffle = false;
 let musicVolume = 50;
 let musicHidden = false;
-let musicDucked = false;
+let musicSuspended = false; // a post is on screen → music faded out + paused + hidden
+let musicAppliedVol = 0; // last volume we pushed to the player (YT has no getVolume in our typings)
+let musicFadeTimer: number | undefined; // in-flight volume fade, if any
 let musicEpoch = 0; // bumped on teardown to invalidate in-flight async player creation
 
 function currentMusicVideoId(): string | null {
@@ -531,15 +610,84 @@ function stepMusic(dir: 1 | -1): void {
   playMusicId(next);
 }
 
+/** Target volume: the set level, or 0 while a post is on screen. */
 function effectiveMusicVolume(): number {
-  return Math.round(musicVolume * (musicDucked ? MUSIC_DUCK : 1));
+  return musicSuspended ? 0 : musicVolume;
 }
 
-/** Dip/restore the background music around a post. No-op when there's no player. */
-function duckMusic(ducked: boolean): void {
-  if (musicDucked === ducked) return;
-  musicDucked = ducked;
-  musicPlayer?.setVolume(effectiveMusicVolume());
+/** Push a volume to the player and remember it (so fades know where they start). The try/catch
+ *  guards a player whose API methods aren't attached yet (before onReady). */
+function setMusicVol(v: number): void {
+  musicAppliedVol = v;
+  try {
+    musicPlayer?.setVolume(v);
+  } catch {
+    /* player not ready */
+  }
+}
+
+/** Ramp the music volume from its current value to `target` over `ms`, then run `onDone`. */
+function fadeMusic(target: number, ms: number, onDone?: () => void): void {
+  if (musicFadeTimer !== undefined) {
+    window.clearInterval(musicFadeTimer);
+    musicFadeTimer = undefined;
+  }
+  const from = musicAppliedVol;
+  if (!musicPlayer || from === target) {
+    if (musicPlayer) setMusicVol(target);
+    onDone?.();
+    return;
+  }
+  const steps = Math.max(1, Math.round(ms / 50));
+  let i = 0;
+  musicFadeTimer = window.setInterval(() => {
+    i += 1;
+    setMusicVol(Math.round(from + (target - from) * (i / steps)));
+    if (i >= steps) {
+      window.clearInterval(musicFadeTimer);
+      musicFadeTimer = undefined;
+      onDone?.();
+    }
+  }, 50);
+}
+
+const MUSIC_FADE_MS = 1000;
+let musicHideTimer: number | undefined;
+
+/** Around a post: fade the music out (≈1s) then pause + hide; on the way back, reveal + resume with
+ *  a fade-up. Fades instead of hard-cutting so it doesn't feel abrupt. Visibility is driven on a
+ *  timer, NOT off the fade's completion, so it never strands (a post can arrive before the player's
+ *  API is ready). Player transport calls are best-effort (guarded). */
+function suspendMusic(suspend: boolean): void {
+  if (musicSuspended === suspend) return;
+  musicSuspended = suspend;
+  if (musicHideTimer !== undefined) {
+    window.clearTimeout(musicHideTimer);
+    musicHideTimer = undefined;
+  }
+  if (suspend) {
+    fadeMusic(0, MUSIC_FADE_MS);
+    // Pause + hide once faded. Re-check musicSuspended: the screen may have cleared mid-fade.
+    musicHideTimer = window.setTimeout(() => {
+      musicHideTimer = undefined;
+      if (!musicSuspended) return;
+      try {
+        musicPlayer?.pauseVideo();
+      } catch {
+        /* player not ready */
+      }
+      updateMusicVisibility();
+    }, MUSIC_FADE_MS);
+  } else {
+    updateMusicVisibility(); // reveal before the fade-up (the OBS hide setting still wins)
+    try {
+      musicPlayer?.playVideo();
+    } catch {
+      /* player not ready */
+    }
+    setMusicVol(0);
+    fadeMusic(musicVolume, MUSIC_FADE_MS);
+  }
 }
 
 /** Transport commands from the dashboard. playAt matches by id so it survives shuffle. */
@@ -600,7 +748,7 @@ function applyMusicConfig(cfg: MusicConfig): void {
   musicVolume = Math.min(100, Math.max(0, Math.round(cfg.volume)));
   musicHidden = !!cfg.hidden;
   musicShuffle = !!cfg.shuffle;
-  musicPlayer?.setVolume(effectiveMusicVolume());
+  if (!musicFadeTimer) setMusicVol(effectiveMusicVolume()); // don't fight an in-flight fade
   const mode = cfg.trackIds.length > 0 ? 'list' : cfg.playlistId ? 'playlist' : null;
 
   if (mode === 'list') {
@@ -645,14 +793,26 @@ function applyMusicConfig(cfg: MusicConfig): void {
  *  (display:none would stop playback). Visible = small corner player. */
 function updateMusicVisibility(): void {
   if (!musicWrap) return;
-  musicWrap.style.cssText = musicHidden
-    ? 'position:fixed;left:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;overflow:hidden;z-index:0'
-    : 'position:fixed;left:12px;bottom:12px;width:240px;height:135px;border-radius:8px;overflow:hidden;box-shadow:0 8px 24px -10px rgba(0,0,0,.6);pointer-events:none;z-index:5';
+  // Hidden by the OBS setting, or while suspended (a post is up) — clipped to 1px but still rendered
+  // so audio isn't killed (display:none would stop playback). Otherwise a small corner player.
+  musicWrap.style.cssText =
+    musicHidden || musicSuspended
+      ? 'position:fixed;left:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;overflow:hidden;z-index:0'
+      : 'position:fixed;left:12px;bottom:12px;width:240px;height:135px;border-radius:8px;overflow:hidden;box-shadow:0 8px 24px -10px rgba(0,0,0,.6);pointer-events:none;z-index:5';
 }
 
 function teardownMusic(): void {
   musicEpoch++;
   setMusicTicker(false);
+  if (musicFadeTimer !== undefined) {
+    window.clearInterval(musicFadeTimer);
+    musicFadeTimer = undefined;
+  }
+  if (musicHideTimer !== undefined) {
+    window.clearTimeout(musicHideTimer);
+    musicHideTimer = undefined;
+  }
+  musicAppliedVol = 0;
   musicPlayer?.destroy();
   musicPlayer = null;
   musicWrap?.remove();
@@ -709,8 +869,9 @@ async function createMusicPlayer(init: MusicPlayerInit): Promise<void> {
     events: {
       onReady: (e) => {
         if (init.mode === 'playlist') e.target.setShuffle(musicShuffle);
-        e.target.setVolume(effectiveMusicVolume());
+        setMusicVol(effectiveMusicVolume());
         e.target.playVideo();
+        if (musicSuspended) e.target.pauseVideo(); // recreated while a post is on screen
         const f = e.target.getIframe();
         f.style.width = '100%';
         f.style.height = '100%';
@@ -848,7 +1009,7 @@ function finish(): void {
     exitTimer = undefined;
     stage.replaceChildren();
     currentId = null;
-    duckMusic(false); // screen idle → restore the background music
+    suspendMusic(false); // screen idle → reveal and fade the background music back up
     if (id) socket.emit('playback:done', id);
   }, 300);
 }
@@ -1080,7 +1241,10 @@ function demoPayload(kind: MediaKind, st: DemoState): MediaPlayPayload {
     return { ...base, text: 'Тестовое сообщение ✦ как текст смотрится на стриме?' };
   if (kind === 'image') return { ...base, url: SAMPLE_IMG, text: cap };
   if (kind === 'video') return { ...base, url: SAMPLE_VIDEO, text: cap };
-  if (kind === 'youtube') return { ...base, youtubeId: SAMPLE_YT, durationMs: 0, text: cap };
+  // Demo the YouTube song request (youtubeMusic) — the unified compact player card, our common
+  // channel-points case. A plain video request (youtubeMusic off) uses the full-size path instead.
+  if (kind === 'youtube')
+    return { ...base, youtubeId: SAMPLE_YT, durationMs: 0, text: cap, youtubeMusic: true };
   return { ...base, url: sampleAudio(), durationMs: 12_000, text: cap };
 }
 
@@ -1280,7 +1444,7 @@ if (DEMO) {
     shuffle: musicShuffle,
     volume: musicVolume,
     effective: effectiveMusicVolume(),
-    ducked: musicDucked,
+    suspended: musicSuspended,
     hidden: musicHidden,
     hasPlayer: !!musicPlayer,
     currentId: currentMusicVideoId(),

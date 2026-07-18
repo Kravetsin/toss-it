@@ -132,8 +132,21 @@ export function removeBan(channelId: string, userId: string): Promise<unknown> {
   );
 }
 
-export function getNowPlaying(channelId: string): Promise<{ now: SubmissionSummary | null }> {
-  return fetch(`${dash(channelId)}/now`).then((r) => json<{ now: SubmissionSummary | null }>(r));
+export function getNowPlaying(
+  channelId: string,
+): Promise<{ now: SubmissionSummary | null; queue: SubmissionSummary[] }> {
+  return fetch(`${dash(channelId)}/now`).then((r) =>
+    json<{ now: SubmissionSummary | null; queue: SubmissionSummary[] }>(r),
+  );
+}
+
+/** Reorder the waiting queue; `ids` is the desired next-first order. */
+export function reorderQueue(channelId: string, ids: string[]): Promise<{ ok: boolean }> {
+  return fetch(`${dash(channelId)}/queue/reorder`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ ids }),
+  }).then((r) => json<{ ok: boolean }>(r));
 }
 
 export function pauseResumePlayback(
@@ -145,6 +158,15 @@ export function pauseResumePlayback(
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ action }),
   }).then((r) => json<{ ok: boolean }>(r));
+}
+
+/** Set the live content volume (0-100) of the current show; persists + pushes to the overlay. */
+export function setContentVolume(channelId: string, volume: number): Promise<{ volume: number }> {
+  return fetch(`${dash(channelId)}/volume`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ volume }),
+  }).then((r) => json<{ volume: number }>(r));
 }
 
 export function skipCurrent(channelId: string): Promise<{ skipped: boolean }> {

@@ -96,24 +96,14 @@
 /* Nick effects (.nick-glow on the name) and card effects (.card-fx*) are injected at boot
    from the shared cosmetics registry (injectCosmeticsStyles) — single source with the web. */
 
-/* Музыкальный плеер: пиксельная карточка с эквалайзером, прогрессом и временем.
-   Ширина масштабируется настройкой размера (--overlay-size). */
+/* Uploaded-audio widget: filling progress bar + mm:ss. Frameless — it sits inside .player, which
+   carries the card chrome (background, border, shadow). */
 .music {
   box-sizing: border-box;
-  /* Компактный фикс. размер: плеер живёт в уголке как индикатор «когда закончится
-     музыка», а не как большое медиа — поэтому НЕ зависит от размера медиа (--overlay-size). */
-  width: min(320px, 80vw);
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 14px 16px;
-  background: rgba(13, 17, 17, 0.78);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(141, 240, 204, 0.2);
-  box-shadow:
-    inset 0 1px 0 0 rgba(141, 240, 204, 0.5),
-    0 14px 40px -12px rgba(0, 0, 0, 0.65);
 }
 .music .progress {
   height: 8px;
@@ -132,6 +122,128 @@
   font-family: 'JetBrains Mono', monospace;
   font-size: 14px;
   color: #b9c2c0;
+}
+
+/* Unified music player: uploaded audio and a YouTube song request share this one glass card so they
+   read as the same surface — media on top, a single sender+caption row below. Fixed compact width
+   (a corner "when does the music end" indicator, not big media), same for both. */
+.player {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(360px, 82vw);
+  padding: 14px 16px;
+  background: rgba(13, 17, 17, 0.78);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(141, 240, 204, 0.2);
+  border-radius: 6px;
+  box-shadow:
+    inset 0 1px 0 0 rgba(141, 240, 204, 0.5),
+    0 14px 40px -12px rgba(0, 0, 0, 0.65);
+}
+.player-media {
+  display: flex;
+}
+/* YouTube song: a 16:9 ratio box (padding-top trick — old-OBS-safe, no aspect-ratio) that the
+   absolutely-positioned iframe fills. */
+.player.is-youtube .player-media {
+  position: relative;
+  width: 100%;
+  padding-top: 56.25%;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #000;
+}
+
+/* One-line meta row: gift glyph, level rail + numeral, name, badges, then the caption marquee. */
+.player-meta {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  font-size: 20px;
+  color: #ededec;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+}
+.player-meta .glyph,
+.player-meta .badges,
+.player-meta .badge,
+.player-meta .lvl-num,
+.player-meta .meta-sep {
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+.player-meta .glyph {
+  color: #8df0cc;
+  opacity: 0.85;
+}
+.player-meta .badges {
+  gap: 6px;
+}
+.player-meta .badge {
+  color: #8df0cc;
+}
+.player-meta .meta-sep {
+  color: #7a8180;
+}
+/* The name keeps its full width; the caption yields first (shrink 100 vs the name's 1), so a long
+   caption scrolls in what's left rather than squeezing the nick. Ellipsis is only a last resort for
+   an extreme nick. */
+.player-meta .name {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Card-effect particles (injected .card-fx) have no z-index; keep content above them. */
+.player-meta > :not(.card-fx) {
+  position: relative;
+  z-index: 1;
+}
+.player-meta.has-level {
+  padding-left: 10px;
+}
+.player-meta.has-level::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--tier);
+  box-shadow: 0 0 7px var(--tier-glow, transparent);
+  z-index: 1;
+}
+/* Caption viewport: clips the scrolling track; takes the row's remaining width and yields first
+   (shrink 100) so the nick stays intact. */
+.player-caption {
+  flex: 1 100 0%;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 400;
+  font-size: 18px;
+  color: #b9c2c0;
+}
+.player-caption .marq-track {
+  display: inline-block;
+  white-space: nowrap;
+  will-change: transform;
+}
+@keyframes overlay-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(-1 * var(--marq, 0px)));
+  }
 }
 
 /* Текст-онли: карточка-сообщение. Ширина — от настройки размера (--overlay-size). */

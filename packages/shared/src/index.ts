@@ -303,6 +303,8 @@ export interface ServerToOverlayEvents {
   'media:skip': (submissionId: string) => void;
   /** Pause/resume the current show (dashboard → overlay). Skip is media:skip. */
   'media:control': (action: 'pause' | 'resume') => void;
+  /** Live content volume (0-100) applied to the current show — the dashboard's now-playing slider. */
+  'media:volume': (volume: number) => void;
   /** Channel donation → fullscreen burst FX over media display. */
   'donation:fx': (fx: DonationFx) => void;
   /** Chat display config, sent on connect and whenever settings change. */
@@ -383,6 +385,8 @@ export interface ServerToDashboardEvents {
   'moderation:resolved': (submissionId: string) => void;
   'playback:started': (submission: SubmissionSummary) => void;
   'playback:ended': (submissionId: string) => void;
+  /** The waiting queue changed (item added/played/reordered) — full ordered list, next-first. */
+  'playback:queue': (queue: SubmissionSummary[]) => void;
   /** Live progress of the current show (relayed from the overlay), for the now-playing controls. */
   'playback:progress': (p: PlaybackProgress) => void;
   /** Live background-music player state (relayed from the overlay). */

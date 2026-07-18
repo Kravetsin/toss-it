@@ -36,6 +36,8 @@ export interface ChatMessageEvent {
   fragments: ChatFragment[];
   /** Set when the message is a reply; carries the parent author's display name. */
   reply?: { name: string };
+  /** Set when the message is the input to a channel-points reward (its custom reward id). */
+  rewardId?: string;
 }
 
 export interface EventSubDeps {
@@ -82,6 +84,8 @@ interface EventSubMessage {
       badges?: { set_id?: string; id?: string }[];
       message?: { text?: string; fragments?: EventFragment[] };
       reply?: EventReply | null;
+      /** Set when the message is the text input of a channel-points reward redemption. */
+      channel_points_custom_reward_id?: string | null;
     };
   };
 }
@@ -101,7 +105,8 @@ function toBadges(raw: { set_id?: string; id?: string }[] | undefined): EventBad
 function toFragments(raw: EventFragment[] | undefined, fallbackText: string): ChatFragment[] {
   if (!raw || raw.length === 0) return fallbackText ? [{ type: 'text', text: fallbackText }] : [];
   return raw.map((f) => {
-    if (f.type === 'emote' && f.emote?.id) return { type: 'emote', id: f.emote.id, text: f.text ?? '' };
+    if (f.type === 'emote' && f.emote?.id)
+      return { type: 'emote', id: f.emote.id, text: f.text ?? '' };
     if (f.type === 'mention') return { type: 'mention', text: f.text ?? '' };
     return { type: 'text', text: f.text ?? '' };
   });
@@ -311,6 +316,7 @@ export class EventSubClient {
           badges: toBadges(ev.badges),
           fragments: parentName ? stripReplyPrefix(fragments) : fragments,
           reply: parentName ? { name: parentName } : undefined,
+          rewardId: ev.channel_points_custom_reward_id ?? undefined,
         });
       } else if (subType === 'channel.chat.message_delete' && ev.message_id) {
         this.deps.onChatDelete(bid, ev.message_id);

@@ -23,6 +23,8 @@ export async function createYoutubeSubmission(
     parsed: ParsedYoutube;
     /** Caption (leftover text) or the video title. */
     title: string | undefined;
+    /** Real video length (ms) if known from the API — for display; 0 = unknown (shows as ∞). */
+    durationMs?: number;
     autoApproved: boolean;
     /** The broadcaster requested their own video — plays fine, but excluded from stats. */
     isSelfSend?: boolean;
@@ -39,8 +41,10 @@ export async function createYoutubeSubmission(
     text: input.title ?? null,
     mime: input.parsed.isMusic ? 'audio/youtube' : 'video/youtube',
     kind: 'youtube',
-    // Length is unknown ahead of play (overlay reports the real value); it plays to the end.
-    durationMs: 0,
+    // Stored for display (queue/moderation/history/now-playing) so cards show the real length, not
+    // ∞. The overlay still gets 0 (see buildPayload) and finishes on the player's 'ended' event —
+    // a hard cap on the API length would cut early when buffering/ads push wall-clock past it.
+    durationMs: input.durationMs ?? 0,
     status: input.autoApproved ? 'approved' : 'pending',
     createdAt: now,
     updatedAt: now,

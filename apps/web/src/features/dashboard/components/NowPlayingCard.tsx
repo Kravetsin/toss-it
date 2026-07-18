@@ -5,9 +5,11 @@ import {
   toRoman,
   type SubmissionSummary,
 } from '@tmw/shared';
+import { useEffect, useRef, useState } from 'react';
 import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
 import { Button, Card } from '@/ui';
+import { VolumeSlider, volumeIcon } from '@/ui/media/VolumeSlider';
 import { PlatformIcon } from '@/components/UserMarks';
 import { CardEffect } from '@/components/CardEffect';
 import { nickProps } from '@/lib/nick';
@@ -24,6 +26,8 @@ export function NowPlayingCard({
   progress,
   live,
   isOwner,
+  volume,
+  onVolumeChange,
   onSkip,
   onPauseResume,
   onOpenTest,
@@ -34,11 +38,30 @@ export function NowPlayingCard({
   /** Whether an overlay is connected — controls are disabled without one. */
   live: boolean;
   isOwner: boolean;
+  /** Content volume 0-100 (channel setting); the slider shows only when this + onVolumeChange are set. */
+  volume?: number;
+  /** Commit a new content volume (persist + push live). Debounced by the card. */
+  onVolumeChange?: (v: number) => void;
   onSkip: () => void;
   onPauseResume: (paused: boolean) => void;
   onOpenTest: () => void;
 }) {
   const { t } = useI18n();
+
+  // Content volume: track locally while dragging; commit (persist + live push) debounced, so it
+  // applies once the streamer settles — same feel as the background-music slider.
+  const showVolume = volume != null && !!onVolumeChange;
+  const [vol, setVol] = useState(volume ?? 100);
+  const volTimer = useRef(0);
+  useEffect(() => {
+    if (volume != null) setVol(volume);
+  }, [volume]);
+  useEffect(() => () => window.clearTimeout(volTimer.current), []);
+  const changeVolume = (v: number) => {
+    setVol(v);
+    window.clearTimeout(volTimer.current);
+    volTimer.current = window.setTimeout(() => onVolumeChange?.(v), 300);
+  };
   const tier = now?.senderLevel ? levelTier(now.senderLevel) : null;
   const levelGlow = !!tier && (now?.senderLevel ?? 0) >= LEVEL_GLOW_FROM;
   const nick = nickProps({
@@ -126,6 +149,22 @@ export function NowPlayingCard({
               {clock(progress?.positionMs ?? 0)}
               {progress?.durationMs ? ` / ${clock(progress.durationMs)}` : ''}
             </span>
+            {showVolume && (
+              <div className="flex shrink-0 items-center gap-1.5">
+                <Icon
+                  name={volumeIcon(false, vol / 100)}
+                  size={14}
+                  className="text-muted"
+                  aria-hidden
+                />
+                <VolumeSlider
+                  volume={vol / 100}
+                  muted={false}
+                  onChange={(v) => changeVolume(Math.round(v * 100))}
+                  label={t('dash.contentVolume')}
+                />
+              </div>
+            )}
           </div>
         )}
 

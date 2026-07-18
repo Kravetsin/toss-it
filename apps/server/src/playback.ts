@@ -187,7 +187,42 @@ export class PlaybackManager {
     st.queue.push(sub);
     const position = st.queue.length + (st.current ? 1 : 0);
     void this.tryNext(sub.channelId);
+    void this.emitQueue(sub.channelId);
     return position;
+  }
+
+  /** Waiting items (not the current show), in play order, as dashboard summaries. */
+  async queueSummaries(channelId: string): Promise<SubmissionSummary[]> {
+    return Promise.all(this.state(channelId).queue.map((s) => toLiveSummary(s)));
+  }
+
+  /** Push the current waiting queue to the channel's dashboards. */
+  private async emitQueue(channelId: string): Promise<void> {
+    const queue = await this.queueSummaries(channelId);
+    this.io.to(dashboardRoomOf(channelId)).emit('playback:queue', queue);
+  }
+
+  /**
+   * Reorder the waiting queue to match `orderedIds` (the current show is untouched). Ids not in the
+   * queue are ignored; queued items missing from the list keep their order at the tail (e.g. an item
+   * enqueued mid-reorder). No-op with fewer than two waiting items.
+   */
+  reorderQueue(channelId: string, orderedIds: string[]): boolean {
+    const st = this.state(channelId);
+    if (st.queue.length < 2) return false;
+    const byId = new Map(st.queue.map((s) => [s.id, s]));
+    const next: SubmissionRow[] = [];
+    for (const id of orderedIds) {
+      const s = byId.get(id);
+      if (s) {
+        next.push(s);
+        byId.delete(id);
+      }
+    }
+    for (const s of st.queue) if (byId.has(s.id)) next.push(s);
+    st.queue = next;
+    void this.emitQueue(channelId);
+    return true;
   }
 
   /** On server start, requeue everything that never got played. */
@@ -334,6 +369,8 @@ export class PlaybackManager {
       this.io.to(roomOf(channelId)).emit('media:play', await this.buildPayload(fresh));
       this.io.to(dashboardRoomOf(channelId)).emit('playback:started', await toLiveSummary(fresh));
       emitSubmissionStatus(this.io, fresh.id, 'playing');
+      void this.emitQueue(channelId); // the item just left the waiting queue
+
       // YouTube: duration is only known at play time (see reportDuration), so until
       // then keep a grace watchdog instead of durationMs (=0).
       const watchdogMs =
@@ -389,7 +426,9 @@ export class PlaybackManager {
       submissionId: sub.id,
       url: `/api/media/${sub.id}`,
       kind: sub.kind,
-      durationMs: sub.durationMs,
+      // YouTube stores its real length for dashboard display, but the overlay must not hard-cap on
+      // it (buffering/ads make wall-clock > length → early cut) — it finishes on the 'ended' event.
+      durationMs: sub.kind === 'youtube' ? 0 : sub.durationMs,
       volume: channel?.volume ?? 100,
       sound: channel?.soundAlert ?? false,
       // TTS reads the name aloud; pointless if the name isn't shown.

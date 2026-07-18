@@ -286,7 +286,22 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
               await levelForSender(channel.id, current.senderUserId),
             )
           : null,
+        queue: await playback.queueSummaries(channel.id),
       };
+    },
+  );
+
+  /** Reorder the waiting queue (next-first order of submission ids). */
+  app.post<{ Params: { channelId: string }; Body: { ids?: unknown } | null }>(
+    '/api/dashboard/:channelId/queue/reorder',
+    async (req, reply) => {
+      const channel = await requireChannelAccess(req, reply, req.params.channelId);
+      if (!channel) return;
+      const ids = Array.isArray(req.body?.ids)
+        ? req.body.ids.filter((x): x is string => typeof x === 'string')
+        : [];
+      const ok = playback.reorderQueue(channel.id, ids);
+      return { ok };
     },
   );
 
@@ -310,6 +325,22 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
       const ok =
         req.body?.action === 'resume' ? playback.resume(channel.id) : playback.pause(channel.id);
       return { ok };
+    },
+  );
+
+  /** Live content volume (0-100): persist as the channel volume and push it to the overlay so the
+   *  current show adjusts immediately (the now-playing slider). */
+  app.post<{ Params: { channelId: string }; Body: { volume?: unknown } | null }>(
+    '/api/dashboard/:channelId/volume',
+    async (req, reply) => {
+      const channel = await requireChannelAccess(req, reply, req.params.channelId);
+      if (!channel) return;
+      const raw = Number(req.body?.volume);
+      if (!Number.isFinite(raw)) return reply.code(400).send({ error: 'bad_volume' });
+      const volume = Math.min(100, Math.max(0, Math.round(raw)));
+      await db.update(channels).set({ volume }).where(eq(channels.id, channel.id));
+      io.to(roomOf(channel.id)).emit('media:volume', volume);
+      return { volume };
     },
   );
 

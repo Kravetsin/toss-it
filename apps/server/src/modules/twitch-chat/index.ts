@@ -23,6 +23,7 @@ import { roomOf, type RealtimeServer } from '../../playback';
 import { EventSubClient } from './eventsub';
 import { createBadgeResolver, roleFromBadges, type EventBadge } from './badges';
 import { awardDust } from './accrual';
+import { getRewardById } from '../channel-points/store';
 import { bumpMessage, bumpWatch, flushActivity } from './stats';
 import { loadBotCredentials, refreshBotCredentials, type BotCredentials } from './token';
 
@@ -218,7 +219,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     return creds.accessToken;
   }
 
-  function onChatMessage(ev: {
+  interface ChatMsg {
     broadcasterId: string;
     chatterId: string;
     chatterLogin: string;
@@ -228,9 +229,28 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     badges: EventBadge[];
     fragments: ChatFragment[];
     reply?: { name: string };
-  }): void {
+    /** Set when the message is a channel-points reward's text input. */
+    rewardId?: string;
+  }
+
+  function onChatMessage(ev: ChatMsg): void {
     const channelId = channelByBroadcaster.get(ev.broadcasterId);
     if (!channelId) return;
+    // A message carrying one of OUR reward ids is that reward's input (e.g. the YouTube link). We
+    // already render our own redemption line, so don't mirror it as chat spam or credit chat dust
+    // for it. Messages from other rewards (Twitch highlight, etc.) are genuine chat — keep them.
+    if (ev.rewardId) {
+      void getRewardById(ev.rewardId)
+        .then((r) => {
+          if (r?.channelId !== channelId) handleChatMessage(channelId, ev);
+        })
+        .catch(() => handleChatMessage(channelId, ev));
+      return;
+    }
+    handleChatMessage(channelId, ev);
+  }
+
+  function handleChatMessage(channelId: string, ev: ChatMsg): void {
     const excluded = excludedLogins.has(ev.chatterLogin);
     const live = deps.overlayCount(channelId) > 0;
 

@@ -268,6 +268,7 @@ export function createChannelPointsModule(deps: {
         senderName: ev.redeemerName,
         parsed,
         title: (parsed.caption ?? meta.title ?? undefined)?.slice(0, 280),
+        durationMs: durationSec > 0 ? durationSec * 1000 : 0,
         autoApproved,
         isSelfSend: ev.redeemerId === conn.broadcasterId,
       },

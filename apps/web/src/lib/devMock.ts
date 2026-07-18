@@ -658,7 +658,7 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
       case 'pending':
         return new URLSearchParams(window.location.search).has('empty') ? [] : MOCK_PENDING;
       case 'now':
-        return { now: MOCK_NOW };
+        return { now: MOCK_NOW, queue: MOCK_PENDING };
       case 'stats':
         return MOCK_STATS;
       case 'live':

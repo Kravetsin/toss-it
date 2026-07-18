@@ -187,7 +187,7 @@ export function MusicPlayerCard({
           {t('music.emptyCta')}
         </button>
       ) : (
-        <ul className="mt-3 flex max-h-64 flex-col gap-0.5 overflow-y-auto">
+        <ul className="mt-3 flex max-h-[8.5rem] flex-col gap-0.5 overflow-y-auto">
           {tracks.map((tr, i) => {
             const active = tr.videoId === musicState.videoId;
             return (
