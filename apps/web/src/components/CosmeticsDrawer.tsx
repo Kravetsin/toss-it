@@ -552,94 +552,105 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
                 </div>
               )}
 
-              {/* The gradient is an upgrade of the colour above, so it lives in this section and
-                  only once the base colour is owned — buying a second stop with nothing to ramp
-                  from would be a dead purchase (the server drops it). */}
-              {ownsColor && (
-                <div className="mt-1 flex flex-col gap-2 border-t border-border pt-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium text-text">{t('shop.nickGradient')}</span>
-                    {ownsGradient ? (
-                      <Badge>{t('shop.owned')}</Badge>
-                    ) : (
-                      <span className="inline-flex shrink-0 items-center gap-1.5 label-mono text-accent">
-                        <DustMark size={14} />
-                        {gradientItem.costDust}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm italic text-muted">{t('shop.nickGradientDesc')}</p>
+              {/* Gradient rung — an upgrade of the colour above. ALWAYS shown (transparency: the whole
+                  ladder is visible so the viewer knows what to save for); the buy is locked with a
+                  "needs the previous item" hint until the base colour is owned. */}
+              <div className="mt-1 flex flex-col gap-2 border-t border-border pt-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium text-text">{t('shop.nickGradient')}</span>
                   {ownsGradient ? (
-                    <Button
-                      variant={gradient ? 'ghost' : 'primary'}
-                      size="sm"
-                      className="self-start"
-                      onClick={toggleGradient}
-                    >
-                      {t(gradient ? 'shop.gradientOff' : 'shop.gradientAdd')}
-                    </Button>
+                    <Badge>{t('shop.owned')}</Badge>
                   ) : (
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="accent"
-                        size="sm"
-                        onClick={() =>
-                          buy(NICK_GRADIENT_ID, t('shop.nickGradient'), gradientItem.costDust)
-                        }
-                        disabled={balance < gradientItem.costDust}
-                      >
-                        {t('shop.buy')}
-                      </Button>
-                      {balance < gradientItem.costDust && (
-                        <span className="label-mono text-faint">{t('shop.notEnough')}</span>
-                      )}
-                    </div>
+                    <span className="inline-flex shrink-0 items-center gap-1.5 label-mono text-accent">
+                      <DustMark size={14} />
+                      {gradientItem.costDust}
+                    </span>
                   )}
                 </div>
-              )}
-
-              {/* Top rung: flow needs two stops to drift between, so it only appears once the
-                  gradient is actually on — otherwise there is nothing to animate. */}
-              {useGradient && (
-                <div className="mt-1 flex flex-col gap-2 border-t border-border pt-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium text-text">{t('shop.nickFlow')}</span>
-                    {ownsFlow ? (
-                      <Badge>{t('shop.owned')}</Badge>
+                <p className="text-sm italic text-muted">{t('shop.nickGradientDesc')}</p>
+                {ownsGradient ? (
+                  <Button
+                    variant={gradient ? 'ghost' : 'primary'}
+                    size="sm"
+                    className="self-start"
+                    onClick={toggleGradient}
+                  >
+                    {t(gradient ? 'shop.gradientOff' : 'shop.gradientAdd')}
+                  </Button>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="accent"
+                      size="sm"
+                      onClick={() =>
+                        buy(NICK_GRADIENT_ID, t('shop.nickGradient'), gradientItem.costDust)
+                      }
+                      disabled={!ownsColor || balance < gradientItem.costDust}
+                    >
+                      {t('shop.buy')}
+                    </Button>
+                    {!ownsColor ? (
+                      <span className="label-mono text-faint">{t('shop.requiresPrev')}</span>
                     ) : (
-                      <span className="inline-flex shrink-0 items-center gap-1.5 label-mono text-accent">
-                        <DustMark size={14} />
-                        {flowItem.costDust}
-                      </span>
+                      balance < gradientItem.costDust && (
+                        <span className="label-mono text-faint">{t('shop.notEnough')}</span>
+                      )
                     )}
                   </div>
-                  <p className="text-sm italic text-muted">{t('shop.nickFlowDesc')}</p>
+                )}
+              </div>
+
+              {/* Flow rung — modifies the gradient. ALWAYS shown; the buy is locked with a hint until
+                  the gradient is owned. Once owned, the toggle additionally needs the gradient turned
+                  ON (two stops to drift between) — a usability gate, not a purchase one, so it disables
+                  the toggle with its own hint rather than hiding the rung. */}
+              <div className="mt-1 flex flex-col gap-2 border-t border-border pt-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium text-text">{t('shop.nickFlow')}</span>
                   {ownsFlow ? (
+                    <Badge>{t('shop.owned')}</Badge>
+                  ) : (
+                    <span className="inline-flex shrink-0 items-center gap-1.5 label-mono text-accent">
+                      <DustMark size={14} />
+                      {flowItem.costDust}
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm italic text-muted">{t('shop.nickFlowDesc')}</p>
+                {ownsFlow ? (
+                  <div className="flex items-center gap-2">
                     <Button
                       variant={flow ? 'ghost' : 'primary'}
                       size="sm"
-                      className="self-start"
                       onClick={toggleFlow}
+                      disabled={!useGradient}
                     >
                       {t(flow ? 'shop.flowOff' : 'shop.flowOn')}
                     </Button>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="accent"
-                        size="sm"
-                        onClick={() => buy(NICK_FLOW_ID, t('shop.nickFlow'), flowItem.costDust)}
-                        disabled={balance < flowItem.costDust}
-                      >
-                        {t('shop.buy')}
-                      </Button>
-                      {balance < flowItem.costDust && (
+                    {!useGradient && (
+                      <span className="label-mono text-faint">{t('shop.needsGradient')}</span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="accent"
+                      size="sm"
+                      onClick={() => buy(NICK_FLOW_ID, t('shop.nickFlow'), flowItem.costDust)}
+                      disabled={!ownsGradient || balance < flowItem.costDust}
+                    >
+                      {t('shop.buy')}
+                    </Button>
+                    {!ownsGradient ? (
+                      <span className="label-mono text-faint">{t('shop.requiresPrev')}</span>
+                    ) : (
+                      balance < flowItem.costDust && (
                         <span className="label-mono text-faint">{t('shop.notEnough')}</span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
+                      )
+                    )}
+                  </div>
+                )}
+              </div>
             </div>,
           )}
 
