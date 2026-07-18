@@ -613,9 +613,12 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
   }
 
   if (pathname === '/api/channel-points/status') {
-    return { connected: false, externalName: null, hasYoutube: false };
+    return { connected: false, externalName: null, hasStardust: false, hasYoutube: false };
   }
-  if (pathname === '/api/channel-points/youtube') return { ok: true }; // add (POST) / remove (DELETE)
+  // add (POST) / remove (DELETE) for either reward.
+  if (pathname === '/api/channel-points/stardust' || pathname === '/api/channel-points/youtube') {
+    return { ok: true };
+  }
 
   if (pathname === '/api/cosmetics/buy') {
     const u = MOCK_ME.user!;

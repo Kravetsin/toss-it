@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { rotateOverlayToken, sendTestDonation } from '@/lib/api';
+import { rotateOverlayToken } from '@/lib/api';
+// sendTestDonation — re-add when the donations (Donatello) block below is re-enabled.
 import { OVERLAY_BASE_URL } from '@/lib/config';
 import { useApiAction } from '@/hooks/useApiAction';
 import { useMe } from '@/hooks/useMe';
@@ -15,7 +16,9 @@ import { SubmissionLimits } from '@/features/dashboard/components/SubmissionLimi
 import { ChatDustSettings } from '@/features/dashboard/components/ChatDustSettings';
 import { ChannelPageSettings } from '@/features/dashboard/components/ChannelPageSettings';
 import { ChannelThemeSettings } from '@/features/dashboard/components/ChannelThemeSettings';
-import { IntegrationsCard } from '@/features/dashboard/components/IntegrationsCard';
+// Donations (Donatello) integration is temporarily disabled (unfinished) — re-enable the import
+// and the block in the integrations section when ready.
+// import { IntegrationsCard } from '@/features/dashboard/components/IntegrationsCard';
 import { ChannelPointsCard } from '@/features/dashboard/components/ChannelPointsCard';
 import { SettingsToggles } from '@/features/dashboard/components/settings/SettingsToggles';
 import { OverlayTestCard } from '@/features/dashboard/components/settings/OverlayTestCard';
@@ -156,12 +159,14 @@ export function SettingsPage() {
         <div className="flex flex-col gap-4">
           {/* The chat bot sits with the other integrations (it IS one), not under "Channel page". */}
           <ChatDustSettings settings={settings} />
+          {/* Donations (Donatello) temporarily disabled — unfinished. Re-enable this block plus the
+              IntegrationsCard + sendTestDonation imports when ready.
           <IntegrationsCard
             channelId={channelId}
             onTestDonation={() =>
               void act(() => sendTestDonation(channelId), { success: t('toast.donationSent') })
             }
-          />
+          /> */}
           <ChannelPointsCard />
         </div>
       )}

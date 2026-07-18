@@ -239,19 +239,37 @@ export function getChannelPointsStatus(): Promise<ChannelPointsStatus> {
 
 /** Full-page redirect into the streamer's channel:manage:redemptions OAuth (not a fetch). `lang`
  *  sets the reward's title/description language. */
-export function channelPointsConnectUrl(returnTo: string, cost: number, lang: string): string {
-  return `/api/channel-points/connect?returnTo=${encodeURIComponent(returnTo)}&cost=${cost}&lang=${lang}`;
+/** OAuth entry to create ONE reward (`reward`) at the chosen `cost` — used when not yet connected. */
+export function channelPointsConnectUrl(
+  returnTo: string,
+  reward: 'stardust' | 'youtube',
+  cost: number,
+  lang: string,
+): string {
+  return `/api/channel-points/connect?returnTo=${encodeURIComponent(returnTo)}&reward=${reward}&cost=${cost}&lang=${lang}`;
 }
 
 export function disconnectChannelPoints(): Promise<unknown> {
   return fetch('/api/channel-points/disconnect', { method: 'POST' }).then((r) => json(r));
 }
 
-export function addChannelPointsYoutube(lang: string): Promise<unknown> {
+export function addChannelPointsStardust(lang: string, cost: number): Promise<unknown> {
+  return fetch('/api/channel-points/stardust', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ lang, cost }),
+  }).then((r) => json(r));
+}
+
+export function removeChannelPointsStardust(): Promise<unknown> {
+  return fetch('/api/channel-points/stardust', { method: 'DELETE' }).then((r) => json(r));
+}
+
+export function addChannelPointsYoutube(lang: string, cost: number): Promise<unknown> {
   return fetch('/api/channel-points/youtube', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ lang }),
+    body: JSON.stringify({ lang, cost }),
   }).then((r) => json(r));
 }
 

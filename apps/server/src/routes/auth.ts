@@ -33,7 +33,7 @@ import {
 import { claimPendingDust } from '../modules/twitch-chat/accrual';
 import { saveBotCredentials } from '../modules/twitch-chat/token';
 import type { TwitchChatModule } from '../modules/twitch-chat/index';
-import type { ChannelPointsModule } from '../modules/channel-points/index';
+import type { ChannelPointsModule, RewardKind } from '../modules/channel-points/index';
 
 export const STATE_COOKIE = 'oauth_state';
 /** Pending "choose primary account" conflict, set by the link callback. */
@@ -51,6 +51,8 @@ export interface OAuthState {
   link?: boolean;
   cp?: boolean;
   channelId?: string;
+  /** Which reward the streamer is creating with this OAuth (the first reward triggers the flow). */
+  cpReward?: RewardKind;
   /** Channel-points reward cost the streamer picked (clamped when the reward is created). */
   cpCost?: number;
   /** Streamer's UI language, for the reward's title/description. */
@@ -201,6 +203,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
           broadcasterId: broadcaster.id,
           creds: { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken },
           externalName: broadcaster.displayName,
+          reward: saved.cpReward,
           cost: saved.cpCost,
           lang: saved.cpLang,
         });
@@ -454,8 +457,9 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
     return { ok: true };
   });
 
-  /** Start the channel-points opt-in: a separate OAuth for channel:manage:redemptions. */
-  app.get<{ Querystring: { returnTo?: string; cost?: string; lang?: string } }>(
+  /** Start the channel-points opt-in: a separate OAuth for channel:manage:redemptions. `reward`
+   *  picks which reward this flow creates (the streamer's first reward; the rest reuse the token). */
+  app.get<{ Querystring: { returnTo?: string; reward?: string; cost?: string; lang?: string } }>(
     '/api/channel-points/connect',
     async (req, reply) => {
       const user = await requireUser(req, reply);
@@ -470,6 +474,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
         .get();
       if (!channel) return reply.code(400).send({ error: 'Нет канала' });
       const returnTo = safeReturnTo(req.query.returnTo);
+      const cpReward: RewardKind = req.query.reward === 'youtube' ? 'youtube' : 'stardust';
       const cpCost = req.query.cost ? Number(req.query.cost) : undefined;
       const cpLang = req.query.lang;
       const state = crypto.randomBytes(16).toString('hex');
@@ -478,6 +483,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
         returnTo,
         cp: true,
         channelId: channel.id,
+        cpReward,
         cpCost,
         cpLang,
       };
@@ -502,7 +508,8 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
       .from(channels)
       .where(eq(channels.ownerUserId, user.id))
       .get();
-    if (!channel) return { connected: false, externalName: null };
+    if (!channel)
+      return { connected: false, externalName: null, hasStardust: false, hasYoutube: false };
     return deps.channelPoints.status(channel.id);
   });
 
@@ -515,6 +522,39 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
       .where(eq(channels.ownerUserId, user.id))
       .get();
     if (channel) await deps.channelPoints.disconnect(channel.id);
+    return { ok: true };
+  });
+
+  /** Add the stardust reward to the caller's already-connected channel. */
+  app.post<{ Body: { cost?: number; lang?: string } | null }>(
+    '/api/channel-points/stardust',
+    async (req, reply) => {
+      const user = await requireUser(req, reply);
+      if (!user) return;
+      const channel = await db
+        .select({ id: channels.id })
+        .from(channels)
+        .where(eq(channels.ownerUserId, user.id))
+        .get();
+      if (!channel) return reply.code(400).send({ error: 'Нет канала' });
+      const result = await deps.channelPoints.addStardustReward(channel.id, {
+        cost: req.body?.cost,
+        lang: req.body?.lang,
+      });
+      if (!result.ok) return reply.code(400).send({ error: result.error ?? 'failed' });
+      return { ok: true };
+    },
+  );
+
+  app.delete('/api/channel-points/stardust', async (req, reply) => {
+    const user = await requireUser(req, reply);
+    if (!user) return;
+    const channel = await db
+      .select({ id: channels.id })
+      .from(channels)
+      .where(eq(channels.ownerUserId, user.id))
+      .get();
+    if (channel) await deps.channelPoints.removeStardustReward(channel.id);
     return { ok: true };
   });
 

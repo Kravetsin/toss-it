@@ -86,29 +86,46 @@ function youtubeText(lang: string | undefined): { title: string; prompt: string 
   return YOUTUBE_TEXT[lang as keyof typeof YOUTUBE_TEXT] ?? YOUTUBE_TEXT.ru;
 }
 
+/** The two independent rewards Tossit can own on a channel; each is created/removed on its own. */
+export type RewardKind = 'stardust' | 'youtube';
+
 export interface ChannelPointsModule {
   start(): void;
   stop(): void;
-  /** Finish opt-in: create the app-owned stardust reward, store the token, start listening. */
+  /**
+   * Finish the OAuth opt-in by creating ONE requested reward and storing the token. The Twitch
+   * authorization is shared: the first reward a streamer creates goes through this (OAuth), the
+   * rest reuse the stored token via add*Reward — so the two rewards are fully independent.
+   */
   connectChannel(input: {
     channelId: string;
     broadcasterId: string;
     creds: StreamerCreds;
     externalName: string | null;
+    reward?: RewardKind;
     cost?: number;
     lang?: string;
   }): Promise<{ ok: boolean; error?: string }>;
+  /** Fully disconnect: delete every reward on Twitch and drop the stored token. */
   disconnect(channelId: string): Promise<void>;
-  /** Add (or re-create) the YouTube-request reward on an already-connected channel. */
+  /** Add (or re-create) a reward on an already-connected channel — one call per kind. */
+  addStardustReward(
+    channelId: string,
+    opts: { cost?: number; lang?: string },
+  ): Promise<{ ok: boolean; error?: string }>;
   addYoutubeReward(
     channelId: string,
     opts: { cost?: number; lang?: string },
   ): Promise<{ ok: boolean; error?: string }>;
-  /** Remove the YouTube-request reward (deletes it on Twitch), keeping the connection + stardust. */
+  /** Remove a single reward (deletes it on Twitch), keeping the connection + the other reward. */
+  removeStardustReward(channelId: string): Promise<void>;
   removeYoutubeReward(channelId: string): Promise<void>;
-  status(
-    channelId: string,
-  ): Promise<{ connected: boolean; externalName: string | null; hasYoutube: boolean }>;
+  status(channelId: string): Promise<{
+    connected: boolean;
+    externalName: string | null;
+    hasStardust: boolean;
+    hasYoutube: boolean;
+  }>;
   debugState(): Promise<{
     running: boolean;
     channels: string[];
@@ -413,6 +430,92 @@ export function createChannelPointsModule(deps: {
       ),
   });
 
+  /** Reward title/prompt for a kind, in the streamer's language. */
+  function rewardTextFor(
+    kind: RewardKind,
+    lang: string | undefined,
+  ): { title: string; prompt: string } {
+    return kind === 'youtube' ? youtubeText(lang) : rewardText(lang);
+  }
+
+  /**
+   * Create a reward of `kind` on Twitch, or recover its id if it already exists (idempotent). `run`
+   * executes a Helix call with a valid token — a fresh OAuth token during connect, or authorized()
+   * for an already-stored connection. Returns the reward id, or null on failure.
+   */
+  async function createOrRecoverReward(
+    channelId: string,
+    broadcasterId: string,
+    kind: RewardKind,
+    cost: number,
+    lang: string | undefined,
+    run: (fn: (token: string) => Promise<Response>) => Promise<Response | null>,
+  ): Promise<string | null> {
+    const text = rewardTextFor(kind, lang);
+    // Only the YouTube reward takes viewer input (the link); stardust is a plain click.
+    const res = await run((token) =>
+      createReward(token, broadcasterId, text.title, cost, text.prompt, kind === 'youtube'),
+    );
+    if (res?.ok) {
+      return ((await res.json()) as { data?: { id: string }[] }).data?.[0]?.id ?? null;
+    }
+    if (res?.status === 400) {
+      // Already exists — recover its id by exact title (both kinds carry "(Tossit)").
+      const listRes = await run((token) => getManageableRewards(token, broadcasterId));
+      if (listRes?.ok) {
+        const list = (await listRes.json()) as { data?: { id: string; title: string }[] };
+        return list.data?.find((r) => r.title === text.title)?.id ?? null;
+      }
+      return null;
+    }
+    const body = res ? await res.text() : 'no response (token decrypt/refresh failed)';
+    log.warn(
+      { channelId, kind, status: res?.status, body },
+      'channel-points: create reward failed',
+    );
+    return null;
+  }
+
+  /** Add (or re-create) a single reward on an ALREADY-connected channel (uses the stored token). */
+  async function addReward(
+    channelId: string,
+    kind: RewardKind,
+    opts: { cost?: number; lang?: string },
+  ): Promise<{ ok: boolean; error?: string }> {
+    const conn = await getConnection(channelId);
+    if (!conn) return { ok: false, error: 'not_connected' };
+    const cost =
+      opts.cost === undefined ? CHANNEL_POINTS.defaultCost : CHANNEL_POINTS.clampCost(opts.cost);
+    const rewardId = await createOrRecoverReward(
+      channelId,
+      conn.broadcasterId,
+      kind,
+      cost,
+      opts.lang,
+      (fn) => authorized(channelId, fn),
+    );
+    if (!rewardId) return { ok: false, error: 'create_failed' };
+    await deleteRewardsByChannelKind(channelId, kind);
+    await insertReward({ rewardId, channelId, kind });
+    // restart (not sync): the channel is already connected, so the socket must re-subscribe to pick
+    // up this new reward — sync() alone would leave it unsubscribed.
+    eventsub.restartChannel(channelId);
+    return { ok: true };
+  }
+
+  /** Remove a single reward (deletes it on Twitch), keeping the connection + the other reward. */
+  async function removeReward(channelId: string, kind: RewardKind): Promise<void> {
+    const conn = await getConnection(channelId);
+    const reward = await getRewardByChannelKind(channelId, kind);
+    if (conn && reward) {
+      await authorized(channelId, (token) =>
+        deleteReward(token, conn.broadcasterId, reward.rewardId),
+      ).catch(() => {});
+    }
+    await deleteRewardsByChannelKind(channelId, kind);
+    eventsub.restartChannel(channelId);
+  }
+
   return {
     start(): void {
       void getAllConnections()
@@ -429,33 +532,20 @@ export function createChannelPointsModule(deps: {
       eventsub.stop();
     },
     async connectChannel(input): Promise<{ ok: boolean; error?: string }> {
+      const kind = input.reward ?? 'stardust';
       const cost =
         input.cost === undefined
           ? CHANNEL_POINTS.defaultCost
           : CHANNEL_POINTS.clampCost(input.cost);
-      const token = input.creds.accessToken;
-      const text = rewardText(input.lang);
-      let rewardId: string | undefined;
-      const res = await createReward(token, input.broadcasterId, text.title, cost, text.prompt);
-      if (res.ok) {
-        rewardId = ((await res.json()) as { data?: { id: string }[] }).data?.[0]?.id;
-      } else if (res.status === 400) {
-        // Our stardust reward already exists — recover its id and reuse it (idempotent reconnect).
-        log.warn({ channelId: input.channelId }, 'channel-points: reward exists, reusing it');
-        const listRes = await getManageableRewards(token, input.broadcasterId);
-        if (listRes.ok) {
-          const list = (await listRes.json()) as { data?: { id: string; title: string }[] };
-          // Match the exact stardust title — youtube rewards also carry "(Tossit)".
-          rewardId = list.data?.find((r) => r.title === text.title)?.id;
-        }
-      } else {
-        const body = await res.text();
-        log.warn(
-          { channelId: input.channelId, status: res.status, body },
-          'channel-points: create reward failed',
-        );
-        return { ok: false, error: 'create_failed' };
-      }
+      // Fresh OAuth token — the connection isn't stored yet, so run the Helix call with it directly.
+      const rewardId = await createOrRecoverReward(
+        input.channelId,
+        input.broadcasterId,
+        kind,
+        cost,
+        input.lang,
+        (fn) => fn(input.creds.accessToken),
+      );
       if (!rewardId) return { ok: false, error: 'create_failed' };
       await upsertConnection({
         channelId: input.channelId,
@@ -463,12 +553,13 @@ export function createChannelPointsModule(deps: {
         creds: input.creds,
         externalName: input.externalName,
       });
-      // Keep exactly one stardust reward per channel: drop any prior row (e.g. an orphan pointing at
-      // a reward the streamer deleted in Twitch) before recording the current one.
-      await deleteRewardsByChannelKind(input.channelId, 'stardust');
-      await insertReward({ rewardId, channelId: input.channelId, kind: 'stardust' });
+      // One reward per kind: drop any prior row (e.g. an orphan pointing at a reward the streamer
+      // deleted in Twitch) before recording the current one.
+      await deleteRewardsByChannelKind(input.channelId, kind);
+      await insertReward({ rewardId, channelId: input.channelId, kind });
       enabled.add(input.channelId);
-      eventsub.sync();
+      // restart so a reconnect (channel already had a socket) re-subscribes to the current reward set.
+      eventsub.restartChannel(input.channelId);
       return { ok: true };
     },
     async disconnect(channelId): Promise<void> {
@@ -486,61 +577,31 @@ export function createChannelPointsModule(deps: {
       await deleteConnection(channelId);
       eventsub.sync();
     },
-    async addYoutubeReward(channelId, opts): Promise<{ ok: boolean; error?: string }> {
-      const conn = await getConnection(channelId);
-      if (!conn) return { ok: false, error: 'not_connected' };
-      const text = youtubeText(opts.lang);
-      const cost =
-        opts.cost === undefined ? CHANNEL_POINTS.defaultCost : CHANNEL_POINTS.clampCost(opts.cost);
-      let rewardId: string | undefined;
-      const res = await authorized(channelId, (token) =>
-        createReward(token, conn.broadcasterId, text.title, cost, text.prompt, true),
-      );
-      if (res?.ok) {
-        rewardId = ((await res.json()) as { data?: { id: string }[] }).data?.[0]?.id;
-      } else if (res?.status === 400) {
-        const listRes = await authorized(channelId, (token) =>
-          getManageableRewards(token, conn.broadcasterId),
-        );
-        if (listRes?.ok) {
-          const list = (await listRes.json()) as { data?: { id: string; title: string }[] };
-          rewardId = list.data?.find((r) => r.title === text.title)?.id;
-        }
-      } else {
-        log.warn(
-          { channelId, status: res?.status },
-          'channel-points: create youtube reward failed',
-        );
-        return { ok: false, error: 'create_failed' };
-      }
-      if (!rewardId) return { ok: false, error: 'create_failed' };
-      await deleteRewardsByChannelKind(channelId, 'youtube');
-      await insertReward({ rewardId, channelId, kind: 'youtube' });
-      // restart (not sync): the channel is already connected, so the socket must re-subscribe to
-      // pick up this new reward — sync() alone would leave it unsubscribed.
-      eventsub.restartChannel(channelId);
-      return { ok: true };
+    addStardustReward(channelId, opts): Promise<{ ok: boolean; error?: string }> {
+      return addReward(channelId, 'stardust', opts);
     },
-    async removeYoutubeReward(channelId): Promise<void> {
-      const conn = await getConnection(channelId);
-      const reward = await getRewardByChannelKind(channelId, 'youtube');
-      if (conn && reward) {
-        await authorized(channelId, (token) =>
-          deleteReward(token, conn.broadcasterId, reward.rewardId),
-        ).catch(() => {});
-      }
-      await deleteRewardsByChannelKind(channelId, 'youtube');
-      eventsub.restartChannel(channelId);
+    addYoutubeReward(channelId, opts): Promise<{ ok: boolean; error?: string }> {
+      return addReward(channelId, 'youtube', opts);
     },
-    async status(
-      channelId,
-    ): Promise<{ connected: boolean; externalName: string | null; hasYoutube: boolean }> {
+    removeStardustReward(channelId): Promise<void> {
+      return removeReward(channelId, 'stardust');
+    },
+    removeYoutubeReward(channelId): Promise<void> {
+      return removeReward(channelId, 'youtube');
+    },
+    async status(channelId): Promise<{
+      connected: boolean;
+      externalName: string | null;
+      hasStardust: boolean;
+      hasYoutube: boolean;
+    }> {
       const conn = await getConnection(channelId);
-      // "connected" = the stardust reward is set up (the base feature); youtube is an add-on.
+      // "connected" = the Twitch authorization (token) exists; the two rewards are independent add-ons.
       const rewards = conn ? await getRewardsByChannel(channelId) : [];
       return {
-        connected: rewards.some((r) => r.kind === 'stardust'),
+        connected: !!conn,
         externalName: conn?.externalName ?? null,
+        hasStardust: rewards.some((r) => r.kind === 'stardust'),
         hasYoutube: rewards.some((r) => r.kind === 'youtube'),
       };
     },

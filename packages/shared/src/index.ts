@@ -163,10 +163,13 @@ export interface DonationFx {
 
 /** Channel-points → stardust opt-in status (dashboard). */
 export interface ChannelPointsStatus {
+  /** Whether the Twitch authorization (token) exists — the prerequisite for either reward. */
   connected: boolean;
   /** Broadcaster display name the reward was created on ("Connected as X"). */
   externalName: string | null;
-  /** Whether the optional YouTube-request reward is set up. */
+  /** Whether the stardust reward is set up. */
+  hasStardust: boolean;
+  /** Whether the YouTube-request reward is set up. */
   hasYoutube: boolean;
 }
 
