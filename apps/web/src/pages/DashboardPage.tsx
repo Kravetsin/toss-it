@@ -112,7 +112,7 @@ export function DashboardPage() {
       {/* Mobile: single-column (NowPlaying → queue → members). Desktop (lg+): two-column grid.
           NowPlaying rendered twice for responsive display (mobile lg:hidden, desktop hidden lg:block). */}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
-        <div className="flex flex-col gap-4 lg:hidden">
+        <div className="flex min-w-0 flex-col gap-4 lg:hidden">
           <NowPlayingCard
             now={data.now}
             progress={data.progress}
