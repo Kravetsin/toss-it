@@ -273,8 +273,8 @@ const MOCK_PENDING: SubmissionSummary[] = [
 
 const MOCK_NOW: SubmissionSummary | null = sub({
   id: 'now1',
-  kind: 'image',
-  mime: 'image/svg+xml',
+  kind: 'youtube',
+  mime: 'video/youtube',
   senderUserId: 'twitch:v9',
   senderName: 'streamfan',
   senderLevel: 6,
