@@ -183,6 +183,15 @@ export function setContentVolume(channelId: string, volume: number): Promise<{ v
   }).then((r) => json<{ volume: number }>(r));
 }
 
+/** Seek the current show to `seconds` (video/audio/YouTube). */
+export function seekPlayback(channelId: string, seconds: number): Promise<{ ok: boolean }> {
+  return fetch(`${dash(channelId)}/playback/seek`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ seconds }),
+  }).then((r) => json<{ ok: boolean }>(r));
+}
+
 export function skipCurrent(channelId: string): Promise<{ skipped: boolean }> {
   return fetch(`${dash(channelId)}/skip`, { method: 'POST' }).then((r) =>
     json<{ skipped: boolean }>(r),

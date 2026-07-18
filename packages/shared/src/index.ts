@@ -305,6 +305,8 @@ export interface ServerToOverlayEvents {
   'media:control': (action: 'pause' | 'resume') => void;
   /** Live content volume (0-100) applied to the current show — the dashboard's now-playing slider. */
   'media:volume': (volume: number) => void;
+  /** Seek the current show to `seconds` (video/audio/YouTube only) — the now-playing scrub bar. */
+  'media:seek': (seconds: number) => void;
   /** Channel donation → fullscreen burst FX over media display. */
   'donation:fx': (fx: DonationFx) => void;
   /** Chat display config, sent on connect and whenever settings change. */

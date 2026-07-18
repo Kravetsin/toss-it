@@ -141,6 +141,13 @@ socket.on('media:volume', (volume) => {
   if (mediaEl) mediaEl.volume = v / 100;
   else if (currentKind === 'youtube') ytPlayer?.setVolume(v);
 });
+socket.on('media:seek', (seconds) => {
+  if (!currentId) return;
+  const s = Math.max(0, seconds);
+  // Only media with a real timeline; image/gif/text run on a fixed hide timer (not seekable).
+  if (mediaEl) mediaEl.currentTime = s;
+  else if (currentKind === 'youtube') ytPlayer?.seekTo(s, true);
+});
 socket.on('donation:fx', triggerDonationFx);
 // The server sends chat:config to both overlays; this one used to drop it on the floor. It takes
 // exactly one field: the rank numeral appears here too, so the switch that hides it must reach here

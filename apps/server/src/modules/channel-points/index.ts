@@ -4,7 +4,12 @@ import { CHANNEL_POINTS, DUST_POINTS } from '@tmw/shared';
 import { db } from '../../db/index';
 import { channels, linkedIdentities } from '../../db/schema';
 import { roomOf, type PlaybackManager, type RealtimeServer } from '../../playback';
-import { fetchVideoDurations, parseYoutube, validateYoutube } from '../../media/youtube';
+import {
+  fetchVideoInfo,
+  parseYoutube,
+  validateYoutube,
+  YT_MUSIC_CATEGORY_ID,
+} from '../../media/youtube';
 import { createYoutubeSubmission } from '../../media/submit';
 import { awardDust } from '../twitch-chat/accrual';
 import { ChannelPointsEventSub, type RedemptionEvent } from './eventsub';
@@ -245,10 +250,13 @@ export function createChannelPointsModule(deps: {
     }
     // Auto-approve only within the channel's duration cap; longer / unknown-length → moderation.
     const channel = await db.select().from(channels).where(eq(channels.id, reward.channelId)).get();
-    const durations = await fetchVideoDurations([parsed.videoId]);
-    const durationSec = durations.get(parsed.videoId) ?? 0;
+    const info = (await fetchVideoInfo([parsed.videoId])).get(parsed.videoId);
+    const durationSec = info?.durationSec ?? 0;
     const capSec = (channel?.youtubeAutoMaxMinutes ?? 10) * 60;
     const autoApproved = !!channel?.autoApproveYoutube && durationSec > 0 && durationSec <= capSec;
+    // Music if the link is from music.youtube.com OR the video's YouTube category is Music (10) — so a
+    // plain youtube.com music track still renders as the compact player, not full-screen video.
+    const isMusic = parsed.isMusic || info?.categoryId === YT_MUSIC_CATEGORY_ID;
     // Sender = the viewer's linked Tossit account, or null (anonymous — dust still accrues to twitch id).
     const link = await db
       .select({ userId: linkedIdentities.userId })
@@ -269,6 +277,7 @@ export function createChannelPointsModule(deps: {
         parsed,
         title: (parsed.caption ?? meta.title ?? undefined)?.slice(0, 280),
         durationMs: durationSec > 0 ? durationSec * 1000 : 0,
+        isMusic,
         autoApproved,
         isSelfSend: ev.redeemerId === conn.broadcasterId,
       },

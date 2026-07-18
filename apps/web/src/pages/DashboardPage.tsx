@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { removeBan, removeFromWhitelist, saveSettings, setContentVolume } from '@/lib/api';
+import {
+  removeBan,
+  removeFromWhitelist,
+  saveSettings,
+  seekPlayback,
+  setContentVolume,
+} from '@/lib/api';
 import { useMe } from '@/hooks/useMe';
 import { useApiAction } from '@/hooks/useApiAction';
 import { useI18n } from '@/i18n';
@@ -44,6 +50,10 @@ export function DashboardPage() {
     void setContentVolume(channelId, v)
       .then((r) => data.setSettings((s) => (s ? { ...s, volume: r.volume } : s)))
       .catch(() => {});
+  };
+  // Now-playing scrub (owner + mods): push the seek to the overlay's current show.
+  const onSeek = (seconds: number) => {
+    if (channelId) void seekPlayback(channelId, seconds).catch(() => {});
   };
 
   const bannedIds = new Set(data.banned.map((b) => b.userId));
@@ -110,6 +120,7 @@ export function DashboardPage() {
             isOwner={isOwner}
             volume={isOwner ? data.settings?.volume : undefined}
             onVolumeChange={isOwner ? onContentVolume : undefined}
+            onSeek={onSeek}
             onSkip={actions.skip}
             onPauseResume={actions.pauseResume}
             onOpenTest={() => setTestOpen(true)}
@@ -169,6 +180,7 @@ export function DashboardPage() {
               isOwner={isOwner}
               volume={isOwner ? data.settings?.volume : undefined}
               onVolumeChange={isOwner ? onContentVolume : undefined}
+              onSeek={onSeek}
               onSkip={actions.skip}
               onPauseResume={actions.pauseResume}
               onOpenTest={() => setTestOpen(true)}

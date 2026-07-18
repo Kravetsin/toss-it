@@ -150,6 +150,48 @@ export async function fetchVideoDurations(videoIds: string[]): Promise<Map<strin
   return out;
 }
 
+/** YouTube's "Music" video category id — used to treat a plain youtube.com music upload as music. */
+export const YT_MUSIC_CATEGORY_ID = '10';
+
+/**
+ * Duration (seconds) + category id for videos via the Data API (needs YOUTUBE_API_KEY). One call,
+ * both parts. Best-effort: empty map with no key or on error. Used for a single reward link where we
+ * also want the category — bulk duration lookups (playlists) stay on {@link fetchVideoDurations}.
+ */
+export async function fetchVideoInfo(
+  videoIds: string[],
+): Promise<Map<string, { durationSec: number; categoryId: string | null }>> {
+  const out = new Map<string, { durationSec: number; categoryId: string | null }>();
+  if (!config.youtube.apiKey || videoIds.length === 0) return out;
+  try {
+    for (let i = 0; i < videoIds.length; i += 50) {
+      const url = new URL('https://www.googleapis.com/youtube/v3/videos');
+      url.searchParams.set('part', 'contentDetails,snippet');
+      url.searchParams.set('id', videoIds.slice(i, i + 50).join(','));
+      url.searchParams.set('key', config.youtube.apiKey);
+      const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      if (!res.ok) break;
+      const data = (await res.json()) as {
+        items?: {
+          id?: string;
+          contentDetails?: { duration?: string };
+          snippet?: { categoryId?: string };
+        }[];
+      };
+      for (const it of data.items ?? []) {
+        if (!it.id) continue;
+        out.set(it.id, {
+          durationSec: parseIsoDuration(it.contentDetails?.duration ?? ''),
+          categoryId: it.snippet?.categoryId ?? null,
+        });
+      }
+    }
+  } catch {
+    // timeouts/network — leave whatever was collected
+  }
+  return out;
+}
+
 /** ISO 8601 duration ("PT1H2M3S") -> seconds; 0 on anything else (e.g. "P0D" for live). */
 function parseIsoDuration(iso: string): number {
   const m = iso.match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/);

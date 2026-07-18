@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
 import { Button, Card } from '@/ui';
+import { SeekBar } from '@/ui/media/SeekBar';
 import { VolumeSlider, volumeIcon } from '@/ui/media/VolumeSlider';
 import { PlatformIcon } from '@/components/UserMarks';
 import { CardEffect } from '@/components/CardEffect';
@@ -28,6 +29,7 @@ export function NowPlayingCard({
   isOwner,
   volume,
   onVolumeChange,
+  onSeek,
   onSkip,
   onPauseResume,
   onOpenTest,
@@ -42,6 +44,8 @@ export function NowPlayingCard({
   volume?: number;
   /** Commit a new content volume (persist + push live). Debounced by the card. */
   onVolumeChange?: (v: number) => void;
+  /** Seek the current show to a position (seconds). Enables the scrub bar for video/audio/YouTube. */
+  onSeek?: (seconds: number) => void;
   onSkip: () => void;
   onPauseResume: (paused: boolean) => void;
   onOpenTest: () => void;
@@ -62,6 +66,32 @@ export function NowPlayingCard({
     window.clearTimeout(volTimer.current);
     volTimer.current = window.setTimeout(() => onVolumeChange?.(v), 300);
   };
+
+  // Scrub the current show (video/audio/YouTube only — image/gif/text run on a fixed timer). Local
+  // position while dragging; commit on release, then hold it briefly so the bar doesn't snap back
+  // before a fresh progress tick lands.
+  const seekable =
+    !!now && !!onSeek && (now.kind === 'video' || now.kind === 'audio' || now.kind === 'youtube');
+  const [seekPos, setSeekPos] = useState<number | null>(null);
+  const scrubbing = useRef(false);
+  const seekClear = useRef(0);
+  const lastSeek = useRef(0);
+  useEffect(() => () => window.clearTimeout(seekClear.current), []);
+  useEffect(() => setSeekPos(null), [now?.id]); // drop a stale scrub value when the show changes
+  const durationSec = (progress?.durationMs ?? 0) / 1000;
+  const shownSec = seekPos ?? (progress?.positionMs ?? 0) / 1000;
+  const commitSeek = (v: number) => {
+    onSeek?.(Math.round(v));
+    window.clearTimeout(seekClear.current);
+    seekClear.current = window.setTimeout(() => setSeekPos(null), 1500);
+  };
+  const handleSeek = (v: number) => {
+    window.clearTimeout(seekClear.current);
+    lastSeek.current = v;
+    setSeekPos(v);
+    if (!scrubbing.current) commitSeek(v);
+  };
+
   const tier = now?.senderLevel ? levelTier(now.senderLevel) : null;
   const levelGlow = !!tier && (now?.senderLevel ?? 0) >= LEVEL_GLOW_FROM;
   const nick = nickProps({
@@ -135,19 +165,23 @@ export function NowPlayingCard({
 
         {now && (
           <div className="mt-3 flex items-center gap-2">
-            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-2">
-              <div
-                className="h-full rounded-full bg-accent transition-[width] duration-300 ease-linear"
-                style={{
-                  width: progress?.durationMs
-                    ? `${Math.min(100, (progress.positionMs / progress.durationMs) * 100)}%`
-                    : '0%',
-                }}
-              />
-            </div>
+            <SeekBar
+              current={shownSec}
+              duration={durationSec}
+              onSeek={handleSeek}
+              onScrubStart={() => {
+                scrubbing.current = true;
+              }}
+              onScrubEnd={() => {
+                scrubbing.current = false;
+                commitSeek(lastSeek.current);
+              }}
+              label={t('dash.seek')}
+              disabled={!seekable}
+            />
             <span className="label-mono shrink-0 text-xs text-faint">
-              {clock(progress?.positionMs ?? 0)}
-              {progress?.durationMs ? ` / ${clock(progress.durationMs)}` : ''}
+              {clock(shownSec * 1000)}
+              {durationSec ? ` / ${clock(durationSec * 1000)}` : ''}
             </span>
             {showVolume && (
               <div className="flex shrink-0 items-center gap-1.5">

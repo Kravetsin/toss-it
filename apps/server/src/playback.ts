@@ -311,6 +311,26 @@ export class PlaybackManager {
     return true;
   }
 
+  /**
+   * Seek the current show to `seconds` (video/audio/YouTube only — image/gif/text have no timeline).
+   * Re-arms the backstop watchdog for the new remaining time so a seek backwards can't force-advance
+   * the clip early. The overlay drives real completion; this is only the dead-overlay backstop.
+   */
+  seek(channelId: string, seconds: number): boolean {
+    const st = this.state(channelId);
+    const cur = st.current;
+    if (!cur) return false;
+    if (cur.kind !== 'video' && cur.kind !== 'audio' && cur.kind !== 'youtube') return false;
+    const pos = Math.max(0, seconds);
+    if (!st.paused && cur.durationMs > 0) {
+      const remainingMs = Math.max(0, cur.durationMs - pos * 1000) + config.watchdogGraceMs;
+      if (st.watchdog) clearTimeout(st.watchdog);
+      st.watchdog = setTimeout(() => void this.onDone(channelId, cur.id), remainingMs);
+    }
+    this.io.to(roomOf(channelId)).emit('media:seek', pos);
+    return true;
+  }
+
   async onOverlayConnected(
     channelId: string,
     replayTo: (payload: MediaPlayPayload) => void,

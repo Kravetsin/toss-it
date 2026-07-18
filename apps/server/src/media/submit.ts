@@ -25,6 +25,8 @@ export async function createYoutubeSubmission(
     title: string | undefined;
     /** Real video length (ms) if known from the API — for display; 0 = unknown (shows as ∞). */
     durationMs?: number;
+    /** Music vs video (compact player vs full-screen). Defaults to the parsed URL's own signal. */
+    isMusic?: boolean;
     autoApproved: boolean;
     /** The broadcaster requested their own video — plays fine, but excluded from stats. */
     isSelfSend?: boolean;
@@ -39,7 +41,7 @@ export async function createYoutubeSubmission(
     originalName: '', // no source filename for a link
     filePath: null,
     text: input.title ?? null,
-    mime: input.parsed.isMusic ? 'audio/youtube' : 'video/youtube',
+    mime: (input.isMusic ?? input.parsed.isMusic) ? 'audio/youtube' : 'video/youtube',
     kind: 'youtube',
     // Stored for display (queue/moderation/history/now-playing) so cards show the real length, not
     // ∞. The overlay still gets 0 (see buildPayload) and finishes on the player's 'ended' event —

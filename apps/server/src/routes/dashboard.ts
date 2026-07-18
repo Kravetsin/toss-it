@@ -350,6 +350,19 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
     },
   );
 
+  /** Seek the current show to a position (seconds) — video/audio/YouTube only. */
+  app.post<{ Params: { channelId: string }; Body: { seconds?: unknown } | null }>(
+    '/api/dashboard/:channelId/playback/seek',
+    async (req, reply) => {
+      const channel = await requireChannelAccess(req, reply, req.params.channelId);
+      if (!channel) return;
+      const seconds = Number(req.body?.seconds);
+      if (!Number.isFinite(seconds)) return reply.code(400).send({ error: 'bad_seconds' });
+      const ok = playback.seek(channel.id, seconds);
+      return { ok };
+    },
+  );
+
   /** Live content volume (0-100): persist as the channel volume and push it to the overlay so the
    *  current show adjusts immediately (the now-playing slider). */
   app.post<{ Params: { channelId: string }; Body: { volume?: unknown } | null }>(
