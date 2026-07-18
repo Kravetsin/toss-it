@@ -1,4 +1,10 @@
-import { LEVEL_GLOW_FROM, levelTier, toRoman, type SubmissionSummary } from '@tmw/shared';
+import {
+  LEVEL_GLOW_FROM,
+  levelTier,
+  type PlaybackProgress,
+  toRoman,
+  type SubmissionSummary,
+} from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
 import { Button, Card } from '@/ui';
@@ -7,15 +13,29 @@ import { CardEffect } from '@/components/CardEffect';
 import { nickProps } from '@/lib/nick';
 import { formatTrackDuration } from '../constants';
 
+/** mm:ss */
+function clock(ms: number): string {
+  const s = Math.max(0, Math.round(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
 export function NowPlayingCard({
   now,
+  progress,
+  live,
   isOwner,
   onSkip,
+  onPauseResume,
   onOpenTest,
 }: {
   now: SubmissionSummary | null;
+  /** Live position of the current show, or null (no overlay / not reported yet). */
+  progress: PlaybackProgress | null;
+  /** Whether an overlay is connected — controls are disabled without one. */
+  live: boolean;
   isOwner: boolean;
   onSkip: () => void;
+  onPauseResume: (paused: boolean) => void;
   onOpenTest: () => void;
 }) {
   const { t } = useI18n();
@@ -72,12 +92,42 @@ export function NowPlayingCard({
             )}
           </div>
           {now && (
-            <Button variant="danger" size="sm" className="shrink-0" onClick={onSkip}>
-              <Icon name="forward" size={16} />
-              {t('dash.skip')}
-            </Button>
+            <div className="flex shrink-0 items-center gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={!live}
+                onClick={() => onPauseResume(!(progress?.paused ?? false))}
+                title={progress?.paused ? t('dash.resume') : t('dash.pause')}
+              >
+                <Icon name={progress?.paused ? 'play' : 'pause'} size={16} />
+              </Button>
+              <Button variant="danger" size="sm" onClick={onSkip}>
+                <Icon name="forward" size={16} />
+                {t('dash.skip')}
+              </Button>
+            </div>
           )}
         </div>
+
+        {now && (
+          <div className="mt-3 flex items-center gap-2">
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-2">
+              <div
+                className="h-full rounded-full bg-accent transition-[width] duration-300 ease-linear"
+                style={{
+                  width: progress?.durationMs
+                    ? `${Math.min(100, (progress.positionMs / progress.durationMs) * 100)}%`
+                    : '0%',
+                }}
+              />
+            </div>
+            <span className="label-mono shrink-0 text-xs text-faint">
+              {clock(progress?.positionMs ?? 0)}
+              {progress?.durationMs ? ` / ${clock(progress.durationMs)}` : ''}
+            </span>
+          </div>
+        )}
 
         {isOwner && (
           <div className="mt-3 border-t border-border pt-3">

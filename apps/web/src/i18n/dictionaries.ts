@@ -335,6 +335,8 @@ export const en: Dict = {
   'music.cleared': 'List cleared',
   'dash.nothingPlaying': 'Nothing playing',
   'dash.skip': 'Skip',
+  'dash.pause': 'Pause',
+  'dash.resume': 'Resume',
   'dash.testSend': 'Test submission',
   'dash.testSendHint':
     'Same form your viewers see — text, GIF, file, voice. Sent as you, without limits or cooldown.',
@@ -868,6 +870,8 @@ export const ru: Dict = {
   'music.cleared': 'Список очищен',
   'dash.nothingPlaying': 'Ничего не играет',
   'dash.skip': 'Скип',
+  'dash.pause': 'Пауза',
+  'dash.resume': 'Продолжить',
   'dash.testSend': 'Тестовая отправка',
   'dash.testSendHint':
     'Та же форма, что видят зрители: текст, гифка, файл, голос. Уходит от твоего имени, без лимитов и кулдауна.',
@@ -1400,6 +1404,8 @@ export const uk: Dict = {
   'music.cleared': 'Список очищено',
   'dash.nothingPlaying': 'Нічого не грає',
   'dash.skip': 'Скіп',
+  'dash.pause': 'Пауза',
+  'dash.resume': 'Продовжити',
   'dash.testSend': 'Тестова відправка',
   'dash.testSendHint':
     'Та сама форма, що бачать глядачі: текст, гіфка, файл, голос. Надсилається від твого імені, без лімітів і кулдауну.',

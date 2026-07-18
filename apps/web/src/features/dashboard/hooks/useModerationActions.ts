@@ -1,5 +1,11 @@
 import type { SubmissionSummary } from '@tmw/shared';
-import { approveSubmission, banUser, rejectSubmission, skipCurrent } from '@/lib/api';
+import {
+  approveSubmission,
+  banUser,
+  pauseResumePlayback,
+  rejectSubmission,
+  skipCurrent,
+} from '@/lib/api';
 import { useApiAction } from '@/hooks/useApiAction';
 import { useConfirm } from '@/providers/ConfirmProvider';
 import { useI18n } from '@/i18n';
@@ -68,5 +74,9 @@ export function useModerationActions({
   const skip = () => {
     if (channelId) void act(() => skipCurrent(channelId), { success: t('toast.skipped') });
   };
-  return { onApprove, onTrust, onReject, onBan, banById, skip };
+  const pauseResume = (paused: boolean) => {
+    // Fire-and-forget: the overlay's progress ticks reflect the real state; no toast needed.
+    if (channelId) void pauseResumePlayback(channelId, paused ? 'pause' : 'resume').catch(() => {});
+  };
+  return { onApprove, onTrust, onReject, onBan, banById, skip, pauseResume };
 }

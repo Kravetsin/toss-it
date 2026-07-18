@@ -114,11 +114,25 @@ let ytPlayer: YTPlayer | null = null;
 let ytApiPromise: Promise<void> | null = null;
 let ytReportedSid: string | null = null;
 let exitTimer: number | undefined;
+// Playback controls: pause state + progress reporting for the dashboard's now-playing bar.
+let paused = false;
+let currentKind: MediaKind | null = null;
+let mediaEl: HTMLVideoElement | HTMLAudioElement | null = null;
+// Image/gif/text have no player — we track their fixed display window ourselves so it can be frozen.
+let timedDurationMs = 0;
+let timedElapsedMs = 0;
+let timedStartTs = 0;
+let progressTimer: number | undefined;
 
 socket.on('connect', () => console.log('[overlay] connected'));
 socket.on('media:play', show);
 socket.on('media:skip', (submissionId) => {
   if (submissionId === currentId) finish();
+});
+socket.on('media:control', (action) => {
+  if (!currentId) return;
+  if (action === 'pause') pausePlayback();
+  else resumePlayback();
 });
 socket.on('donation:fx', triggerDonationFx);
 // The server sends chat:config to both overlays; this one used to drop it on the floor. It takes
@@ -134,6 +148,8 @@ function show(payload: MediaPlayPayload): void {
   clearStage();
   currentId = payload.submissionId;
   finishing = false;
+  paused = false;
+  currentKind = payload.kind;
   duckMusic(true); // post on screen → dip the background music
 
   const { justify, align } = positionToFlex(payload.position);
@@ -218,6 +234,78 @@ function show(payload: MediaPlayPayload): void {
   if (payload.durationMs > 0) {
     hideTimer = window.setTimeout(finish, payload.durationMs);
   }
+
+  // Progress/pause plumbing. video/audio play through a media element; image/gif/text run on the
+  // hide timer above, whose window we mirror here so pause can freeze it.
+  mediaEl = alert.querySelector<HTMLVideoElement | HTMLAudioElement>('video, audio');
+  if (!mediaEl && payload.durationMs > 0) {
+    timedDurationMs = payload.durationMs;
+    timedElapsedMs = 0;
+    timedStartTs = Date.now();
+  }
+  progressTimer = window.setInterval(emitProgress, 350);
+}
+
+/** Report the current show's position to the server (relayed to the dashboard). */
+function emitProgress(): void {
+  if (!currentId) return;
+  let positionMs = 0;
+  let durationMs = 0;
+  if (mediaEl) {
+    positionMs = Math.round(mediaEl.currentTime * 1000);
+    durationMs =
+      Number.isFinite(mediaEl.duration) && mediaEl.duration > 0
+        ? Math.round(mediaEl.duration * 1000)
+        : 0;
+  } else if (currentKind === 'youtube' && ytPlayer) {
+    try {
+      positionMs = Math.round(ytPlayer.getCurrentTime() * 1000);
+      durationMs = Math.round(ytPlayer.getDuration() * 1000);
+    } catch {
+      /* player not ready yet */
+    }
+  } else if (timedDurationMs > 0) {
+    positionMs = timedElapsedMs + (paused ? 0 : Date.now() - timedStartTs);
+    durationMs = timedDurationMs;
+  }
+  socket.emit('playback:progress', { submissionId: currentId, positionMs, durationMs, paused });
+}
+
+function pausePlayback(): void {
+  if (paused || !currentId) return;
+  paused = true;
+  if (mediaEl) mediaEl.pause();
+  else if (currentKind === 'youtube') ytPlayer?.pauseVideo();
+  else if (timedDurationMs > 0 && hideTimer !== undefined) {
+    window.clearTimeout(hideTimer);
+    hideTimer = undefined;
+    timedElapsedMs += Date.now() - timedStartTs; // bank the elapsed slice
+  }
+  emitProgress();
+}
+
+function resumePlayback(): void {
+  if (!paused || !currentId) return;
+  paused = false;
+  if (mediaEl) void mediaEl.play().catch(() => {});
+  else if (currentKind === 'youtube') ytPlayer?.playVideo();
+  else if (timedDurationMs > 0) {
+    timedStartTs = Date.now();
+    hideTimer = window.setTimeout(finish, Math.max(0, timedDurationMs - timedElapsedMs));
+  }
+  emitProgress();
+}
+
+/** Stop and reset the progress/pause plumbing (on finish or a new show). */
+function stopProgress(): void {
+  if (progressTimer !== undefined) {
+    window.clearInterval(progressTimer);
+    progressTimer = undefined;
+  }
+  paused = false;
+  mediaEl = null;
+  currentKind = null;
+  timedDurationMs = 0;
 }
 
 function createMediaElement(payload: MediaPlayPayload, url: string): HTMLElement {
@@ -745,6 +833,7 @@ function destroyYoutube(): void {
 function finish(): void {
   if (finishing) return;
   finishing = true;
+  stopProgress();
   destroyYoutube();
   const id = currentId;
   if (hideTimer !== undefined) {
@@ -765,6 +854,7 @@ function finish(): void {
 }
 
 function clearStage(): void {
+  stopProgress();
   if (hideTimer !== undefined) {
     window.clearTimeout(hideTimer);
     hideTimer = undefined;

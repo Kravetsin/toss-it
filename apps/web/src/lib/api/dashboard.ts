@@ -136,6 +136,17 @@ export function getNowPlaying(channelId: string): Promise<{ now: SubmissionSumma
   return fetch(`${dash(channelId)}/now`).then((r) => json<{ now: SubmissionSummary | null }>(r));
 }
 
+export function pauseResumePlayback(
+  channelId: string,
+  action: 'pause' | 'resume',
+): Promise<{ ok: boolean }> {
+  return fetch(`${dash(channelId)}/playback`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ action }),
+  }).then((r) => json<{ ok: boolean }>(r));
+}
+
 export function skipCurrent(channelId: string): Promise<{ skipped: boolean }> {
   return fetch(`${dash(channelId)}/skip`, { method: 'POST' }).then((r) =>
     json<{ skipped: boolean }>(r),

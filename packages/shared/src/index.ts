@@ -301,6 +301,8 @@ export interface MusicState {
 export interface ServerToOverlayEvents {
   'media:play': (payload: MediaPlayPayload) => void;
   'media:skip': (submissionId: string) => void;
+  /** Pause/resume the current show (dashboard → overlay). Skip is media:skip. */
+  'media:control': (action: 'pause' | 'resume') => void;
   /** Channel donation → fullscreen burst FX over media display. */
   'donation:fx': (fx: DonationFx) => void;
   /** Chat display config, sent on connect and whenever settings change. */
@@ -330,6 +332,8 @@ export interface OverlayToServerEvents {
   'playback:done': (submissionId: string) => void;
   /** Overlay learned real clip duration (YouTube: only during playback). */
   'playback:duration': (submissionId: string, durationMs: number) => void;
+  /** Live position of the current show, throttled; relayed to the dashboard's progress bar. */
+  'playback:progress': (p: PlaybackProgress) => void;
   /** Background-music player state, relayed to the dashboard. */
   'music:state': (state: MusicState) => void;
 }
@@ -364,12 +368,23 @@ export interface SubmissionSummary {
   giphyId?: string | null;
 }
 
+/** Live position of whatever is currently on the overlay — drives the dashboard's progress bar. */
+export interface PlaybackProgress {
+  submissionId: string;
+  positionMs: number;
+  /** Total length; 0 = unknown yet (e.g. a YouTube clip still loading). */
+  durationMs: number;
+  paused: boolean;
+}
+
 export interface ServerToDashboardEvents {
   'moderation:new': (submission: SubmissionSummary) => void;
   /** Submission left pending (approved/rejected) — remove from list. */
   'moderation:resolved': (submissionId: string) => void;
   'playback:started': (submission: SubmissionSummary) => void;
   'playback:ended': (submissionId: string) => void;
+  /** Live progress of the current show (relayed from the overlay), for the now-playing controls. */
+  'playback:progress': (p: PlaybackProgress) => void;
   /** Live background-music player state (relayed from the overlay). */
   'music:state': (state: MusicState) => void;
 }

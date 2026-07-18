@@ -168,6 +168,8 @@ interface ChannelState {
   queue: SubmissionRow[];
   current: SubmissionRow | null;
   watchdog: NodeJS.Timeout | null;
+  /** Streamer paused the current show — the auto-advance watchdog is off while true. */
+  paused: boolean;
 }
 
 /**
@@ -212,6 +214,35 @@ export class PlaybackManager {
     // regardless of whether the overlay is alive.
     this.io.to(roomOf(channelId)).emit('media:skip', current.id);
     await this.onDone(channelId, current.id);
+    return true;
+  }
+
+  /**
+   * Pause the current show. The overlay freezes it and keeps reporting progress; we drop the
+   * auto-advance watchdog (the overlay is alive and drives completion) so a paused item never
+   * gets force-skipped. Resume re-arms a backstop watchdog. No-op if nothing is playing.
+   */
+  pause(channelId: string): boolean {
+    const st = this.state(channelId);
+    if (!st.current || st.paused) return false;
+    st.paused = true;
+    if (st.watchdog) clearTimeout(st.watchdog);
+    st.watchdog = null;
+    this.io.to(roomOf(channelId)).emit('media:control', 'pause');
+    return true;
+  }
+
+  resume(channelId: string): boolean {
+    const st = this.state(channelId);
+    if (!st.current || !st.paused) return false;
+    st.paused = false;
+    const sub = st.current;
+    // Backstop only: normally the overlay's playback:done ends it first. YouTube uses its load grace.
+    const watchdogMs =
+      sub.kind === 'youtube' ? config.youtube.loadGraceMs : sub.durationMs + config.watchdogGraceMs;
+    if (st.watchdog) clearTimeout(st.watchdog);
+    st.watchdog = setTimeout(() => void this.onDone(channelId, sub.id), watchdogMs);
+    this.io.to(roomOf(channelId)).emit('media:control', 'resume');
     return true;
   }
 
@@ -299,6 +330,7 @@ export class PlaybackManager {
       }
 
       st.current = fresh;
+      st.paused = false;
       this.io.to(roomOf(channelId)).emit('media:play', await this.buildPayload(fresh));
       this.io.to(dashboardRoomOf(channelId)).emit('playback:started', await toLiveSummary(fresh));
       emitSubmissionStatus(this.io, fresh.id, 'playing');
@@ -386,7 +418,7 @@ export class PlaybackManager {
   private state(channelId: string): ChannelState {
     let st = this.states.get(channelId);
     if (!st) {
-      st = { queue: [], current: null, watchdog: null };
+      st = { queue: [], current: null, watchdog: null, paused: false };
       this.states.set(channelId, st);
     }
     return st;
@@ -532,6 +564,12 @@ export function setupRealtime(io: RealtimeServer, app: FastifyInstance): Playbac
           socket.on('playback:duration', (submissionId, durationMs) => {
             if (typeof submissionId === 'string' && typeof durationMs === 'number') {
               playback.reportDuration(channel.id, submissionId, durationMs);
+            }
+          });
+          // Relay the current show's live position to the channel's dashboards (progress bar).
+          socket.on('playback:progress', (p) => {
+            if (p && typeof p.submissionId === 'string') {
+              io.to(dashboardRoomOf(channel.id)).emit('playback:progress', p);
             }
           });
           // Relay the overlay's music player state to the channel's dashboards.

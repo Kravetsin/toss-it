@@ -301,6 +301,18 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
     },
   );
 
+  /** Pause / resume the current show (freezes the image timer / pauses the player). */
+  app.post<{ Params: { channelId: string }; Body: { action?: 'pause' | 'resume' } | null }>(
+    '/api/dashboard/:channelId/playback',
+    async (req, reply) => {
+      const channel = await requireChannelAccess(req, reply, req.params.channelId);
+      if (!channel) return;
+      const ok =
+        req.body?.action === 'resume' ? playback.resume(channel.id) : playback.pause(channel.id);
+      return { ok };
+    },
+  );
+
   /** Owner sends a test donation: overlay FX preview without a real donation. */
   app.post<{ Params: { channelId: string }; Body: { amount?: unknown } | null }>(
     '/api/dashboard/:channelId/test-donation',

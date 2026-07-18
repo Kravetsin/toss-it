@@ -5,6 +5,7 @@ import type {
   ListedUser,
   MusicState,
   MusicTrack,
+  PlaybackProgress,
   ReputationStats,
   SubmissionSummary,
 } from '@tmw/shared';
@@ -33,6 +34,7 @@ export function useChannelData(
 ) {
   const [pending, setPending] = useState<SubmissionSummary[]>([]);
   const [now, setNow] = useState<SubmissionSummary | null>(null);
+  const [progress, setProgress] = useState<PlaybackProgress | null>(null);
   const [settings, setSettings] = useState<ChannelSettings | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [allowed, setAllowed] = useState<ListedUser[]>([]);
@@ -96,6 +98,7 @@ export function useChannelData(
     if (!channelId) return;
     setPending([]);
     setNow(null);
+    setProgress(null);
     setSettings(null);
     setAllowed([]);
     setBanned([]);
@@ -126,13 +129,18 @@ export function useChannelData(
     socket.on('moderation:resolved', (id: string) =>
       setPending((prev) => prev.filter((p) => p.id !== id)),
     );
-    socket.on('playback:started', (s: SubmissionSummary) => setNow(s));
+    socket.on('playback:started', (s: SubmissionSummary) => {
+      setNow(s);
+      setProgress(null); // reset until the overlay reports the new item's position
+    });
     socket.on('playback:ended', () => {
       setNow(null);
+      setProgress(null);
       void getHistory(channelId)
         .then(setHistory)
         .catch(() => {});
     });
+    socket.on('playback:progress', (p: PlaybackProgress) => setProgress(p));
     socket.on('music:state', (s: MusicState) => setMusicState(s));
     return () => {
       socket.close();
@@ -143,6 +151,7 @@ export function useChannelData(
     pending,
     setPending,
     now,
+    progress,
     settings,
     setSettings,
     history,

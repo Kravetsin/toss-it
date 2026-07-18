@@ -96,8 +96,11 @@ export function DashboardPage() {
         <div className="flex flex-col gap-4 lg:hidden">
           <NowPlayingCard
             now={data.now}
+            progress={data.progress}
+            live={data.progress !== null}
             isOwner={isOwner}
             onSkip={actions.skip}
+            onPauseResume={actions.pauseResume}
             onOpenTest={() => setTestOpen(true)}
           />
           {isOwner && channelId && (
@@ -147,8 +150,11 @@ export function DashboardPage() {
           <div className="hidden flex-col gap-4 lg:flex">
             <NowPlayingCard
               now={data.now}
+              progress={data.progress}
+              live={data.progress !== null}
               isOwner={isOwner}
               onSkip={actions.skip}
+              onPauseResume={actions.pauseResume}
               onOpenTest={() => setTestOpen(true)}
             />
             {isOwner && channelId && (
