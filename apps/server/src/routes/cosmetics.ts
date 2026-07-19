@@ -10,6 +10,7 @@ import {
 import { db } from '../db/index';
 import { userCosmetics, users } from '../db/schema';
 import { requireUser } from '../auth';
+import { messagesTotalFor } from '../level';
 
 /** Whether the user owns a given catalog item. */
 async function owns(userId: string, itemId: string): Promise<boolean> {
@@ -96,6 +97,7 @@ export function registerCosmeticsRoutes(app: FastifyInstance): void {
       nickFlow?: unknown;
       nickEffect?: unknown;
       cardEffect?: unknown;
+      frame?: unknown;
       entrance?: unknown;
       entranceColor?: unknown;
     } | null;
@@ -151,6 +153,7 @@ export function registerCosmeticsRoutes(app: FastifyInstance): void {
     for (const [field, type] of [
       ['nickEffect', 'nick_effect'],
       ['cardEffect', 'card_effect'],
+      ['frame', 'frame'],
       ['entrance', 'entrance'],
     ] as const) {
       if (!(field in body)) continue;
@@ -164,7 +167,14 @@ export function registerCosmeticsRoutes(app: FastifyInstance): void {
         // renders nothing, so equipping it would blank the slot.
         !COSMETICS.find((c) => c.id === raw)?.upgrade
       ) {
-        if (!(await owns(user.id, raw))) {
+        // Earned cosmetics (frames) gate on the live activity count, not ownership; everything else
+        // must be bought. The gate is live, so anyone already past the milestone qualifies at once.
+        const earn = COSMETICS.find((c) => c.id === raw)?.earn;
+        if (earn) {
+          if ((await messagesTotalFor(user.id)) < earn.count) {
+            return reply.code(403).send({ error: 'Достижение ещё не выполнено' });
+          }
+        } else if (!(await owns(user.id, raw))) {
           return reply.code(403).send({ error: 'Эффект не куплен' });
         }
         equipped[field] = raw;

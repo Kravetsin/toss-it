@@ -111,6 +111,35 @@ export async function levelsForSenders(
   return new Map(ids.map((id, i) => [id, levels[i] ?? 0]));
 }
 
+/**
+ * Account-wide chat message count (summed across ALL channels), for earned cosmetics (frames). Sums
+ * channelActivity.messages over every platform identity linked to the user — so a user who chats on
+ * many channels earns from the total. 0 if the account has no linked identity yet.
+ */
+export async function messagesTotalFor(userId: string): Promise<number> {
+  const ids = await db
+    .select({ provider: linkedIdentities.provider, providerId: linkedIdentities.providerId })
+    .from(linkedIdentities)
+    .where(eq(linkedIdentities.userId, userId))
+    .all();
+  if (ids.length === 0) return 0;
+  const row = await db
+    .select({ n: sql<number>`coalesce(sum(${channelActivity.messages}), 0)` })
+    .from(channelActivity)
+    .where(
+      or(
+        ...ids.map((i) =>
+          and(
+            eq(channelActivity.platform, i.provider),
+            eq(channelActivity.platformUserId, i.providerId),
+          ),
+        ),
+      ),
+    )
+    .get();
+  return row?.n ?? 0;
+}
+
 /** Per-channel level for one sender (0 if anon/unknown) — for single live emits. */
 export async function levelForSender(channelId: string, userId: string | null): Promise<number> {
   if (!userId) return 0;

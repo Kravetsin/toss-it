@@ -8,6 +8,7 @@ import {
   LEVEL_GLOW_FROM,
   applyEntrance,
   applyStyleMap,
+  frameEffectClass,
   injectCosmeticsStyles,
   injectLevelStyles,
   levelTier,
@@ -190,6 +191,8 @@ function renderMessage(msg: ChatOverlayMessage): void {
   // Message bubble; card-effect particles render behind the text, clipped to the bubble.
   const bubble = document.createElement('div');
   bubble.className = 'bubble';
+  const frameCls = frameEffectClass(msg.cosmetics?.frame);
+  if (frameCls) bubble.classList.add(frameCls);
   // Particles render behind the text, clipped to the pill. `compact`: a pill is short, so the
   // trajectory crosses it and starts/ends outside. No teardown — the listeners live on the pill's
   // own particles and go when the row does.

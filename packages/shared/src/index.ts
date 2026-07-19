@@ -116,6 +116,8 @@ export interface MediaPlayPayload {
   senderEffect?: string;
   /** Sender's equipped card effect id (e.g. 'card-levitation', 'card-stardust'); absent if none. */
   senderCardEffect?: string;
+  /** Sender's equipped frame id (e.g. 'frame-runner'); absent if none. Border decoration on the card. */
+  senderFrame?: string;
   /** Sender's equipped entrance id (e.g. 'entrance-glitch'); absent = the stage's own pop-in. */
   senderEntrance?: string;
   /** Portal entrance tint (#rrggbb) from the 'entrance-portal-color' upgrade; absent = default mint. */
@@ -382,6 +384,8 @@ export interface SubmissionSummary {
   senderEffect: string | null;
   /** Sender's equipped card effect id, null if none. */
   senderCardEffect: string | null;
+  /** Sender's equipped frame id, null if none. Border decoration on the submission card. */
+  senderFrame: string | null;
   /** Sender's per-channel level 0–10 (0/absent = no rank) — drives the curation rail + numeral. */
   senderLevel?: number;
   kind: MediaKind;
@@ -565,6 +569,8 @@ export interface SessionUser {
   stardust: number;
   /** Catalog ids the user owns (from COSMETICS). */
   ownedCosmetics: string[];
+  /** Account-wide chat messages (summed across channels) — unlocks earned cosmetics (frames). */
+  messagesTotal: number;
   /** Currently equipped cosmetics (nick color, etc.). */
   equipped: EquippedCosmetics;
   /** A Twitch identity opens this account (native or linked) — chat dust reaches it. */

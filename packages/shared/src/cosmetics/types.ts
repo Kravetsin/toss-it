@@ -9,7 +9,13 @@
 
 /** Cosmetic categories: nick color, nick effects (on the name), card effects (particle swarm),
  *  entrances (how a thing ARRIVES), TTS voices (picked per submission, not equipped). */
-export type CosmeticType = 'nick_color' | 'nick_effect' | 'card_effect' | 'entrance' | 'tts_voice';
+export type CosmeticType =
+  | 'nick_color'
+  | 'nick_effect'
+  | 'card_effect'
+  | 'frame'
+  | 'entrance'
+  | 'tts_voice';
 
 /** Languages the TTS voices cover (matches piper voice models on the server). */
 export type TtsLang = 'ru' | 'uk' | 'en';
@@ -43,6 +49,20 @@ export interface CosmeticItem {
    * Owning it turns on a customisation slot instead. Excluded from the category's equip/demo lists.
    */
   upgrade?: boolean;
+  /**
+   * EARNED, not bought: unlocked by an activity milestone instead of stardust (costDust is 0). The
+   * server gates equip on the live count, so anyone already past the threshold has it immediately —
+   * there's no grant to backfill. The shop shows progress toward it instead of a price.
+   */
+  earn?: CosmeticEarn;
+}
+
+/** How an earned (non-bought) cosmetic is unlocked. */
+export interface CosmeticEarn {
+  /** The account-wide metric that unlocks it. Only chat 'messages' for now (summed across channels). */
+  metric: 'messages';
+  /** How many of the metric are needed. */
+  count: number;
 }
 
 /** i18n keys for the shop; the actual strings live in apps/web i18n dictionaries (per convention). */
@@ -138,6 +158,19 @@ export interface CardEffectModule extends BaseModule {
 }
 
 /**
+ * A decoration on the message CARD's border (a runner of light chasing the contour, etc.). A separate
+ * layer from the role-coloured border it sits over — the colour still signals WHO the sender is; the
+ * frame signals WHAT they've earned. Pure CSS: the module ships a `className` (set on the card host on
+ * every surface) and `css` targeting `.<className>::after`; the shared ring geometry lives in BASE_CSS.
+ * No particles, so no mount helper — just the class + the injected stylesheet.
+ */
+export interface FrameModule extends BaseModule {
+  type: 'frame';
+  /** Class set on the card host (e.g. 'frame-fx-runner'); the module's CSS targets its `::after`. */
+  className: string;
+}
+
+/**
  * How a viewer's thing ARRIVES, on the surfaces that have an arrival: a pill appearing in chat, an
  * alert hitting the stage. A one-shot, unlike a card effect's endless swarm — the two are different
  * axes and stack freely (a glitching arrival can still drift sakura afterwards).
@@ -199,6 +232,7 @@ export type CosmeticModule =
   | ColorModule
   | NickEffectModule
   | CardEffectModule
+  | FrameModule
   | EntranceModule
   | TtsVoiceModule;
 
@@ -221,6 +255,9 @@ export interface EquippedCosmetics {
   nickEffect?: string | null;
   /** Equipped card effect item id (e.g. 'card-levitation'); requires owning it. */
   cardEffect?: string | null;
+  /** Equipped frame item id (e.g. 'frame-runner'); requires owning it. A border decoration on the
+   *  sender's card, layered over its role colour (the colour is untouched). */
+  frame?: string | null;
   /**
    * Equipped entrance item id (e.g. 'entrance-glitch'); requires owning it. Only surfaces that HAVE
    * an arrival honour it — the chat pill and the stage alert. Unset = the surface's own entrance.

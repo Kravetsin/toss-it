@@ -4,6 +4,7 @@ import type {
   CosmeticModule,
   CosmeticType,
   EntranceModule,
+  FrameModule,
   NickEffectModule,
   Rnd,
   Surface,
@@ -21,6 +22,8 @@ import { cardSakura } from './effects/card-sakura';
 import { cardStardust } from './effects/card-stardust';
 import { cardRain } from './effects/card-rain';
 import { cardSnow } from './effects/card-snow';
+import { frameRunner } from './effects/frame-runner';
+import { frameRunnerDouble } from './effects/frame-runner-double';
 import { entranceGlitch } from './effects/entrance-glitch';
 import { entrancePortal } from './effects/entrance-portal';
 import { entrancePortalColor } from './effects/entrance-portal-color';
@@ -82,6 +85,37 @@ const BASE_CSS = `
   pointer-events: none;
   transform-origin: center bottom;
 }
+/* Frame effects (a runner of light on the card border). The class goes on the card HOST; the module
+   paints the ::after's conic background. Shared geometry here: a thin masked ring on the ::after, INSET
+   (inset:0) so overflow:hidden cards (chat bubble, web card) never clip it, radius inherited from the
+   card. The card host must be position:relative — the card surfaces already are. */
+@property --frame-ang {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+[class*='frame-fx-']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+@keyframes frame-run {
+  to {
+    --frame-ang: 360deg;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  [class*='frame-fx-']::after {
+    animation: none;
+  }
+}
 `;
 
 /**
@@ -102,6 +136,8 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   cardSnow,
   cardSakura,
   cardLightning,
+  frameRunner,
+  frameRunnerDouble,
   entranceGlitch,
   entrancePortal,
   entrancePortalColor,
@@ -117,12 +153,13 @@ export function cosmeticModule(id: string): CosmeticModule | undefined {
 
 /** Catalog metadata — the back-compat `COSMETICS` array many callers still consume. */
 export const COSMETICS: CosmeticItem[] = COSMETIC_MODULES.map(
-  ({ id, type, costDust, requires, upgrade }) => ({
+  ({ id, type, costDust, requires, upgrade, earn }) => ({
     id,
     type,
     costDust,
     requires,
     upgrade,
+    earn,
   }),
 );
 
@@ -155,6 +192,19 @@ export function nickEffectClass(id: string): string {
 export function nickEffectModule(id: string): NickEffectModule | undefined {
   const m = BY_ID.get(id);
   return m?.type === 'nick_effect' ? m : undefined;
+}
+
+/** Frame module by catalog id, or undefined for unknown / non-frame ids. */
+export function frameModule(id: string | null | undefined): FrameModule | undefined {
+  if (!id) return undefined;
+  const m = BY_ID.get(id);
+  return m?.type === 'frame' ? m : undefined;
+}
+
+/** Class a surface puts on the card host for an equipped frame (e.g. 'frame-fx-runner'), or '' for
+ *  none/unknown. The class alone drives the effect — the injected stylesheet does the rest. */
+export function frameEffectClass(id: string | null | undefined): string {
+  return frameModule(id)?.className ?? '';
 }
 
 /** Entrance module by catalog id, or undefined for unknown / non-entrance ids. */

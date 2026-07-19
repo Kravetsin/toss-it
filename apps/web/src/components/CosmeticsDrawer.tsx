@@ -5,6 +5,7 @@ import {
   DUST_POINTS,
   cosmeticModule,
   entranceModule,
+  frameEffectClass,
   nickEffectClass,
   nickEffectModule,
   type CosmeticItem,
@@ -39,7 +40,23 @@ const EARN_ROWS = [
   { icon: 'message-circle', key: 'wallet.earnChat', n: DUST_POINTS.message },
 ] as const;
 
-type ShopCategory = 'nick' | 'card' | 'entrance' | 'voices';
+type ShopCategory = 'nick' | 'card' | 'frame' | 'entrance' | 'voices';
+
+/** Demo for a frame: a stand-in message card wearing the runner ring, so the border effect shows on a
+ *  realistic small card (the frame lives on the border, not a swarm — nothing to look at otherwise). */
+function FrameDemo({ id, label }: { id: string; label: string }) {
+  const cls = frameEffectClass(id);
+  return (
+    <div className="flex justify-start">
+      <div
+        className={`relative inline-flex items-center gap-1.5 rounded-[10px] border border-[rgba(141,240,204,0.5)] bg-[#0e1413] px-3 py-1.5 ${cls}`}
+      >
+        <span className="text-sm font-medium text-accent">{label}</span>
+        <span className="text-sm text-muted">gg</span>
+      </div>
+    </div>
+  );
+}
 
 /**
  * Demo for an entrance: a stand-in for the thing that arrives, replaying the effect on demand.
@@ -137,6 +154,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   const flowItem = COSMETICS.find((c) => c.id === NICK_FLOW_ID)!;
   const nickEffects = COSMETICS.filter((c) => c.type === 'nick_effect');
   const cardEffects = COSMETICS.filter((c) => c.type === 'card_effect');
+  const frames = COSMETICS.filter((c) => c.type === 'frame');
   // `upgrade` items (the portal colour) aren't equippable entrances — they're a rung, rendered below.
   const entrances = COSMETICS.filter((c) => c.type === 'entrance' && !c.upgrade);
   const portalColorItem = COSMETICS.find((c) => c.id === PORTAL_COLOR_ID)!;
@@ -150,6 +168,9 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   const equippedFlow = user?.equipped.nickFlow ?? false;
   const equippedNickEffect = user?.equipped.nickEffect ?? null;
   const equippedCardEffect = user?.equipped.cardEffect ?? null;
+  const equippedFrame = user?.equipped.frame ?? null;
+  // Account-wide chat messages — earned cosmetics (frames) unlock at a threshold instead of a price.
+  const messagesTotal = user?.messagesTotal ?? 0;
   const equippedEntrance = user?.equipped.entrance ?? null;
   const ownsPortal = user?.ownedCosmetics.includes(PORTAL_ID) ?? false;
   const ownsPortalColor = user?.ownedCosmetics.includes(PORTAL_COLOR_ID) ?? false;
@@ -245,6 +266,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   const equipEffect = (patch: {
     nickEffect?: string | null;
     cardEffect?: string | null;
+    frame?: string | null;
     entrance?: string | null;
   }) =>
     void act(() => equipCosmetic(patch), {
@@ -278,13 +300,17 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     equippedId: string | null,
     onEquip: (id: string | null) => void,
   ) => {
-    const owned = user?.ownedCosmetics.includes(e.id) ?? false;
+    // Earned items (frames) count as "owned" once the milestone is met; the rest are owned by purchase.
+    const owned = e.earn
+      ? messagesTotal >= e.earn.count
+      : (user?.ownedCosmetics.includes(e.id) ?? false);
     const on = equippedId === e.id;
     const labels = cosmeticModule(e.id)?.labels;
     if (!labels) return null;
     const isCard = e.type === 'card_effect';
     const isNick = e.type === 'nick_effect';
     const isEntrance = e.type === 'entrance';
+    const isFrame = e.type === 'frame';
     return (
       <div
         key={e.id}
@@ -313,6 +339,11 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
               on ? (
                 <Badge>{t('shop.equippedBadge')}</Badge>
               ) : null
+            ) : e.earn ? (
+              <span className="inline-flex items-center gap-1.5 label-mono text-muted">
+                <Icon name="message-circle" size={13} />
+                {Math.min(messagesTotal, e.earn.count)} / {e.earn.count}
+              </span>
             ) : (
               <span className="inline-flex items-center gap-1.5 label-mono text-accent">
                 <DustMark size={14} />
@@ -330,16 +361,24 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
               color={e.id === PORTAL_ID ? (equippedEntranceColor ?? undefined) : undefined}
             />
           )}
+          {isFrame && <FrameDemo id={e.id} label={previewName} />}
           <div className="flex items-center gap-2">
             {!owned ? (
-              <Button
-                variant="accent"
-                size="sm"
-                onClick={() => buy(e.id, t(labels.name), e.costDust)}
-                disabled={balance < e.costDust}
-              >
-                {t('shop.buy')}
-              </Button>
+              e.earn ? (
+                // Earned, not bought: no buy button — just how far off the milestone is.
+                <span className="label-mono text-faint">
+                  {t('shop.earnLocked', { n: e.earn.count - messagesTotal })}
+                </span>
+              ) : (
+                <Button
+                  variant="accent"
+                  size="sm"
+                  onClick={() => buy(e.id, t(labels.name), e.costDust)}
+                  disabled={balance < e.costDust}
+                >
+                  {t('shop.buy')}
+                </Button>
+              )
             ) : on ? (
               <Button variant="ghost" size="sm" onClick={() => onEquip(null)}>
                 {t('shop.unequip')}
@@ -349,7 +388,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
                 {t('shop.equip')}
               </Button>
             )}
-            {!owned && balance < e.costDust && (
+            {!owned && !e.earn && balance < e.costDust && (
               <span className="label-mono text-faint">{t('shop.notEnough')}</span>
             )}
           </div>
@@ -417,7 +456,13 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   );
 
   return createPortal(
-    <Drawer open={open} onClose={onClose} title={t('shop.title')} closeLabel={t('common.close')}>
+    <Drawer
+      open={open}
+      onClose={onClose}
+      title={t('shop.title')}
+      closeLabel={t('common.close')}
+      width="max-w-lg"
+    >
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between gap-2">
           <p className="text-sm text-muted">{t('shop.subtitle')}</p>
@@ -471,6 +516,11 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
             active={category === 'card'}
             onClick={() => setCategory('card')}
             label={t('shop.catCard')}
+          />
+          <CategoryBtn
+            active={category === 'frame'}
+            onClick={() => setCategory('frame')}
+            label={t('shop.catFrame')}
           />
           <CategoryBtn
             active={category === 'entrance'}
@@ -670,6 +720,12 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
             ),
           )}
 
+        {category === 'frame' &&
+          section(
+            t('shop.frames'),
+            frames.map((e) => effectRow(e, equippedFrame, (id) => equipEffect({ frame: id }))),
+          )}
+
         {category === 'entrance' &&
           section(
             t('shop.entrances'),
@@ -724,7 +780,11 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
                       variant="accent"
                       size="sm"
                       onClick={() =>
-                        buy(PORTAL_COLOR_ID, t('shop.entrancePortalColor'), portalColorItem.costDust)
+                        buy(
+                          PORTAL_COLOR_ID,
+                          t('shop.entrancePortalColor'),
+                          portalColorItem.costDust,
+                        )
                       }
                       disabled={!ownsPortal || balance < portalColorItem.costDust}
                     >

@@ -9,6 +9,7 @@ import {
   type PanInfo,
 } from 'motion/react';
 import {
+  frameEffectClass,
   LEVEL_GLOW_FROM,
   levelTier,
   toRoman,
@@ -130,7 +131,7 @@ export function SubmissionCard({
         }}
         onDragEnd={onDragEnd}
         {...fillHandlers}
-        className="relative cursor-grab bg-surface active:cursor-grabbing"
+        className={`relative cursor-grab bg-surface active:cursor-grabbing ${frameEffectClass(s.senderFrame)}`}
       >
         <span
           ref={fillRef}

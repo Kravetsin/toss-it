@@ -67,12 +67,15 @@ const MOCK_ME: MeResponse = {
     // Own everything + equip a combo so the shop shows all cosmetics equippable and the signed-in
     // user's own nick/cards demo the effects live (dev preview only).
     ownedCosmetics: COSMETICS.map((c) => c.id),
+    // Between the two frame thresholds: Runner (500) earned, Twin runners (1000) still in progress.
+    messagesTotal: 720,
     equipped: {
       nickColor: '#8df0cc',
       nickColor2: '#a78bfa',
       nickFlow: true,
       nickEffect: 'nick-pulse',
       cardEffect: 'card-levitation',
+      frame: 'frame-runner',
       entrance: 'entrance-portal',
       entranceColor: '#ff8a3d',
     },
@@ -156,6 +159,7 @@ const sub = (
   senderNickFlow: false,
   senderEffect: null,
   senderCardEffect: null,
+  senderFrame: null,
   mime: 'text/plain',
   text: null,
   durationMs: 6000,
@@ -177,6 +181,7 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderNickFlow: true,
     senderEffect: 'nick-glow',
     senderCardEffect: 'card-stardust',
+    senderFrame: 'frame-runner',
     text: 'каеф, врубай этого на стрим 🔥🔥🔥',
     createdAt: t - 1 * min,
   }),

@@ -54,6 +54,8 @@ export interface NickMarks {
   flow: boolean;
   nickEffect: string | null;
   cardEffect: string | null;
+  /** Border decoration on the card (e.g. 'frame-runner'); null = none. */
+  frame: string | null;
   /** How the alert arrives on stage; null = the stage's own pop-in. */
   entrance: string | null;
   /** Portal entrance tint (#rrggbb); only set when `entrance` is the portal. */
@@ -65,6 +67,7 @@ const NO_MARKS: NickMarks = {
   flow: false,
   nickEffect: null,
   cardEffect: null,
+  frame: null,
   entrance: null,
   entranceColor: null,
 };
@@ -81,6 +84,7 @@ export function marksFromEquipped(equipped: EquippedCosmetics | null): NickMarks
     flow: equipped?.nickFlow ?? false,
     nickEffect: equipped?.nickEffect ?? null,
     cardEffect: equipped?.cardEffect ?? null,
+    frame: equipped?.frame ?? null,
     entrance: equipped?.entrance ?? null,
     // The colour tints only the portal; a stray colour with another entrance renders nothing.
     entranceColor:
@@ -102,6 +106,7 @@ export function toSummary(
     senderNickFlow: marks.flow,
     senderEffect: marks.nickEffect,
     senderCardEffect: marks.cardEffect,
+    senderFrame: marks.frame,
     senderLevel,
     kind: sub.kind,
     mime: sub.mime,
@@ -139,7 +144,7 @@ export async function equippedMarksFor(
     .all();
   for (const r of rows) {
     const e = r.equipped;
-    if (e?.nickColor || e?.nickEffect || e?.cardEffect || e?.entrance)
+    if (e?.nickColor || e?.nickEffect || e?.cardEffect || e?.frame || e?.entrance)
       out.set(r.id, marksFromEquipped(e));
     // nickColor2 needs no check of its own: it is only ever set alongside nickColor.
   }
@@ -512,6 +517,7 @@ export class PlaybackManager {
       senderNickFlow: marks.flow || undefined,
       senderEffect: marks.nickEffect ?? undefined,
       senderCardEffect: marks.cardEffect ?? undefined,
+      senderFrame: marks.frame ?? undefined,
       senderEntrance: marks.entrance ?? undefined,
       senderEntranceColor: marks.entranceColor ?? undefined,
       senderLevel: senderLevel || undefined,

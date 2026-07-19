@@ -30,6 +30,7 @@ import {
   resolveIdentity,
   upsertUser,
 } from '../auth';
+import { messagesTotalFor } from '../level';
 import { claimPendingDust } from '../modules/twitch-chat/accrual';
 import { saveBotCredentials } from '../modules/twitch-chat/token';
 import type { TwitchChatModule } from '../modules/twitch-chat/index';
@@ -445,6 +446,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
         isAdmin: isAdmin(user.id),
         stardust: user.stardust,
         ownedCosmetics: owned.map((o) => o.itemId),
+        messagesTotal: await messagesTotalFor(user.id),
         equipped: user.equipped ?? {},
         hasTwitch: !!twitchIdentity,
       },

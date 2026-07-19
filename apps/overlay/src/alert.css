@@ -60,6 +60,7 @@
    viewport), clamped so it never overflows a small source. */
 .player {
   box-sizing: border-box;
+  position: relative; /* containing block for an equipped frame's ::after ring */
   display: flex;
   flex-direction: column;
   gap: 12px;

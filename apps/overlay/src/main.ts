@@ -9,6 +9,7 @@ import {
   OVERLAY_POSITIONS,
   applyEntrance,
   applyStyleMap,
+  frameEffectClass,
   giphyGifUrl,
   injectCosmeticsStyles,
   injectLevelStyles,
@@ -268,6 +269,8 @@ function decorateSender(el: HTMLElement, payload: MediaPlayPayload): void {
 function buildCard(payload: MediaPlayPayload, media: HTMLElement): HTMLElement {
   const player = document.createElement('div');
   player.className = 'player';
+  const frameCls = frameEffectClass(payload.senderFrame);
+  if (frameCls) player.classList.add(frameCls);
   if (payload.kind === 'youtube') player.classList.add('is-youtube');
   else if (payload.kind === 'image' || payload.kind === 'gif' || payload.kind === 'video')
     player.classList.add('has-media');
