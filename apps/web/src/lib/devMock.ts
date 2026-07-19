@@ -134,8 +134,9 @@ const MOCK_SETTINGS: ChannelSettings = {
   bgMusicShuffle: false,
   bgMusicVolume: 50,
   bgMusicHidden: false,
-  nebulaHidden: false,
-  nebulaEarned: true, // preview the background picker (real value derived from the played count)
+  // Preview the background picker with both earned so the black hole can be selected/viewed.
+  pageBackground: 'blackhole',
+  earnedBackgrounds: ['nebula', 'blackhole'],
   description: 'Шли мемы — лучшее окажется на стриме 🎬',
   links: [
     { platform: 'twitch', url: 'https://twitch.tv/kravetsinside' },
@@ -399,7 +400,7 @@ function mockPublicChannel(login: string): PublicChannelInfo {
     nickFlow: true,
     nickEffect: 'nick-glow',
     cardEffect: 'card-stardust',
-    nebula: true, // preview the earned galaxy background (real gate: 500 played submissions)
+    pageBackground: 'blackhole', // preview the earned black-hole background on the channel page
     // Themed on purpose: ?mock=1 is the only way to see a custom channel theme without a real
     // channel. Override per-run with ?accentHue=&bgHue=&bgTint=.
     theme: {
@@ -481,7 +482,7 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
 
 const MOCK_STATS: StatsSummary = {
   totalSubmissions: 1234,
-  totalAired: 456,
+  totalAired: 720, // galaxy unlocked (>=500), black hole in progress (720/1000) — previews both states
   totalRejected: 210,
   monthSubmissions: 189,
   todaySubmissions: 12,

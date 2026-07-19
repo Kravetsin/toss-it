@@ -481,11 +481,11 @@ export interface ChannelSettings {
   bgMusicVolume: number;
   /** Hide the background-music player in OBS (audio keeps playing). */
   bgMusicHidden: boolean;
-  /** Hide the earned galaxy page background even after unlocking it (a preference, not the gate). */
-  nebulaHidden: boolean;
-  /** Derived (read-only): whether the galaxy background has been unlocked (>= NEBULA_MIN_PLAYED aired).
-   *  Drives the settings picker — you can only choose a background you've actually earned. */
-  nebulaEarned: boolean;
+  /** The streamer's chosen page background id ('' = none). Only renders if it's also earned. */
+  pageBackground: string;
+  /** Derived (read-only): the background ids this channel has unlocked, for the settings picker —
+   *  you can only choose a background you've actually earned. */
+  earnedBackgrounds: string[];
   /** Channel description on viewer page; null/'' = default subtitle shown. */
   description: string | null;
   /** Social links in viewer page header (order preserved). */
@@ -627,9 +627,21 @@ export interface OnboardingStatus {
   botReading: boolean;
 }
 
-/** Played (aired) submissions a channel needs before the galaxy page background unlocks. Shared so
- *  the server gate and the dashboard "Achievements" progress agree on one number. */
-export const NEBULA_MIN_PLAYED = 500;
+/** Page backgrounds a channel EARNS (never buys) by airing submissions on stream. Ordered by cost.
+ *  Shared so the server gate, the settings picker and the Achievements progress all agree on one set
+ *  of thresholds. Labels are localized separately (i18n `bg.*`); the client maps id → renderer. */
+export interface PageBackgroundDef {
+  id: string; // stored in ChannelSettings.pageBackground and rendered by the client
+  minPlayed: number; // aired (played, excl. self-sends) submissions needed to unlock it
+}
+export const PAGE_BACKGROUNDS: readonly PageBackgroundDef[] = [
+  { id: 'nebula', minPlayed: 500 },
+  { id: 'blackhole', minPlayed: 1000 },
+];
+/** The background ids a channel with `played` aired submissions has unlocked. */
+export function earnedBackgroundIds(played: number): string[] {
+  return PAGE_BACKGROUNDS.filter((b) => played >= b.minPlayed).map((b) => b.id);
+}
 
 export interface PublicChannelInfo {
   login: string;
@@ -659,9 +671,9 @@ export interface PublicChannelInfo {
   nickFlow: boolean;
   nickEffect: string | null;
   cardEffect: string | null;
-  /** Earned page background: the galaxy shows once the channel has reached the played-submission
-   *  milestone (see NEBULA_MIN_PLAYED on the server). A reward, not a purchase. */
-  nebula: boolean;
+  /** The page background to render: the streamer's chosen id, but only if the channel has earned it
+   *  (see PAGE_BACKGROUNDS); '' otherwise. A reward for airing submissions, never a purchase. */
+  pageBackground: string;
   /** Page theme knobs. On a full load the server already inlined these as tokens (see seo.ts);
    *  the client needs them to re-apply after a client-side nav onto this page. */
   theme: ChannelTheme;

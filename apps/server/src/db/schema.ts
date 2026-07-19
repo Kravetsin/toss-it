@@ -120,8 +120,10 @@ export const channels = sqliteTable('channels', {
   bgMusicShuffle: integer('bg_music_shuffle', { mode: 'boolean' }).notNull().default(false),
   bgMusicVolume: integer('bg_music_volume').notNull().default(50),
   bgMusicHidden: integer('bg_music_hidden', { mode: 'boolean' }).notNull().default(false),
-  /** Streamer hid the earned galaxy background (a preference; the earn gate is the played count). */
+  /** Deprecated: superseded by pageBackground. Kept so the column isn't dropped from existing DBs. */
   nebulaHidden: integer('nebula_hidden', { mode: 'boolean' }).notNull().default(false),
+  /** Chosen page background id ('' = none). Renders only if the channel has earned it (played count). */
+  pageBackground: text('page_background').notNull().default(''),
   description: text('description'),
   links: text('links', { mode: 'json' })
     .$type<ChannelLink[]>()

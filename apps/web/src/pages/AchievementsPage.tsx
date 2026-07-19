@@ -1,33 +1,48 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { NEBULA_MIN_PLAYED, type StatsSummary } from '@tmw/shared';
+import { PAGE_BACKGROUNDS, type PageBackgroundDef, type StatsSummary } from '@tmw/shared';
 import { getStats } from '@/lib/api';
 import { useMe } from '@/hooks/useMe';
 import { useI18n } from '@/i18n';
 import { Card, Icon, Loader } from '@/ui';
 import { AuthButtons } from '@/components/AuthButtons';
 import { NebulaBackground } from '@/components/NebulaBackground';
+import { BlackHoleBackground } from '@/components/BlackHoleBackground';
 import { useChannels } from '@/features/dashboard/hooks/useChannels';
 
 function Content({ children }: { children: ReactNode }) {
   return <div className="mx-auto max-w-4xl px-4 py-6 lg:px-8">{children}</div>;
 }
 
-/** The galaxy page-background reward: preview + unlock condition + progress. Shown to everyone (even
+/** Live preview of a background effect, centred in its card. */
+function bgPreview(id: string) {
+  if (id === 'nebula') return <NebulaBackground fill="parent" cy={0.5} />;
+  if (id === 'blackhole') return <BlackHoleBackground fill="parent" cy={0.5} />;
+  return null;
+}
+
+/** A page-background reward: live preview + unlock condition + progress. Shown to everyone (even
  *  before earning) so the feature is never hidden — the same transparency as the shop's gated rungs. */
-function NebulaAchievement({ aired, loading }: { aired: number; loading: boolean }) {
+function BackgroundAchievement({
+  def,
+  aired,
+  loading,
+}: {
+  def: PageBackgroundDef;
+  aired: number;
+  loading: boolean;
+}) {
   const { t } = useI18n();
-  const unlocked = aired >= NEBULA_MIN_PLAYED;
-  const pct = Math.min(100, Math.round((aired / NEBULA_MIN_PLAYED) * 100));
+  const unlocked = aired >= def.minPlayed;
+  const pct = Math.min(100, Math.round((aired / def.minPlayed) * 100));
   return (
     <Card className="overflow-hidden p-0">
-      {/* Live preview of the real effect, centred in the box; slightly dimmed while still locked so
-          the streamer sees exactly what they're working toward. The dimming wrapper is positioned
-          (absolute) on purpose: a `filter`/opacity layer becomes the containing block for the
-          absolute canvas, so a static wrapper would collapse it to zero height. */}
+      {/* Live preview, centred; dimmed while still locked so the streamer sees what they're after. The
+          dimming wrapper is positioned (absolute) on purpose: a `filter`/opacity layer becomes the
+          containing block for the absolute canvas, so a static wrapper would collapse it to zero. */}
       <div className="relative h-48 bg-[#05080c]">
         <div className={`absolute inset-0 ${unlocked ? '' : 'opacity-60'}`}>
-          <NebulaBackground fill="parent" cy={0.5} />
+          {bgPreview(def.id)}
         </div>
         <span
           className={`absolute right-3 top-3 inline-flex items-center gap-1 rounded-full px-2.5 py-1 label-mono ${
@@ -43,16 +58,16 @@ function NebulaAchievement({ aired, loading }: { aired: number; loading: boolean
         <div>
           <h3 className="flex items-center gap-2 text-text">
             <Icon name="sparkles" size={16} className="text-accent" />
-            {t('achv.nebulaName')}
+            {t(`bg.${def.id}`)}
           </h3>
-          <p className="mt-1 text-sm text-muted">{t('achv.nebulaDesc')}</p>
+          <p className="mt-1 text-sm text-muted">{t(`achv.${def.id}Desc`)}</p>
         </div>
 
         <div>
           <div className="mb-1 flex items-center justify-between text-xs">
-            <span className="text-muted">{t('achv.condition', { n: NEBULA_MIN_PLAYED })}</span>
+            <span className="text-muted">{t('achv.condition', { n: def.minPlayed })}</span>
             <span className="tabular-nums text-text">
-              {loading ? '…' : `${Math.min(aired, NEBULA_MIN_PLAYED)} / ${NEBULA_MIN_PLAYED}`}
+              {loading ? '…' : `${Math.min(aired, def.minPlayed)} / ${def.minPlayed}`}
             </span>
           </div>
           <span className="block h-2 overflow-hidden rounded-full bg-surface-2">
@@ -63,7 +78,7 @@ function NebulaAchievement({ aired, loading }: { aired: number; loading: boolean
           </span>
           {!loading && !unlocked && (
             <p className="mt-1.5 text-xs text-muted">
-              {t('achv.remaining', { n: NEBULA_MIN_PLAYED - aired })}
+              {t('achv.remaining', { n: def.minPlayed - aired })}
             </p>
           )}
         </div>
@@ -141,7 +156,14 @@ export function AchievementsPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <NebulaAchievement aired={stats?.totalAired ?? 0} loading={!stats} />
+        {PAGE_BACKGROUNDS.map((def) => (
+          <BackgroundAchievement
+            key={def.id}
+            def={def}
+            aired={stats?.totalAired ?? 0}
+            loading={!stats}
+          />
+        ))}
       </div>
     </Content>
   );

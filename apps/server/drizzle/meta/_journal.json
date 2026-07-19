@@ -302,6 +302,13 @@
       "when": 1784460000000,
       "tag": "0042_music_layout",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "6",
+      "when": 1784478777198,
+      "tag": "0043_smooth_maelstrom",
+      "breakpoints": true
     }
   ]
 }

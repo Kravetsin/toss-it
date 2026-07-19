@@ -1,0 +1,1 @@
+ALTER TABLE `channels` ADD `page_background` text DEFAULT '' NOT NULL;

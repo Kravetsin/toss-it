@@ -7,8 +7,16 @@ import { Button, PageShell } from '@/ui';
 import { Icon } from '@/ui/icons';
 import { BackgroundStars } from '@/components/BackgroundStars';
 import { NebulaBackground } from '@/components/NebulaBackground';
+import { BlackHoleBackground } from '@/components/BlackHoleBackground';
 import { IS_THEME_PREVIEW } from '../lib/themeQuery';
 import { ProfileMenu } from '@/components/ProfileMenu';
+
+/** Renders the earned page background by id (server already gated it to a background the channel has). */
+export function PageBackground({ id }: { id: string }) {
+  if (id === 'nebula') return <NebulaBackground />;
+  if (id === 'blackhole') return <BlackHoleBackground />;
+  return null;
+}
 
 /** Guest account cluster: same top-right spot as the wallet — browse the shop, or log in. */
 function GuestActions() {
@@ -38,19 +46,19 @@ function GuestActions() {
 export function ChannelShell({
   children,
   viewerLevel = 0,
-  nebula = false,
+  pageBackground = '',
 }: {
   children: ReactNode;
   /** The logged-in viewer's per-channel level, for their always-visible header card. */
   viewerLevel?: number;
-  /** Earned galaxy background — shown once the channel hits the played-submission milestone. */
-  nebula?: boolean;
+  /** Earned page background id ('' = none); server already checked the channel earned it. */
+  pageBackground?: string;
 }) {
   const { me } = useMe();
   return (
     <PageShell maxWidth="xl">
-      {/* Galaxy behind everything; stars twinkle over it. Only for channels that earned it. */}
-      {nebula && <NebulaBackground />}
+      {/* Earned background behind everything; stars twinkle over it. Only for channels that earned it. */}
+      <PageBackground id={pageBackground} />
       <BackgroundStars staticMode={IS_THEME_PREVIEW} />
       <div className="relative z-10">
         <div className="mb-6 flex items-center justify-between gap-2">

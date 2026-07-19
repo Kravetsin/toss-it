@@ -1,12 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  BRAND_HUE,
-  hexToHue,
-  NEBULA_MIN_PLAYED,
-  type ChannelSettings,
-  type ChannelTheme,
-} from '@tmw/shared';
+import { BRAND_HUE, hexToHue, type ChannelSettings, type ChannelTheme } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { useMe } from '@/hooks/useMe';
 import { Button, Card, Input, Select } from '@/ui';
@@ -148,21 +142,22 @@ export function ChannelThemeSettings({
                     {t('nav.achievements')}
                   </Link>
                 </div>
-                {settings.nebulaEarned ? (
+                {settings.earnedBackgrounds.length > 0 ? (
                   <Select
                     className="mt-2"
                     label={t('theme.background')}
-                    value={settings.nebulaHidden ? '' : 'nebula'}
-                    onChange={(v) => onSave({ nebulaHidden: v !== 'nebula' })}
+                    value={settings.pageBackground}
+                    onChange={(v) => onSave({ pageBackground: v })}
                     options={[
                       { value: '', label: t('bg.none') },
-                      { value: 'nebula', label: t('bg.nebula') },
+                      ...settings.earnedBackgrounds.map((id) => ({
+                        value: id,
+                        label: t(`bg.${id}`),
+                      })),
                     ]}
                   />
                 ) : (
-                  <p className="mt-1 text-xs text-muted">
-                    {t('bg.lockedHint', { n: NEBULA_MIN_PLAYED })}
-                  </p>
+                  <p className="mt-1 text-xs text-muted">{t('bg.lockedHint')}</p>
                 )}
               </div>
             </div>

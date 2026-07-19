@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import { and, count, desc, eq, gte, inArray, isNotNull, notInArray, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
-import { NEBULA_MIN_PLAYED } from '@tmw/shared';
+import { earnedBackgroundIds } from '@tmw/shared';
 import type {
   ChannelSelf,
   LeaderboardEntry,
@@ -257,7 +257,7 @@ export function registerChannelRoutes(app: FastifyInstance): void {
         accentHue: channels.accentHue,
         bgHue: channels.bgHue,
         bgTint: channels.bgTint,
-        nebulaHidden: channels.nebulaHidden,
+        pageBackground: channels.pageBackground,
       })
       .from(channels)
       .innerJoin(users, eq(users.id, channels.ownerUserId))
@@ -273,7 +273,7 @@ export function registerChannelRoutes(app: FastifyInstance): void {
       accentHue,
       bgHue,
       bgTint,
-      nebulaHidden,
+      pageBackground,
       ...rest
     } = row;
     // The logged-in viewer's own per-channel level — so their header card matches the chat badge.
@@ -304,8 +304,10 @@ export function registerChannelRoutes(app: FastifyInstance): void {
       nickFlow: equipped?.nickFlow ?? false,
       nickEffect: equipped?.nickEffect ?? null,
       cardEffect: equipped?.cardEffect ?? null,
-      // Earned by the milestone, but the streamer can hide it (a preference — see nebulaHidden).
-      nebula: (played?.n ?? 0) >= NEBULA_MIN_PLAYED && !nebulaHidden,
+      // Render the streamer's chosen background only if the channel has actually earned it; '' else.
+      pageBackground: earnedBackgroundIds(played?.n ?? 0).includes(pageBackground)
+        ? pageBackground
+        : '',
       theme: { accentHue, bgHue, bgTint },
       viewerLevel,
     };
