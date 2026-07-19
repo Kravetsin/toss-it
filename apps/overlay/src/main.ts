@@ -50,6 +50,8 @@ interface YTPlayer {
   getIframe(): HTMLIFrameElement;
   /** Current video metadata — used for the background player's title marquee (no API key needed). */
   getVideoData(): { video_id?: string; title?: string; author?: string };
+  /** Toggle a player module (e.g. 'captions'/'cc') — used to force closed captions off. */
+  unloadModule(module: string): void;
   destroy(): void;
 }
 interface YTPlayerOptions {
@@ -183,40 +185,7 @@ function show(payload: MediaPlayPayload): void {
   applyEntrance(alert, payload.senderEntrance, reduceMotion, payload.senderEntranceColor);
 
   const media = createMediaElement(payload, url);
-  // Music (uploaded audio + a YouTube *song* request) renders as one compact player card: media on
-  // top, then a single meta row — sender + caption as a marquee — instead of three stacked cards.
-  // The two used to look unrelated (a thin bar widget vs a bare video box); this gives them one frame.
-  const isMusic =
-    payload.kind === 'audio' || (payload.kind === 'youtube' && !!payload.youtubeMusic);
-  if (isMusic) {
-    const player = document.createElement('div');
-    player.className = payload.kind === 'youtube' ? 'player is-youtube' : 'player';
-    const mediaBox = document.createElement('div');
-    mediaBox.className = 'player-media';
-    mediaBox.appendChild(media);
-    player.appendChild(mediaBox);
-    if (payload.senderName || payload.text) {
-      const meta = document.createElement('div');
-      meta.className = 'player-meta';
-      if (payload.senderName) decorateSender(meta, payload);
-      if (payload.text) appendCaptionMarquee(meta, payload.text, !!payload.senderName);
-      player.appendChild(meta);
-    }
-    alert.appendChild(player);
-  } else {
-    alert.appendChild(media);
-    // Sender + caption share ONE meta row below the media: the caption scrolls as a marquee instead
-    // of a tall text block above the media (looks cleaner, and a 280-char note no longer eats space).
-    // Text-only posts have no media — their text IS the card (.text-card), so no caption row here.
-    const caption = payload.kind !== 'text' ? payload.text : undefined;
-    if (payload.senderName || caption) {
-      const banner = document.createElement('div');
-      banner.className = 'sender';
-      if (payload.senderName) decorateSender(banner, payload);
-      if (caption) appendCaptionMarquee(banner, caption, !!payload.senderName);
-      alert.appendChild(banner);
-    }
-  }
+  alert.appendChild(buildCard(payload, media));
   stage.appendChild(alert);
 
   if (payload.sound) playChime(payload.volume);
@@ -293,9 +262,38 @@ function decorateSender(el: HTMLElement, payload: MediaPlayPayload): void {
   if (payload.senderCardEffect) mountCardEffect(el, payload.senderCardEffect, 'overlayCard', true);
 }
 
-/** Append the submission text to a meta row (the sender banner or the music player's meta) as a
- *  clipped, ping-pong marquee. A leading separator is added when a sender precedes it. Shared by
- *  every media kind so the caption always reads the same way — a scrolling line, never a tall block. */
+/** Build the one unified submission card: media (or text) on top, a single meta row (sender + caption
+ *  marquee) below. Every kind goes through here so posts read as one cohesive card — only the per-kind
+ *  class tunes the media box (16:9 for YouTube, hug-the-clip for image/video, text body). */
+function buildCard(payload: MediaPlayPayload, media: HTMLElement): HTMLElement {
+  const player = document.createElement('div');
+  player.className = 'player';
+  if (payload.kind === 'youtube') player.classList.add('is-youtube');
+  else if (payload.kind === 'image' || payload.kind === 'gif' || payload.kind === 'video')
+    player.classList.add('has-media');
+  else if (payload.kind === 'text') player.classList.add('is-text');
+  // audio keeps the base .player — the music widget carries its own look.
+
+  const mediaBox = document.createElement('div');
+  mediaBox.className = 'player-media';
+  mediaBox.appendChild(media);
+  player.appendChild(mediaBox);
+
+  // Meta row: sender + caption marquee. Text-only has no caption — the message IS the body above, so
+  // only the sender shows there.
+  const caption = payload.kind !== 'text' ? payload.text : undefined;
+  if (payload.senderName || caption) {
+    const meta = document.createElement('div');
+    meta.className = 'player-meta';
+    if (payload.senderName) decorateSender(meta, payload);
+    if (caption) appendCaptionMarquee(meta, caption, !!payload.senderName);
+    player.appendChild(meta);
+  }
+  return player;
+}
+
+/** Append the submission text to a meta row as a clipped, ping-pong marquee. A leading separator is
+ *  added when a sender precedes it. Shared by every kind so the caption reads the same way. */
 function appendCaptionMarquee(row: HTMLElement, text: string, afterSender: boolean): void {
   if (afterSender) {
     const sep = document.createElement('span');
@@ -392,11 +390,12 @@ function createMediaElement(payload: MediaPlayPayload, url: string): HTMLElement
   const volume = Math.min(100, Math.max(0, payload.volume ?? 100)) / 100;
 
   if (payload.kind === 'text') {
-    // Text-only: skip /api/media, render a message card.
-    const card = document.createElement('div');
-    card.className = 'text-card';
-    card.textContent = payload.text ?? '';
-    return card;
+    // Text-only: skip /api/media, render the message as the card body (the card frame comes from
+    // .player.is-text — no inner frame of its own).
+    const body = document.createElement('div');
+    body.className = 'text-body';
+    body.textContent = payload.text ?? '';
+    return body;
   }
 
   if (payload.kind === 'image') {
@@ -482,21 +481,12 @@ function createMusicWidget(payload: MediaPlayPayload, url: string, volume: numbe
 function createYoutubePlayer(payload: MediaPlayPayload): HTMLElement {
   const container = document.createElement('div');
   container.className = 'youtube';
-  if (payload.youtubeMusic) {
-    // A song request lives inside the unified `.player` card: fill its 16:9 ratio box (which handles
-    // the sizing the old-OBS-safe way, see .player.is-youtube .player-media in alert.css).
-    container.style.position = 'absolute';
-    container.style.inset = '0';
-    container.style.width = '100%';
-    container.style.height = '100%';
-  } else {
-    // Explicit 16:9 WITHOUT css aspect-ratio: old OBS CEF builds don't support it and
-    // collapse the container to height 0. calc/min work everywhere.
-    const widthExpr = `${payload.size}vw`;
-    container.style.width = widthExpr;
-    container.style.height = `calc(${widthExpr} * 9 / 16)`;
-    container.style.maxWidth = '100%';
-  }
+  // Every YouTube clip (song OR video) now lives inside the `.player` card: fill its 16:9 ratio box
+  // (which handles the sizing the old-OBS-safe way, see .player.is-youtube .player-media in alert.css).
+  container.style.position = 'absolute';
+  container.style.inset = '0';
+  container.style.width = '100%';
+  container.style.height = '100%';
 
   const mount = document.createElement('div');
   container.appendChild(mount);
@@ -519,6 +509,7 @@ function createYoutubePlayer(payload: MediaPlayPayload): HTMLElement {
         rel: 0,
         playsinline: 1,
         modestbranding: 1,
+        cc_load_policy: 0, // don't force captions on (the unload below actually turns them off)
         start: payload.youtubeStartSeconds ?? 0,
       },
       events: {
@@ -526,6 +517,7 @@ function createYoutubePlayer(payload: MediaPlayPayload): HTMLElement {
           if (currentId !== sid || finishing) return;
           e.target.setVolume(Math.min(100, Math.max(0, payload.volume)));
           e.target.playVideo();
+          disableCaptions(e.target);
           const f = e.target.getIframe();
           f.style.width = '100%';
           f.style.height = '100%';
@@ -536,7 +528,10 @@ function createYoutubePlayer(payload: MediaPlayPayload): HTMLElement {
           // after we've switched to the next clip.
           if (currentId !== sid || !window.YT) return;
           if (e.data === window.YT.PlayerState.ENDED) finish();
-          else if (e.data === window.YT.PlayerState.PLAYING) reportYoutubeDuration(sid, e.target);
+          else if (e.data === window.YT.PlayerState.PLAYING) {
+            disableCaptions(e.target); // captions can re-arm after buffering/ads
+            reportYoutubeDuration(sid, e.target);
+          }
         },
         onError: () => {
           // Video won't play (age/region restriction, removed, etc.) — finish now
@@ -548,6 +543,18 @@ function createYoutubePlayer(payload: MediaPlayPayload): HTMLElement {
   });
 
   return container;
+}
+
+/** Force closed captions off. The IFrame API has no "captions off" player var (only cc_load_policy:1
+ *  forces them ON), and OBS's cookieless browser tends to auto-show them — so we unload the caption
+ *  module once the player is ready. 'captions' (newer) + 'cc' (older) covers both module names. */
+function disableCaptions(player: YTPlayer): void {
+  try {
+    player.unloadModule('captions');
+    player.unloadModule('cc');
+  } catch {
+    /* module not loaded yet — the onStateChange(PLAYING) call catches it */
+  }
 }
 
 /** Report the clip's real duration to the server, once per show (watchdog + now-playing panel). */
@@ -941,6 +948,7 @@ async function createMusicPlayer(init: MusicPlayerInit): Promise<void> {
             rel: 0,
             playsinline: 1,
             modestbranding: 1,
+            cc_load_policy: 0,
           }
         : {
             listType: 'playlist',
@@ -951,6 +959,7 @@ async function createMusicPlayer(init: MusicPlayerInit): Promise<void> {
             rel: 0,
             playsinline: 1,
             modestbranding: 1,
+            cc_load_policy: 0,
           },
     events: {
       onReady: (e) => {
@@ -958,6 +967,7 @@ async function createMusicPlayer(init: MusicPlayerInit): Promise<void> {
         setMusicVol(effectiveMusicVolume());
         e.target.playVideo();
         if (musicSuspended) e.target.pauseVideo(); // recreated while a post is on screen
+        disableCaptions(e.target);
         const f = e.target.getIframe();
         f.style.width = '100%';
         f.style.height = '100%';
@@ -969,6 +979,7 @@ async function createMusicPlayer(init: MusicPlayerInit): Promise<void> {
         if (e.data === window.YT.PlayerState.PLAYING) {
           reportMusicState(true);
           setMusicTicker(true);
+          disableCaptions(e.target); // captions can re-arm on each new track
           updateMusicTitle(); // a new track may have started — refresh the marquee
         } else if (e.data === window.YT.PlayerState.PAUSED) {
           reportMusicState(false);

@@ -24,79 +24,6 @@
 .alert.exit {
   animation: pop-out 0.22s cubic-bezier(0.4, 0, 1, 1) both;
 }
-.alert img,
-.alert video {
-  /* Размер задаётся настройкой канала через --overlay-size (% вьюпорта). */
-  max-width: calc(var(--overlay-size, 80) * 1vw);
-  max-height: calc(var(--overlay-size, 80) * 1vh);
-  border-radius: 6px;
-  box-shadow: 0 18px 50px -14px rgba(0, 0, 0, 0.7);
-}
-
-/* Dark-glass name bar with a mint top edge; the semi-opaque bg keeps it readable
-   over any stream background even if backdrop-filter is unsupported. */
-.sender {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-family: 'JetBrains Mono', monospace;
-  font-weight: 600;
-  font-size: 24px;
-  color: #ededec;
-  padding: 8px 18px;
-  letter-spacing: 0.01em;
-  white-space: nowrap;
-  /* Cap the bar at the media width so a long caption's marquee clips instead of stretching the bar
-     off-screen; a short name/caption still sizes to content. */
-  box-sizing: border-box;
-  max-width: calc(var(--overlay-size, 80) * 1vw);
-  background: rgba(13, 17, 17, 0.72);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(141, 240, 204, 0.22);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
-  box-shadow:
-    inset 0 1px 0 0 rgba(141, 240, 204, 0.5),
-    0 10px 30px -10px rgba(0, 0, 0, 0.6);
-}
-.sender .glyph,
-.sender .badges,
-.sender .badge {
-  display: flex;
-  align-items: center;
-}
-.sender .glyph {
-  color: #8df0cc;
-  opacity: 0.85;
-}
-.sender .badges {
-  gap: 6px;
-}
-.sender .badge {
-  color: #8df0cc;
-}
-/* Name, glyph and badges sit above the card-effect particle layer (injected .card-fx has no
-   z-index). Mirrors `.msg .bubble .body` in the chat overlay. */
-.sender > :not(.card-fx) {
-  position: relative;
-  z-index: 1;
-}
-
-/* Level: rarity rail on the banner's left edge (--tier) + Roman numeral rank; glow from lvl 6
-   via --tier-glow (transparent below). Mirrors the chat overlay + dashboard. */
-.sender.has-level::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: var(--tier);
-  box-shadow: 0 0 7px var(--tier-glow, transparent);
-  z-index: 1;
-}
-
 /* Nick effects (.nick-glow on the name) and card effects (.card-fx*) are injected at boot
    from the shared cosmetics registry (injectCosmeticsStyles) — single source with the web. */
 
@@ -128,9 +55,9 @@
   color: #b9c2c0;
 }
 
-/* Unified music player: uploaded audio, a YouTube song request, and the background player all share
-   this one glass card — media on top, a single meta row below. Width follows the music size setting
-   (--overlay-size, % of viewport), clamped so it never overflows a small source. */
+/* One unified submission card: media (or text) on top, a single meta row below. Every kind — image,
+   gif, video, YouTube, audio, text — shares this glass frame; width follows --overlay-size (% of
+   viewport), clamped so it never overflows a small source. */
 .player {
   box-sizing: border-box;
   display: flex;
@@ -149,9 +76,9 @@
 }
 .player-media {
   display: flex;
+  justify-content: center;
 }
-/* YouTube song: a 16:9 ratio box (padding-top trick — old-OBS-safe, no aspect-ratio) that the
-   absolutely-positioned iframe fills. */
+/* YouTube: a 16:9 ratio box (padding-top trick — old-OBS-safe, no aspect-ratio) the iframe fills. */
 .player.is-youtube .player-media {
   position: relative;
   width: 100%;
@@ -160,14 +87,44 @@
   overflow: hidden;
   background: #000;
 }
+/* Image / gif / uploaded video and text: the card hugs its content (any aspect), capped at the media
+   size. The meta row clips to that width (see .player-meta) so a long caption can't blow it out. */
+.player.has-media,
+.player.is-text {
+  width: fit-content;
+  max-width: min(calc(var(--overlay-size, 80) * 1vw), 92vw);
+}
+.player.has-media img,
+.player.has-media video {
+  display: block;
+  /* 100% (of the padded card, capped above at the media size) so the clip fits within the padding;
+     the card's fit-content then shrinks to the clip's natural width. */
+  max-width: 100%;
+  max-height: calc(var(--overlay-size, 80) * 1vh);
+  border-radius: 6px;
+}
+/* Text-only: the message is the card body; the frame is the card itself (no inner box). */
+.player.is-text .text-body {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 30px;
+  line-height: 1.4;
+  text-align: center;
+  color: #ededec;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
 
-/* One-line meta row: gift glyph, level rail + numeral, name, badges, then the caption marquee. */
+/* One-line meta row: gift glyph, level rail + numeral, name, badges, then the caption marquee.
+   width:0 keeps the row (and its long caption) out of the card's content-based width; min-width:100%
+   then stretches it back to the card, so the caption clips to the media width instead of widening it. */
 .player-meta {
   position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
-  min-width: 0;
+  width: 0;
+  min-width: 100%;
   font-family: 'JetBrains Mono', monospace;
   font-weight: 600;
   font-size: 20px;
@@ -194,15 +151,13 @@
 .player-meta .badge {
   color: #8df0cc;
 }
-.player-meta .meta-sep,
-.sender .meta-sep {
+.player-meta .meta-sep {
   color: #7a8180;
 }
 /* The name keeps its full width; the caption yields first (shrink 100 vs the name's 1), so a long
    caption scrolls in what's left rather than squeezing the nick. Ellipsis is only a last resort for
-   an extreme nick. Shared by the music meta row and the media sender bar. */
-.player-meta .name,
-.sender .name {
+   an extreme nick. */
+.player-meta .name {
   flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
@@ -252,27 +207,6 @@
   }
 }
 
-/* Текст-онли: карточка-сообщение. Ширина — от настройки размера (--overlay-size). */
-.text-card {
-  box-sizing: border-box;
-  max-width: calc(var(--overlay-size, 80) * 1vw);
-  padding: 22px 26px;
-  background: rgba(13, 17, 17, 0.78);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(141, 240, 204, 0.2);
-  color: #ededec;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 30px;
-  line-height: 1.4;
-  text-align: center;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
-  box-shadow:
-    inset 0 1px 0 0 rgba(141, 240, 204, 0.5),
-    0 16px 44px -12px rgba(0, 0, 0, 0.7);
-}
 @keyframes pop-in {
   0% {
     opacity: 0;
