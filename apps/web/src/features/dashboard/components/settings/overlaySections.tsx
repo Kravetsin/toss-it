@@ -71,14 +71,47 @@ export function MediaLayoutSettings({
   );
 }
 
-/** Background music player: its own on-screen position (default) or shared with media. */
+/** Music player layout: position/size/margin drive the background player always; the switch also
+ *  applies them to song-request cards (otherwise those follow the media overlay position). */
 export function MusicSettings({ settings, onSave }: { settings: ChannelSettings; onSave: Save }) {
   const { t } = useI18n();
   const [separate, setSeparate] = useState(settings.musicSeparate);
   const [musicPos, setMusicPos] = useState<OverlayPosition>(settings.musicPosition);
+  const [musicSize, setMusicSize] = useState(settings.musicSize);
   const [musicMargin, setMusicMargin] = useState(settings.musicMargin);
   return (
     <div className="flex flex-col gap-4">
+      <p className="text-xs text-muted">{t('dash.musicLayoutNote')}</p>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <span className="text-sm text-muted">{t('dash.positionShort')}</span>
+          <PositionGrid value={musicPos} onChange={setMusicPos} />
+        </div>
+        <LayoutPreview
+          position={musicPos}
+          size={musicSize}
+          margin={musicMargin}
+          label={t('dash.previewMusic')}
+        />
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Slider
+          icon="image"
+          label={t('dash.sliderMusicSize', { n: musicSize })}
+          min={10}
+          max={100}
+          value={musicSize}
+          onChange={setMusicSize}
+        />
+        <Slider
+          icon="monitor"
+          label={t('dash.sliderMargin', { n: musicMargin })}
+          min={0}
+          max={25}
+          value={musicMargin}
+          onChange={setMusicMargin}
+        />
+      </div>
       <Switch
         icon="volume-2"
         label={t('dash.musicSeparate')}
@@ -86,33 +119,15 @@ export function MusicSettings({ settings, onSave }: { settings: ChannelSettings;
         checked={separate}
         onChange={setSeparate}
       />
-      {separate && (
-        <div className="flex flex-col gap-4 border-l border-accent/40 pl-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <span className="text-sm text-muted">{t('dash.positionShort')}</span>
-              <PositionGrid value={musicPos} onChange={setMusicPos} />
-            </div>
-            <LayoutPreview
-              position={musicPos}
-              size={22}
-              margin={musicMargin}
-              label={t('dash.previewMusic')}
-            />
-          </div>
-          <Slider
-            icon="monitor"
-            label={t('dash.sliderMargin', { n: musicMargin })}
-            min={0}
-            max={25}
-            value={musicMargin}
-            onChange={setMusicMargin}
-          />
-          <p className="text-xs text-muted">{t('dash.musicSizeNote')}</p>
-        </div>
-      )}
       <SaveRow
-        onClick={() => onSave({ musicSeparate: separate, musicPosition: musicPos, musicMargin })}
+        onClick={() =>
+          onSave({
+            musicSeparate: separate,
+            musicPosition: musicPos,
+            musicSize,
+            musicMargin,
+          })
+        }
       />
     </div>
   );

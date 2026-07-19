@@ -211,6 +211,11 @@ export function registerChannelRoutes(app: FastifyInstance): void {
       // New channels default to a separate music position — music shouldn't take the
       // media spot. (Column default stays false so existing channels keep their choice.)
       musicSeparate: true,
+      // Compact bottom-left default for the music player — set explicitly (not via column defaults,
+      // which an existing prod DB won't have) so a fresh channel matches the old hard-coded corner.
+      musicPosition: 'bottom-left' as const,
+      musicSize: 20,
+      musicMargin: 2,
     };
     await db.insert(channels).values(channel);
     const response: ChannelSelf = { id: channel.id, overlayToken: channel.overlayToken };

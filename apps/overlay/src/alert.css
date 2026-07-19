@@ -124,15 +124,15 @@
   color: #b9c2c0;
 }
 
-/* Unified music player: uploaded audio and a YouTube song request share this one glass card so they
-   read as the same surface — media on top, a single sender+caption row below. Fixed compact width
-   (a corner "when does the music end" indicator, not big media), same for both. */
+/* Unified music player: uploaded audio, a YouTube song request, and the background player all share
+   this one glass card — media on top, a single meta row below. Width follows the music size setting
+   (--overlay-size, % of viewport), clamped so it never overflows a small source. */
 .player {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  width: min(360px, 82vw);
+  width: min(calc(var(--overlay-size, 20) * 1vw), 92vw);
   padding: 14px 16px;
   background: rgba(13, 17, 17, 0.78);
   -webkit-backdrop-filter: blur(12px);

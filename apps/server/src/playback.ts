@@ -556,15 +556,20 @@ function resolveLayout(
   isMusic = false,
 ): Pick<MediaPlayPayload, 'position' | 'size' | 'margin'> {
   if (!channel) return { position: 'center', size: 80, margin: 0 };
-  // YouTube Music uses the music layout alongside audio files.
-  const useMusic = (kind === 'audio' || isMusic) && channel.musicSeparate;
-  return useMusic
-    ? { position: channel.musicPosition, size: channel.musicSize, margin: channel.musicMargin }
-    : {
-        position: channel.overlayPosition,
-        size: channel.overlaySize,
-        margin: channel.overlayMargin,
-      };
+  const isMusicKind = kind === 'audio' || isMusic; // YouTube Music counts alongside audio files.
+  if (!isMusicKind) {
+    return {
+      position: channel.overlayPosition,
+      size: channel.overlaySize,
+      margin: channel.overlayMargin,
+    };
+  }
+  // Music size is always the compact music-player size — never the media's (which can be 80% of the
+  // screen). Only position/margin follow musicSeparate: shared with media, or the music block.
+  const anchor = channel.musicSeparate
+    ? { position: channel.musicPosition, margin: channel.musicMargin }
+    : { position: channel.overlayPosition, margin: channel.overlayMargin };
+  return { ...anchor, size: channel.musicSize };
 }
 
 export function setupRealtime(io: RealtimeServer, app: FastifyInstance): PlaybackManager {

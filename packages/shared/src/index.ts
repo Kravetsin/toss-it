@@ -257,6 +257,10 @@ export interface MusicConfig {
   volume: number;
   /** Hide the player in OBS (audio-only) — it keeps playing, just not visible. */
   hidden: boolean;
+  /** Player anchor/size/margin — the music layout block (same fields song requests can share). */
+  position: OverlayPosition;
+  size: number;
+  margin: number;
 }
 
 /** One background-music track (from the YouTube Data API), for the dashboard list. */
@@ -267,13 +271,18 @@ export interface MusicTrack {
   durationSec?: number;
 }
 
-/** Build the overlay's music config from a channel's stored background-music fields. */
+/** Build the overlay's music config from a channel's stored background-music fields. The background
+ *  player always uses the music layout block (music*); the musicSeparate toggle only decides whether
+ *  song-request cards share it (that choice is applied server-side when a submission plays). */
 export function musicConfigFrom(ch: {
   bgMusicTracks: MusicTrack[];
   bgMusicPlaylist: string | null;
   bgMusicShuffle: boolean;
   bgMusicVolume: number;
   bgMusicHidden: boolean;
+  musicPosition: OverlayPosition;
+  musicSize: number;
+  musicMargin: number;
 }): MusicConfig {
   return {
     trackIds: ch.bgMusicTracks.map((t) => t.videoId),
@@ -281,6 +290,9 @@ export function musicConfigFrom(ch: {
     shuffle: ch.bgMusicShuffle,
     volume: ch.bgMusicVolume,
     hidden: ch.bgMusicHidden,
+    position: ch.musicPosition,
+    size: ch.musicSize,
+    margin: ch.musicMargin,
   };
 }
 

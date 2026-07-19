@@ -48,6 +48,8 @@ interface YTPlayer {
   getCurrentTime(): number;
   seekTo(seconds: number, allowSeekAhead: boolean): void;
   getIframe(): HTMLIFrameElement;
+  /** Current video metadata — used for the background player's title marquee (no API key needed). */
+  getVideoData(): { video_id?: string; title?: string; author?: string };
   destroy(): void;
 }
 interface YTPlayerOptions {
@@ -569,6 +571,16 @@ let musicPlayer: YTPlayer | null = null;
 // The container div; the mount we pass to YT.Player gets REPLACED by an iframe (inside this wrap),
 // so we keep the wrap reference rather than reaching through the now-detached mount.
 let musicWrap: HTMLElement | null = null;
+// The glass card inside the wrap (sized/styled like the song-request player) + its title-marquee row.
+let musicCard: HTMLElement | null = null;
+let musicMetaEl: HTMLElement | null = null;
+let musicTitleCap: HTMLElement | null = null;
+let musicTitleTrack: HTMLElement | null = null;
+// Player layout — the music block, shared with (optionally) song-request cards. Bottom-left compact
+// by default so it matches the old hard-coded corner before the first config arrives.
+let musicPosition: OverlayPosition = 'bottom-left';
+let musicSize = 20;
+let musicMargin = 2;
 let musicMode: 'list' | 'playlist' | null = null;
 let musicIds: string[] = []; // the owned queue (list mode); edits apply instantly
 let musicCurrentId: string | null = null; // playing track in list mode
@@ -761,6 +773,9 @@ function applyMusicConfig(cfg: MusicConfig): void {
   musicVolume = Math.min(100, Math.max(0, Math.round(cfg.volume)));
   musicHidden = !!cfg.hidden;
   musicShuffle = !!cfg.shuffle;
+  musicPosition = cfg.position;
+  musicSize = cfg.size;
+  musicMargin = cfg.margin;
   if (!musicFadeTimer) setMusicVol(effectiveMusicVolume()); // don't fight an in-flight fade
   const mode = cfg.trackIds.length > 0 ? 'list' : cfg.playlistId ? 'playlist' : null;
 
@@ -803,15 +818,44 @@ function applyMusicConfig(cfg: MusicConfig): void {
 }
 
 /** Hidden = clipped to 1px and transparent, but still rendered so audio keeps playing
- *  (display:none would stop playback). Visible = small corner player. */
+ *  (display:none would stop playback). Visible = a card anchored by the music layout. */
 function updateMusicVisibility(): void {
   if (!musicWrap) return;
   // Hidden by the OBS setting, or while suspended (a post is up) — clipped to 1px but still rendered
-  // so audio isn't killed (display:none would stop playback). Otherwise a small corner player.
+  // so audio isn't killed (display:none would stop playback).
+  if (musicHidden || musicSuspended) {
+    musicWrap.style.cssText =
+      'position:fixed;left:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;overflow:hidden;z-index:0';
+    return;
+  }
+  // A full-screen flex container anchors the card exactly like #stage does for a post, so the music
+  // layout (position/margin) behaves identically to the media/song-request layout.
+  const { justify, align } = positionToFlex(musicPosition);
   musicWrap.style.cssText =
-    musicHidden || musicSuspended
-      ? 'position:fixed;left:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;overflow:hidden;z-index:0'
-      : 'position:fixed;left:12px;bottom:12px;width:240px;height:135px;border-radius:8px;overflow:hidden;box-shadow:0 8px 24px -10px rgba(0,0,0,.6);pointer-events:none;z-index:5';
+    `position:fixed;inset:0;display:flex;justify-content:${justify};align-items:${align};` +
+    `padding:${musicMargin}vh ${musicMargin}vw;pointer-events:none;z-index:5`;
+  musicCard?.style.setProperty('--overlay-size', String(musicSize));
+}
+
+/** Pull the current track's title from the player (works without a YouTube API key) into the
+ *  marquee row. No sender exists for background music, so the row is title-only. */
+function updateMusicTitle(): void {
+  if (!musicMetaEl || !musicTitleCap || !musicTitleTrack) return;
+  let title = '';
+  try {
+    title = musicPlayer?.getVideoData?.().title ?? '';
+  } catch {
+    /* player API not ready yet */
+  }
+  if (!title) {
+    musicMetaEl.style.display = 'none';
+    return;
+  }
+  if (musicTitleTrack.textContent === title) return; // unchanged — don't restart the marquee
+  musicTitleTrack.textContent = title;
+  musicTitleTrack.style.animation = '';
+  musicMetaEl.style.display = '';
+  applyMarquee(musicTitleCap, musicTitleTrack);
 }
 
 function teardownMusic(): void {
@@ -830,6 +874,10 @@ function teardownMusic(): void {
   musicPlayer = null;
   musicWrap?.remove();
   musicWrap = null;
+  musicCard = null;
+  musicMetaEl = null;
+  musicTitleCap = null;
+  musicTitleTrack = null;
   musicCurrentId = null;
   musicHistory = [];
 }
@@ -848,11 +896,33 @@ async function createMusicPlayer(init: MusicPlayerInit): Promise<void> {
   await loadYouTubeApi();
   // Config may have changed (or cleared) while the API loaded.
   if (!window.YT || epoch !== musicEpoch) return;
+  // Same glass card as a song-request player: 16:9 media box on top, a title-marquee row below.
   const wrap = document.createElement('div');
+  const card = document.createElement('div');
+  card.className = 'player is-youtube music-card';
+  const mediaBox = document.createElement('div');
+  mediaBox.className = 'player-media';
   const mount = document.createElement('div');
-  wrap.appendChild(mount);
+  mount.style.cssText = 'position:absolute;inset:0'; // fills the .player-media ratio box
+  mediaBox.appendChild(mount);
+  card.appendChild(mediaBox);
+  const meta = document.createElement('div');
+  meta.className = 'player-meta';
+  meta.style.display = 'none'; // shown once a title is known
+  const cap = document.createElement('span');
+  cap.className = 'player-caption';
+  const track = document.createElement('span');
+  track.className = 'marq-track';
+  cap.appendChild(track);
+  meta.appendChild(cap);
+  card.appendChild(meta);
+  wrap.appendChild(card);
   document.body.appendChild(wrap);
   musicWrap = wrap;
+  musicCard = card;
+  musicMetaEl = meta;
+  musicTitleCap = cap;
+  musicTitleTrack = track;
   updateMusicVisibility();
   if (init.mode === 'list') musicCurrentId = init.videoId ?? null;
   musicPlayer = new window.YT.Player(mount, {
@@ -888,6 +958,7 @@ async function createMusicPlayer(init: MusicPlayerInit): Promise<void> {
         const f = e.target.getIframe();
         f.style.width = '100%';
         f.style.height = '100%';
+        updateMusicTitle();
       },
       onStateChange: (e) => {
         if (!window.YT) return;
@@ -895,6 +966,7 @@ async function createMusicPlayer(init: MusicPlayerInit): Promise<void> {
         if (e.data === window.YT.PlayerState.PLAYING) {
           reportMusicState(true);
           setMusicTicker(true);
+          updateMusicTitle(); // a new track may have started — refresh the marquee
         } else if (e.data === window.YT.PlayerState.PAUSED) {
           reportMusicState(false);
           setMusicTicker(false);
@@ -1518,6 +1590,10 @@ if (DEMO) {
       shuffle: q.has('mshuffle'),
       volume: Number(q.get('mvol')) || 40,
       hidden: q.has('mhide'),
+      // Layout — overridable via URL for look-and-feel checks (?mpos=…&msize=…&mmargin=…).
+      position: (q.get('mpos') as OverlayPosition | null) ?? 'bottom-left',
+      size: Number(q.get('msize')) || 20,
+      margin: Number(q.get('mmargin')) || 2,
     });
   }
   // Debug probe + reorder/command drivers for verification (demo only).
