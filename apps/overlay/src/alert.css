@@ -306,3 +306,70 @@
     transform: scale(0.85) translateY(-20px);
   }
 }
+
+/* Setup hint when the OBS browser source is too small to render a readable player (see the guard in
+   main.ts). Amber, not the brand mint, so it reads as "fix this" rather than a cosmetic. Idle-only
+   and self-hiding, so it never sits over a post on stream. */
+.source-hint {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translate(-50%, 0);
+  max-width: min(560px, 92vw);
+  box-sizing: border-box;
+  z-index: 30;
+  padding: 14px 40px 14px 16px;
+  background: rgba(13, 17, 17, 0.82);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 190, 90, 0.4);
+  border-left: 3px solid #ffbe5a;
+  border-radius: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #ededec;
+  box-shadow: 0 12px 34px -12px rgba(0, 0, 0, 0.7);
+  animation: source-hint-in 0.3s ease both;
+}
+.source-hint-title {
+  font-weight: 700;
+  font-size: 14px;
+  color: #ffbe5a;
+  margin-bottom: 5px;
+}
+.source-hint-body {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #cdd3d1;
+}
+.source-hint-body b {
+  color: #ededec;
+}
+.source-hint-x {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #7a8180;
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+}
+.source-hint-x:hover {
+  color: #ededec;
+  background: rgba(255, 255, 255, 0.08);
+}
+@keyframes source-hint-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}

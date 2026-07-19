@@ -28,7 +28,7 @@ export function OverlayCard({
         <span>{t('home.overlayDesc')}</span>
       </p>
       <p className="mb-3 flex items-start gap-2 text-sm text-muted">
-        <Icon name="monitor" size={16} className="mt-0.5 shrink-0 text-accent" />
+        <Icon name="monitor" size={16} className="mt-0.5 shrink-0 text-warn" />
         <span>{t('home.overlayResTip')}</span>
       </p>
       <CopyableLinkBox

@@ -211,7 +211,7 @@ export const en: Dict = {
   'home.overlayDesc':
     'Add a Browser Source with this URL. The URL contains a secret token — don’t show it on stream.',
   'home.overlayResTip':
-    'Tip: in the Browser Source properties, set the resolution to match your screen — it avoids artifacts and makes positioning via the overlay settings precise.',
+    'Important: in the Browser Source properties, type the Width and Height (e.g. 1920×1080, or your canvas size). Stretching the source on the scene doesn’t replace this — it only blurs the picture and leaves the player tiny.',
   'home.chatOverlayDesc':
     'Chat overlay: add this as a SECOND Browser Source (a vertical strip) — it shows your Twitch chat with Tossit cosmetics. Optional; toggle it in overlay settings.',
   'home.overlaySettingsBtn': 'Overlay settings',
@@ -781,7 +781,7 @@ export const ru: Dict = {
   'home.overlayDesc':
     'Добавь Browser Source с этим URL. URL содержит секретный токен — не показывай его на стриме.',
   'home.overlayResTip':
-    'Совет: в свойствах Browser Source укажи разрешение, равное разрешению твоего экрана — так не будет артефактов, а позиционирование через настройки оверлея сработает точно.',
+    'Важно: в свойствах Browser Source впиши Width и Height (например 1920×1080 — или размер твоей сцены). Растягивание источника на сцене это не заменяет — оно только размывает картинку и оставляет плеер крошечным.',
   'home.chatOverlayDesc':
     'Оверлей чата: добавь как ВТОРОЙ Browser Source (полоса сбоку) — он показывает твой чат Twitch с косметикой Tossit. Необязательно; включается в настройках оверлея.',
   'home.overlaySettingsBtn': 'Настройки оверлея',
@@ -1352,7 +1352,7 @@ export const uk: Dict = {
   'home.overlayDesc':
     'Додай Browser Source з цим URL. URL містить секретний токен — не показуй його на стрімі.',
   'home.overlayResTip':
-    'Порада: у властивостях Browser Source вкажи роздільну здатність, що дорівнює роздільній здатності твого екрана — так не буде артефактів, а позиціювання через налаштування оверлея спрацює точно.',
+    'Важливо: у властивостях Browser Source впиши Width і Height (наприклад 1920×1080 — або розмір твоєї сцени). Розтягування джерела на сцені цього не замінює — воно лише розмиває картинку й лишає плеєр крихітним.',
   'home.chatOverlayDesc':
     'Оверлей чату: додай як ДРУГИЙ Browser Source (смуга збоку) — він показує твій чат Twitch з косметикою Tossit. Необовʼязково; вмикається в налаштуваннях оверлея.',
   'home.overlaySettingsBtn': 'Налаштування оверлея',
