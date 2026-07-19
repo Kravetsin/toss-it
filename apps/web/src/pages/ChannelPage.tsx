@@ -105,7 +105,7 @@ export function ChannelPage() {
   }
 
   return (
-    <ChannelShell viewerLevel={channel.viewerLevel}>
+    <ChannelShell viewerLevel={channel.viewerLevel} nebula={channel.nebula}>
       <ChannelHeader channel={channel} />
 
       <div className="mt-6" ref={composeRef}>

@@ -16,6 +16,7 @@ import { HomePage } from './pages/HomePage';
 import { ChannelPage } from './pages/ChannelPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { StatsPage } from './pages/StatsPage';
+import { AchievementsPage } from './pages/AchievementsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { ModInvitePage } from './pages/ModInvitePage';
 import { LinkConfirmPage } from './pages/LinkConfirmPage';
@@ -49,6 +50,7 @@ createRoot(document.getElementById('root')!).render(
                       <Route path="/uk" element={<HomePage />} />
                       <Route path="/dashboard" element={<DashboardPage />} />
                       <Route path="/dashboard/stats" element={<StatsPage />} />
+                      <Route path="/dashboard/achievements" element={<AchievementsPage />} />
                       <Route path="/dashboard/settings" element={<SettingsPage />} />
                       <Route path="/dashboard/settings/:section" element={<SettingsPage />} />
                     </Route>

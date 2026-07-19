@@ -134,6 +134,7 @@ const MOCK_SETTINGS: ChannelSettings = {
   bgMusicShuffle: false,
   bgMusicVolume: 50,
   bgMusicHidden: false,
+  nebulaHidden: false,
   description: 'Шли мемы — лучшее окажется на стриме 🎬',
   links: [
     { platform: 'twitch', url: 'https://twitch.tv/kravetsinside' },
@@ -397,6 +398,7 @@ function mockPublicChannel(login: string): PublicChannelInfo {
     nickFlow: true,
     nickEffect: 'nick-glow',
     cardEffect: 'card-stardust',
+    nebula: true, // preview the earned galaxy background (real gate: 500 played submissions)
     // Themed on purpose: ?mock=1 is the only way to see a custom channel theme without a real
     // channel. Override per-run with ?accentHue=&bgHue=&bgTint=.
     theme: {

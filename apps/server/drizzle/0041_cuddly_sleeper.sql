@@ -1,0 +1,1 @@
+ALTER TABLE `channels` ADD `nebula_hidden` integer DEFAULT false NOT NULL;

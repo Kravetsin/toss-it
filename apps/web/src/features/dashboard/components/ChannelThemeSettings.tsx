@@ -1,8 +1,14 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { BRAND_HUE, hexToHue, type ChannelSettings, type ChannelTheme } from '@tmw/shared';
+import {
+  BRAND_HUE,
+  hexToHue,
+  NEBULA_MIN_PLAYED,
+  type ChannelSettings,
+  type ChannelTheme,
+} from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { useMe } from '@/hooks/useMe';
-import { Button, Card, Input } from '@/ui';
+import { Button, Card, Input, Switch } from '@/ui';
 import { Icon, type IconName } from '@/ui/icons';
 
 const BRAND_HUE_INT = Math.round(BRAND_HUE);
@@ -123,6 +129,19 @@ export function ChannelThemeSettings({
               onChange={setBgTint}
             />
           </Section>
+
+          {/* The earned galaxy background is gated server-side by the played-submissions count; this
+              is only the streamer's show/hide preference (saved on toggle, independent of the theme
+              Save button). The hint states the unlock condition so it's honest even before earning. */}
+          <div className="border-t border-border pt-3">
+            <Switch
+              icon="sparkles"
+              label={t('theme.galaxyShow')}
+              description={t('theme.galaxyHint', { n: NEBULA_MIN_PLAYED })}
+              checked={!settings.nebulaHidden}
+              onChange={(v) => onSave({ nebulaHidden: !v })}
+            />
+          </div>
 
           <div className="flex items-center gap-2">
             <Button onClick={reset}>{t('theme.reset')}</Button>

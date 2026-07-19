@@ -328,6 +328,12 @@ function Sidebar({
         />
         <NavItem to="/dashboard/stats" icon="chart" label={t('nav.stats')} collapsed={collapsed} />
         <NavItem
+          to="/dashboard/achievements"
+          icon="trophy"
+          label={t('nav.achievements')}
+          collapsed={collapsed}
+        />
+        <NavItem
           to="/dashboard/settings"
           icon="settings"
           label={t('nav.settings')}
@@ -442,6 +448,12 @@ function MobileSidebar({
           <NavItem to="/dashboard" icon="shield" label={t('nav.dashboard')} onClick={onClose} end />
           <NavItem to="/dashboard/stats" icon="chart" label={t('nav.stats')} onClick={onClose} />
           <NavItem
+            to="/dashboard/achievements"
+            icon="trophy"
+            label={t('nav.achievements')}
+            onClick={onClose}
+          />
+          <NavItem
             to="/dashboard/settings"
             icon="settings"
             label={t('nav.settings')}
@@ -477,6 +489,7 @@ function MobileBar({ onMenu }: { onMenu: () => void }) {
         <MobileNavIcon to="/" icon="home" label={t('nav.home')} />
         <MobileNavIcon to="/dashboard" icon="shield" label={t('nav.dashboard')} end />
         <MobileNavIcon to="/dashboard/stats" icon="chart" label={t('nav.stats')} />
+        <MobileNavIcon to="/dashboard/achievements" icon="trophy" label={t('nav.achievements')} />
         <MobileNavIcon to="/dashboard/settings" icon="settings" label={t('nav.settings')} />
         <NotificationBell variant="icon" />
         <IconButton name="menu" label={t('nav.menu')} variant="ghost" size="sm" onClick={onMenu} />

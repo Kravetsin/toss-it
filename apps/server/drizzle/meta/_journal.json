@@ -288,6 +288,13 @@
       "when": 1784367479367,
       "tag": "0040_yt_autoapprove_split",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "6",
+      "when": 1784455582857,
+      "tag": "0041_cuddly_sleeper",
+      "breakpoints": true
     }
   ]
 }

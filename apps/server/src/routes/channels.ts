@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { and, count, desc, eq, gte, inArray, isNotNull, notInArray, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
+import { NEBULA_MIN_PLAYED } from '@tmw/shared';
 import type {
   ChannelSelf,
   LeaderboardEntry,
@@ -251,6 +252,7 @@ export function registerChannelRoutes(app: FastifyInstance): void {
         accentHue: channels.accentHue,
         bgHue: channels.bgHue,
         bgTint: channels.bgTint,
+        nebulaHidden: channels.nebulaHidden,
       })
       .from(channels)
       .innerJoin(users, eq(users.id, channels.ownerUserId))
@@ -266,6 +268,7 @@ export function registerChannelRoutes(app: FastifyInstance): void {
       accentHue,
       bgHue,
       bgTint,
+      nebulaHidden,
       ...rest
     } = row;
     // The logged-in viewer's own per-channel level — so their header card matches the chat badge.
@@ -273,6 +276,20 @@ export function registerChannelRoutes(app: FastifyInstance): void {
     const [viewerLevel = 0] = viewer
       ? await levelsForKeys(channelId, [{ userId: viewer.id, twitchId: null }])
       : [];
+    // 'played' = aired on stream, excluding the streamer's own test sends (same rule as the 'sends'
+    // board and the dashboard's totalAired) — so the earn can't be self-farmed and the progress the
+    // streamer sees in Achievements matches this gate exactly.
+    const played = await db
+      .select({ n: count() })
+      .from(submissions)
+      .where(
+        and(
+          eq(submissions.channelId, channelId),
+          eq(submissions.status, 'played'),
+          excludeSelfSends,
+        ),
+      )
+      .get();
     const response: PublicChannelInfo = {
       ...rest,
       ttsEnabled: ttsName || ttsMessage,
@@ -282,6 +299,8 @@ export function registerChannelRoutes(app: FastifyInstance): void {
       nickFlow: equipped?.nickFlow ?? false,
       nickEffect: equipped?.nickEffect ?? null,
       cardEffect: equipped?.cardEffect ?? null,
+      // Earned by the milestone, but the streamer can hide it (a preference — see nebulaHidden).
+      nebula: (played?.n ?? 0) >= NEBULA_MIN_PLAYED && !nebulaHidden,
       theme: { accentHue, bgHue, bgTint },
       viewerLevel,
     };

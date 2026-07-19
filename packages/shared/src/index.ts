@@ -460,6 +460,8 @@ export interface ChannelSettings {
   bgMusicVolume: number;
   /** Hide the background-music player in OBS (audio keeps playing). */
   bgMusicHidden: boolean;
+  /** Hide the earned galaxy page background even after unlocking it (a preference, not the gate). */
+  nebulaHidden: boolean;
   /** Channel description on viewer page; null/'' = default subtitle shown. */
   description: string | null;
   /** Social links in viewer page header (order preserved). */
@@ -601,6 +603,10 @@ export interface OnboardingStatus {
   botReading: boolean;
 }
 
+/** Played (aired) submissions a channel needs before the galaxy page background unlocks. Shared so
+ *  the server gate and the dashboard "Achievements" progress agree on one number. */
+export const NEBULA_MIN_PLAYED = 500;
+
 export interface PublicChannelInfo {
   login: string;
   displayName: string;
@@ -629,6 +635,9 @@ export interface PublicChannelInfo {
   nickFlow: boolean;
   nickEffect: string | null;
   cardEffect: string | null;
+  /** Earned page background: the galaxy shows once the channel has reached the played-submission
+   *  milestone (see NEBULA_MIN_PLAYED on the server). A reward, not a purchase. */
+  nebula: boolean;
   /** Page theme knobs. On a full load the server already inlined these as tokens (see seo.ts);
    *  the client needs them to re-apply after a client-side nav onto this page. */
   theme: ChannelTheme;

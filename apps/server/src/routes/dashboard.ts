@@ -202,6 +202,7 @@ function toSettings(
     bgMusicShuffle: ch.bgMusicShuffle,
     bgMusicVolume: ch.bgMusicVolume,
     bgMusicHidden: ch.bgMusicHidden,
+    nebulaHidden: ch.nebulaHidden,
     description: ch.description,
     links: ch.links,
     theme: { accentHue: ch.accentHue, bgHue: ch.bgHue, bgTint: ch.bgTint },
@@ -676,6 +677,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
             : channel.bgMusicVolume,
         bgMusicHidden:
           typeof b.bgMusicHidden === 'boolean' ? b.bgMusicHidden : channel.bgMusicHidden,
+        nebulaHidden: typeof b.nebulaHidden === 'boolean' ? b.nebulaHidden : channel.nebulaHidden,
         description: 'description' in b ? sanitizeDescription(b.description) : channel.description,
         links: 'links' in b ? sanitizeLinks(b.links) : channel.links,
         // Theme hues: 0-359 or null (untouched knob); tint 0-100. null must survive so a default
