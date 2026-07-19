@@ -6,6 +6,7 @@ import {
   CHANNEL_LINKS_MAX,
   CHANNEL_LINK_URL_MAX_LEN,
   musicConfigFrom,
+  NEBULA_MIN_PLAYED,
   OVERLAY_POSITIONS,
   SOCIAL_PLATFORMS,
   youtubePlaylistId,
@@ -163,11 +164,26 @@ function sanitizeLinks(input: unknown): ChannelLink[] {
   return out;
 }
 
+/** Whether the channel has aired enough submissions to unlock the galaxy background. Same rule as the
+ *  public /api/c/:login gate (played, excluding the streamer's own test sends). */
+async function nebulaEarnedFor(channelId: string): Promise<boolean> {
+  const row = await db
+    .select({ n: count() })
+    .from(submissions)
+    .where(
+      and(eq(submissions.channelId, channelId), eq(submissions.status, 'played'), excludeSelfSends),
+    )
+    .get();
+  return (row?.n ?? 0) >= NEBULA_MIN_PLAYED;
+}
+
 function toSettings(
   ch: ChannelRow,
   chatBot: { login: string | null; reading: boolean },
+  nebulaEarned: boolean,
 ): ChannelSettings {
   return {
+    nebulaEarned,
     chatBotLogin: chatBot.login,
     chatBotReading: chatBot.reading,
     maxDurationMs: ch.maxDurationMs,
@@ -534,7 +550,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
     async (req, reply): Promise<ChannelSettings | undefined> => {
       const channel = await requireOwnerOf(req, reply, req.params.channelId);
       if (!channel) return;
-      return toSettings(channel, await chatBotInfo(channel));
+      return toSettings(channel, await chatBotInfo(channel), await nebulaEarnedFor(channel.id));
     },
   );
 
@@ -697,7 +713,11 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
       });
       // Push background-music config live so the media overlay updates without a reload.
       io.to(roomOf(channel.id)).emit('music:config', musicConfigFrom({ ...channel, ...patch }));
-      return toSettings({ ...channel, ...patch }, await chatBotInfo(channel));
+      return toSettings(
+        { ...channel, ...patch },
+        await chatBotInfo(channel),
+        await nebulaEarnedFor(channel.id),
+      );
     },
   );
 

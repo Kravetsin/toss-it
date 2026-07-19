@@ -474,6 +474,9 @@ export interface ChannelSettings {
   bgMusicHidden: boolean;
   /** Hide the earned galaxy page background even after unlocking it (a preference, not the gate). */
   nebulaHidden: boolean;
+  /** Derived (read-only): whether the galaxy background has been unlocked (>= NEBULA_MIN_PLAYED aired).
+   *  Drives the settings picker — you can only choose a background you've actually earned. */
+  nebulaEarned: boolean;
   /** Channel description on viewer page; null/'' = default subtitle shown. */
   description: string | null;
   /** Social links in viewer page header (order preserved). */

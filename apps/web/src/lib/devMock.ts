@@ -135,6 +135,7 @@ const MOCK_SETTINGS: ChannelSettings = {
   bgMusicVolume: 50,
   bgMusicHidden: false,
   nebulaHidden: false,
+  nebulaEarned: true, // preview the background picker (real value derived from the played count)
   description: 'Шли мемы — лучшее окажется на стриме 🎬',
   links: [
     { platform: 'twitch', url: 'https://twitch.tv/kravetsinside' },

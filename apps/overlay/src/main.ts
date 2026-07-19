@@ -199,39 +199,21 @@ function show(payload: MediaPlayPayload): void {
       const meta = document.createElement('div');
       meta.className = 'player-meta';
       if (payload.senderName) decorateSender(meta, payload);
-      if (payload.text) {
-        if (payload.senderName) {
-          const sep = document.createElement('span');
-          sep.className = 'meta-sep';
-          sep.textContent = '·';
-          meta.appendChild(sep);
-        }
-        // Caption viewport clips; the inner track scrolls (ping-pong) only when it overflows.
-        const cap = document.createElement('span');
-        cap.className = 'player-caption';
-        const track = document.createElement('span');
-        track.className = 'marq-track';
-        track.textContent = payload.text;
-        cap.appendChild(track);
-        meta.appendChild(cap);
-        applyMarquee(cap, track);
-      }
+      if (payload.text) appendCaptionMarquee(meta, payload.text, !!payload.senderName);
       player.appendChild(meta);
     }
     alert.appendChild(player);
   } else {
-    // Caption ABOVE media so it doesn't shift the player when it disappears.
-    if (payload.text && payload.kind !== 'text') {
-      const cap = document.createElement('div');
-      cap.className = 'caption';
-      cap.textContent = payload.text;
-      alert.appendChild(cap);
-    }
     alert.appendChild(media);
-    if (payload.senderName) {
+    // Sender + caption share ONE meta row below the media: the caption scrolls as a marquee instead
+    // of a tall text block above the media (looks cleaner, and a 280-char note no longer eats space).
+    // Text-only posts have no media — their text IS the card (.text-card), so no caption row here.
+    const caption = payload.kind !== 'text' ? payload.text : undefined;
+    if (payload.senderName || caption) {
       const banner = document.createElement('div');
       banner.className = 'sender';
-      decorateSender(banner, payload);
+      if (payload.senderName) decorateSender(banner, payload);
+      if (caption) appendCaptionMarquee(banner, caption, !!payload.senderName);
       alert.appendChild(banner);
     }
   }
@@ -309,6 +291,27 @@ function decorateSender(el: HTMLElement, payload: MediaPlayPayload): void {
     el.appendChild(badges);
   }
   if (payload.senderCardEffect) mountCardEffect(el, payload.senderCardEffect, 'overlayCard', true);
+}
+
+/** Append the submission text to a meta row (the sender banner or the music player's meta) as a
+ *  clipped, ping-pong marquee. A leading separator is added when a sender precedes it. Shared by
+ *  every media kind so the caption always reads the same way — a scrolling line, never a tall block. */
+function appendCaptionMarquee(row: HTMLElement, text: string, afterSender: boolean): void {
+  if (afterSender) {
+    const sep = document.createElement('span');
+    sep.className = 'meta-sep';
+    sep.textContent = '·';
+    row.appendChild(sep);
+  }
+  // Caption viewport clips; the inner track scrolls (ping-pong) only when it overflows.
+  const cap = document.createElement('span');
+  cap.className = 'player-caption';
+  const track = document.createElement('span');
+  track.className = 'marq-track';
+  track.textContent = text;
+  cap.appendChild(track);
+  row.appendChild(cap);
+  applyMarquee(cap, track);
 }
 
 /** Scroll long caption text horizontally (ping-pong) inside the player meta row, only when it

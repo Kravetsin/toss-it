@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   BRAND_HUE,
   hexToHue,
@@ -8,7 +9,7 @@ import {
 } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { useMe } from '@/hooks/useMe';
-import { Button, Card, Input, Switch } from '@/ui';
+import { Button, Card, Input, Select } from '@/ui';
 import { Icon, type IconName } from '@/ui/icons';
 
 const BRAND_HUE_INT = Math.round(BRAND_HUE);
@@ -130,17 +131,41 @@ export function ChannelThemeSettings({
             />
           </Section>
 
-          {/* The earned galaxy background is gated server-side by the played-submissions count; this
-              is only the streamer's show/hide preference (saved on toggle, independent of the theme
-              Save button). The hint states the unlock condition so it's honest even before earning. */}
+          {/* Page background: pick only from what the channel has EARNED — never a checked toggle for a
+              background that isn't unlocked. Discovery + progress live on the Achievements page (always
+              linked), so a locked background is visible there, not silently hidden here. */}
           <div className="border-t border-border pt-3">
-            <Switch
-              icon="sparkles"
-              label={t('theme.galaxyShow')}
-              description={t('theme.galaxyHint', { n: NEBULA_MIN_PLAYED })}
-              checked={!settings.nebulaHidden}
-              onChange={(v) => onSave({ nebulaHidden: !v })}
-            />
+            <div className="flex items-start gap-3">
+              <Icon name="sparkles" size={16} className="mt-0.5 shrink-0 text-muted" />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm text-text">{t('theme.background')}</span>
+                  <Link
+                    to="/dashboard/achievements"
+                    className="inline-flex shrink-0 items-center gap-1 text-xs text-accent hover:underline"
+                  >
+                    <Icon name="trophy" size={12} />
+                    {t('nav.achievements')}
+                  </Link>
+                </div>
+                {settings.nebulaEarned ? (
+                  <Select
+                    className="mt-2"
+                    label={t('theme.background')}
+                    value={settings.nebulaHidden ? '' : 'nebula'}
+                    onChange={(v) => onSave({ nebulaHidden: v !== 'nebula' })}
+                    options={[
+                      { value: '', label: t('bg.none') },
+                      { value: 'nebula', label: t('bg.nebula') },
+                    ]}
+                  />
+                ) : (
+                  <p className="mt-1 text-xs text-muted">
+                    {t('bg.lockedHint', { n: NEBULA_MIN_PLAYED })}
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
