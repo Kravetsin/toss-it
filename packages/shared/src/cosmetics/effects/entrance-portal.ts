@@ -48,12 +48,21 @@ interface VParticle {
   ph0: number; // phase offset along the inward journey (0 = rim, 1 = centre)
   speed: number; // how fast it travels inward (per ms)
 }
+interface Shard {
+  y0: number; // vertical origin across the mouth, in ry units (−1 top … 1 bottom)
+  x0: number; // horizontal origin, in ry units — born in/near the visible left of the mouth
+  vx: number; // RIGHTWARD speed (ry units/life): the message drags shards in its direction of travel
+  vy: number; // vertical drift, fanning off the travel axis
+  ph: number; // launch point along the run (global g) — front-loaded to the emergence
+  sz: number; // base size
+}
 interface Portal {
   el: HTMLElement;
   color: string; // #rrggbb tint for the sparks (default mint, or the equipped upgrade colour)
   sprite: HTMLCanvasElement | null; // the glow sprite for `color`, built on the first laid-out frame
   sparks: Spark[] | null; // ring, built on the first laid-out frame when the block height is known
   vortex: VParticle[] | null; // interior swirl, built alongside the ring
+  burst: Shard[] | null; // punch-through shards torn from the centre as the block drives out
   lastTx: number; // the translateX currently applied — used to recover the block's natural position
   start: number | null;
   safety: ReturnType<typeof setTimeout>;
@@ -196,6 +205,24 @@ function buildVortex(h: number): VParticle[] {
   return out;
 }
 
+function buildBurst(h: number): Shard[] {
+  const ry0 = h * 0.62 + 16;
+  const n = clamp(Math.round(ry0 * 0.8), 28, 130); // scales with the mouth, like the ring/vortex
+  const out: Shard[] = [];
+  for (let i = 0; i < n; i++) {
+    const y0 = (Math.random() * 2 - 1) * 0.95; // torn from anywhere up the height of the mouth
+    out.push({
+      y0,
+      x0: -0.35 + Math.random() * 0.45, // born in/near the visible left of the mouth
+      vx: 1.3 + Math.random() * 2.4, // dragged rightward, following the message out
+      vy: y0 * 0.45 + (Math.random() - 0.5) * 0.5, // fan away from the travel axis + jitter
+      ph: 0.14 + Math.random() * 0.42, // launch during the drive-out, front-loaded to the punch-through
+      sz: 1 + Math.random() * 1.6,
+    });
+  }
+  return out;
+}
+
 function drop(sw: Portal, index: number): void {
   clearTimeout(sw.safety);
   reset(sw.el);
@@ -227,6 +254,7 @@ function frame(now: number): void {
       sw.start = now;
       sw.sparks = buildSparks(h);
       sw.vortex = buildVortex(h);
+      sw.burst = buildBurst(h);
       sw.sprite = spriteFor(sw.color);
     }
     const g = clamp((now - sw.start) / DUR, 0, 1);
@@ -299,6 +327,21 @@ function frame(now: number): void {
       ctx.globalAlpha = clamp((1 - ee) * 0.7 * sc, 0, 1);
       ctx.drawImage(sw.sprite!, ex - es / 2, ey - es / 2, es, es);
     }
+    // 4) SHEAR WAKE — the message grazes the portal on its way out and drags shards off the inner
+    //    membrane, streaming them LEFT→RIGHT in its own direction of travel (not a radial burst).
+    //    Shards torn from the top/bottom stream out past the block and read as a wake; those directly
+    //    behind the emerging block are simply covered by it. Brightest at emergence, gone by the close.
+    const SHARD_LIFE = 0.34; // fraction of the run each shard is alive
+    for (const b of sw.burst!) {
+      const life = (g - b.ph) / SHARD_LIFE;
+      if (life <= 0 || life >= 1) continue;
+      const ea = easeOut(life); // fast launch, easing to a stop
+      const x = Px + (b.x0 + b.vx * ea) * ry; // stream rightward, following the message
+      const y = cy + (b.y0 + b.vy * ea) * ry; // fanning off the travel axis
+      const size = (1 + 2.5 * (1 - life)) * b.sz * sc; // a bright shard at birth, shrinking as it flies
+      ctx.globalAlpha = clamp(Math.min(1, life / 0.12) * (1 - life) * 0.85 * sc, 0, 1);
+      ctx.drawImage(sw.sprite!, x - size / 2, y - size / 2, size, size);
+    }
 
     if (g >= 1) drop(sw, s);
   }
@@ -325,6 +368,7 @@ function play(
     sprite: null,
     sparks: null,
     vortex: null,
+    burst: null,
     lastTx: 0,
     start: null,
     // If the element never lays out (removed mid-flight, a throttled background tab), don't leave the
