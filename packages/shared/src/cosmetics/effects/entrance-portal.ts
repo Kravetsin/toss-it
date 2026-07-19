@@ -207,7 +207,7 @@ function buildVortex(h: number): VParticle[] {
 
 function buildBurst(h: number): Shard[] {
   const ry0 = h * 0.62 + 16;
-  const n = clamp(Math.round(ry0 * 0.8), 28, 130); // scales with the mouth, like the ring/vortex
+  const n = clamp(Math.round(ry0 * 15.8), 28, 130); // scales with the mouth, like the ring/vortex
   const out: Shard[] = [];
   for (let i = 0; i < n; i++) {
     const y0 = (Math.random() * 2 - 1) * 0.95; // torn from anywhere up the height of the mouth
@@ -215,7 +215,7 @@ function buildBurst(h: number): Shard[] {
       y0,
       x0: -0.35 + Math.random() * 0.45, // born in/near the visible left of the mouth
       vx: 1.3 + Math.random() * 2.4, // dragged rightward, following the message out
-      vy: y0 * 0.45 + (Math.random() - 0.5) * 0.5, // fan away from the travel axis + jitter
+      vy: y0 * 0.15 + (Math.random() - 0.5) * 0.5, // fan away from the travel axis + jitter
       ph: 0.14 + Math.random() * 0.42, // launch during the drive-out, front-loaded to the punch-through
       sz: 1 + Math.random() * 1.6,
     });
