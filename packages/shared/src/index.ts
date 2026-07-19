@@ -271,6 +271,15 @@ export interface MusicTrack {
   durationSec?: number;
 }
 
+/** Background-music dashboard payload: the owned track list plus the DJ knobs (shuffle/volume/hidden).
+ *  Accessible to the owner AND moderators, so a mod can run the music without settings/token access. */
+export interface MusicDashboard {
+  tracks: MusicTrack[];
+  shuffle: boolean;
+  volume: number;
+  hidden: boolean;
+}
+
 /** Build the overlay's music config from a channel's stored background-music fields. The background
  *  player always uses the music layout block (music*); the musicSeparate toggle only decides whether
  *  song-request cards share it (that choice is applied server-side when a submission plays). */

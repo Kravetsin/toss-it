@@ -12,7 +12,7 @@ import type {
 import {
   getBans,
   getHistory,
-  getMusicTracks,
+  getMusic,
   getNowPlaying,
   getPending,
   getReputation,
@@ -42,6 +42,8 @@ export function useChannelData(
   const [banned, setBanned] = useState<ListedUser[]>([]);
   const [musicState, setMusicState] = useState<MusicState>({ videoId: null, playing: false });
   const [musicTracks, setMusicTracks] = useState<MusicTrack[]>([]);
+  // DJ knobs (shuffle/volume/hidden) — separate from owner-only settings so moderators get them too.
+  const [musicConfig, setMusicConfig] = useState({ shuffle: false, volume: 50, hidden: false });
   const [musicLoading, setMusicLoading] = useState(false);
   // Cross-channel reputation cache by userId, loaded on-demand as submissions arrive.
   const [reputation, setReputation] = useState<Record<string, ReputationStats>>({});
@@ -73,17 +75,20 @@ export function useChannelData(
       .catch(() => {});
   }, [pending, channelId]);
 
-  // Owned background-music track list (owner only), loaded once per channel; edits update it live.
+  // Owned background-music list + DJ knobs, loaded once per channel (owner AND moderators, so a mod
+  // can DJ); edits update it live.
   useEffect(() => {
-    if (!channelId || !isOwner) {
+    if (!channelId) {
       setMusicTracks([]);
       return;
     }
     let cancelled = false;
     setMusicLoading(true);
-    void getMusicTracks(channelId)
+    void getMusic(channelId)
       .then((r) => {
-        if (!cancelled) setMusicTracks(r.tracks);
+        if (cancelled) return;
+        setMusicTracks(r.tracks);
+        setMusicConfig({ shuffle: r.shuffle, volume: r.volume, hidden: r.hidden });
       })
       .catch(() => {})
       .finally(() => {
@@ -92,7 +97,7 @@ export function useChannelData(
     return () => {
       cancelled = true;
     };
-  }, [channelId, isOwner]);
+  }, [channelId]);
 
   // Load channel data and establish live socket connection. Restarts on channel change.
   useEffect(() => {
@@ -168,6 +173,8 @@ export function useChannelData(
     musicState,
     musicTracks,
     setMusicTracks,
+    musicConfig,
+    setMusicConfig,
     musicLoading,
     refreshLists,
   };

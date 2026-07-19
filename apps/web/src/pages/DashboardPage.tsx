@@ -6,6 +6,7 @@ import {
   saveSettings,
   seekPlayback,
   setContentVolume,
+  setMusicConfig as saveMusicConfig,
 } from '@/lib/api';
 import { useMe } from '@/hooks/useMe';
 import { useApiAction } from '@/hooks/useApiAction';
@@ -55,6 +56,32 @@ export function DashboardPage() {
   const onSeek = (seconds: number) => {
     if (channelId) void seekPlayback(channelId, seconds).catch(() => {});
   };
+
+  // DJ knobs (owner + mods): persist via the mod-accessible music endpoint (not the owner-only
+  // settings PATCH), then sync local state; the server re-emits music:config to the overlay.
+  const applyMusicConfig = (cfg: { shuffle?: boolean; volume?: number; hidden?: boolean }) => {
+    if (!channelId) return;
+    void saveMusicConfig(channelId, cfg)
+      .then((r) => data.setMusicConfig({ shuffle: r.shuffle, volume: r.volume, hidden: r.hidden }))
+      .catch(() => {});
+  };
+
+  // Background-music remote — shown to the owner AND moderators (a mod can run the music).
+  const musicCard = channelId ? (
+    <MusicPlayerCard
+      channelId={channelId}
+      tracks={data.musicTracks}
+      onTracksChange={data.setMusicTracks}
+      loading={data.musicLoading}
+      musicState={data.musicState}
+      shuffle={data.musicConfig.shuffle}
+      onToggleShuffle={(v) => applyMusicConfig({ shuffle: v })}
+      hidden={data.musicConfig.hidden}
+      onToggleHidden={(v) => applyMusicConfig({ hidden: v })}
+      volume={data.musicConfig.volume}
+      onVolumeChange={(v) => applyMusicConfig({ volume: v })}
+    />
+  ) : null;
 
   const bannedIds = new Set(data.banned.map((b) => b.userId));
 
@@ -128,36 +155,7 @@ export function DashboardPage() {
           {channelId && data.queue.length > 0 && (
             <QueueCard channelId={channelId} queue={data.queue} />
           )}
-          {isOwner && channelId && (
-            <MusicPlayerCard
-              channelId={channelId}
-              tracks={data.musicTracks}
-              onTracksChange={data.setMusicTracks}
-              loading={data.musicLoading}
-              musicState={data.musicState}
-              shuffle={data.settings?.bgMusicShuffle ?? false}
-              onToggleShuffle={(v) =>
-                void act(
-                  async () =>
-                    data.setSettings(await saveSettings(channelId, { bgMusicShuffle: v })),
-                  { success: t('toast.saved') },
-                )
-              }
-              hidden={data.settings?.bgMusicHidden ?? false}
-              onToggleHidden={(v) =>
-                void act(
-                  async () => data.setSettings(await saveSettings(channelId, { bgMusicHidden: v })),
-                  { success: t('toast.saved') },
-                )
-              }
-              volume={data.settings?.bgMusicVolume ?? 50}
-              onVolumeChange={(v) =>
-                void saveSettings(channelId, { bgMusicVolume: v })
-                  .then(data.setSettings)
-                  .catch(() => {})
-              }
-            />
-          )}
+          {musicCard}
         </div>
 
         <div className="min-w-0">
@@ -188,37 +186,7 @@ export function DashboardPage() {
             {channelId && data.queue.length > 0 && (
               <QueueCard channelId={channelId} queue={data.queue} />
             )}
-            {isOwner && channelId && (
-              <MusicPlayerCard
-                channelId={channelId}
-                tracks={data.musicTracks}
-                onTracksChange={data.setMusicTracks}
-                loading={data.musicLoading}
-                musicState={data.musicState}
-                shuffle={data.settings?.bgMusicShuffle ?? false}
-                onToggleShuffle={(v) =>
-                  void act(
-                    async () =>
-                      data.setSettings(await saveSettings(channelId, { bgMusicShuffle: v })),
-                    { success: t('toast.saved') },
-                  )
-                }
-                hidden={data.settings?.bgMusicHidden ?? false}
-                onToggleHidden={(v) =>
-                  void act(
-                    async () =>
-                      data.setSettings(await saveSettings(channelId, { bgMusicHidden: v })),
-                    { success: t('toast.saved') },
-                  )
-                }
-                volume={data.settings?.bgMusicVolume ?? 50}
-                onVolumeChange={(v) =>
-                  void saveSettings(channelId, { bgMusicVolume: v })
-                    .then(data.setSettings)
-                    .catch(() => {})
-                }
-              />
-            )}
+            {musicCard}
           </div>
           <MembersPanel
             allowed={data.allowed}

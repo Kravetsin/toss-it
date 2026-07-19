@@ -21,6 +21,7 @@ import {
   type LivePresence,
   type ModInviteInfo,
   type MusicCommand,
+  type MusicDashboard,
   type MusicTrack,
   type OnboardingStatus,
   type ReputationStats,
@@ -742,14 +743,20 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
   /** The owned, editable background-music track list. */
   app.get<{ Params: { channelId: string } }>(
     '/api/dashboard/:channelId/music/tracks',
-    async (req, reply): Promise<{ tracks: MusicTrack[] } | undefined> => {
-      const channel = await requireOwnerOf(req, reply, req.params.channelId);
+    async (req, reply): Promise<MusicDashboard | undefined> => {
+      // Owner OR moderator — a mod can DJ the background music.
+      const channel = await requireChannelAccess(req, reply, req.params.channelId);
       if (!channel) return;
       // Lazily backfill durations for lists saved before durations existed.
       const { tracks, changed } = await withDurations(channel.bgMusicTracks);
       if (changed)
         await db.update(channels).set({ bgMusicTracks: tracks }).where(eq(channels.id, channel.id));
-      return { tracks };
+      return {
+        tracks,
+        shuffle: channel.bgMusicShuffle,
+        volume: channel.bgMusicVolume,
+        hidden: channel.bgMusicHidden,
+      };
     },
   );
 
@@ -767,7 +774,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
   app.delete<{ Params: { channelId: string } }>(
     '/api/dashboard/:channelId/music/tracks',
     async (req, reply): Promise<{ tracks: MusicTrack[] } | undefined> => {
-      const channel = await requireOwnerOf(req, reply, req.params.channelId);
+      const channel = await requireChannelAccess(req, reply, req.params.channelId);
       if (!channel) return;
       await db
         .update(channels)
@@ -786,7 +793,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
   app.post<{ Params: { channelId: string }; Body: { url?: unknown } | null }>(
     '/api/dashboard/:channelId/music/add',
     async (req, reply): Promise<{ tracks: MusicTrack[]; added: number } | undefined> => {
-      const channel = await requireOwnerOf(req, reply, req.params.channelId);
+      const channel = await requireChannelAccess(req, reply, req.params.channelId);
       if (!channel) return;
       const url = typeof req.body?.url === 'string' ? req.body.url : '';
       const seen = new Set(channel.bgMusicTracks.map((tr) => tr.videoId));
@@ -825,7 +832,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
   app.put<{ Params: { channelId: string }; Body: { videoIds?: unknown } | null }>(
     '/api/dashboard/:channelId/music/tracks',
     async (req, reply): Promise<{ tracks: MusicTrack[] } | undefined> => {
-      const channel = await requireOwnerOf(req, reply, req.params.channelId);
+      const channel = await requireChannelAccess(req, reply, req.params.channelId);
       if (!channel) return;
       const ids = Array.isArray(req.body?.videoIds) ? req.body.videoIds : null;
       if (!ids) return reply.code(400).send({ error: 'Некорректный список' });
@@ -847,7 +854,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
   app.post<{ Params: { channelId: string }; Body: MusicCommand | null }>(
     '/api/dashboard/:channelId/music/command',
     async (req, reply): Promise<{ ok: true } | undefined> => {
-      const channel = await requireOwnerOf(req, reply, req.params.channelId);
+      const channel = await requireChannelAccess(req, reply, req.params.channelId);
       if (!channel) return;
       const action = req.body?.action;
       if (!action || !['play', 'pause', 'next', 'prev', 'playAt', 'seek'].includes(action)) {
@@ -861,6 +868,35 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
           : undefined;
       io.to(roomOf(channel.id)).emit('music:command', { action, videoId, seconds });
       return { ok: true };
+    },
+  );
+
+  /** DJ knobs (shuffle / volume / hidden) — owner OR moderator. Separate from the owner-only settings
+   *  PATCH so a mod can run the music without touching the channel's settings or token. */
+  app.patch<{
+    Params: { channelId: string };
+    Body: { shuffle?: unknown; volume?: unknown; hidden?: unknown } | null;
+  }>(
+    '/api/dashboard/:channelId/music/config',
+    async (req, reply): Promise<MusicDashboard | undefined> => {
+      const channel = await requireChannelAccess(req, reply, req.params.channelId);
+      if (!channel) return;
+      const b = req.body ?? {};
+      const patch: Partial<typeof channels.$inferInsert> = {};
+      if (typeof b.shuffle === 'boolean') patch.bgMusicShuffle = b.shuffle;
+      if (typeof b.volume === 'number') patch.bgMusicVolume = clamp(Math.round(b.volume), 0, 100);
+      if (typeof b.hidden === 'boolean') patch.bgMusicHidden = b.hidden;
+      const merged = { ...channel, ...patch };
+      if (Object.keys(patch).length > 0) {
+        await db.update(channels).set(patch).where(eq(channels.id, channel.id));
+        io.to(roomOf(channel.id)).emit('music:config', musicConfigFrom(merged));
+      }
+      return {
+        tracks: merged.bgMusicTracks,
+        shuffle: merged.bgMusicShuffle,
+        volume: merged.bgMusicVolume,
+        hidden: merged.bgMusicHidden,
+      };
     },
   );
 

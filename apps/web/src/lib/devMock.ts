@@ -693,19 +693,46 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
       case 'moderators':
         return MOCK_MODERATORS;
       case 'music/tracks': {
-        // GET returns the list; PUT reorders/removes by the posted videoIds; DELETE wipes it.
+        // GET returns the list + DJ knobs (MusicDashboard); PUT reorders/removes; DELETE wipes.
         if (init?.method === 'DELETE') {
           MOCK_SETTINGS.bgMusicTracks = [];
           MOCK_SETTINGS.bgMusicPlaylist = null;
-        } else if (init?.method === 'PUT' && init.body) {
+          return { tracks: MOCK_SETTINGS.bgMusicTracks };
+        }
+        if (init?.method === 'PUT' && init.body) {
           const body = JSON.parse(String(init.body)) as { videoIds?: string[] };
           const byId = new Map(MOCK_SETTINGS.bgMusicTracks.map((tr) => [tr.videoId, tr]));
           MOCK_SETTINGS.bgMusicTracks = (body.videoIds ?? []).flatMap((id) => {
             const tr = byId.get(id);
             return tr ? [tr] : [];
           });
+          return { tracks: MOCK_SETTINGS.bgMusicTracks };
         }
-        return { tracks: MOCK_SETTINGS.bgMusicTracks };
+        return {
+          tracks: MOCK_SETTINGS.bgMusicTracks,
+          shuffle: MOCK_SETTINGS.bgMusicShuffle,
+          volume: MOCK_SETTINGS.bgMusicVolume,
+          hidden: MOCK_SETTINGS.bgMusicHidden,
+        };
+      }
+      case 'music/config': {
+        // DJ knobs (shuffle/volume/hidden) — owner or moderator.
+        if (init?.body) {
+          const b = JSON.parse(String(init.body)) as {
+            shuffle?: boolean;
+            volume?: number;
+            hidden?: boolean;
+          };
+          if (typeof b.shuffle === 'boolean') MOCK_SETTINGS.bgMusicShuffle = b.shuffle;
+          if (typeof b.volume === 'number') MOCK_SETTINGS.bgMusicVolume = b.volume;
+          if (typeof b.hidden === 'boolean') MOCK_SETTINGS.bgMusicHidden = b.hidden;
+        }
+        return {
+          tracks: MOCK_SETTINGS.bgMusicTracks,
+          shuffle: MOCK_SETTINGS.bgMusicShuffle,
+          volume: MOCK_SETTINGS.bgMusicVolume,
+          hidden: MOCK_SETTINGS.bgMusicHidden,
+        };
       }
       case 'integrations':
         return []; // donation integrations
