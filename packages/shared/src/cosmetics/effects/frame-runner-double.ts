@@ -19,7 +19,7 @@ export const frameRunnerDouble: FrameModule = {
   background: conic-gradient(from var(--frame-ang),
     #eafff8 0 2%, var(--cos-mint, #8df0cc) 5%, transparent 9% 50%,
     #eafff8 52% 54%, var(--cos-mint, #8df0cc) 57%, transparent 61% 100%);
-  animation: frame-run 2.1s linear infinite;
+  animation: frame-run 6s linear infinite;
 }
 `,
 };

@@ -106,8 +106,36 @@ const BASE_CSS = `
   mask-composite: exclude;
   pointer-events: none;
 }
+/* The angle sweeps a full turn but NOT at a constant rate: θ = 360t + 30·sin(2πt), sampled below.
+   That glides — it speeds up and eases off once per lap — and is seamless: the rate over the last
+   segment (294→360) equals the rate over the first (0→66), so there's no lurch at the loop point.
+   Keep the animation timing-function linear; the uneven angle steps ARE the speed variation. */
 @keyframes frame-run {
-  to {
+  0% {
+    --frame-ang: 0deg;
+  }
+  12.5% {
+    --frame-ang: 66deg;
+  }
+  25% {
+    --frame-ang: 120deg;
+  }
+  37.5% {
+    --frame-ang: 156deg;
+  }
+  50% {
+    --frame-ang: 180deg;
+  }
+  62.5% {
+    --frame-ang: 204deg;
+  }
+  75% {
+    --frame-ang: 240deg;
+  }
+  87.5% {
+    --frame-ang: 294deg;
+  }
+  100% {
     --frame-ang: 360deg;
   }
 }

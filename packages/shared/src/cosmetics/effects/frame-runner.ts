@@ -20,7 +20,7 @@ export const frameRunner: FrameModule = {
   css: `
 .frame-fx-runner::after {
   background: conic-gradient(from var(--frame-ang), transparent 0 82%, #eafff8 91%, var(--cos-mint, #8df0cc) 95%, transparent 100%);
-  animation: frame-run 2.4s linear infinite;
+  animation: frame-run 7s linear infinite;
 }
 `,
 };
