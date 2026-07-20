@@ -1,6 +1,12 @@
 /* Chat column anchored bottom; newest at the bottom, older scroll up off-screen.
    Inter-message spacing comes from .msg padding-bottom (gap stays 0).
    --chat-font is set on :root from channel settings via the chat:config event. */
+:root {
+  /* Left inset of the whole column. The star marker's glow is a drop-shadow reaching ~11px past
+     its box, so a tighter inset gets it clipped by the window edge. #rail is a sibling and must
+     track the same number — hence one variable instead of two literals drifting apart. */
+  --chat-left: 18px;
+}
 #chat {
   position: fixed;
   inset: 0;
@@ -8,7 +14,7 @@
   flex-direction: column;
   justify-content: flex-end;
   gap: 0;
-  padding: 12px 12px 12px 6px;
+  padding: 12px 12px 12px var(--chat-left);
   box-sizing: border-box;
   font-size: var(--chat-font, 19px);
 }
@@ -33,7 +39,7 @@
    (inserted before it in the DOM). Ends at the newest message's star — the thread tip. */
 #rail {
   position: fixed;
-  left: calc(6px + 0.5em);
+  left: calc(var(--chat-left) + 0.5em);
   top: 100vh;
   height: 0;
   width: 2px;

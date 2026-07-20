@@ -24,7 +24,7 @@ import { roomOf, type QueueState, type RealtimeServer } from '../../playback';
 import { EventSubClient } from './eventsub';
 import { createBadgeResolver, roleFromBadges, type EventBadge } from './badges';
 import { awardDust } from './accrual';
-import { runCommand, toChatText } from './commands/index';
+import { isCommand, runCommand, toChatText } from './commands/index';
 import { getRewardById } from '../channel-points/store';
 import { bumpMessage, bumpWatch, flushActivity } from './stats';
 import { loadBotCredentials, refreshBotCredentials, type BotCredentials } from './token';
@@ -308,7 +308,11 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
 
     // Chat overlay mirror: show everyone INCLUDING the streamer (but not excluded bots),
     // only when the channel enabled it and an overlay is actually listening.
-    if (!toOverlay) return;
+    // A command is swallowed like a reward's text input above: the answer card IS its rendering,
+    // and showing both left them racing (the card and the mirror resolve on different promises,
+    // so the order flipped run to run). Swallowed even when the cooldown eats the answer —
+    // silently dropping a repeat is the anti-spam doing its job.
+    if (!toOverlay || isCommand(ev.fragments)) return;
     void Promise.all([
       lookupCosmetics(ev.chatterId),
       lookupLevel(channelId, ev.chatterId),

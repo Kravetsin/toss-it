@@ -42,6 +42,18 @@ const lastByChannel = new Map<string, number>();
 /** Leading `!word`; letters cover non-Latin triggers, since chat is not English-only. */
 const TRIGGER_RE = /^!([\p{L}\d_]{1,24})(?:\s+|$)/u;
 
+/** Does this message address one of our commands? Cheap and synchronous (no cooldown, no DB) —
+ *  the mirror needs the answer before it decides whether to show the message at all. */
+export function isCommand(fragments: ChatFragment[]): boolean {
+  const match = TRIGGER_RE.exec(
+    fragments
+      .map((f) => f.text)
+      .join('')
+      .trim(),
+  );
+  return match !== null && byTrigger.has(match[1]!.toLowerCase());
+}
+
 function onCooldown(channelId: string, twitchId: string, command: string, now: number): boolean {
   const userKey = `${channelId} ${twitchId} ${command}`;
   if (now - (lastByUser.get(userKey) ?? 0) < USER_COOLDOWN_MS) return true;
