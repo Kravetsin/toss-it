@@ -371,6 +371,9 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
           channelId: channel.id,
           senderUserId: user.id,
           senderName: user.displayName,
+          // Null by design — a web send is keyed by the account; see the schema comment.
+          senderPlatform: null,
+          senderPlatformUserId: null,
           originalName,
           filePath,
           text: text ?? null,

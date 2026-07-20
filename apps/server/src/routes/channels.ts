@@ -1,8 +1,9 @@
 import crypto from 'node:crypto';
 import { and, count, desc, eq, gte, inArray, isNotNull, notInArray, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
-import { earnedBackgroundIds } from '@tmw/shared';
+import { BOT_LOCALES, earnedBackgroundIds } from '@tmw/shared';
 import type {
+  BotLocale,
   ChannelSelf,
   LeaderboardEntry,
   LeaderboardMetric,
@@ -190,7 +191,7 @@ async function chatBoard(
 }
 
 export function registerChannelRoutes(app: FastifyInstance): void {
-  app.post('/api/channels', async (req, reply) => {
+  app.post<{ Body?: { locale?: string } }>('/api/channels', async (req, reply) => {
     const user = await requireUser(req, reply);
     if (!user) return;
 
@@ -216,6 +217,11 @@ export function registerChannelRoutes(app: FastifyInstance): void {
       musicPosition: 'bottom-left' as const,
       musicSize: 20,
       musicMargin: 2,
+      // Seed the bot's language from the dashboard the streamer is creating the channel in — the
+      // best guess we get for free. They can change it later; the two are independent settings.
+      botLocale: BOT_LOCALES.includes(req.body?.locale as BotLocale)
+        ? (req.body!.locale as BotLocale)
+        : ('ru' as const),
     };
     await db.insert(channels).values(channel);
     const response: ChannelSelf = { id: channel.id, overlayToken: channel.overlayToken };

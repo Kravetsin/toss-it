@@ -20,6 +20,9 @@ export async function createYoutubeSubmission(
     channelId: string;
     senderUserId: string | null;
     senderName: string;
+    /** Sender's platform identity, which a redemption knows even when senderUserId is null. */
+    senderPlatform?: string;
+    senderPlatformUserId?: string;
     parsed: ParsedYoutube;
     /** Caption (leftover text) or the video title. */
     title: string | undefined;
@@ -38,6 +41,8 @@ export async function createYoutubeSubmission(
     channelId: input.channelId,
     senderUserId: input.senderUserId,
     senderName: input.senderName,
+    senderPlatform: input.senderPlatform ?? null,
+    senderPlatformUserId: input.senderPlatformUserId ?? null,
     originalName: '', // no source filename for a link
     filePath: null,
     text: input.title ?? null,

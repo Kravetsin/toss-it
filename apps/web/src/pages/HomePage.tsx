@@ -19,7 +19,7 @@ function Content({ children }: { children: React.ReactNode }) {
 }
 
 export function HomePage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const confirm = useConfirm();
   const { me, loading, refresh } = useMe();
   const act = useApiAction();
@@ -66,7 +66,11 @@ export function HomePage() {
       {!me.channel ? (
         <NoChannelCard
           onCreate={() =>
-            void act(createChannel, { after: refresh, success: t('toast.channelCreated') })
+            // The dashboard's language seeds the bot's — the best guess available for free.
+            void act(() => createChannel(lang), {
+              after: refresh,
+              success: t('toast.channelCreated'),
+            })
           }
         />
       ) : (

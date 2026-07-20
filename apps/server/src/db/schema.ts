@@ -1,6 +1,7 @@
 import { eq, sql } from 'drizzle-orm';
 import { sqliteTable, text, integer, index, primaryKey } from 'drizzle-orm/sqlite-core';
 import type {
+  BotLocale,
   ChannelLink,
   EquippedCosmetics,
   MediaKind,
@@ -92,6 +93,15 @@ export const channels = sqliteTable('channels', {
   showSenderName: integer('show_sender_name', { mode: 'boolean' }).notNull().default(true),
   // Streamer opt-out: render the Twitch chat (with Tossit cosmetics) in the chat overlay source.
   chatOverlayEnabled: integer('chat_overlay_enabled', { mode: 'boolean' }).notNull().default(true),
+  /**
+   * Let the bot answer commands in the Twitch chat itself, not just in the overlay. Off by
+   * default on purpose: modding the bot was consented to as "read my chat", and writing is a
+   * different thing — the streamer says yes to it separately.
+   */
+  chatBotReplies: integer('chat_bot_replies', { mode: 'boolean' }).notNull().default(false),
+  /** Language the bot answers commands in. Seeded from the dashboard's language at channel
+   *  creation, then owned by the streamer — the UI language and the chat language differ often. */
+  botLocale: text('bot_locale').$type<BotLocale>().notNull().default('ru'),
   chatFontSize: integer('chat_font_size').notNull().default(19),
   // Seconds before a chat message fades out; 0 = keep until pushed off by newer ones.
   chatFadeSeconds: integer('chat_fade_seconds').notNull().default(0),
@@ -375,6 +385,16 @@ export const submissions = sqliteTable(
     channelId: text('channel_id').notNull(),
     senderUserId: text('sender_user_id'),
     senderName: text('sender_name'),
+    /**
+     * Sender's platform identity ('twitch' | ...), same key space as pending_dust and
+     * channel_activity. Filled only where the send itself carried one and senderUserId may be
+     * null — a channel-points redemption, whose viewer often has no Tossit account at all.
+     * Web sends deliberately leave it null: they are keyed by senderUserId, and reaching a
+     * sender's twitch id from there means scanning linked_identities (its PK is
+     * provider+provider_id, so only the reverse direction is indexed).
+     */
+    senderPlatform: text('sender_platform'),
+    senderPlatformUserId: text('sender_platform_user_id'),
     /** Original filename, metadata only; never used in paths. */
     originalName: text('original_name').notNull(),
     /** Storage path relative to media root. NULL after ephemeral file deletion or for text-only. */

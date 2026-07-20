@@ -311,11 +311,12 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminRoutesDeps)
     // force_verify so the admin can pick the bot account, not their own session.
     // moderated_channels: the /mod list is the opt-in signal for chat-dust channels.
     // read:chatters: watch-time leaderboard (Get Chatters needs a moderator token).
+    // write:chat: answering commands in chat, for channels that opted into it.
     return reply.redirect(
       buildAuthorizeUrl(
         state,
         true,
-        'user:read:chat user:read:moderated_channels moderator:read:chatters',
+        'user:read:chat user:write:chat user:read:moderated_channels moderator:read:chatters',
       ),
     );
   });

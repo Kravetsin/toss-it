@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { and, asc, count, desc, eq, gte, inArray, isNotNull, ne, sql } from 'drizzle-orm';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import {
+  BOT_LOCALES,
   CHANNEL_DESCRIPTION_MAX_LEN,
   CHANNEL_LINKS_MAX,
   CHANNEL_LINK_URL_MAX_LEN,
@@ -12,6 +13,7 @@ import {
   SOCIAL_PLATFORMS,
   youtubePlaylistId,
   type AccessibleChannel,
+  type BotLocale,
   type ChannelLink,
   type ChannelSettings,
   type DailyStat,
@@ -203,6 +205,8 @@ function toSettings(
     ttsName: ch.ttsName,
     ttsMessage: ch.ttsMessage,
     chatOverlayEnabled: ch.chatOverlayEnabled,
+    chatBotReplies: ch.chatBotReplies,
+    botLocale: ch.botLocale,
     chatFontSize: ch.chatFontSize,
     chatFadeSeconds: ch.chatFadeSeconds,
     chatShowBadges: ch.chatShowBadges,
@@ -646,6 +650,11 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
           typeof b.chatOverlayEnabled === 'boolean'
             ? b.chatOverlayEnabled
             : channel.chatOverlayEnabled,
+        chatBotReplies:
+          typeof b.chatBotReplies === 'boolean' ? b.chatBotReplies : channel.chatBotReplies,
+        botLocale: BOT_LOCALES.includes(b.botLocale as BotLocale)
+          ? (b.botLocale as BotLocale)
+          : channel.botLocale,
         chatFontSize:
           typeof b.chatFontSize === 'number'
             ? clamp(Math.round(b.chatFontSize), 12, 40)
@@ -715,6 +724,9 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         bgTint: b.theme ? clamp(Math.round(Number(b.theme.bgTint) || 0), 0, 100) : channel.bgTint,
       };
       await db.update(channels).set(patch).where(eq(channels.id, channel.id));
+      // The bot caches per-channel chat flags between reconciles; a toggle the streamer just
+      // flipped should take effect now, not in up to five minutes.
+      deps.twitchChat.settingsChanged();
       // Push chat display config live so the OBS chat source updates without a reload.
       io.to(roomOf(channel.id)).emit('chat:config', {
         fontSize: patch.chatFontSize,

@@ -113,6 +113,8 @@ const MOCK_SETTINGS: ChannelSettings = {
   ttsName: false,
   ttsMessage: false,
   chatOverlayEnabled: true,
+  chatBotReplies: false,
+  botLocale: 'ru' as const,
   chatFontSize: 19,
   chatFadeSeconds: 0,
   chatShowBadges: true,

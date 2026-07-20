@@ -1,0 +1,1 @@
+ALTER TABLE `channels` ADD `chat_bot_replies` integer DEFAULT false NOT NULL;

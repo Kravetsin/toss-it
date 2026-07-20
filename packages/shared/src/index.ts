@@ -233,6 +233,26 @@ export interface ChatOverlayMessage {
   fragments: ChatFragment[];
 }
 
+/** Languages the chat bot can answer in. Mirrors the web app's own Lang set. */
+export const BOT_LOCALES = ['en', 'ru', 'uk'] as const;
+export type BotLocale = (typeof BOT_LOCALES)[number];
+
+/**
+ * The bot's answer to a chat command, rendered as its own line in the chat overlay.
+ * Composed server-side and kept language-neutral where possible (asker + number + brand), so an
+ * unregistered viewer still reads it. Deliberately generic — one line shape for every command.
+ */
+export interface ChatSystemLine {
+  /** Display name of the viewer who ran the command — the line reads as a reply to them. */
+  name: string;
+  /** Stardust value, rendered with the brand star. */
+  dust?: number;
+  /** Short label when a bare number is not self-explanatory. */
+  text?: string;
+  /** Small line underneath, e.g. the domain for dust waiting to be claimed. */
+  hint?: string;
+}
+
 /** Display config for the chat overlay (font size, auto-hide, per-element toggles). */
 export interface ChatOverlayConfig {
   /** Message font size in px. */
@@ -348,6 +368,8 @@ export interface ServerToOverlayEvents {
   /** A viewer traded channel points for stardust — a special stardust line in the chat overlay.
    *  Kept language-neutral (name + amount + brand) so unregistered viewers still get it. */
   'chat:redemption': (event: { name: string; dust: number }) => void;
+  /** The bot's answer to a chat command (!balance and friends). */
+  'chat:system': (line: ChatSystemLine) => void;
   /** A single message was deleted on Twitch (by id). */
   'chat:delete': (messageId: string) => void;
   /** All of a user's messages were removed (timeout/ban) — by twitch user id. */
@@ -455,6 +477,11 @@ export interface ChannelSettings {
   ttsMessage: boolean;
   /** Show the Twitch chat (with Tossit cosmetics) in the chat overlay source. */
   chatOverlayEnabled: boolean;
+  /** Let the bot answer chat commands in the Twitch chat itself, not only in the overlay. */
+  chatBotReplies: boolean;
+  /** Language the bot answers in. Separate from the dashboard's own language: the streamer may
+   *  read the UI in one language and run a chat in another. */
+  botLocale: BotLocale;
   /** Chat overlay message font size, px. */
   chatFontSize: number;
   /** Chat overlay: seconds before a message fades out; 0 = keep until pushed off. */

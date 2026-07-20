@@ -187,6 +187,9 @@ interface ChannelState {
  * Per-channel playback queue, strictly one at a time: next item goes to the
  * overlay only after playback:done (or via watchdog if the overlay died mid-show).
  */
+/** A submission's live spot in the play order — see PlaybackManager.queueState. */
+export type QueueState = { playing: true } | { playing: false; position: number; total: number };
+
 export class PlaybackManager {
   private states = new Map<string, ChannelState>();
 
@@ -200,6 +203,23 @@ export class PlaybackManager {
     void this.tryNext(sub.channelId);
     void this.emitQueue(sub.channelId);
     return position;
+  }
+
+  /**
+   * Where a submission sits from its sender's point of view: on screen now, or Nth of the items
+   * still to come. Null when it is in neither — awaiting moderation, already played, or dropped.
+   * Counts the current show in both numbers, so "3 of 12" means 2 things are ahead of you.
+   */
+  queueState(channelId: string, submissionId: string): QueueState | null {
+    // states.get, not state(): this is a read, and state() would allocate an empty ChannelState
+    // for every channel a viewer ever asks about.
+    const st = this.states.get(channelId);
+    if (!st) return null;
+    if (st.current?.id === submissionId) return { playing: true };
+    const idx = st.queue.findIndex((s) => s.id === submissionId);
+    if (idx === -1) return null;
+    const onScreen = st.current ? 1 : 0;
+    return { playing: false, position: idx + 1 + onScreen, total: st.queue.length + onScreen };
   }
 
   /** Waiting items (not the current show), in play order, as dashboard summaries. */

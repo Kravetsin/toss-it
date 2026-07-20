@@ -10,8 +10,13 @@ import type {
 } from '@tmw/shared';
 import { ApiRequestError, json } from './http';
 
-export function createChannel(): Promise<ChannelSelf> {
-  return fetch('/api/channels', { method: 'POST' }).then((r) => json<ChannelSelf>(r));
+/** `locale` seeds the chat bot's answer language from the dashboard the streamer is using. */
+export function createChannel(locale?: string): Promise<ChannelSelf> {
+  return fetch('/api/channels', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ locale }),
+  }).then((r) => json<ChannelSelf>(r));
 }
 
 export function rotateOverlayToken(): Promise<ChannelSelf> {

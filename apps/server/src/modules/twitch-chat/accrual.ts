@@ -43,6 +43,40 @@ export async function awardDust(chatterTwitchId: string, amount = 1): Promise<vo
 }
 
 /**
+ * Current stardust for a raw Twitch id. `claimed` is false when the dust is still sitting in
+ * pending_dust — the chatter earned it but has never logged in, which is exactly who the
+ * "claim it at toss-it.win" nudge is for.
+ */
+export async function readDust(
+  chatterTwitchId: string,
+): Promise<{ dust: number; claimed: boolean }> {
+  const identity = await db
+    .select({ userId: linkedIdentities.userId })
+    .from(linkedIdentities)
+    .where(
+      and(
+        eq(linkedIdentities.provider, 'twitch'),
+        eq(linkedIdentities.providerId, chatterTwitchId),
+      ),
+    )
+    .get();
+  if (identity) {
+    const row = await db
+      .select({ dust: users.stardust })
+      .from(users)
+      .where(eq(users.id, identity.userId))
+      .get();
+    return { dust: row?.dust ?? 0, claimed: true };
+  }
+  const pending = await db
+    .select({ amount: pendingDust.amount })
+    .from(pendingDust)
+    .where(and(eq(pendingDust.platform, 'twitch'), eq(pendingDust.platformUserId, chatterTwitchId)))
+    .get();
+  return { dust: pending?.amount ?? 0, claimed: false };
+}
+
+/**
  * Move a platform identity's pending dust onto a real account (at login).
  * Returns the claimed amount. Delete-first with RETURNING makes concurrent
  * logins credit at most once.

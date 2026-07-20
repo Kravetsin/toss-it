@@ -18,6 +18,7 @@ import {
   type ChatFragment,
   type ChatOverlayConfig,
   type ChatOverlayMessage,
+  type ChatSystemLine,
   type OverlayToServerEvents,
   type ServerToOverlayEvents,
 } from '@tmw/shared';
@@ -220,6 +221,11 @@ function renderMessage(msg: ChatOverlayMessage): void {
   renderFragments(body, msg.fragments);
   bubble.appendChild(body);
   row.appendChild(bubble);
+  appendRow(row, tier?.color ?? color);
+}
+
+/** Shared tail for every row kind: cap the column, rise, re-fit the thread, schedule the fade. */
+function appendRow(row: HTMLElement, wakeColor: string): void {
   row.dataset.ts = String(Date.now());
   chat.appendChild(row);
   // Cap the DOM: drop the oldest messages from the top.
@@ -230,8 +236,65 @@ function renderMessage(msg: ChatOverlayMessage): void {
   const prevTip = lastTipY;
   updateRail();
   animateMarker(row, prevTip);
-  fireWake(tier?.color ?? color);
+  fireWake(wakeColor);
   scheduleFade(row);
+}
+
+/** The brand star as a standalone inline glyph (amount markers on the redemption/system lines). */
+function starIcon(className: string): HTMLElement {
+  const icon = document.createElement('span');
+  icon.className = className;
+  icon.innerHTML = STAR_SVG; // constant, trusted markup — our brand star, not the ⭐ emoji
+  return icon;
+}
+
+/**
+ * The bot's answer to a chat command (!balance). Quieter than a redemption on purpose: this is a
+ * reply, not an event. It must not read as a viewer's own message either, hence its own card
+ * rather than a bubble — nobody should think the bot is a chatter.
+ */
+function renderSystem(line: ChatSystemLine): void {
+  const row = document.createElement('div');
+  row.className = 'msg system';
+
+  const star = document.createElement('span');
+  star.className = 'star';
+  star.innerHTML = STAR_SVG; // constant, trusted markup — not user input
+  row.appendChild(star);
+
+  const card = document.createElement('div');
+  card.className = 'sys-card';
+
+  const head = document.createElement('span');
+  head.className = 'sys-line';
+  const name = document.createElement('b');
+  name.className = 'sys-name';
+  name.textContent = `@${line.name}`;
+  head.appendChild(name);
+  if (line.text) {
+    const label = document.createElement('span');
+    label.className = 'sys-text';
+    label.textContent = line.text;
+    head.appendChild(label);
+  }
+  if (line.dust !== undefined) {
+    const amt = document.createElement('span');
+    amt.className = 'sys-amt';
+    const num = document.createElement('span');
+    num.textContent = String(line.dust);
+    amt.append(num, starIcon('sys-star'));
+    head.appendChild(amt);
+  }
+  card.appendChild(head);
+  if (line.hint) {
+    const hint = document.createElement('span');
+    hint.className = 'sys-hint';
+    hint.textContent = line.hint;
+    card.appendChild(hint);
+  }
+
+  row.appendChild(card);
+  appendRow(row, '#8df0cc');
 }
 
 /**
@@ -279,10 +342,7 @@ function renderRedemption(ev: { name: string; dust: number }): void {
   amt.className = 'redeem-amt';
   const num = document.createElement('span');
   num.textContent = `+${ev.dust}`;
-  const icon = document.createElement('span');
-  icon.className = 'redeem-star';
-  icon.innerHTML = STAR_SVG; // constant, trusted markup — our brand star, not the ⭐ emoji
-  amt.append(num, icon);
+  amt.append(num, starIcon('redeem-star'));
   line.append(name, amt);
   const brand = document.createElement('span');
   brand.className = 'redeem-brand';
@@ -291,16 +351,7 @@ function renderRedemption(ev: { name: string; dust: number }): void {
   card.appendChild(text);
 
   row.appendChild(card);
-  row.dataset.ts = String(Date.now());
-  chat.appendChild(row);
-  while (chat.children.length > MAX_MESSAGES) chat.firstElementChild?.remove();
-
-  smoothRise(row.offsetHeight, row);
-  const prevTip = lastTipY;
-  updateRail();
-  animateMarker(row, prevTip);
-  fireWake('#8df0cc');
-  scheduleFade(row);
+  appendRow(row, '#8df0cc');
 }
 
 /** Y of the thread tip inside a row: the marker's center (name line's if somehow absent).
@@ -689,12 +740,28 @@ if (DEMO) {
       name: ['stardust_fan', 'new_viewer', 'kravets'][Math.floor(Math.random() * 3)]!,
       dust: [50, 100, 250][Math.floor(Math.random() * 3)]!,
     });
+  // Every answer shape the card has to survive: bare number, number + nudge, text only, and
+  // text + nudge. A too-wide or too-empty variant gets caught here rather than on stream.
+  let sysI = 0;
+  const sys = () => {
+    const demoLines: ChatSystemLine[] = [
+      { name: 'oldtimer', dust: 4820 },
+      { name: 'newbie_guy', dust: 137, hint: 'toss-it.win' },
+      { name: 'starfall', text: '3 из 12' },
+      { name: 'rainy', text: 'на модерации' },
+      { name: 'subfan', text: 'сейчас в эфире' },
+      { name: 'ghost_in_the_wire', text: 'привяжи Twitch', hint: 'toss-it.win' },
+    ];
+    renderSystem(demoLines[sysI++ % demoLines.length]!);
+  };
   (window as unknown as Record<string, unknown>).__push = push;
   (window as unknown as Record<string, unknown>).__redeem = redeem;
+  (window as unknown as Record<string, unknown>).__sys = sys;
   push();
   if (!q.has('manual')) {
     window.setInterval(push, 1900);
     window.setInterval(redeem, 6100); // periodic stardust line among the chatter
+    window.setInterval(sys, 8300); // periodic !balance answer
   }
 } else {
   const socket: Socket<ServerToOverlayEvents, OverlayToServerEvents> = io(SERVER_URL, {
@@ -704,6 +771,7 @@ if (DEMO) {
   socket.on('chat:config', applyConfig);
   socket.on('chat:message', renderMessage);
   socket.on('chat:redemption', renderRedemption);
+  socket.on('chat:system', renderSystem);
   socket.on('chat:delete', removeMessage);
   socket.on('chat:clearUser', removeUser);
   socket.on('chat:clear', clearAll);

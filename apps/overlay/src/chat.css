@@ -344,6 +344,76 @@
   }
 }
 
+/* Bot answer to a chat command (!balance). Reads as a reply, not an event: no burst and no
+   gradient (that vocabulary belongs to the redemption line), just a mint edge on the left so it
+   also cannot be mistaken for a viewer's own bubble. */
+.msg.system .sys-card {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 0.3em 0.7em;
+  border-left: 2px solid rgba(141, 240, 204, 0.75);
+  border-radius: 2px 12px 12px 2px;
+  background: rgba(13, 17, 17, 0.66);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  line-height: 1.25;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  transform-origin: 0 0;
+  animation: sys-in 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.msg.system .sys-line {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4em;
+}
+.msg.system .sys-name {
+  font-weight: 700;
+  color: rgba(234, 247, 242, 0.72);
+}
+.msg.system .sys-text {
+  color: rgba(237, 237, 236, 0.85);
+}
+.msg.system .sys-amt {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2em;
+  font-weight: 800;
+  color: #8df0cc;
+  text-shadow: 0 0 8px rgba(141, 240, 204, 0.6);
+}
+.msg.system .sys-star {
+  display: inline-flex;
+  width: 0.92em;
+  height: 0.92em;
+  /* Digits have no descenders, so their ink sits above the box centre — lift the star to match. */
+  transform: translateY(-0.07em);
+  filter: drop-shadow(0 0 4px rgba(141, 240, 204, 0.7));
+}
+.msg.system .sys-star svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+/* Shown only for dust nobody has claimed yet — the nudge to go log in. */
+.msg.system .sys-hint {
+  font-size: 0.72em;
+  letter-spacing: 0.03em;
+  color: rgba(141, 240, 204, 0.7);
+}
+@keyframes sys-in {
+  0% {
+    opacity: 0;
+    transform: translateX(-0.5em);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 /* Auto-hide: JS adds .leaving after the fade delay, then removes on animationend. */
 .msg.leaving {
   animation: msg-out 0.45s ease forwards;
@@ -398,7 +468,8 @@
 @media (prefers-reduced-motion: reduce) {
   .msg .name-line,
   .msg .bubble,
-  .msg.redeem .redeem-card {
+  .msg.redeem .redeem-card,
+  .msg.system .sys-card {
     animation: none;
   }
   #rail {

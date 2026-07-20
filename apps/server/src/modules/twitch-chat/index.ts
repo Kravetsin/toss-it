@@ -4,6 +4,7 @@ import {
   DUST_POINTS,
   LEVEL_POINTS,
   xpToLevel,
+  type BotLocale,
   type ChatFragment,
   type EquippedCosmetics,
   type LiveViewer,
@@ -19,10 +20,11 @@ import {
   users,
 } from '../../db/schema';
 import { config } from '../../config';
-import { roomOf, type RealtimeServer } from '../../playback';
+import { roomOf, type QueueState, type RealtimeServer } from '../../playback';
 import { EventSubClient } from './eventsub';
 import { createBadgeResolver, roleFromBadges, type EventBadge } from './badges';
 import { awardDust } from './accrual';
+import { runCommand, toChatText } from './commands/index';
 import { getRewardById } from '../channel-points/store';
 import { bumpMessage, bumpWatch, flushActivity } from './stats';
 import { loadBotCredentials, refreshBotCredentials, type BotCredentials } from './token';
@@ -34,12 +36,15 @@ const LEVEL_TTL_MS = 60_000;
  *  minutes on join/leave, so this only blurs session edges, not the middle. */
 const WATCH_POLL_MS = 60_000;
 const MODERATED_CHANNELS_URL = 'https://api.twitch.tv/helix/moderation/channels';
+const CHAT_MESSAGES_URL = 'https://api.twitch.tv/helix/chat/messages';
 const CHATTERS_URL = 'https://api.twitch.tv/helix/chat/chatters';
 const COSMETICS_TTL_MS = 60_000;
 
 export interface TwitchChatDeps {
   /** Live signal: the streamer's OBS overlay is connected (platform-agnostic). */
   overlayCount(channelId: string): number;
+  /** A submission's spot in the play order, for the !queue command (in-memory, not in SQL). */
+  queueState(channelId: string, submissionId: string): QueueState | null;
   /** Emit chat events to a channel's overlay sockets. */
   io: RealtimeServer;
   log: FastifyBaseLogger;
@@ -55,6 +60,8 @@ export interface TwitchChatModule {
   liveViewers(channelId: string): { viewers: LiveViewer[]; at: number } | null;
   /** Admin edited the leaderboard exclusions — refresh the collection guard now. */
   reloadExclusions(): void;
+  /** A streamer changed chat settings — pick them up now instead of at the next reconcile. */
+  settingsChanged(): void;
   stop(): void;
 }
 
@@ -75,6 +82,10 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
   let excludedLogins = new Set<string>();
   /** Channel ids whose streamer left the chat overlay enabled. Refreshed on reconcile. */
   let chatEnabledChannels = new Set<string>();
+  /** Channel ids whose streamer opted the bot into writing answers back to Twitch chat. */
+  let botReplyChannels = new Set<string>();
+  /** Per-channel bot answer language. Refreshed on reconcile; missing = the column default. */
+  let botLocales = new Map<string, BotLocale>();
   /** twitch id -> Tossit cosmetics, short-lived cache (chat volume; avoid a DB read per msg). */
   const cosmeticsCache = new Map<
     string,
@@ -236,6 +247,11 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
   function onChatMessage(ev: ChatMsg): void {
     const channelId = channelByBroadcaster.get(ev.broadcasterId);
     if (!channelId) return;
+    // Our own answers arrive back through EventSub like any other chat message. Unfiltered, the
+    // bot would mirror itself into the overlay right next to the card it just emitted, award
+    // itself chat dust, and climb the channel leaderboard. Only reachable since it started
+    // writing, and not covered by excludedLogins — that list is the admin's, filled by hand.
+    if (creds && ev.chatterId === creds.userId) return;
     // A message carrying one of OUR reward ids is that reward's input (e.g. the YouTube link). We
     // already render our own redemption line, so don't mirror it as chat spam or credit chat dust
     // for it. Messages from other rewards (Twitch highlight, etc.) are genuine chat — keep them.
@@ -262,9 +278,37 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
       );
     }
 
-    // Chat overlay: show everyone INCLUDING the streamer (but not excluded bots),
+    if (excluded) return;
+
+    // Where an answer can land. These are independent: a streamer may run the media overlay with
+    // no chat overlay at all, and for them Twitch chat is the only surface a command has. Both
+    // still require `live` — the bot serves the stream, and staying quiet off-stream keeps one
+    // shared bot account off Twitch's platform-wide spam radar.
+    const toOverlay = chatEnabledChannels.has(channelId) && live;
+    const toChat = botReplyChannels.has(channelId) && live;
+    if (toOverlay || toChat) {
+      void runCommand(
+        ev.fragments,
+        {
+          channelId,
+          twitchId: ev.chatterId,
+          login: ev.chatterLogin,
+          name: ev.chatterName,
+          locale: botLocales.get(channelId) ?? 'ru',
+        },
+        { queueState: deps.queueState },
+      )
+        .then((line) => {
+          if (!line) return;
+          if (toOverlay) deps.io.to(roomOf(channelId)).emit('chat:system', line);
+          if (toChat) void sendChatMessage(ev.broadcasterId, toChatText(line));
+        })
+        .catch((err) => deps.log.warn({ err }, 'twitch-chat: command failed'));
+    }
+
+    // Chat overlay mirror: show everyone INCLUDING the streamer (but not excluded bots),
     // only when the channel enabled it and an overlay is actually listening.
-    if (excluded || !chatEnabledChannels.has(channelId) || !live) return;
+    if (!toOverlay) return;
     void Promise.all([
       lookupCosmetics(ev.chatterId),
       lookupLevel(channelId, ev.chatterId),
@@ -305,6 +349,53 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
       if (res.status !== 401) break;
     }
     return res;
+  }
+
+  /**
+   * Post a message to a channel's chat as the bot; retries once through a token refresh on 401.
+   * Needs the user:write:chat scope — a bot connected before that scope existed will 401 forever
+   * here and has to be reconnected from admin.
+   */
+  async function sendChatMessage(broadcasterId: string, message: string): Promise<void> {
+    if (!creds) return;
+    for (const refresh of [false, true]) {
+      const token = await getAccessToken(refresh);
+      if (!token) return;
+      const res = await fetch(CHAT_MESSAGES_URL, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Client-Id': config.twitch.clientId,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          broadcaster_id: broadcasterId,
+          sender_id: creds.userId,
+          message,
+        }),
+      });
+      if (res.status === 401 && !refresh) continue;
+      if (!res.ok) {
+        deps.log.warn(
+          { status: res.status, broadcasterId },
+          'twitch-chat: send failed — reconnect the bot if it predates the user:write:chat scope',
+        );
+        return;
+      }
+      // A refusal is a 200 with is_sent=false (AutoMod, channel restriction, duplicate), not an
+      // HTTP error — so it has to be read out of the body or it looks like success.
+      const body = (await res.json()) as {
+        data?: { is_sent: boolean; drop_reason?: { code: string } }[];
+      };
+      const sent = body.data?.[0];
+      if (sent && !sent.is_sent) {
+        deps.log.warn(
+          { broadcasterId, reason: sent.drop_reason?.code },
+          'twitch-chat: message dropped by Twitch',
+        );
+      }
+      return;
+    }
   }
 
   /** All channels the bot moderates on Twitch (the streamer's /mod is the only opt-in). */
@@ -403,6 +494,8 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
         id: channels.id,
         broadcasterId: linkedIdentities.providerId,
         chatEnabled: channels.chatOverlayEnabled,
+        botReplies: channels.chatBotReplies,
+        botLocale: channels.botLocale,
       })
       .from(channels)
       .innerJoin(
@@ -416,6 +509,8 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     const modded = rows.filter((r) => moderated.has(r.broadcasterId));
     channelByBroadcaster = new Map(modded.map((r) => [r.broadcasterId, r.id]));
     chatEnabledChannels = new Set(modded.filter((r) => r.chatEnabled).map((r) => r.id));
+    botReplyChannels = new Set(modded.filter((r) => r.botReplies).map((r) => r.id));
+    botLocales = new Map(modded.map((r) => [r.id, r.botLocale]));
     client.setBroadcasters(new Set(channelByBroadcaster.keys()));
     await loadExclusions();
   }
@@ -429,7 +524,8 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
   }
 
   let quickReconcileTimer: NodeJS.Timeout | null = null;
-  /** Debounced out-of-schedule reconcile, for "overlay is up but bot is not reading". */
+  /** Debounced out-of-schedule reconcile, for "overlay is up but bot is not reading" and for
+   *  settings the streamer just flipped in the dashboard. */
   function scheduleQuickReconcile(): void {
     if (!client || quickReconcileTimer) return;
     quickReconcileTimer = setTimeout(() => {
@@ -513,6 +609,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
         deps.log.warn({ err }, 'twitch-chat: exclusions reload failed'),
       );
     },
+    settingsChanged: scheduleQuickReconcile,
     stop: shutdownClient,
   };
 }

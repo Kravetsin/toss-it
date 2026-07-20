@@ -1,0 +1,1 @@
+ALTER TABLE `channels` ADD `bot_locale` text DEFAULT 'ru' NOT NULL;

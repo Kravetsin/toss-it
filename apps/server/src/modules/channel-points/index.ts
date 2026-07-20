@@ -295,6 +295,10 @@ export function createChannelPointsModule(deps: {
         channelId: reward.channelId,
         senderUserId: link?.userId ?? null,
         senderName: ev.redeemerName,
+        // Kept even when the account resolved: this is the only handle we have on a redeemer
+        // who never logged in, and it is what a chat command can match them by.
+        senderPlatform: 'twitch',
+        senderPlatformUserId: ev.redeemerId,
         parsed,
         title: (parsed.caption ?? meta.title ?? undefined)?.slice(0, 280),
         durationMs: durationSec > 0 ? durationSec * 1000 : 0,
