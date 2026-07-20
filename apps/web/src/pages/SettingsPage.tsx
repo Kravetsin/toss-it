@@ -158,7 +158,7 @@ export function SettingsPage() {
       ) : (
         <div className="flex flex-col gap-4">
           {/* The chat bot sits with the other integrations (it IS one), not under "Channel page". */}
-          <ChatDustSettings settings={settings} />
+          <ChatDustSettings settings={settings} onSave={onSave} />
           {/* Donations (Donatello) temporarily disabled — unfinished. Re-enable this block plus the
               IntegrationsCard + sendTestDonation imports when ready.
           <IntegrationsCard

@@ -1,27 +1,13 @@
 import { useState } from 'react';
-import {
-  BOT_LOCALES,
-  type BotLocale,
-  type ChannelSettings,
-  type OverlayPosition,
-} from '@tmw/shared';
+import { Link } from 'react-router-dom';
+import type { ChannelSettings, OverlayPosition } from '@tmw/shared';
 import { useI18n } from '@/i18n';
-import { Button, Select, Switch } from '@/ui';
-import { LayoutPreview, PositionGrid, Slider } from './controls';
+import { Switch } from '@/ui';
+import { Icon } from '@/ui/icons';
+import { LayoutPreview, PositionGrid, SaveRow, Slider } from './controls';
 import { ChatBurstButton } from './ChatBurstButton';
 
 type Save = (patch: Partial<ChannelSettings>) => void;
-
-function SaveRow({ onClick }: { onClick: () => void }) {
-  const { t } = useI18n();
-  return (
-    <div className="flex justify-end">
-      <Button variant="primary" onClick={onClick}>
-        {t('dash.save')}
-      </Button>
-    </div>
-  );
-}
 
 /** Where media appears on the overlay: position anchor, size, margin, playback volume. */
 export function MediaLayoutSettings({
@@ -154,8 +140,6 @@ export function ChatSettings({
   const [chatFade, setChatFade] = useState(settings.chatFadeSeconds);
   const [showBadges, setShowBadges] = useState(settings.chatShowBadges);
   const [roleBorders, setRoleBorders] = useState(settings.chatRoleBorders);
-  const [botReplies, setBotReplies] = useState(settings.chatBotReplies);
-  const [botLocale, setBotLocale] = useState<BotLocale>(settings.botLocale);
   return (
     <div className="flex flex-col gap-4">
       <Switch
@@ -205,24 +189,20 @@ export function ChatSettings({
           <ChatBurstButton channelId={channelId} />
         </div>
       )}
-      {/* Outside the chatOverlay block on purpose: this is the answer channel for streamers who
-          run no chat overlay at all, so hiding it behind that switch would hide it from exactly
-          the people it exists for. Off by default — /mod was consent to read, not to write. */}
-      <Switch
-        icon="message-circle"
-        label={t('dash.chatBotReplies')}
-        description={t('dash.chatBotRepliesNote')}
-        checked={botReplies}
-        onChange={setBotReplies}
-      />
-      {/* Not nested under botReplies either: the same answers show in the chat overlay, so the
-          language matters to a streamer who never lets the bot write to Twitch. */}
-      <Select
-        label={t('dash.botLocale')}
-        value={botLocale}
-        onChange={(v) => setBotLocale(v as BotLocale)}
-        options={BOT_LOCALES.map((l) => ({ value: l, label: t(`dash.botLocale.${l}`) }))}
-      />
+      {/* This section is about RENDERING chat; how the bot answers commands is a property of the
+          bot, and lives with it in Integrations. Only the signpost stays here. */}
+      <p className="flex items-start gap-1.5 text-xs text-faint">
+        <Icon name="sparkles" size={13} className="mt-px shrink-0" />
+        <span>
+          {t('dash.chatBotNote')}{' '}
+          <Link
+            to="/dashboard/settings/integrations"
+            className="text-accent underline-offset-2 outline-none hover:underline focus-visible:underline"
+          >
+            {t('dash.chatBotLink')}
+          </Link>
+        </span>
+      </p>
       <SaveRow
         onClick={() =>
           onSave({
@@ -231,8 +211,6 @@ export function ChatSettings({
             chatFadeSeconds: chatFade,
             chatShowBadges: showBadges,
             chatRoleBorders: roleBorders,
-            chatBotReplies: botReplies,
-            botLocale,
           })
         }
       />
