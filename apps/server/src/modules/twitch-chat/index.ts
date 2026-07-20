@@ -300,8 +300,17 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
       )
         .then((line) => {
           if (!line) return;
-          if (toOverlay) deps.io.to(roomOf(channelId)).emit('chat:system', line);
+          // Twitch chat is plain text — only the overlay card wears the asker's look, and only
+          // there do we pay the cosmetics lookup (cached ~60s). Send first so the DB read never
+          // delays the chat reply.
           if (toChat) void sendChatMessage(ev.broadcasterId, toChatText(line));
+          if (toOverlay) {
+            void lookupCosmetics(ev.chatterId).then(({ cosmetics, isFounder }) =>
+              deps.io
+                .to(roomOf(channelId))
+                .emit('chat:system', { ...line, cosmetics, isFounder, twitchColor: ev.color }),
+            );
+          }
         })
         .catch((err) => deps.log.warn({ err }, 'twitch-chat: command failed'));
     }

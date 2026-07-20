@@ -253,6 +253,21 @@ export interface ChatSystemLine {
   hint?: string;
 }
 
+/**
+ * A ChatSystemLine on the wire to the overlay, carrying the asker's look. The command produces the
+ * bare line (pure logic); the twitch-chat module attaches the cosmetics before emitting. Only the
+ * asker's NICK is styled — the mint card is what says "bot answer", so a cosmetic name reads as
+ * "the bot is talking about ME" without the card dissolving into the run of viewer messages.
+ */
+export interface ChatSystemEvent extends ChatSystemLine {
+  /** Asker's equipped cosmetics (nick paint/effect), if their Twitch is linked. */
+  cosmetics: EquippedCosmetics | null;
+  /** Asker is a Tossit founder (sparkle badge before the name). */
+  isFounder: boolean;
+  /** Twitch name color, the fallback paint when there is no Tossit nick color. */
+  twitchColor: string | null;
+}
+
 /** Display config for the chat overlay (font size, auto-hide, per-element toggles). */
 export interface ChatOverlayConfig {
   /** Message font size in px. */
@@ -369,7 +384,7 @@ export interface ServerToOverlayEvents {
    *  Kept language-neutral (name + amount + brand) so unregistered viewers still get it. */
   'chat:redemption': (event: { name: string; dust: number }) => void;
   /** The bot's answer to a chat command (!balance and friends). */
-  'chat:system': (line: ChatSystemLine) => void;
+  'chat:system': (line: ChatSystemEvent) => void;
   /** A single message was deleted on Twitch (by id). */
   'chat:delete': (messageId: string) => void;
   /** All of a user's messages were removed (timeout/ban) — by twitch user id. */

@@ -18,7 +18,7 @@ import {
   type ChatFragment,
   type ChatOverlayConfig,
   type ChatOverlayMessage,
-  type ChatSystemLine,
+  type ChatSystemEvent,
   type OverlayToServerEvents,
   type ServerToOverlayEvents,
 } from '@tmw/shared';
@@ -253,10 +253,11 @@ function starIcon(className: string): HTMLElement {
  * reply, not an event. It must not read as a viewer's own message either, hence its own card
  * rather than a bubble — nobody should think the bot is a chatter.
  */
-function renderSystem(line: ChatSystemLine): void {
+function renderSystem(line: ChatSystemEvent): void {
   const row = document.createElement('div');
   row.className = 'msg system';
 
+  // Star stays mint: it is the rail marker, part of the "bot answer" identity, not the asker's.
   const star = document.createElement('span');
   star.className = 'star';
   star.innerHTML = STAR_SVG; // constant, trusted markup — not user input
@@ -264,13 +265,45 @@ function renderSystem(line: ChatSystemLine): void {
 
   const card = document.createElement('div');
   card.className = 'sys-card';
+  // Card-effect particles on their OWN clipped layer, not on the card: the card must stay
+  // non-clipping so the nick's and star's glows can spill past its edge, but the particles still
+  // have to be contained to the pill. `compact`: a card is short, so trajectories cross it.
+  if (line.cosmetics?.cardEffect) {
+    const fx = document.createElement('div');
+    fx.className = 'sys-fx';
+    mountCardEffect(fx, line.cosmetics.cardEffect, 'overlayChat', true);
+    card.appendChild(fx);
+  }
 
   const head = document.createElement('span');
   head.className = 'sys-line';
-  const name = document.createElement('b');
+  // Founder badge + nick travel together, centered, so the badge tracks the name while the row
+  // itself stays baseline-aligned with the amount number.
+  const who = document.createElement('span');
+  who.className = 'sys-who';
+  if (line.isFounder) {
+    const badge = document.createElement('span');
+    badge.className = 'badge';
+    badge.innerHTML = FOUNDER_SVG; // constant, trusted markup — not user input
+    who.appendChild(badge);
+  }
+  const name = document.createElement('span');
   name.className = 'sys-name';
   name.textContent = `@${line.name}`;
-  head.appendChild(name);
+  // The asker's nick paint — the one cosmetic the card carries. Same fallback ladder as a chat
+  // message: Tossit nick color, else their Twitch color, else brand mint. Gradient only ramps from
+  // a real Tossit color (never off the Twitch fallback, which has no second stop chosen for it).
+  const color = line.cosmetics?.nickColor ?? line.twitchColor ?? DEFAULT_COLOR;
+  const nick = nickRender({
+    color,
+    color2: line.cosmetics?.nickColor ? (line.cosmetics.nickColor2 ?? null) : null,
+    flow: line.cosmetics?.nickFlow ?? false,
+    effect: line.cosmetics?.nickEffect ?? null,
+  });
+  if (nick.className) name.classList.add(...nick.className.split(' '));
+  applyStyleMap(name, nick.style);
+  who.appendChild(name);
+  head.appendChild(who);
   if (line.text) {
     const label = document.createElement('span');
     label.className = 'sys-text';
@@ -740,18 +773,69 @@ if (DEMO) {
       name: ['stardust_fan', 'new_viewer', 'kravets'][Math.floor(Math.random() * 3)]!,
       dust: [50, 100, 250][Math.floor(Math.random() * 3)]!,
     });
-  // Every answer shape the card has to survive: bare number, number + nudge, text only, and
-  // text + nudge. A too-wide or too-empty variant gets caught here rather than on stream.
+  // Every answer shape the card has to survive, crossed with the nick looks it now carries:
+  // founder + gradient, plain Twitch color, mint, an effect, and no cosmetics at all. A too-wide,
+  // too-empty or clashing variant gets caught here rather than on stream.
   let sysI = 0;
   const sys = () => {
-    const demoLines: ChatSystemLine[] = [
-      { name: 'oldtimer', dust: 4820 },
-      { name: 'newbie_guy', dust: 137, hint: 'toss-it.win' },
-      { name: 'starfall', text: 'перед тобой 3' },
-      { name: 'triple', text: 'ты следующий · ещё 2' },
-      { name: 'rainy', text: 'на модерации' },
-      { name: 'subfan', text: 'сейчас в эфире · ещё 1' },
-      { name: 'ghost_in_the_wire', text: 'привяжи Twitch', hint: 'toss-it.win' },
+    const demoLines: ChatSystemEvent[] = [
+      {
+        name: 'oldtimer',
+        dust: 4820,
+        isFounder: true,
+        twitchColor: null,
+        cosmetics: {
+          nickColor: '#8df0cc',
+          nickColor2: '#a78bfa',
+          nickFlow: true,
+          nickEffect: 'nick-glow',
+          cardEffect: 'card-stardust',
+        },
+      },
+      {
+        name: 'newbie_guy',
+        dust: 137,
+        hint: 'toss-it.win',
+        isFounder: false,
+        twitchColor: '#9ab0ad',
+        cosmetics: null,
+      },
+      {
+        name: 'starfall',
+        text: 'перед тобой 3',
+        isFounder: false,
+        twitchColor: null,
+        cosmetics: { nickColor: '#8df0cc' },
+      },
+      {
+        name: 'triple',
+        text: 'ты следующий · ещё 2',
+        isFounder: false,
+        twitchColor: null,
+        cosmetics: { nickColor: '#a6e3a1', nickEffect: 'nick-pulse', cardEffect: 'card-sakura' },
+      },
+      {
+        name: 'rainy',
+        text: 'на модерации',
+        isFounder: false,
+        twitchColor: '#a9b8c9',
+        cosmetics: null,
+      },
+      {
+        name: 'subfan',
+        text: 'сейчас в эфире · ещё 1',
+        isFounder: true,
+        twitchColor: null,
+        cosmetics: { nickColor: '#7ec8ff', cardEffect: 'card-snow' },
+      },
+      {
+        name: 'ghost_in_the_wire',
+        text: 'ничего не вижу — если отправлял с сайта, привяжи Twitch',
+        hint: 'toss-it.win',
+        isFounder: false,
+        twitchColor: null,
+        cosmetics: { nickColor: '#00f0ff', nickEffect: 'nick-glow' },
+      },
     ];
     renderSystem(demoLines[sysI++ % demoLines.length]!);
   };

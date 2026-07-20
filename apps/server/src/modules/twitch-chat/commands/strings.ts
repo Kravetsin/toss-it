@@ -14,7 +14,7 @@ const STRINGS = {
     queuePlaying: 'on screen now',
     queueReview: 'in review',
     queueEmpty: 'nothing queued',
-    queueUnlinked: 'link your Twitch',
+    queueUnlinked: 'nothing here — link your Twitch if you sent from the site',
   },
   ru: {
     queueAhead: 'перед тобой {n}',
@@ -23,7 +23,7 @@ const STRINGS = {
     queuePlaying: 'сейчас в эфире',
     queueReview: 'на модерации',
     queueEmpty: 'ничего в очереди',
-    queueUnlinked: 'привяжи Twitch',
+    queueUnlinked: 'ничего не вижу — если отправлял с сайта, привяжи Twitch',
   },
   uk: {
     queueAhead: 'перед тобою {n}',
@@ -32,7 +32,7 @@ const STRINGS = {
     queuePlaying: 'зараз в ефірі',
     queueReview: 'на модерації',
     queueEmpty: 'нічого в черзі',
-    queueUnlinked: "прив'яжи Twitch",
+    queueUnlinked: "нічого не бачу — якщо надсилав із сайту, прив'яжи Twitch",
   },
 } as const satisfies Record<BotLocale, Record<string, string>>;
 

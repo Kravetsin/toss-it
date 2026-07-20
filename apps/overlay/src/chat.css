@@ -350,9 +350,9 @@
   }
 }
 
-/* Bot answer to a chat command (!balance). Reads as a reply, not an event: no burst and no
-   gradient (that vocabulary belongs to the redemption line), just a mint edge on the left so it
-   also cannot be mistaken for a viewer's own bubble. */
+/* Bot answer to a chat command (!balance). Reads as a reply, not an event: no burst (that belongs
+   to the redemption line). The mint wash + left edge is the whole identity — it lets the asker's
+   nick wear their own cosmetics without the card dissolving into the run of viewer messages. */
 .msg.system .sys-card {
   position: relative;
   display: inline-flex;
@@ -362,7 +362,9 @@
   padding: 0.3em 0.7em;
   border-left: 2px solid rgba(141, 240, 204, 0.75);
   border-radius: 2px 12px 12px 2px;
-  background: rgba(13, 17, 17, 0.66);
+  /* Lighter than the redemption card (0.18) so the two still read apart; darker than a plain
+     message bubble so it never passes for one. */
+  background: linear-gradient(135deg, rgba(141, 240, 204, 0.12), rgba(13, 17, 17, 0.66));
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   line-height: 1.25;
@@ -370,14 +372,34 @@
   transform-origin: 0 0;
   animation: sys-in 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+/* Card-effect particles, clipped to the pill on their own layer so the card itself can let the
+   nick/star glows spill past its edge. Behind the content (which lifts above via z-index). */
+.msg.system .sys-fx {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+}
+.msg.system .sys-line,
+.msg.system .sys-hint {
+  position: relative;
+  z-index: 1;
+}
 .msg.system .sys-line {
   display: flex;
   align-items: baseline;
   gap: 0.4em;
 }
+/* Badge + nick as one centered unit, so the founder glyph tracks the name regardless of the
+   baseline row it sits on. */
+.msg.system .sys-who {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+}
 .msg.system .sys-name {
   font-weight: 700;
-  color: rgba(234, 247, 242, 0.72);
 }
 .msg.system .sys-text {
   color: rgba(237, 237, 236, 0.85);
