@@ -399,6 +399,7 @@ function mockPublicChannel(login: string): PublicChannelInfo {
     autoApproveGifs: MOCK_SETTINGS.autoApproveGifs,
     ttsEnabled: true,
     viewerLevel: 8,
+    viewerXp: 34000, // between L8 (25600) and L9 (51200) — the hover reads 34000/51200
     isFounder: true,
     description: MOCK_SETTINGS.description,
     links: MOCK_SETTINGS.links,

@@ -9,13 +9,22 @@ export interface LevelKey {
 }
 
 /**
- * Per-channel level for a batch of identity keys (0 if unknown), in input order. Same XP formula as
- * the chat badge — chat messages + watch-minutes (by twitch id, so it works for unregistered
- * chatters) + 10× aired submissions (by userId). A key may carry either side; the missing one is
- * resolved via linked_identities, so both leaderboards (sends by userId, chat by twitch id), the
- * dashboard (by userId) and the media overlay (by userId) share one implementation.
+ * Per-channel level for a batch of identity keys (0 if unknown), in input order. Thin wrapper over
+ * xpForKeys — the level IS xpToLevel(xp); callers that also want the raw number (the XP tooltip)
+ * call xpForKeys directly.
  */
 export async function levelsForKeys(channelId: string, keys: LevelKey[]): Promise<number[]> {
+  return (await xpForKeys(channelId, keys)).map(xpToLevel);
+}
+
+/**
+ * Per-channel raw XP for a batch of identity keys (0 if unknown), in input order. Chat messages +
+ * watch-minutes (by twitch id, so it works for unregistered chatters) + 10× aired submissions (by
+ * userId). A key may carry either side; the missing one is resolved via linked_identities, so
+ * leaderboards (sends by userId, chat by twitch id), the dashboard and the media overlay share one
+ * implementation.
+ */
+export async function xpForKeys(channelId: string, keys: LevelKey[]): Promise<number[]> {
   if (keys.length === 0) return [];
   const userIds = [...new Set(keys.map((k) => k.userId).filter((x): x is string => !!x))];
   const twitchIds = [...new Set(keys.map((k) => k.twitchId).filter((x): x is string => !!x))];
@@ -93,7 +102,7 @@ export async function levelsForKeys(channelId: string, keys: LevelKey[]): Promis
   return resolved.map((r) => {
     const chatXp = r.twitchId ? (chatByTwitch.get(r.twitchId) ?? 0) : 0;
     const airedXp = (r.userId ? (airedByUser.get(r.userId) ?? 0) : 0) * LEVEL_POINTS.airedSend;
-    return xpToLevel(chatXp + airedXp);
+    return chatXp + airedXp;
   });
 }
 

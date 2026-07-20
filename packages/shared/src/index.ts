@@ -707,6 +707,9 @@ export interface PublicChannelInfo {
   ttsEnabled: boolean;
   /** The logged-in viewer's own per-channel level (0 = anon/none) — for their header card. */
   viewerLevel: number;
+  /** Their raw per-channel XP (0 = anon/none) — feeds the badge hover's "current/next" progress.
+   *  Level is xpToLevel(this); the next threshold is levelThreshold(viewerLevel + 1). */
+  viewerXp: number;
   isFounder: boolean;
   /** Streamer description; null = viewer sees default subtitle. */
   description: string | null;

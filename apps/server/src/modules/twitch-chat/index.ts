@@ -91,22 +91,24 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     string,
     { cosmetics: EquippedCosmetics | null; isFounder: boolean; at: number }
   >();
-  /** `${channelId} ${twitchId}` -> per-channel level, short-lived cache (chat volume). */
-  const levelCache = new Map<string, { level: number; at: number }>();
+  /** `${channelId} ${twitchId}` -> per-channel XP, short-lived cache (chat volume). Level is
+   *  derived (xpToLevel); XP is cached because the !xp command wants the raw number too. */
+  const xpCache = new Map<string, { xp: number; at: number }>();
   /** channel id -> latest Get-Chatters snapshot, for the streamer "who's on stream now" panel. */
   const liveChatters = new Map<string, { viewers: LiveViewer[]; at: number }>();
   // Resolves native platform badges to image URLs (cached catalogs; helixGet is hoisted below).
   const badgeResolver = createBadgeResolver({ helixGet, log: deps.log });
 
   /**
-   * Sender's all-time per-channel level (0–10): chat messages + watch-minutes (from
-   * channel_activity, by twitch id — works for unregistered chatters) + 10× aired submissions
-   * (played, by linked userId). Cached ~60s to survive chat volume.
+   * Sender's all-time per-channel XP: chat messages + watch-minutes (from channel_activity, by
+   * twitch id — works for unregistered chatters) + 10× aired submissions (played, by linked
+   * userId). Cached ~60s to survive chat volume; the level badge and the !xp command both derive
+   * from it (xpToLevel for the badge, the raw number for the command).
    */
-  async function lookupLevel(channelId: string, twitchId: string): Promise<number> {
+  async function lookupXp(channelId: string, twitchId: string): Promise<number> {
     const key = `${channelId} ${twitchId}`;
-    const hit = levelCache.get(key);
-    if (hit && Date.now() - hit.at < LEVEL_TTL_MS) return hit.level;
+    const hit = xpCache.get(key);
+    if (hit && Date.now() - hit.at < LEVEL_TTL_MS) return hit.xp;
     const act = await db
       .select({
         msg: sql<number>`coalesce(sum(${channelActivity.messages}), 0)`,
@@ -144,9 +146,8 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
         .get();
       xp += (aired?.n ?? 0) * LEVEL_POINTS.airedSend;
     }
-    const level = xpToLevel(xp);
-    levelCache.set(key, { level, at: Date.now() });
-    return level;
+    xpCache.set(key, { xp, at: Date.now() });
+    return xp;
   }
 
   async function loadExclusions(): Promise<void> {
@@ -296,7 +297,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
           name: ev.chatterName,
           locale: botLocales.get(channelId) ?? 'ru',
         },
-        { queueState: deps.queueState },
+        { queueState: deps.queueState, xpFor: lookupXp },
       )
         .then((line) => {
           if (!line) return;
@@ -324,10 +325,10 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     if (!toOverlay || isCommand(ev.fragments)) return;
     void Promise.all([
       lookupCosmetics(ev.chatterId),
-      lookupLevel(channelId, ev.chatterId),
+      lookupXp(channelId, ev.chatterId),
       badgeResolver.resolve(ev.broadcasterId, ev.badges),
     ])
-      .then(([{ cosmetics, isFounder }, level, badges]) => {
+      .then(([{ cosmetics, isFounder }, xp, badges]) => {
         deps.io.to(roomOf(channelId)).emit('chat:message', {
           id: ev.messageId,
           userId: ev.chatterId,
@@ -335,7 +336,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
           twitchColor: ev.color,
           cosmetics,
           isFounder,
-          level,
+          level: xpToLevel(xp),
           badges,
           role: roleFromBadges(ev.badges),
           reply: ev.reply,

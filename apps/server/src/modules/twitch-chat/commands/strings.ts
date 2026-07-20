@@ -15,6 +15,8 @@ const STRINGS = {
     queueReview: 'in review',
     queueEmpty: 'nothing queued',
     queueUnlinked: 'nothing here — link your Twitch if you sent from the site',
+    xpProgress: 'lvl {lvl} · {xp}/{next} XP',
+    xpMax: 'lvl {lvl} · {xp} XP · max',
   },
   ru: {
     queueAhead: 'перед тобой {n}',
@@ -24,6 +26,8 @@ const STRINGS = {
     queueReview: 'на модерации',
     queueEmpty: 'ничего в очереди',
     queueUnlinked: 'ничего не вижу — если отправлял с сайта, привяжи Twitch',
+    xpProgress: 'ур. {lvl} · {xp}/{next} XP',
+    xpMax: 'ур. {lvl} · {xp} XP · макс',
   },
   uk: {
     queueAhead: 'перед тобою {n}',
@@ -33,6 +37,8 @@ const STRINGS = {
     queueReview: 'на модерації',
     queueEmpty: 'нічого в черзі',
     queueUnlinked: "нічого не бачу — якщо надсилав із сайту, прив'яжи Twitch",
+    xpProgress: 'рів. {lvl} · {xp}/{next} XP',
+    xpMax: 'рів. {lvl} · {xp} XP · макс',
   },
 } as const satisfies Record<BotLocale, Record<string, string>>;
 

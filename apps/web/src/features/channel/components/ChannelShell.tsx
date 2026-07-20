@@ -46,11 +46,14 @@ function GuestActions() {
 export function ChannelShell({
   children,
   viewerLevel = 0,
+  viewerXp = 0,
   pageBackground = '',
 }: {
   children: ReactNode;
   /** The logged-in viewer's per-channel level, for their always-visible header card. */
   viewerLevel?: number;
+  /** Their raw per-channel XP, for the level badge's progress hover. */
+  viewerXp?: number;
   /** Earned page background id ('' = none); server already checked the channel earned it. */
   pageBackground?: string;
 }) {
@@ -69,7 +72,11 @@ export function ChannelShell({
             <img src="/favicon.svg" alt="Tossit" width={24} height={24} />
             <span className="label-mono">Tossit</span>
           </Link>
-          {me?.user ? <ProfileMenu viewerLevel={viewerLevel} /> : <GuestActions />}
+          {me?.user ? (
+            <ProfileMenu viewerLevel={viewerLevel} viewerXp={viewerXp} />
+          ) : (
+            <GuestActions />
+          )}
         </div>
         {children}
         <p className="mt-10 text-center label-mono text-faint">Tossit</p>

@@ -19,6 +19,9 @@ export interface CommandContext {
 export interface CommandDeps {
   /** The playback queue lives in server memory, not in SQL — see PlaybackManager.queueState. */
   queueState(channelId: string, submissionId: string): QueueState | null;
+  /** All-time per-channel XP for a twitch id (messages + watch-minutes + 10× aired sends). The
+   *  module already computes and caches this for level badges, so commands reuse it. */
+  xpFor(channelId: string, twitchId: string): Promise<number>;
 }
 
 /** One command = one file in this folder + one entry in the registry (see ./index.ts). */

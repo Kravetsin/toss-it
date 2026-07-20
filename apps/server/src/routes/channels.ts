@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import { and, count, desc, eq, gte, inArray, isNotNull, notInArray, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
-import { BOT_LOCALES, earnedBackgroundIds } from '@tmw/shared';
+import { BOT_LOCALES, earnedBackgroundIds, xpToLevel } from '@tmw/shared';
 import type {
   BotLocale,
   ChannelSelf,
@@ -21,7 +21,7 @@ import {
   users,
 } from '../db/schema';
 import { config } from '../config';
-import { levelsForKeys } from '../level';
+import { levelsForKeys, xpForKeys } from '../level';
 import { getSessionUser, requireUser } from '../auth';
 
 function newOverlayToken(): string {
@@ -282,10 +282,11 @@ export function registerChannelRoutes(app: FastifyInstance): void {
       pageBackground,
       ...rest
     } = row;
-    // The logged-in viewer's own per-channel level — so their header card matches the chat badge.
+    // The logged-in viewer's own per-channel XP — so their header card matches the chat badge, and
+    // the badge hover can show progress to the next rank. Level is derived from it on the client.
     const viewer = await getSessionUser(req);
-    const [viewerLevel = 0] = viewer
-      ? await levelsForKeys(channelId, [{ userId: viewer.id, twitchId: null }])
+    const [viewerXp = 0] = viewer
+      ? await xpForKeys(channelId, [{ userId: viewer.id, twitchId: null }])
       : [];
     // 'played' = aired on stream, excluding the streamer's own test sends (same rule as the 'sends'
     // board and the dashboard's totalAired) — so the earn can't be self-farmed and the progress the
@@ -315,7 +316,8 @@ export function registerChannelRoutes(app: FastifyInstance): void {
         ? pageBackground
         : '',
       theme: { accentHue, bgHue, bgTint },
-      viewerLevel,
+      viewerLevel: xpToLevel(viewerXp),
+      viewerXp,
     };
     return response;
   });

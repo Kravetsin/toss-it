@@ -836,6 +836,13 @@ if (DEMO) {
         twitchColor: null,
         cosmetics: { nickColor: '#00f0ff', nickEffect: 'nick-glow' },
       },
+      {
+        name: 'grinder',
+        text: 'ур. 6 · 8000/12800 XP',
+        isFounder: false,
+        twitchColor: null,
+        cosmetics: { nickColor: '#b45cff', nickEffect: 'nick-glow', cardEffect: 'card-embers' },
+      },
     ];
     renderSystem(demoLines[sysI++ % demoLines.length]!);
   };

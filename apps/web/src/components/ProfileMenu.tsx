@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { LEVEL_GLOW_FROM, levelTier, toRoman } from '@tmw/shared';
+import { LEVEL_GLOW_FROM, levelThreshold, levelTier, MAX_LEVEL, toRoman } from '@tmw/shared';
 import { logout } from '@/lib/api';
 import { useMe } from '@/hooks/useMe';
 import { useI18n } from '@/i18n';
@@ -8,7 +8,7 @@ import { useShop } from '@/providers/ShopProvider';
 import { useApiAction } from '@/hooks/useApiAction';
 import { registerStardustWallet } from '@/lib/stardustFx';
 import { nickProps } from '@/lib/nick';
-import { Avatar } from '@/ui';
+import { Avatar, Tooltip } from '@/ui';
 import { Icon, type IconName } from '@/ui/icons';
 import { DustMark } from '@/components/DustMark';
 import { CardEffect } from '@/components/CardEffect';
@@ -53,7 +53,13 @@ function Row({
  * plus avatar, login platform and stardust — so a viewer never has to click to see their card.
  * Clicking opens the actions menu (shop, dashboard, logout). Also the stardust fly target.
  */
-export function ProfileMenu({ viewerLevel = 0 }: { viewerLevel?: number }) {
+export function ProfileMenu({
+  viewerLevel = 0,
+  viewerXp = 0,
+}: {
+  viewerLevel?: number;
+  viewerXp?: number;
+}) {
   const { me, refresh } = useMe();
   const { t } = useI18n();
   const { openShop } = useShop();
@@ -138,15 +144,31 @@ export function ProfileMenu({ viewerLevel = 0 }: { viewerLevel?: number }) {
         <Avatar url={user.avatarUrl} name={user.displayName} size={30} />
         <span className="relative flex min-w-0 items-center gap-1.5">
           {tier && (
-            <span
-              className={`shrink-0 text-xs font-bold ${tier.iris ? 'lvl-iris' : ''}`}
-              style={{
-                color: tier.color,
-                textShadow: levelGlow ? `0 0 6px ${tier.color}` : undefined,
-              }}
+            // Hover the rank to see XP progress — a goal for the mostly-invisible per-channel climb.
+            // focusable={false}: the whole card is already a <button>, so the tooltip must not add a
+            // second focus target inside it (invalid nested interactive).
+            <Tooltip
+              focusable={false}
+              content={
+                viewerLevel >= MAX_LEVEL
+                  ? t('level.xpMax', { xp: viewerXp })
+                  : t('level.xpNext', {
+                      lvl: viewerLevel + 1,
+                      current: viewerXp,
+                      next: levelThreshold(viewerLevel + 1),
+                    })
+              }
             >
-              {toRoman(viewerLevel)}
-            </span>
+              <span
+                className={`shrink-0 text-xs font-bold ${tier.iris ? 'lvl-iris' : ''}`}
+                style={{
+                  color: tier.color,
+                  textShadow: levelGlow ? `0 0 6px ${tier.color}` : undefined,
+                }}
+              >
+                {toRoman(viewerLevel)}
+              </span>
+            </Tooltip>
           )}
           <UserBadges isFounder={user.isFounder} variant="icons" />
           <span

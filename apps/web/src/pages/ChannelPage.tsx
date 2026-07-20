@@ -105,7 +105,11 @@ export function ChannelPage() {
   }
 
   return (
-    <ChannelShell viewerLevel={channel.viewerLevel} pageBackground={channel.pageBackground}>
+    <ChannelShell
+      viewerLevel={channel.viewerLevel}
+      viewerXp={channel.viewerXp}
+      pageBackground={channel.pageBackground}
+    >
       <ChannelHeader channel={channel} />
 
       <div className="mt-6" ref={composeRef}>
