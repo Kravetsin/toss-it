@@ -188,7 +188,7 @@ interface ChannelState {
  * overlay only after playback:done (or via watchdog if the overlay died mid-show).
  */
 /** A submission's live spot in the play order — see PlaybackManager.queueState. */
-export type QueueState = { playing: true } | { playing: false; position: number; total: number };
+export type QueueState = { playing: true } | { playing: false; position: number };
 
 export class PlaybackManager {
   private states = new Map<string, ChannelState>();
@@ -206,9 +206,9 @@ export class PlaybackManager {
   }
 
   /**
-   * Where a submission sits from its sender's point of view: on screen now, or Nth of the items
-   * still to come. Null when it is in neither — awaiting moderation, already played, or dropped.
-   * Counts the current show in both numbers, so "3 of 12" means 2 things are ahead of you.
+   * Where a submission sits from its sender's point of view: on screen now, or Nth in line.
+   * Null when it is in neither — awaiting moderation, already played, or dropped. Position counts
+   * the current show, so position 1 means nothing is ahead and 2 means the thing on screen is.
    */
   queueState(channelId: string, submissionId: string): QueueState | null {
     // states.get, not state(): this is a read, and state() would allocate an empty ChannelState
@@ -218,8 +218,7 @@ export class PlaybackManager {
     if (st.current?.id === submissionId) return { playing: true };
     const idx = st.queue.findIndex((s) => s.id === submissionId);
     if (idx === -1) return null;
-    const onScreen = st.current ? 1 : 0;
-    return { playing: false, position: idx + 1 + onScreen, total: st.queue.length + onScreen };
+    return { playing: false, position: idx + 1 + (st.current ? 1 : 0) };
   }
 
   /** Waiting items (not the current show), in play order, as dashboard summaries. */

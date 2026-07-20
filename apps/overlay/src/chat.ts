@@ -747,9 +747,10 @@ if (DEMO) {
     const demoLines: ChatSystemLine[] = [
       { name: 'oldtimer', dust: 4820 },
       { name: 'newbie_guy', dust: 137, hint: 'toss-it.win' },
-      { name: 'starfall', text: '3 из 12' },
+      { name: 'starfall', text: 'перед тобой 3' },
+      { name: 'triple', text: 'ты следующий · ещё 2' },
       { name: 'rainy', text: 'на модерации' },
-      { name: 'subfan', text: 'сейчас в эфире' },
+      { name: 'subfan', text: 'сейчас в эфире · ещё 1' },
       { name: 'ghost_in_the_wire', text: 'привяжи Twitch', hint: 'toss-it.win' },
     ];
     renderSystem(demoLines[sysI++ % demoLines.length]!);

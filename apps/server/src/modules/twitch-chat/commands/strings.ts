@@ -8,21 +8,27 @@ import type { BotLocale } from '@tmw/shared';
  */
 const STRINGS = {
   en: {
-    queuePosition: '{n} of {total}',
+    queueAhead: '{n} ahead of you',
+    queueNext: "you're next",
+    queueMore: '+{n} more',
     queuePlaying: 'on screen now',
     queueReview: 'in review',
     queueEmpty: 'nothing queued',
     queueUnlinked: 'link your Twitch',
   },
   ru: {
-    queuePosition: '{n} из {total}',
+    queueAhead: 'перед тобой {n}',
+    queueNext: 'ты следующий',
+    queueMore: 'ещё {n}',
     queuePlaying: 'сейчас в эфире',
     queueReview: 'на модерации',
     queueEmpty: 'ничего в очереди',
     queueUnlinked: 'привяжи Twitch',
   },
   uk: {
-    queuePosition: '{n} з {total}',
+    queueAhead: 'перед тобою {n}',
+    queueNext: 'ти наступний',
+    queueMore: 'ще {n}',
     queuePlaying: 'зараз в ефірі',
     queueReview: 'на модерації',
     queueEmpty: 'нічого в черзі',
