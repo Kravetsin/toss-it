@@ -31,6 +31,7 @@ import {
   upsertUser,
 } from '../auth';
 import { messagesTotalFor } from '../level';
+import { notifyNewUser } from '../notify';
 import { claimPendingDust } from '../modules/twitch-chat/accrual';
 import { saveBotCredentials } from '../modules/twitch-chat/token';
 import type { TwitchChatModule } from '../modules/twitch-chat/index';
@@ -260,6 +261,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
       if (!user) {
         user = await upsertUser(info);
         await addIdentity('twitch', twitchId, user.id);
+        notifyNewUser(user, 'twitch');
       } else if (user.id === info.id) {
         // Native login refreshes the profile; a linked login must not touch it.
         user = await upsertUser(info);
@@ -413,6 +415,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
         const login = await ensureUniqueLogin(info.login);
         user = await upsertUser({ ...info, login });
         await addIdentity('google', sub, user.id);
+        notifyNewUser(user, 'google');
       } else if (user.id === info.id) {
         // Native login refreshes name/avatar but keeps the site-wide login handle.
         user = await upsertUser({ ...info, login: user.login });

@@ -41,3 +41,22 @@ jobs:
           # here is ignored; the hook runs regardless.
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new -o IdentitiesOnly=yes \
             root@${{ secrets.VPS_HOST }} deploy
+
+  # Ping Telegram if the typecheck gate or the deploy itself failed.
+  notify-failure:
+    needs: [typecheck, deploy]
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Telegram alert
+        run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          TEXT="❌ Деплой toss-it упал
+          Коммит: ${{ github.sha }}
+          Автор: ${{ github.actor }}
+          Лог: $RUN_URL"
+          curl -sS --max-time 15 \
+            "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            --data-urlencode "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+            --data-urlencode "text=$TEXT" \
+            --data "disable_web_page_preview=true" >/dev/null

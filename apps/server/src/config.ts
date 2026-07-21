@@ -117,4 +117,10 @@ export const config = {
 
   /** Slack on watchdog timer: if overlay sends no done within durationMs + this, treat show as finished. */
   watchdogGraceMs: 10_000,
+
+  /** Admin Telegram notifications (new users, etc.). Empty = notifications off. */
+  telegram: {
+    botToken: process.env.TELEGRAM_BOT_TOKEN ?? '',
+    chatId: process.env.TELEGRAM_CHAT_ID ?? '',
+  },
 };
