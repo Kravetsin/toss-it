@@ -19,10 +19,6 @@ export const config = {
     clientId: twitchClientId,
     clientSecret: process.env.TWITCH_CLIENT_SECRET ?? '',
     redirectUri: process.env.TWITCH_REDIRECT_URI ?? 'http://localhost:3000/api/auth/callback',
-    /** Real Twitch integrations (chat bot + channel-points EventSub) that act on the
-     *  single shared bot account. Set ENABLE_TWITCH_INTEGRATIONS=0 on staging so it
-     *  never fights prod over that account. Default on. */
-    integrationsEnabled: process.env.ENABLE_TWITCH_INTEGRATIONS !== '0',
   },
 
   google: {

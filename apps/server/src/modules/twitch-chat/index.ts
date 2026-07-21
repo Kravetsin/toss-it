@@ -565,10 +565,6 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
 
   async function boot(): Promise<void> {
     if (!config.twitch.clientId) return;
-    if (!config.twitch.integrationsEnabled) {
-      deps.log.info('twitch-chat: disabled (ENABLE_TWITCH_INTEGRATIONS=0)');
-      return;
-    }
     creds = await loadBotCredentials();
     if (!creds) return; // module stays dormant
     client = new EventSubClient({

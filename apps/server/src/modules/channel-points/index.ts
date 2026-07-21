@@ -1,7 +1,6 @@
 import { and, eq } from 'drizzle-orm';
 import type { FastifyBaseLogger } from 'fastify';
 import { CHANNEL_POINTS, DUST_POINTS } from '@tmw/shared';
-import { config } from '../../config';
 import { db } from '../../db/index';
 import { channels, linkedIdentities } from '../../db/schema';
 import { roomOf, type PlaybackManager, type RealtimeServer } from '../../playback';
@@ -523,10 +522,6 @@ export function createChannelPointsModule(deps: {
 
   return {
     start(): void {
-      if (!config.twitch.integrationsEnabled) {
-        log.info('channel-points: disabled (ENABLE_TWITCH_INTEGRATIONS=0)');
-        return;
-      }
       void getAllConnections()
         .then((conns) => {
           for (const c of conns) enabled.add(c.channelId);
