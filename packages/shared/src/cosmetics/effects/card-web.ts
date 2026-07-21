@@ -22,6 +22,13 @@ import type { CardEffectModule } from '../types';
  * The threads sit under the orbs; the wind nudges the anchors only a little (they're pinned) but bows
  * the thread bellies more, so the web moves like silk in a draught. It weaves in once on mount, then
  * holds and sways — no fade-out, it's a standing decoration. Reduced motion draws a single still frame.
+ *
+ * COST. A 2D canvas is CPU-rasterised, so a per-card rAF loop is the one card effect that isn't
+ * near-free. Three things keep it cheap: the thread glow is a two-pass wide+thin stroke, NOT canvas
+ * shadowBlur (a CPU gaussian, the old heaviest cost); the loop is throttled to ~30fps (the wind is slow
+ * enough that half the redraws are identical); and an IntersectionObserver pauses it entirely while the
+ * card is scrolled out of view. Matters most in the OBS chat overlay, where many cards can run at once
+ * on the streamer's already-busy machine.
  */
 
 const COLOR = '#8df0cc'; // brand mint — NOT --color-accent (a cosmetic must look identical everywhere)
@@ -187,26 +194,33 @@ function render(layer: HTMLElement, _surface: string, compact: boolean): (() => 
       ctx!.quadraticCurveTo(mx + (mx - cx) * bow + w[0], my + (my - cy) * bow + w[1], q[0], q[1]);
     };
 
+    // The glow is FAKED with a wide translucent pass under a thin bright pass — NOT canvas shadowBlur,
+    // which is a CPU gaussian and was this effect's single heaviest cost. Round caps soften the ends.
     ctx!.globalCompositeOperation = 'source-over';
     ctx!.strokeStyle = COLOR;
-    ctx!.lineWidth = 1.1;
-    ctx!.shadowColor = COLOR;
-    ctx!.shadowBlur = 6;
+    ctx!.lineCap = 'round';
+    const inner = clamp(Math.round(n * 0.34), 3, n - 2);
     // Border web: the ring hugging the edge + outward arcs.
-    ctx!.globalAlpha = clamp(weave * 0.5, 0, 1);
     ctx!.beginPath();
     for (let i = 0; i < n; i++) {
       strand(i, (i + 1) % n, 0.05);
       strand(i, (i + 2) % n, 0.16);
     }
+    ctx!.lineWidth = 3.4;
+    ctx!.globalAlpha = clamp(weave * 0.16, 0, 1); // soft halo
     ctx!.stroke();
-    // Inner net: longer chords crossing the card, a touch fainter so it reads as depth, not clutter.
-    const inner = clamp(Math.round(n * 0.34), 3, n - 2);
-    ctx!.globalAlpha = clamp(weave * 0.36, 0, 1);
+    ctx!.lineWidth = 1.1;
+    ctx!.globalAlpha = clamp(weave * 0.5, 0, 1); // bright core
+    ctx!.stroke();
+    // Inner net: longer chords crossing the card, fainter so it reads as depth, not clutter.
     ctx!.beginPath();
     for (let i = 0; i < n; i++) strand(i, (i + inner) % n, -0.05);
+    ctx!.lineWidth = 5;
+    ctx!.globalAlpha = clamp(weave * 0.01, 0, 1);
     ctx!.stroke();
-    ctx!.shadowBlur = 0;
+    ctx!.lineWidth = 1;
+    ctx!.globalAlpha = clamp(weave * 0.36, 0, 1);
+    ctx!.stroke();
 
     // The orbs, at the (winded) anchors: a soft halo with a crisp core on top.
     for (let i = 0; i < n; i++) {
@@ -227,20 +241,42 @@ function render(layer: HTMLElement, _surface: string, compact: boolean): (() => 
 
   const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let raf = 0;
+  let io: IntersectionObserver | null = null;
   if (reduce) {
     // One still frame — a fully woven, motionless web.
     start = -WEAVE;
     draw(0, true);
   } else {
+    // Cap to ~30fps: the wind is slow, so half the redraws look identical and cost half the CPU.
+    const FRAME_MS = 1000 / 30;
+    let last = 0;
     const loop = (now: number): void => {
       raf = requestAnimationFrame(loop);
+      if (now - last < FRAME_MS) return;
+      last = now;
       draw(now, false);
     };
-    raf = requestAnimationFrame(loop);
+    const startLoop = (): void => {
+      if (!raf) raf = requestAnimationFrame(loop);
+    };
+    const stopLoop = (): void => {
+      if (raf) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      }
+    };
+    // Pause entirely while the card is scrolled out of view — no point animating a web nobody sees.
+    io = new IntersectionObserver(
+      (entries) => (entries[entries.length - 1]!.isIntersecting ? startLoop() : stopLoop()),
+      { threshold: 0 },
+    );
+    io.observe(layer);
+    startLoop();
   }
 
   return () => {
     if (raf) cancelAnimationFrame(raf);
+    io?.disconnect();
     ro.disconnect();
     cv.remove();
   };
