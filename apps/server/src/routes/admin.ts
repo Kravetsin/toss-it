@@ -24,7 +24,7 @@ import {
   users,
   whitelist,
 } from '../db/schema';
-import { buildAuthorizeUrl, requireAdmin } from '../auth';
+import { buildAuthorizeUrl, requireAdmin, twitchCallbackUri } from '../auth';
 import { config } from '../config';
 import type { TwitchChatModule } from '../modules/twitch-chat/index';
 import type { PlaybackManager } from '../playback';
@@ -317,6 +317,7 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminRoutesDeps)
         state,
         true,
         'user:read:chat user:write:chat user:read:moderated_channels moderator:read:chatters',
+        twitchCallbackUri(req),
       ),
     );
   });

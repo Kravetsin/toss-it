@@ -15,10 +15,36 @@ export interface OAuthUserInfo {
   avatarUrl: string | null;
 }
 
-export function buildAuthorizeUrl(state: string, forceVerify = false, scope = ''): string {
+/**
+ * External origin the user is browsing. Behind Cloudflare the Host header is the real
+ * domain (and only configured tunnel hostnames ever reach us), so during the .win→.org
+ * migration each domain round-trips OAuth on its own origin — the state cookie is
+ * domain-scoped and must survive the callback. Dev keeps the split SPA/API ports.
+ */
+export function oauthOrigin(req: FastifyRequest): string {
+  if (config.isProd && req.headers.host) return `https://${req.headers.host}`;
+  return config.webUrl;
+}
+export function twitchCallbackUri(req: FastifyRequest): string {
+  return config.isProd && req.headers.host
+    ? `https://${req.headers.host}/api/auth/callback`
+    : config.twitch.redirectUri;
+}
+export function googleCallbackUri(req: FastifyRequest): string {
+  return config.isProd && req.headers.host
+    ? `https://${req.headers.host}/api/auth/google/callback`
+    : config.google.redirectUri;
+}
+
+export function buildAuthorizeUrl(
+  state: string,
+  forceVerify = false,
+  scope = '',
+  redirectUri: string = config.twitch.redirectUri,
+): string {
   const params = new URLSearchParams({
     client_id: config.twitch.clientId,
-    redirect_uri: config.twitch.redirectUri,
+    redirect_uri: redirectUri,
     response_type: 'code',
     scope, // login uses '' (identity only); bot connect asks for user:read:chat
     state,
@@ -32,6 +58,7 @@ export function buildAuthorizeUrl(state: string, forceVerify = false, scope = ''
 /** Exchange authorization code -> tokens. refreshToken matters for the chat bot module. */
 export async function exchangeTwitchCode(
   code: string,
+  redirectUri: string = config.twitch.redirectUri,
 ): Promise<{ accessToken: string; refreshToken: string }> {
   const tokenRes = await fetch('https://id.twitch.tv/oauth2/token', {
     method: 'POST',
@@ -41,7 +68,7 @@ export async function exchangeTwitchCode(
       client_secret: config.twitch.clientSecret,
       code,
       grant_type: 'authorization_code',
-      redirect_uri: config.twitch.redirectUri,
+      redirect_uri: redirectUri,
     }),
   });
   if (!tokenRes.ok) {
@@ -78,8 +105,11 @@ export async function fetchTwitchUser(
 }
 
 /** Exchange authorization code -> access token -> Helix user data. */
-export async function exchangeCodeForUser(code: string): Promise<OAuthUserInfo> {
-  const { accessToken } = await exchangeTwitchCode(code);
+export async function exchangeCodeForUser(
+  code: string,
+  redirectUri: string = config.twitch.redirectUri,
+): Promise<OAuthUserInfo> {
+  const { accessToken } = await exchangeTwitchCode(code, redirectUri);
   const u = await fetchTwitchUser(accessToken);
   return {
     id: `twitch:${u.id}`,
@@ -90,10 +120,14 @@ export async function exchangeCodeForUser(code: string): Promise<OAuthUserInfo> 
 }
 
 /** Google OAuth 2.0 (OpenID Connect): same authorization-code flow as Twitch. */
-export function buildGoogleAuthorizeUrl(state: string, forceSelect = false): string {
+export function buildGoogleAuthorizeUrl(
+  state: string,
+  forceSelect = false,
+  redirectUri: string = config.google.redirectUri,
+): string {
   const params = new URLSearchParams({
     client_id: config.google.clientId,
-    redirect_uri: config.google.redirectUri,
+    redirect_uri: redirectUri,
     response_type: 'code',
     scope: 'openid email profile',
     state,
@@ -105,7 +139,10 @@ export function buildGoogleAuthorizeUrl(state: string, forceSelect = false): str
 }
 
 /** Exchange code -> token -> OpenID userinfo profile. id is google:<sub>. */
-export async function exchangeGoogleCodeForUser(code: string): Promise<OAuthUserInfo> {
+export async function exchangeGoogleCodeForUser(
+  code: string,
+  redirectUri: string = config.google.redirectUri,
+): Promise<OAuthUserInfo> {
   const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
@@ -114,7 +151,7 @@ export async function exchangeGoogleCodeForUser(code: string): Promise<OAuthUser
       client_secret: config.google.clientSecret,
       code,
       grant_type: 'authorization_code',
-      redirect_uri: config.google.redirectUri,
+      redirect_uri: redirectUri,
     }),
   });
   if (!tokenRes.ok) {
