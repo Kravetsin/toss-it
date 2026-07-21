@@ -1,0 +1,43 @@
+name: Deploy to VPS
+
+# Auto-deploy main to the self-hosted VPS. On push (or manual run) the runner
+# typechecks, then SSHes in with a restricted deploy key that can ONLY trigger
+# /opt/tossit/deploy-hook.sh (git reset --hard origin/main + rebuild + restart).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Never let two deploys overlap; queue them instead.
+concurrency:
+  group: deploy-vps
+  cancel-in-progress: false
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.6.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -r typecheck
+
+  deploy:
+    needs: typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger redeploy over SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # The key is locked to a forced command on the server, so the argument
+          # here is ignored; the hook runs regardless.
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new -o IdentitiesOnly=yes \
+            root@${{ secrets.VPS_HOST }} deploy
