@@ -26,9 +26,11 @@ import { cardConstellation } from './effects/card-constellation';
 import { cardBubbles } from './effects/card-bubbles';
 import { cardWisp } from './effects/card-wisp';
 import { cardRunes } from './effects/card-runes';
+import { cardWeb } from './effects/card-web';
 import { frameRunner } from './effects/frame-runner';
 import { frameRunnerDouble } from './effects/frame-runner-double';
 import { entranceGlitch } from './effects/entrance-glitch';
+import { entranceAstral } from './effects/entrance-astral';
 import { entrancePortal } from './effects/entrance-portal';
 import { entrancePortalColor } from './effects/entrance-portal-color';
 import { ttsVoices } from './voices';
@@ -172,9 +174,11 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   cardBubbles,
   cardWisp,
   cardRunes,
+  cardWeb,
   frameRunner,
   frameRunnerDouble,
   entranceGlitch,
+  entranceAstral,
   entrancePortal,
   entrancePortalColor,
   ...ttsVoices,
@@ -297,8 +301,8 @@ export function makeParticles(
   compact: boolean,
 ): Record<string, string>[] {
   const m = asCardEffect(id);
-  if (!m) return [];
-  return Array.from({ length: count }, (_, i) => m.particle(rnd, compact, i));
+  if (!m || !m.particle) return [];
+  return Array.from({ length: count }, (_, i) => m.particle!(rnd, compact, i));
 }
 
 /**
@@ -345,6 +349,11 @@ export function fillCardEffect(
   surface: Surface,
   compact: boolean,
 ): () => void {
+  // A JS-rendered effect (a canvas web, not a particle swarm) owns the whole layer itself.
+  const m = asCardEffect(id);
+  if (m?.render && typeof window !== 'undefined') {
+    return m.render(layer, surface, compact) ?? (() => {});
+  }
   const count = particleCount(id, surface);
   if (!count) return () => {};
   const particles = makeParticles(id, count, compact);
@@ -430,7 +439,7 @@ export function bindRespawn(
   compact: boolean,
 ): () => void {
   const m = asCardEffect(id);
-  if (!m || typeof window === 'undefined') return () => {};
+  if (!m || !m.particle || typeof window === 'undefined') return () => {};
   const ps = layer.querySelectorAll<HTMLElement>('.p');
   const gs = layer.querySelectorAll<HTMLElement>('.g');
   // Our own copies: the maps belong to the caller (React memoises them) and must not be mutated.
@@ -441,7 +450,7 @@ export function bindRespawn(
     if (!map) return;
     const onIteration = (e: AnimationEvent) => {
       if (e.pseudoElement) return;
-      const fresh = m.particle(rnd, compact, i);
+      const fresh = m.particle!(rnd, compact, i);
       if (!fresh.left) return;
       // The column, plus whatever else the module says is safe to be reborn with.
       for (const k of ['left', ...(m.respawnKeys ?? [])]) {

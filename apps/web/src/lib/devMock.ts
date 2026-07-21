@@ -74,9 +74,9 @@ const MOCK_ME: MeResponse = {
       nickColor2: '#a78bfa',
       nickFlow: true,
       nickEffect: 'nick-pulse',
-      cardEffect: 'card-levitation',
+      cardEffect: 'card-web',
       frame: 'frame-runner',
-      entrance: 'entrance-portal',
+      entrance: 'entrance-astral',
       entranceColor: '#ff8a3d',
     },
     // false so the "link Twitch" shop banner is visible in mock previews.

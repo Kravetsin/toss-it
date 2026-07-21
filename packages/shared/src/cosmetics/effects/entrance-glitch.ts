@@ -35,10 +35,11 @@ import type { EntranceModule } from '../types';
 export const entranceGlitch: EntranceModule = {
   id: 'entrance-glitch',
   type: 'entrance',
-  // Top shelf, level with lightning and rain — not above them. 4500 made this the single dearest
-  // thing in the catalog, and an entrance is a 0.45s flash where a card effect is weather that never
-  // stops. It earns the top shelf by playing on every message; it does not out-earn the showpiece.
-  costDust: 4000,
+  // Entry shelf for equipped entrances. It used to sit level with the portal at 4000, but a 0.6s CSS
+  // fault next to a 1.7s particle wormhole is a plain step down — at the same price nobody would pick
+  // it, so the slot was dead. Halved to 2000: the affordable way IN to the category, with the portal
+  // (and the newer showpieces) as the thing to save up for.
+  costDust: 2000,
   fx: 'glitch',
   labels: { name: 'shop.entranceGlitch', desc: 'shop.entranceGlitchDesc' },
   css: `

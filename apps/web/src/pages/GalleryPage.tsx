@@ -6,7 +6,7 @@ import type {
   SubmissionSummary,
   UploadResponse,
 } from '@tmw/shared';
-import { COSMETICS, cosmeticModule, particleCount } from '@tmw/shared';
+import { COSMETICS, cosmeticModule, entranceModule, particleCount } from '@tmw/shared';
 import {
   Alert,
   Avatar,
@@ -332,6 +332,122 @@ function CosmeticsShowcase() {
   );
 }
 
+/**
+ * Entrance test bench: replay any equipped-entrance cosmetic on message blocks of three sizes,
+ * against a dark OR light backdrop.
+ *
+ * Why this exists apart from the shop's own EntranceDemo: an entrance is a one-shot with no card to
+ * sit and stare at, and the two things that actually break it aren't visible in a single fixed-size
+ * pill — (1) how it reads on a tiny "гг" vs a wrapped multi-line post (the JS entrances sample the
+ * block's REAL outline, so size changes what they draw), and (2) whether a light-particle effect
+ * survives a bright background. The overlay demos render on white, which is exactly where a starlight
+ * effect disappears — so the light/dark switch here reproduces that on purpose.
+ *
+ * The stage is a `translateZ(0)` containing block, so each engine's `fixed` canvas fills THIS panel
+ * (not the viewport) and `overflow-hidden` clips its particles to the stage — the same "host the
+ * canvas in an isolated surface, lift the block above it" trick the shop drawer uses.
+ */
+function EntrancesShowcase() {
+  const { t } = useI18n();
+  const entrances = COSMETICS.filter((c) => c.type === 'entrance' && !c.upgrade);
+  const [id, setId] = useState(entrances[0]?.id ?? '');
+  const [light, setLight] = useState(false);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const blocks = useRef<(HTMLDivElement | null)[]>([]);
+  const teardowns = useRef<(() => void)[]>([]);
+  const label = (cid: string) => t(cosmeticModule(cid)?.labels.name ?? cid);
+
+  const play = () => {
+    teardowns.current.forEach((f) => f());
+    teardowns.current = [];
+    const mod = entranceModule(id);
+    if (!mod) return;
+    blocks.current.forEach((el) => {
+      if (!el) return;
+      // Clear anything a previous run left inline, then flush it so a repeat restarts from scratch.
+      el.style.opacity = '';
+      el.style.filter = '';
+      el.style.transform = '';
+      delete el.dataset.fx;
+      void el.offsetWidth;
+      if (mod.play) {
+        const off = mod.play(el, stageRef.current ?? undefined);
+        if (typeof off === 'function') teardowns.current.push(off);
+      } else {
+        el.dataset.fx = mod.fx;
+      }
+    });
+  };
+
+  // Replay when the chosen entrance changes; tear down live JS instances on unmount.
+  useEffect(() => {
+    play();
+    return () => {
+      teardowns.current.forEach((f) => f());
+      teardowns.current = [];
+    };
+  }, [id]);
+
+  const bench: { hint: string; text: string }[] = [
+    { hint: 'one word', text: 'гг' },
+    { hint: 'one line', text: 'бахнуло знатно, го смотреть' },
+    {
+      hint: 'multi-line post',
+      text: 'вот это поворот, я реально не ожидал — надо пересмотреть момент на записи, там явно что-то нечисто, го обсудим после стрима',
+    },
+  ];
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-end gap-3">
+        <Select
+          value={id}
+          onChange={setId}
+          options={entrances.map((e) => ({ value: e.id, label: label(e.id) }))}
+          label="Entrance"
+        />
+        <Button variant="primary" size="sm" onClick={play}>
+          <Icon name="reload" size={14} />
+          Replay
+        </Button>
+        <Button variant={light ? 'primary' : 'ghost'} size="sm" onClick={() => setLight((v) => !v)}>
+          <Icon name="eye" size={14} />
+          {light ? 'Светлый фон' : 'Тёмный фон'}
+        </Button>
+      </div>
+      <p className="max-w-2xl text-sm text-faint">
+        Появление — одноразовое, жми Replay. Блоки трёх размеров: эффект должен читаться и на «гг»,
+        и на длинном посте (JS-появления обводят реальный контур, так что размер меняет рисунок).
+        Переключи фон: светлые частицы (Астрал) на белом почти не видно — ровно как в демо-оверлеях
+        над светлой сценой.
+      </p>
+      <div
+        ref={stageRef}
+        className={`relative isolate overflow-hidden rounded-[var(--radius-md)] border border-border p-6 ${light ? 'bg-white' : 'bg-[#0a0c12]'}`}
+        style={{ transform: 'translateZ(0)' }}
+      >
+        <div className="flex flex-col items-start gap-5">
+          {bench.map((b, i) => (
+            <div
+              key={i}
+              ref={(el) => {
+                blocks.current[i] = el;
+              }}
+              className={`relative z-[1] inline-flex max-w-[420px] items-start gap-2 rounded-[var(--radius-md)] border px-3 py-2 ${light ? 'border-black/10 bg-black/[0.04]' : 'border-white/10 bg-[#1c2029]'}`}
+            >
+              <div className="mt-0.5 h-8 w-8 shrink-0 rounded-full bg-accent/60" />
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <span className="text-sm font-semibold text-accent">stargazer_9</span>
+                <span className={`text-sm ${light ? 'text-black/80' : 'text-text'}`}>{b.text}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function VesselDemo() {
   const [phase, setPhase] = useState<Phase>({ name: 'idle' });
   const [status, setStatus] = useState<LiveStatus | null>(null);
@@ -447,6 +563,10 @@ export function GalleryPage() {
 
       <Section title="Card effects — every surface, one switch">
         <CosmeticsShowcase />
+      </Section>
+
+      <Section title="Entrances — sizes & backgrounds">
+        <EntrancesShowcase />
       </Section>
 
       <Section title="Vessel — отправка зрителя (Phase 4)">

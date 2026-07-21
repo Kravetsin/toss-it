@@ -614,6 +614,18 @@ if (DEMO) {
       role: 'moderator',
       fragments: [{ type: 'text', text: 'на этом канале с самого начала' }],
     },
+    // JS-rendered card effect (a canvas web wrapping the pill, swaying in wind) — not a CSS particle
+    // swarm; it exercises the render() hook on the smallest surface.
+    {
+      id: '5b',
+      userId: 'u5b',
+      name: 'weaver',
+      twitchColor: '#8df0cc',
+      cosmetics: { cardEffect: 'card-web' },
+      isFounder: false,
+      level: 7,
+      fragments: [{ type: 'text', text: 'соткал и жду' }],
+    },
     {
       id: '6',
       userId: 'u6',
@@ -694,6 +706,18 @@ if (DEMO) {
       isFounder: false,
       level: 7,
       fragments: [{ type: 'text', text: 'вышел из портала ✨' }],
+    },
+    // Another JS entrance: the pill condenses out of a gathering constellation. A one-shot — watch it
+    // assemble, not sit there. The stars land on the pill's real outline, so it scales with the text.
+    {
+      id: '16',
+      userId: 'u16',
+      name: 'stargazer_9',
+      twitchColor: null,
+      cosmetics: { nickColor: '#bcd9ff', entrance: 'entrance-astral' },
+      isFounder: false,
+      level: 8,
+      fragments: [{ type: 'text', text: 'зачекинься под звёздами на секунду' }],
     },
     {
       id: '12',

@@ -136,8 +136,11 @@ export interface CardEffectModule extends BaseModule {
    * independent draws, so the rare bucket sometimes takes over and the common one thins out — for
    * sakura's depth planes that meant a swarm where almost nothing was in focus. Effects whose
    * randomness is genuinely per-particle (spawn, size, speed) ignore this and just use `rnd`.
+   *
+   * Absent ONLY for a `render` effect (a canvas web), which owns its layer wholesale and has no
+   * particles; every other card effect must provide it.
    */
-  particle: (rnd: Rnd, compact: boolean, index: number) => Record<string, string>;
+  particle?: (rnd: Rnd, compact: boolean, index: number) => Record<string, string>;
   /**
    * Extra keys of `particle()`'s output that a respawn re-rolls, on top of the spawn column (see
    * bindRespawn). Empty by default, and that default is load-bearing: most of what `particle()`
@@ -155,6 +158,16 @@ export interface CardEffectModule extends BaseModule {
    * particle (non-compact surfaces only). Omit for effects with no ground glow.
    */
   groundGlow?: (particle: Record<string, string>) => Record<string, string>;
+  /**
+   * Optional JS renderer (a canvas), for an effect that is NOT an independent-particle swarm — a
+   * connected, wind-swayed web whose threads billow between shared nodes can't be expressed as CSS
+   * `.p` particles. When present, fillCardEffect calls this INSTEAD of building particles: it hands over
+   * the `.card-fx` layer (inset:0 on the card, clipped to the card's rounded shape) to host its own
+   * canvas, and returns a teardown run on unmount. MUST be browser-only — the server imports this
+   * catalog. `counts` must still be non-zero (that's what gets the layer created at all), but the
+   * numbers are otherwise unused for a render effect.
+   */
+  render?: (layer: HTMLElement, surface: Surface, compact: boolean) => (() => void) | void;
 }
 
 /**
