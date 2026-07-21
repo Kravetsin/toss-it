@@ -24,10 +24,13 @@ import {
   exchangeTwitchCode,
   fetchTwitchUser,
   getSessionUser,
+  googleCallbackUri,
   isAdmin,
+  oauthOrigin,
   requireAdmin,
   requireUser,
   resolveIdentity,
+  twitchCallbackUri,
   upsertUser,
 } from '../auth';
 import { messagesTotalFor } from '../level';
@@ -128,7 +131,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
           await addIdentity('fake', login, user.id);
         }
         await createSession(reply, user.id);
-        return reply.redirect(config.webUrl + returnTo);
+        return reply.redirect(oauthOrigin(req) + returnTo);
       }
 
       if (!config.twitch.clientId) {
@@ -146,7 +149,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
         path: '/api/auth',
         maxAge: 600,
       });
-      return reply.redirect(buildAuthorizeUrl(state, forceVerify));
+      return reply.redirect(buildAuthorizeUrl(state, forceVerify, '', twitchCallbackUri(req)));
     },
   );
 
@@ -172,7 +175,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
       if (saved.bot) {
         const admin = await requireAdmin(req, reply);
         if (!admin) return;
-        const tokens = await exchangeTwitchCode(req.query.code);
+        const tokens = await exchangeTwitchCode(req.query.code, twitchCallbackUri(req));
         const bot = await fetchTwitchUser(tokens.accessToken);
         await saveBotCredentials({
           accessToken: tokens.accessToken,
@@ -181,7 +184,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
           login: bot.login,
         });
         deps.twitchChat.credentialsChanged();
-        return reply.redirect(config.webUrl + safeReturnTo(saved.returnTo));
+        return reply.redirect(oauthOrigin(req) + safeReturnTo(saved.returnTo));
       }
 
       // Channel-points opt-in: store the streamer's token and create our app-owned reward on their
@@ -196,9 +199,9 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
           .get();
         const returnToCp = safeReturnTo(saved.returnTo);
         if (!channel) {
-          return reply.redirect(config.webUrl + withParams(returnToCp, { cpError: 'not_owner' }));
+          return reply.redirect(oauthOrigin(req) + withParams(returnToCp, { cpError: 'not_owner' }));
         }
-        const tokens = await exchangeTwitchCode(req.query.code);
+        const tokens = await exchangeTwitchCode(req.query.code, twitchCallbackUri(req));
         const broadcaster = await fetchTwitchUser(tokens.accessToken);
         const result = await deps.channelPoints.connectChannel({
           channelId: channel.id,
@@ -210,7 +213,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
           lang: saved.cpLang,
         });
         return reply.redirect(
-          config.webUrl +
+          oauthOrigin(req) +
             withParams(
               returnToCp,
               result.ok ? { cp: 'connected' } : { cpError: result.error ?? 'failed' },
@@ -218,7 +221,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
         );
       }
 
-      const info = await exchangeCodeForUser(req.query.code);
+      const info = await exchangeCodeForUser(req.query.code, twitchCallbackUri(req));
       const twitchId = info.id.slice('twitch:'.length);
       const returnTo = safeReturnTo(saved.returnTo);
 
@@ -231,7 +234,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
           await addIdentity('twitch', twitchId, current.id);
           const claimed = await claimPendingDust('twitch', twitchId, current.id);
           return reply.redirect(
-            config.webUrl +
+            oauthOrigin(req) +
               withParams(
                 returnTo,
                 claimed > 0 ? { twitchLinked: 1, dustClaimed: claimed } : { twitchLinked: 1 },
@@ -239,7 +242,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
           );
         }
         if (owner.id === current.id) {
-          return reply.redirect(config.webUrl + withParams(returnTo, { twitchLinked: 1 }));
+          return reply.redirect(oauthOrigin(req) + withParams(returnTo, { twitchLinked: 1 }));
         }
         // This Twitch already opens another account — let the person choose the primary.
         reply.setCookie(
@@ -254,7 +257,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
             maxAge: 600,
           },
         );
-        return reply.redirect(config.webUrl + '/link/confirm');
+        return reply.redirect(oauthOrigin(req) + '/link/confirm');
       }
 
       let user = await resolveIdentity('twitch', twitchId);
@@ -270,7 +273,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
       // Dust the chat bot accrued for this Twitch id before the account existed.
       const claimed = await claimPendingDust('twitch', twitchId, user.id);
       return reply.redirect(
-        config.webUrl + withParams(returnTo, claimed > 0 ? { dustClaimed: claimed } : {}),
+        oauthOrigin(req) + withParams(returnTo, claimed > 0 ? { dustClaimed: claimed } : {}),
       );
     },
   );
@@ -294,7 +297,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
       maxAge: 600,
     });
     // force_verify: the person must pick WHICH Twitch to attach, not a silent session.
-    return reply.redirect(buildAuthorizeUrl(state, true));
+    return reply.redirect(buildAuthorizeUrl(state, true, '', twitchCallbackUri(req)));
   });
 
   /** Data for the /link/confirm chooser page. */
@@ -386,7 +389,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
         path: '/api/auth',
         maxAge: 600,
       });
-      return reply.redirect(buildGoogleAuthorizeUrl(state, forceSelect));
+      return reply.redirect(buildGoogleAuthorizeUrl(state, forceSelect, googleCallbackUri(req)));
     },
   );
 
@@ -407,7 +410,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
           .send({ error: `Авторизация не удалась: ${req.query.error ?? 'bad state'}` });
       }
 
-      const info = await exchangeGoogleCodeForUser(req.query.code);
+      const info = await exchangeGoogleCodeForUser(req.query.code, googleCallbackUri(req));
       const sub = info.id.slice('google:'.length);
       let user = await resolveIdentity('google', sub);
       if (!user) {
@@ -421,7 +424,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
         user = await upsertUser({ ...info, login: user.login });
       }
       await createSession(reply, user.id);
-      return reply.redirect(config.webUrl + safeReturnTo(saved.returnTo));
+      return reply.redirect(oauthOrigin(req) + safeReturnTo(saved.returnTo));
     },
   );
 
@@ -501,7 +504,9 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
         maxAge: 600,
       });
       // force_verify so the streamer explicitly picks the channel account the reward lands on.
-      return reply.redirect(buildAuthorizeUrl(state, true, CHANNEL_POINTS_SCOPE));
+      return reply.redirect(
+        buildAuthorizeUrl(state, true, CHANNEL_POINTS_SCOPE, twitchCallbackUri(req)),
+      );
     },
   );
 
