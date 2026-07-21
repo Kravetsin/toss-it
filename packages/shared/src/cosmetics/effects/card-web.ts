@@ -285,7 +285,7 @@ function render(layer: HTMLElement, _surface: string, compact: boolean): (() => 
 export const cardWeb: CardEffectModule = {
   id: 'card-web',
   type: 'card_effect',
-  costDust: 4000,
+  costDust: 5000,
   className: 'card-fx-web',
   // Nominal only: a render effect owns the whole layer, but counts must be non-zero for the layer to be
   // created at all (see CardEffectModule.render / cardEffectLayerClass).
