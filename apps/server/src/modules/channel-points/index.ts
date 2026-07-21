@@ -71,15 +71,15 @@ function rewardText(lang: string | undefined): { title: string; prompt: string }
 const YOUTUBE_TEXT = {
   ru: {
     title: 'Заказать видео с YouTube (Tossit)',
-    prompt: `Вставь ссылку на YouTube — видео сыграет на стриме. +${DUST_POINTS.send} ⭐ звёздной пыли Tossit (залогинься на toss-it.win, чтобы забрать).`,
+    prompt: `Вставь ссылку на YouTube — видео сыграет на стриме. +${DUST_POINTS.send} ⭐ звёздной пыли Tossit (залогинься на toss-it.org, чтобы забрать).`,
   },
   uk: {
     title: 'Замовити відео з YouTube (Tossit)',
-    prompt: `Встав посилання на YouTube — відео зіграє на стрімі. +${DUST_POINTS.send} ⭐ зоряного пилу Tossit (залогінься на toss-it.win, щоб забрати).`,
+    prompt: `Встав посилання на YouTube — відео зіграє на стрімі. +${DUST_POINTS.send} ⭐ зоряного пилу Tossit (залогінься на toss-it.org, щоб забрати).`,
   },
   en: {
     title: 'Request a YouTube video (Tossit)',
-    prompt: `Paste a YouTube link — it plays on stream. +${DUST_POINTS.send} ⭐ Tossit stardust (log in at toss-it.win to claim).`,
+    prompt: `Paste a YouTube link — it plays on stream. +${DUST_POINTS.send} ⭐ Tossit stardust (log in at toss-it.org to claim).`,
   },
 } as const;
 

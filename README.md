@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <a href="https://toss-it.win"><strong>🌐 toss-it.win</strong></a>
+  <a href="https://toss-it.org"><strong>🌐 toss-it.org</strong></a>
 </p>
 
 <p align="center">

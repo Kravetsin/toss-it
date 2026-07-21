@@ -379,7 +379,7 @@ function renderRedemption(ev: { name: string; dust: number }): void {
   line.append(name, amt);
   const brand = document.createElement('span');
   brand.className = 'redeem-brand';
-  brand.textContent = 'toss-it.win';
+  brand.textContent = 'toss-it.org';
   text.append(line, brand);
   card.appendChild(text);
 
@@ -795,7 +795,7 @@ if (DEMO) {
       {
         name: 'newbie_guy',
         dust: 137,
-        hint: 'toss-it.win',
+        hint: 'toss-it.org',
         isFounder: false,
         twitchColor: '#9ab0ad',
         cosmetics: null,
@@ -831,7 +831,7 @@ if (DEMO) {
       {
         name: 'ghost_in_the_wire',
         text: 'ничего не вижу — если отправлял с сайта, привяжи Twitch',
-        hint: 'toss-it.win',
+        hint: 'toss-it.org',
         isFounder: false,
         twitchColor: null,
         cosmetics: { nickColor: '#00f0ff', nickEffect: 'nick-glow' },

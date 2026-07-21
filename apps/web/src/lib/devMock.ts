@@ -749,7 +749,7 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
         return {
           provider: 'donatello',
           connected: true,
-          callbackUrl: 'https://toss-it.win/api/donations/donatello/ch_dev',
+          callbackUrl: 'https://toss-it.org/api/donations/donatello/ch_dev',
           key: 'demo0000111122223333444455556666',
         };
       default:

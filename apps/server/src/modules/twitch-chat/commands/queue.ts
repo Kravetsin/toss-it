@@ -56,7 +56,7 @@ export const queue: ChatCommand = {
       return {
         name: ctx.name,
         text: t(ctx.locale, unlinked ? 'queueUnlinked' : 'queueEmpty'),
-        hint: unlinked ? 'toss-it.win' : undefined,
+        hint: unlinked ? 'toss-it.org' : undefined,
       };
     }
 

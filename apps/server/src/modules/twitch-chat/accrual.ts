@@ -45,7 +45,7 @@ export async function awardDust(chatterTwitchId: string, amount = 1): Promise<vo
 /**
  * Current stardust for a raw Twitch id. `claimed` is false when the dust is still sitting in
  * pending_dust — the chatter earned it but has never logged in, which is exactly who the
- * "claim it at toss-it.win" nudge is for.
+ * "claim it at toss-it.org" nudge is for.
  */
 export async function readDust(
   chatterTwitchId: string,

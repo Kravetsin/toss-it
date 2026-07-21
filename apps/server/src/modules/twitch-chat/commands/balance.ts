@@ -11,6 +11,6 @@ export const balance: ChatCommand = {
   aliases: ['dust'],
   async run(ctx) {
     const { dust, claimed } = await readDust(ctx.twitchId);
-    return { name: ctx.name, dust, hint: claimed ? undefined : 'toss-it.win' };
+    return { name: ctx.name, dust, hint: claimed ? undefined : 'toss-it.org' };
   },
 };

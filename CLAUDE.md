@@ -2,7 +2,8 @@
 
 A submissions inbox for streamers (a "предложка"): viewers send images, GIFs, videos and
 sounds to a streamer's stream, with moderation, a whitelist and limits. Platform-agnostic
-(Twitch / Kick / YouTube). Production: https://toss-it.win (self-hosted behind Cloudflare).
+(Twitch / Kick / YouTube). Production: https://toss-it.org (self-hosted behind Cloudflare;
+legacy https://toss-it.win 301-redirects here, except /api/* which stays live for webhooks).
 
 ## Monorepo (pnpm workspace)
 
