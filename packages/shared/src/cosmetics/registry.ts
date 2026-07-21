@@ -22,6 +22,10 @@ import { cardSakura } from './effects/card-sakura';
 import { cardStardust } from './effects/card-stardust';
 import { cardRain } from './effects/card-rain';
 import { cardSnow } from './effects/card-snow';
+import { cardConstellation } from './effects/card-constellation';
+import { cardBubbles } from './effects/card-bubbles';
+import { cardWisp } from './effects/card-wisp';
+import { cardRunes } from './effects/card-runes';
 import { frameRunner } from './effects/frame-runner';
 import { frameRunnerDouble } from './effects/frame-runner-double';
 import { entranceGlitch } from './effects/entrance-glitch';
@@ -164,6 +168,10 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   cardSnow,
   cardSakura,
   cardLightning,
+  cardConstellation,
+  cardBubbles,
+  cardWisp,
+  cardRunes,
   frameRunner,
   frameRunnerDouble,
   entranceGlitch,

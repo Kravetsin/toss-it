@@ -289,6 +289,61 @@ export const cardLightning: CardEffectModule = {
    point width and height are both given and aspect-ratio simply stops applying — no unsetting
    needed. The far bolt sets only --ph, so aspect-ratio still derives its width and its zigzag keeps
    the same angles as every other bolt. */
+/* THE STORM ATMOSPHERE — on the layer's own pseudo-elements (the bolts are .p children, so
+   ::before/::after here are free), so the ~95% of the cycle with no strike reads as a charged, brooding
+   sky rather than a blank card. Kept deliberately FAINT: the dark IS the effect (see the header on the
+   rare-event rhythm), and a dim haze between strikes only deepens the contrast the flash lands against
+   — turn these alphas up and you trade the storm's punch for wallpaper.
+   ::before is cloud mass gathered toward the top (where every bolt hangs from), slowly churning;
+   ::after a faint drift of charged motes in the air below. */
+.card-fx-lightning::before,
+.card-fx-lightning::after {
+  content: '';
+  position: absolute;
+  inset: -20%;
+  pointer-events: none;
+}
+.card-fx-lightning::before {
+  background:
+    radial-gradient(62% 45% at 30% 6%, rgba(124, 58, 237, 0.11), transparent 72%),
+    radial-gradient(56% 42% at 72% 2%, rgba(99, 90, 168, 0.09), transparent 72%),
+    radial-gradient(48% 40% at 52% 22%, rgba(167, 139, 250, 0.06), transparent 70%);
+  animation: cardfx-lightning-clouds 22s ease-in-out infinite;
+}
+.card-fx-lightning::after {
+  background-image:
+    radial-gradient(1px 1px at 30px 40px, rgba(196, 181, 253, 0.55), transparent),
+    radial-gradient(1px 1px at 100px 90px, rgba(167, 139, 250, 0.45), transparent),
+    radial-gradient(1.2px 1.2px at 155px 50px, rgba(196, 181, 253, 0.4), transparent);
+  background-size: 180px 180px, 215px 215px, 150px 150px;
+  animation: cardfx-lightning-motes 20s ease-in-out infinite;
+}
+.card-fx-lightning.compact::before {
+  opacity: 0.6;
+}
+@keyframes cardfx-lightning-clouds {
+  0%,
+  100% {
+    transform: translate(-2%, 0) scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: translate(2%, 1%) scale(1.06);
+    opacity: 1;
+  }
+}
+@keyframes cardfx-lightning-motes {
+  0%,
+  100% {
+    transform: translateY(6px);
+    opacity: 0.4;
+  }
+  50% {
+    transform: translateY(-6px);
+    opacity: 0.8;
+  }
+}
+
 .card-fx-lightning .p {
   top: 0;
   width: var(--pw, auto);
