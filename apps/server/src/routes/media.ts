@@ -41,7 +41,7 @@ import {
 } from '../media/youtube';
 import { isGiphyId } from '../media/giphy';
 import { requireUser } from '../auth';
-import { synthesize } from '../tts';
+import { speakableText, synthesize } from '../tts';
 import {
   dashboardRoomOf,
   marksFromEquipped,
@@ -451,8 +451,12 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
         .from(submissions)
         .where(eq(submissions.id, req.params.id))
         .get();
-      const source = req.query.part === 'message' ? sub?.message : sub?.senderName;
-      if (!source) return reply.code(404).send({ error: 'Не найдено' });
+      const raw = req.query.part === 'message' ? sub?.message : sub?.senderName;
+      if (!raw) return reply.code(404).send({ error: 'Не найдено' });
+      // Drop what no voice can pronounce (see speakableText). The overlay already skips these via
+      // the payload flags; this also covers replays and older overlay builds. 404 = it just moves on.
+      const source = speakableText(raw);
+      if (!source) return reply.code(404).send({ error: 'Нечего озвучивать' });
 
       try {
         // Seed = submission id: the free "auto" voice is random but consistent within one send.

@@ -16,6 +16,7 @@ import { db } from './db/index';
 import { channelModerators, channels, submissions, users, type SubmissionRow } from './db/schema';
 import { config } from './config';
 import { levelForSender } from './level';
+import { speakableText } from './tts';
 import { getUserFromCookieHeader } from './auth';
 
 export type RealtimeServer = Server<
@@ -528,8 +529,9 @@ export class PlaybackManager {
       durationMs: sub.kind === 'youtube' ? 0 : sub.durationMs,
       volume: channel?.volume ?? 100,
       sound: channel?.soundAlert ?? false,
-      // TTS reads the name aloud; pointless if the name isn't shown.
-      tts: (channel?.ttsName ?? false) && showName && sub.senderName !== null,
+      // TTS reads the name aloud; pointless if the name isn't shown — or if no voice can
+      // pronounce it (a YouTube title in kana would be spelled out character by character).
+      tts: (channel?.ttsName ?? false) && showName && !!speakableText(sub.senderName ?? ''),
       senderName: showName ? (sub.senderName ?? undefined) : undefined,
       senderColor: marks.color ?? undefined,
       senderColor2: marks.color2 ?? undefined,
@@ -542,7 +544,7 @@ export class PlaybackManager {
       senderLevel: senderLevel || undefined,
       senderBadges: marks.badges.length ? marks.badges : undefined,
       text: sub.text ?? undefined,
-      ttsText: (channel?.ttsMessage ?? false) && !!sub.text,
+      ttsText: (channel?.ttsMessage ?? false) && !!speakableText(sub.text ?? ''),
       // Music may use its own layout; the server picks it by media type, so the
       // overlay just applies position/size/margin from the payload.
       ...resolveLayout(sub.kind, channel, sub.mime === 'audio/youtube'),

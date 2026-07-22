@@ -23,6 +23,42 @@ const SYNTH_TIMEOUT_MS = 30_000;
 const CACHE_MAX_BYTES = 500 * 1024 * 1024;
 const CACHE_SWEEP_EVERY = 100;
 
+/**
+ * Anything our ru/uk/en voices can actually pronounce. Everything else is dropped: Piper's
+ * phonemizer has no mapping for other scripts and falls back to spelling each character by its
+ * Unicode name — a Japanese track title comes out as "Japanese letter" thirty times over.
+ */
+const SPEAKABLE_CHAR = /[\p{Script=Latin}\p{Script=Cyrillic}\p{Nd}]/u;
+const UNSPEAKABLE = /[^\p{Script=Latin}\p{Script=Cyrillic}\p{Nd}\s'’\-–—.,!?:;()"«»]/gu;
+/** Letters/digits of ANY script — the denominator for "how much of this can we say?". */
+const WORD_CHAR = /[\p{L}\p{Nd}]/gu;
+/** Below this share of pronounceable word characters, what survives is debris, not a title. */
+const SPEAKABLE_RATIO_MIN = 0.5;
+
+/**
+ * The pronounceable part of `raw`, or null when speaking it would be worse than silence.
+ *
+ * Stripping alone isn't enough: "【オリジナル楽曲】…【IOSYS（まろん&D.watt）】" reduces to a
+ * handful of bracketed latin fragments that read as gibberish, so a title that is mostly
+ * unpronounceable is skipped outright rather than half-read.
+ */
+export function speakableText(raw: string): string | null {
+  const cleaned = raw
+    .replace(UNSPEAKABLE, ' ')
+    // Punctuation left stranded where a stripped run used to be ("IOSYS ( & D.watt )").
+    .replace(/\s+([.,!?:;)»"])/g, '$1')
+    .replace(/([(«"])\s+/g, '$1')
+    .replace(/[([«]\s*[)\]»]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const speakable = [...cleaned].filter((c) => SPEAKABLE_CHAR.test(c)).length;
+  // A single stray letter is never worth a voice line.
+  if (speakable < 2) return null;
+  const total = (raw.match(WORD_CHAR) ?? []).length;
+  if (speakable / total < SPEAKABLE_RATIO_MIN) return null;
+  return cleaned;
+}
+
 export function detectTtsLang(text: string): TtsLang {
   const forced = config.tts.lang;
   if (forced === 'ru' || forced === 'uk' || forced === 'en') return forced;
