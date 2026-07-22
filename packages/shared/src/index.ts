@@ -788,6 +788,24 @@ export interface AdminUserRow {
 
 export type AdminUsersSort = 'created' | 'stardust';
 
+/** One catalog id and how many users own it (for the admin ownership / refund view). itemId may no
+ *  longer be in the live catalog if the cosmetic was removed — buyers are still owed a refund. */
+export interface AdminCosmeticRow {
+  itemId: string;
+  owners: number;
+}
+
+/** A user who owns a given cosmetic, with their current balance so a refund is one click. */
+export interface AdminCosmeticOwner {
+  userId: string;
+  login: string;
+  displayName: string;
+  avatarUrl: string | null;
+  stardust: number;
+  /** epoch ms when bought. */
+  ownedAt: number;
+}
+
 /** A channel whose OBS overlay is connected right now (admin "who's live" view). */
 export interface AdminLiveChannel {
   login: string;

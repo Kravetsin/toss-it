@@ -1,40 +1,39 @@
 import type { CardEffectModule } from '../types';
 
 /**
- * A web of light wraps the card and sways on the wind — the same web as the entrance-astral arrival,
- * lifted onto a card as a PERSISTENT decoration. Will-o'-wisp orbs (a white-hot core in a soft mint
- * glow, the card-wisp look) sit on anchor points ringing the card; threads of light weave between them
- * — an edge ring plus longer chords crossing the card — and the whole web billows in a gentle wind that
- * breathes slowly, forever.
+ * A web of light on the card: a STATIC glowing rectangle contour with little will-o'-wisp orbs on it,
+ * and, strung between those orbs across the card's interior, threads that billow in a gentle wind.
+ * (This is the entrance-astral web lifted onto a card as a persistent decoration.)
  *
- * WHY THIS IS A `render` EFFECT, NOT A PARTICLE SWARM. Every other card effect is independent CSS `.p`
- * particles; this one is a CONNECTED structure whose threads billow between SHARED nodes, which CSS
- * particles can't express (a `.p` knows nothing of any other `.p`'s position). So it ships a JS canvas
- * renderer instead (see CardEffectModule.render): fillCardEffect hands it the `.card-fx` layer — inset:0
- * on the card, clipped to the card's rounded shape — and it hosts its own canvas there, one per card,
- * with its own rAF loop and teardown. The web rides the LAYER's own box, so it fits any card size for
- * free (a chat pill gets a tiny web, a feed card a big one); the anchors sit just INSIDE the edge so the
- * layer's overflow clip doesn't eat them.
+ * WHY THE CONTOUR IS STATIC. An earlier version swayed the whole web — ring, orbs and all. On a card
+ * that reads as a restless border and costs a wind calculation per anchor + per strand. So only the
+ * INNER threads move now: the frame and its orbs sit still (the orbs just twinkle in brightness), and
+ * the silk inside sways. That halves the moving geometry and calms the look — the effect the eye wants
+ * anyway (a web caught in a still frame).
  *
- * HOW AN ORB IS DRAWN. Two sprites stacked, like card-wisp's dot + box-shadow: a soft mint HALO and, on
- * top, a small CRISP core disc with a defined edge. One gradient alone read as a blurry smudge.
+ * WHY FEWER NODES ON SHORT CARDS. Node count came off the perimeter, so a wide-but-flat message pill
+ * got a node every ~50px along its long top/bottom and read as an overstuffed grid. Short cards now
+ * get a bigger node spacing, a lower cap, and sparser inner threads, so a flat block stays airy.
  *
- * The threads sit under the orbs; the wind nudges the anchors only a little (they're pinned) but bows
- * the thread bellies more, so the web moves like silk in a draught. It weaves in once on mount, then
- * holds and sways — no fade-out, it's a standing decoration. Reduced motion draws a single still frame.
+ * WHY A `render` effect, PER-CARD canvas. A connected web whose threads billow between SHARED nodes
+ * can't be CSS `.p` particles (a particle knows nothing of another's position). It hosts its own
+ * canvas in the `.card-fx` layer — which must be per-card, not one global canvas: the layer sits
+ * BEHIND the card's own content (in front of its background), a place a single viewport canvas can't
+ * occupy without either covering the text or hiding behind the page.
  *
- * COST. A 2D canvas is CPU-rasterised, so a per-card rAF loop is the one card effect that isn't
- * near-free. Three things keep it cheap: the thread glow is a two-pass wide+thin stroke, NOT canvas
- * shadowBlur (a CPU gaussian, the old heaviest cost); the loop is throttled to ~30fps (the wind is slow
- * enough that half the redraws are identical); and an IntersectionObserver pauses it entirely while the
- * card is scrolled out of view. Matters most in the OBS chat overlay, where many cards can run at once
- * on the streamer's already-busy machine.
+ * COST is bounded three ways beyond the static contour: the loop is throttled to ~30fps, an
+ * IntersectionObserver pauses it while the card is off-screen, and a module-wide LIVE cap means only
+ * the first few webs animate — the rest draw one static frame (identical look, zero ongoing cost). So
+ * the total work can't grow without limit as the effect gets popular (the OBS-chat worst case).
  */
 
 const COLOR = '#8df0cc'; // brand mint — NOT --color-accent (a cosmetic must look identical everywhere)
 const ACCENT = '#cffff2'; // a paler mint, sprinkled through for a subtle two-tone glow
-const WEAVE = 1300; // ms to weave the web in on mount
+const WEAVE = 1300; // ms to fade the web in on mount
+const MAX_LIVE = 8; // module-wide cap on webs that ANIMATE at once; beyond it, a static frame
 const TAU = Math.PI * 2;
+
+let live = 0; // how many webs are currently animating (see MAX_LIVE)
 
 function clamp(v: number, a: number, b: number): number {
   return v < a ? a : v > b ? b : v;
@@ -101,6 +100,9 @@ interface Node {
   sz: number;
   tw: number;
   accent: boolean;
+  /** How many nodes ahead this one strings a thread to — RANDOM per node, so the inner threads read
+   *  as an organic web, not the regular star-polygon a fixed offset draws. */
+  link: number;
 }
 
 function render(layer: HTMLElement, _surface: string, compact: boolean): (() => void) | void {
@@ -108,9 +110,8 @@ function render(layer: HTMLElement, _surface: string, compact: boolean): (() => 
   const cv = document.createElement('canvas');
   const st = cv.style;
   st.position = 'absolute';
-  st.inset = '0';
-  st.width = '100%';
-  st.height = '100%';
+  st.left = '0';
+  st.top = '0';
   st.pointerEvents = 'none';
   cv.setAttribute('aria-hidden', 'true');
   layer.appendChild(cv);
@@ -122,14 +123,32 @@ function render(layer: HTMLElement, _surface: string, compact: boolean): (() => 
 
   let W = 0;
   let H = 0;
+  // Device-pixels-per-user-unit, set by fit() — draw() needs it to restore the transform after
+  // clearing, and clearing MUST happen with the transform reset (see the note in draw()).
+  let sx = 1;
+  let sy = 1;
   function fit(): void {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const r = layer.getBoundingClientRect();
-    W = r.width;
-    H = r.height;
-    cv.width = Math.max(1, Math.floor(W * dpr));
-    cv.height = Math.max(1, Math.floor(H * dpr));
-    ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // Back the canvas with an INTEGER pixel grid and display it 1:1 (css size = backing / dpr). Sizing
+    // the backing to a fractional device box (100% width at a fractional dpr — Windows display scaling)
+    // let the browser upscale the canvas a hair, doubling the crisp contour's right & bottom edges.
+    // CSS size floored to whole px so the canvas can NEVER be wider/taller than the layer (nothing to
+    // spill past the clip); backing rounded to whole device px; and the context scaled by the EXACT
+    // backing/css ratio rather than dpr, so no residual scale error is left for the browser to smear.
+    const cssW = Math.max(1, Math.round(r.width));
+    const cssH = Math.max(1, Math.round(r.height));
+    const bw = Math.max(1, Math.round(cssW * dpr));
+    const bh = Math.max(1, Math.round(cssH * dpr));
+    cv.width = bw;
+    cv.height = bh;
+    cv.style.width = cssW + 'px';
+    cv.style.height = cssH + 'px';
+    sx = bw / cssW;
+    sy = bh / cssH;
+    ctx!.setTransform(sx, 0, 0, sy, 0, 0);
+    W = cssW;
+    H = cssH;
   }
   fit();
   const ro = new ResizeObserver(fit);
@@ -139,94 +158,98 @@ function render(layer: HTMLElement, _surface: string, compact: boolean): (() => 
   let start: number | null = null;
 
   function draw(now: number, still: boolean): void {
+    // Clear with the transform RESET. clearRect takes USER coordinates, so `clearRect(0,0,cv.width,
+    // cv.height)` under a scaled transform wipes only the top-left `scale` fraction of the canvas —
+    // at any zoom but 100% (scale ≠ 1) the right and bottom strips were never cleared and accumulated
+    // every frame's overdraw into thick static streaks and blobs on exactly those two edges.
+    ctx!.setTransform(1, 0, 0, 1, 0, 0);
     ctx!.clearRect(0, 0, cv.width, cv.height);
+    ctx!.setTransform(sx, 0, 0, sy, 0, 0);
     if (W < 8 || H < 8) return;
     if (start === null) start = now;
 
-    // Anchors sit just INSIDE the card edge so the layer's overflow clip never eats them.
+    // Contour inset just inside the card edge so the layer's overflow clip never eats it.
     const M = compact ? 3 : 6;
     const rx = M;
     const ry = M;
     const rw = W - 2 * M;
     const rh = H - 2 * M;
     if (rw < 8 || rh < 8) return;
+
+    // Fewer nodes on a short card — bigger spacing, lower cap — so a flat block stays airy.
+    const shortCard = rh < 68;
     if (!nodes) {
-      const n = clamp(Math.round((2 * (rw + rh)) / (compact ? 46 : 54)), compact ? 6 : 8, 26);
+      const spacing = shortCard ? 92 : 66;
+      const maxN = shortCard ? 9 : 16;
+      const n = clamp(Math.round((2 * (rw + rh)) / spacing), compact ? 5 : 7, maxN);
+      // Bound the reach so no thread spans the whole card (that read as a starburst through the middle).
+      const maxReach = Math.max(2, Math.round(n * 0.38));
       nodes = Array.from({ length: n }, () => ({
         sz: Math.random(),
         tw: Math.random() * TAU,
         accent: Math.random() < 0.24,
+        link: 2 + Math.floor(Math.random() * maxReach),
       }));
     }
     const n = nodes.length;
     const cx = rx + rw / 2;
     const cy = ry + rh / 2;
-
-    // Weave-in on mount, then a steady standing web.
     const weave = clamp((now - start) / WEAVE, 0, 1);
 
-    // Wind: anchors barely tremble, thread bellies billow more; a slow breath varies the gust so it
-    // never loops mechanically. `still` (reduced motion) freezes it.
-    const gust = still ? 0 : 0.75 + 0.35 * Math.sin(now * 0.0004);
-    const wind = (x: number, y: number, amp: number): [number, number] => {
-      if (still) return [0, 0];
-      const ph = x * 0.023 + y * 0.017;
-      const sway = 0.7 * Math.sin(now * 0.0037 + ph) + 0.3 * Math.sin(now * 0.0022 + ph * 1.7);
-      const a2 = amp * gust * sway;
-      return [a2, a2 * 0.18];
-    };
-
+    // The anchor points ride a STILL rectangle — no wind here; only the inner threads move.
     const pts: [number, number][] = [];
-    for (let i = 0; i < n; i++) {
-      const p = perim(i, n, rx, ry, rw, rh);
-      const w = wind(p[0], p[1], 2);
-      pts.push([p[0] + w[0], p[1] + w[1]]);
-    }
+    for (let i = 0; i < n; i++) pts.push(perim(i, n, rx, ry, rw, rh));
 
-    const bellyAmp = compact ? 4 : 7;
-    const strand = (i: number, j: number, bow: number): void => {
-      const p = pts[i]!;
-      const q = pts[j]!;
-      const mx = (p[0] + q[0]) / 2;
-      const my = (p[1] + q[1]) / 2;
-      const w = wind(mx, my, bellyAmp);
-      ctx!.moveTo(p[0], p[1]);
-      ctx!.quadraticCurveTo(mx + (mx - cx) * bow + w[0], my + (my - cy) * bow + w[1], q[0], q[1]);
-    };
-
-    // The glow is FAKED with a wide translucent pass under a thin bright pass — NOT canvas shadowBlur,
-    // which is a CPU gaussian and was this effect's single heaviest cost. Round caps soften the ends.
     ctx!.globalCompositeOperation = 'source-over';
     ctx!.strokeStyle = COLOR;
     ctx!.lineCap = 'round';
-    const inner = clamp(Math.round(n * 0.34), 3, n - 2);
-    // Border web: the ring hugging the edge + outward arcs.
+
+    // 1) STATIC contour: the inset rectangle itself. Two-pass glow (wide faint + thin bright), NOT
+    //    shadowBlur (a CPU gaussian). No wind — it's a calm frame.
     ctx!.beginPath();
-    for (let i = 0; i < n; i++) {
-      strand(i, (i + 1) % n, 0.05);
-      strand(i, (i + 2) % n, 0.16);
-    }
-    ctx!.lineWidth = 3.4;
-    ctx!.globalAlpha = clamp(weave * 0.16, 0, 1); // soft halo
+    ctx!.rect(rx, ry, rw, rh);
+    ctx!.lineWidth = 3;
+    ctx!.globalAlpha = clamp(weave * 0.14, 0, 1);
     ctx!.stroke();
     ctx!.lineWidth = 1.1;
-    ctx!.globalAlpha = clamp(weave * 0.5, 0, 1); // bright core
-    ctx!.stroke();
-    // Inner net: longer chords crossing the card, fainter so it reads as depth, not clutter.
-    ctx!.beginPath();
-    for (let i = 0; i < n; i++) strand(i, (i + inner) % n, -0.05);
-    ctx!.lineWidth = 5;
-    ctx!.globalAlpha = clamp(weave * 0.01, 0, 1);
-    ctx!.stroke();
-    ctx!.lineWidth = 1;
-    ctx!.globalAlpha = clamp(weave * 0.36, 0, 1);
+    ctx!.globalAlpha = clamp(weave * 0.42, 0, 1);
     ctx!.stroke();
 
-    // The orbs, at the (winded) anchors: a soft halo with a crisp core on top.
+    // 2) ANIMATED inner threads: one per node to a RANDOM-distance neighbour (organic, not a star
+    //    polygon), bellies billowed by the wind — the ONLY moving, wind-computed geometry now.
+    const gust = still ? 0 : 0.6 + 0.35 * Math.sin(now * 0.0004);
+    const belly = compact ? 5 : 8;
+    const wind = (x: number, y: number): [number, number] => {
+      if (still) return [0, 0];
+      const ph = x * 0.024 + y * 0.018;
+      const sway = 0.7 * Math.sin(now * 0.0037 + ph) + 0.3 * Math.sin(now * 0.0022 + ph * 1.7);
+      const a2 = belly * gust * sway;
+      return [a2, a2 * 0.4];
+    };
+    ctx!.beginPath();
+    for (let i = 0; i < n; i++) {
+      const p = pts[i]!;
+      const q = pts[(i + nodes[i]!.link) % n]!;
+      const mx = (p[0] + q[0]) / 2;
+      const my = (p[1] + q[1]) / 2;
+      const w = wind(mx, my);
+      // A whisper of inward drape + the wind billow — NOT a hard pull to the centre, which made every
+      // thread bend to the middle and cross into a starburst.
+      ctx!.moveTo(p[0], p[1]);
+      ctx!.quadraticCurveTo(mx + (cx - mx) * 0.05 + w[0], my + (cy - my) * 0.05 + w[1], q[0], q[1]);
+    }
+    ctx!.lineWidth = 2.6;
+    ctx!.globalAlpha = clamp(weave * 0.1, 0, 1);
+    ctx!.stroke();
+    ctx!.lineWidth = 1;
+    ctx!.globalAlpha = clamp(weave * 0.34, 0, 1);
+    ctx!.stroke();
+
+    // 3) The orbs on the (still) contour: a soft halo + a crisp core, twinkling in brightness only.
     for (let i = 0; i < n; i++) {
       const nd = nodes[i]!;
       const p = pts[i]!;
-      const tw = 0.72 + 0.28 * Math.sin(now * 0.007 + nd.tw);
+      const tw = still ? 0.9 : 0.72 + 0.28 * Math.sin(now * 0.007 + nd.tw);
       const alpha = clamp(weave * tw, 0, 1);
       const col = nd.accent ? ACCENT : COLOR;
       const halo = (compact ? 10 : 14) + (compact ? 7 : 10) * nd.sz;
@@ -242,13 +265,37 @@ function render(layer: HTMLElement, _surface: string, compact: boolean): (() => 
   const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let raf = 0;
   let io: IntersectionObserver | null = null;
-  if (reduce) {
-    // One still frame — a fully woven, motionless web.
+  let counted = false;
+  let isStatic = false;
+
+  // Re-fit on DPR change (browser ZOOM, or dragging the window to a monitor with different scaling).
+  // Zoom changes devicePixelRatio but NOT the layer's CSS-px size, so the layer's ResizeObserver stays
+  // silent — the backing grid would go stale and the browser would scale the canvas (the edge-doubling
+  // again). matchMedia on the current resolution fires exactly when dpr changes; re-arm it each time.
+  const refit = (): void => {
+    fit();
+    if (isStatic) draw(0, true); // an animating web redraws itself next frame; a static one won't
+  };
+  let mq = window.matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
+  const onDpr = (): void => {
+    refit();
+    mq.removeEventListener('change', onDpr);
+    mq = window.matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
+    mq.addEventListener('change', onDpr);
+  };
+  mq.addEventListener('change', onDpr);
+  window.addEventListener('resize', refit);
+
+  // Reduced motion OR over the module-wide cap → one still frame, no ongoing work. The look is the
+  // same (the contour is static anyway); only the inner threads and twinkle are missing.
+  if (reduce || live >= MAX_LIVE) {
+    isStatic = true;
     start = -WEAVE;
     draw(0, true);
   } else {
-    // Cap to ~30fps: the wind is slow, so half the redraws look identical and cost half the CPU.
-    const FRAME_MS = 1000 / 30;
+    live++;
+    counted = true;
+    const FRAME_MS = 1000 / 30; // ~30fps: the wind is slow, half the redraws look identical
     let last = 0;
     const loop = (now: number): void => {
       raf = requestAnimationFrame(loop);
@@ -265,7 +312,7 @@ function render(layer: HTMLElement, _surface: string, compact: boolean): (() => 
         raf = 0;
       }
     };
-    // Pause entirely while the card is scrolled out of view — no point animating a web nobody sees.
+    // Pause entirely while the card is scrolled out of view.
     io = new IntersectionObserver(
       (entries) => (entries[entries.length - 1]!.isIntersecting ? startLoop() : stopLoop()),
       { threshold: 0 },
@@ -275,9 +322,12 @@ function render(layer: HTMLElement, _surface: string, compact: boolean): (() => 
   }
 
   return () => {
+    if (counted) live--;
     if (raf) cancelAnimationFrame(raf);
     io?.disconnect();
     ro.disconnect();
+    mq.removeEventListener('change', onDpr);
+    window.removeEventListener('resize', refit);
     cv.remove();
   };
 }
@@ -287,8 +337,8 @@ export const cardWeb: CardEffectModule = {
   type: 'card_effect',
   costDust: 5000,
   className: 'card-fx-web',
-  // Nominal only: a render effect owns the whole layer, but counts must be non-zero for the layer to be
-  // created at all (see CardEffectModule.render / cardEffectLayerClass).
+  // Nominal only: a render effect owns the whole layer, but counts must be non-zero for the layer to
+  // be created at all (see CardEffectModule.render / cardEffectLayerClass).
   counts: { web: 1, overlayCard: 1, overlayChat: 1 },
   labels: { name: 'shop.cardWeb', desc: 'shop.cardWebDesc' },
   render,

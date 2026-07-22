@@ -160,12 +160,13 @@ export interface CardEffectModule extends BaseModule {
   groundGlow?: (particle: Record<string, string>) => Record<string, string>;
   /**
    * Optional JS renderer (a canvas), for an effect that is NOT an independent-particle swarm — a
-   * connected, wind-swayed web whose threads billow between shared nodes can't be expressed as CSS
-   * `.p` particles. When present, fillCardEffect calls this INSTEAD of building particles: it hands over
-   * the `.card-fx` layer (inset:0 on the card, clipped to the card's rounded shape) to host its own
-   * canvas, and returns a teardown run on unmount. MUST be browser-only — the server imports this
-   * catalog. `counts` must still be non-zero (that's what gets the layer created at all), but the
-   * numbers are otherwise unused for a render effect.
+   * connected web whose inner threads billow between shared nodes can't be expressed as CSS `.p`
+   * particles. When present, fillCardEffect calls this INSTEAD of building particles: it hands over the
+   * `.card-fx` layer (inset:0 on the card, clipped to its rounded shape) to host its own canvas, and
+   * returns a teardown run on unmount. Per-card canvas is REQUIRED (not one shared canvas): the layer
+   * sits behind the card's own content, which a global canvas can't reproduce. MUST be browser-only —
+   * the server imports this catalog. `counts` must be non-zero (that gets the layer created), but is
+   * otherwise unused for a render effect.
    */
   render?: (layer: HTMLElement, surface: Surface, compact: boolean) => (() => void) | void;
 }

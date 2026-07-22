@@ -3,6 +3,8 @@ import { and, desc, eq, inArray, isNull, like, or, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type {
   AdminBotStatus,
+  AdminCosmeticOwner,
+  AdminCosmeticRow,
   AdminExclusion,
   AdminLiveChannel,
   AdminPromoCode,
@@ -215,26 +217,89 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminRoutesDeps)
     },
   );
 
-  /** Support edit: set a user's stardust balance (audited in server logs). */
-  app.patch<{ Params: { id: string }; Body: { stardust?: number } | null }>(
-    '/api/admin/users/:id',
-    async (req, reply) => {
+  /** Support edit: set a user's stardust balance ABSOLUTELY (`stardust`) or ADD a delta
+   *  (`stardustDelta`, used by refunds — atomic, so it can't race a concurrent balance change).
+   *  Audited in server logs. */
+  app.patch<{
+    Params: { id: string };
+    Body: { stardust?: number; stardustDelta?: number } | null;
+  }>('/api/admin/users/:id', async (req, reply) => {
+    const admin = await requireAdmin(req, reply);
+    if (!admin) return;
+    const CAP = 1_000_000_000;
+    const delta = req.body?.stardustDelta;
+    const abs = req.body?.stardust;
+    let updated;
+    if (typeof delta === 'number' && Number.isFinite(delta)) {
+      const d = Math.round(delta);
+      updated = await db
+        .update(users)
+        .set({ stardust: sql`max(0, min(${CAP}, ${users.stardust} + ${d}))` })
+        .where(eq(users.id, req.params.id))
+        .returning({ stardust: users.stardust });
+    } else if (typeof abs === 'number' && Number.isFinite(abs)) {
+      const stardust = Math.min(CAP, Math.max(0, Math.round(abs)));
+      updated = await db
+        .update(users)
+        .set({ stardust })
+        .where(eq(users.id, req.params.id))
+        .returning({ stardust: users.stardust });
+    } else {
+      return reply.code(400).send({ error: 'stardust или stardustDelta: число' });
+    }
+    const row = updated[0];
+    if (!row) return reply.code(404).send({ error: 'Пользователь не найден' });
+    req.log.info(
+      { admin: admin.id, userId: req.params.id, stardust: row.stardust, delta },
+      'admin: stardust changed',
+    );
+    return { ok: true, stardust: row.stardust };
+  });
+
+  /** Cosmetic ownership: how many users own each catalog id — INCLUDING ids no longer in the live
+   *  catalog (a removed cosmetic still has buyers owed a refund). The web resolves names/prices. */
+  app.get('/api/admin/cosmetics', async (req, reply): Promise<AdminCosmeticRow[] | undefined> => {
+    const admin = await requireAdmin(req, reply);
+    if (!admin) return;
+    const rows = await db
+      .select({ itemId: userCosmetics.itemId, owners: sql<number>`count(*)` })
+      .from(userCosmetics)
+      .groupBy(userCosmetics.itemId)
+      .orderBy(desc(sql`count(*)`))
+      .all();
+    return rows.map((r) => ({ itemId: r.itemId, owners: r.owners }));
+  });
+
+  /** Owners of one cosmetic, newest purchase first — for issuing refunds after a price change or
+   *  removal. Current balance included so the refund is one click. */
+  app.get<{ Params: { itemId: string } }>(
+    '/api/admin/cosmetics/:itemId/owners',
+    async (req, reply): Promise<AdminCosmeticOwner[] | undefined> => {
       const admin = await requireAdmin(req, reply);
       if (!admin) return;
-      const raw = req.body?.stardust;
-      if (typeof raw !== 'number' || !Number.isFinite(raw)) {
-        return reply.code(400).send({ error: 'stardust: число ≥ 0' });
-      }
-      const stardust = Math.min(1_000_000_000, Math.max(0, Math.round(raw)));
-      const res = await db.update(users).set({ stardust }).where(eq(users.id, req.params.id));
-      if (res.rowsAffected === 0) {
-        return reply.code(404).send({ error: 'Пользователь не найден' });
-      }
-      req.log.info(
-        { admin: admin.id, userId: req.params.id, stardust },
-        'admin: stardust set manually',
-      );
-      return { ok: true, stardust };
+      const rows = await db
+        .select({
+          userId: users.id,
+          login: users.login,
+          displayName: users.displayName,
+          avatarUrl: users.avatarUrl,
+          stardust: users.stardust,
+          ownedAt: userCosmetics.createdAt,
+        })
+        .from(userCosmetics)
+        .innerJoin(users, eq(users.id, userCosmetics.userId))
+        .where(eq(userCosmetics.itemId, req.params.itemId))
+        .orderBy(desc(userCosmetics.createdAt))
+        .limit(500)
+        .all();
+      return rows.map((r) => ({
+        userId: r.userId,
+        login: r.login,
+        displayName: r.displayName,
+        avatarUrl: r.avatarUrl,
+        stardust: r.stardust,
+        ownedAt: r.ownedAt.getTime(),
+      }));
     },
   );
 

@@ -42,6 +42,23 @@ const EARN_ROWS = [
 
 type ShopCategory = 'nick' | 'card' | 'frame' | 'entrance' | 'voices';
 
+/** Card effects split into themed shop sub-tabs: only the active group's previews mount at once, so a
+ *  growing catalog doesn't run a dozen live particle layers and drop the shop's FPS. A card effect not
+ *  listed here still shows (absorbed into the last group), so nothing hides silently. */
+const CARD_GROUPS = [
+  { key: 'cosmic', ids: ['card-stardust', 'card-constellation', 'card-levitation'] },
+  { key: 'elements', ids: ['card-rain', 'card-snow', 'card-lightning', 'card-embers'] },
+  { key: 'nature', ids: ['card-sakura', 'card-bubbles'] },
+  { key: 'arcane', ids: ['card-wisp', 'card-runes', 'card-web'] },
+] as const;
+type CardGroupKey = (typeof CARD_GROUPS)[number]['key'];
+const GROUP_LABEL: Record<CardGroupKey, string> = {
+  cosmic: 'shop.groupCosmic',
+  elements: 'shop.groupElements',
+  nature: 'shop.groupNature',
+  arcane: 'shop.groupArcane',
+};
+
 /** Demo for a frame: a stand-in message card wearing the runner ring, so the border effect shows on a
  *  realistic small card (the frame lives on the border, not a swarm — nothing to look at otherwise). */
 function FrameDemo({ id, label }: { id: string; label: string }) {
@@ -154,6 +171,18 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   const flowItem = COSMETICS.find((c) => c.id === NICK_FLOW_ID)!;
   const nickEffects = COSMETICS.filter((c) => c.type === 'nick_effect');
   const cardEffects = COSMETICS.filter((c) => c.type === 'card_effect');
+  // Runtime groups with their effects; any card effect not mapped above is absorbed into the last
+  // group so a new effect never vanishes from the shop just because it wasn't tagged.
+  const cardGroups = (() => {
+    const known = new Set<string>(CARD_GROUPS.flatMap((g) => g.ids as readonly string[]));
+    const groups = CARD_GROUPS.map((g) => ({
+      key: g.key,
+      effects: cardEffects.filter((e) => (g.ids as readonly string[]).includes(e.id)),
+    }));
+    const extra = cardEffects.filter((e) => !known.has(e.id));
+    if (extra.length) groups[groups.length - 1]!.effects.push(...extra);
+    return groups.filter((g) => g.effects.length > 0);
+  })();
   const frames = COSMETICS.filter((c) => c.type === 'frame');
   // `upgrade` items (the portal colour) aren't equippable entrances — they're a rung, rendered below.
   const entrances = COSMETICS.filter((c) => c.type === 'entrance' && !c.upgrade);
@@ -179,6 +208,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   const previewName = user?.displayName ?? 'nickname';
 
   const [category, setCategory] = useState<ShopCategory>('nick');
+  const [cardGroup, setCardGroup] = useState<CardGroupKey>('cosmic');
   const [color, setColor] = useState(equippedColor ?? DEFAULT_COLOR);
   const [color2, setColor2] = useState(equippedColor2 ?? DEFAULT_COLOR_2);
   // Whether the viewer is composing a gradient right now — a second stop can be picked and previewed
@@ -712,13 +742,35 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
             ),
           )}
 
-        {category === 'card' &&
-          section(
-            t('shop.cardEffects'),
-            cardEffects.map((e) =>
-              effectRow(e, equippedCardEffect, (id) => equipEffect({ cardEffect: id })),
-            ),
-          )}
+        {category === 'card' && (
+          <div className="flex flex-col gap-3">
+            {/* Themed sub-tabs: only the active group's rows mount, so at most a few live previews run
+                at once instead of the whole catalog. */}
+            <div className="flex flex-wrap gap-1">
+              {cardGroups.map((g) => (
+                <button
+                  key={g.key}
+                  type="button"
+                  aria-pressed={cardGroup === g.key}
+                  onClick={() => setCardGroup(g.key)}
+                  className={`rounded-none border px-2.5 py-1 label-mono transition-colors duration-200 ${
+                    cardGroup === g.key
+                      ? 'border-accent bg-accent text-accent-contrast'
+                      : 'border-border text-muted hover:text-text'
+                  }`}
+                >
+                  {t(GROUP_LABEL[g.key])}
+                </button>
+              ))}
+            </div>
+            {section(
+              t('shop.cardEffects'),
+              (cardGroups.find((g) => g.key === cardGroup) ?? cardGroups[0])?.effects.map((e) =>
+                effectRow(e, equippedCardEffect, (id) => equipEffect({ cardEffect: id })),
+              ),
+            )}
+          </div>
+        )}
 
         {category === 'frame' &&
           section(

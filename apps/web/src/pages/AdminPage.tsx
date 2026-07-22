@@ -13,6 +13,7 @@ import { AdminBotCard } from '@/features/admin/components/AdminBotCard';
 import { AdminUsersPanel } from '@/features/admin/components/AdminUsersPanel';
 import { AdminExclusionsPanel } from '@/features/admin/components/AdminExclusionsPanel';
 import { AdminLivePanel } from '@/features/admin/components/AdminLivePanel';
+import { AdminCosmeticsPanel } from '@/features/admin/components/AdminCosmeticsPanel';
 
 /** Admin panel for promo codes (only for ADMIN_USER_IDS). */
 export function AdminPage() {
@@ -77,6 +78,9 @@ export function AdminPage() {
         </Accordion>
         <Accordion title={t('excl.section')} icon="user-x">
           <AdminExclusionsPanel />
+        </Accordion>
+        <Accordion title={t('admin.cosmeticsSection')} icon="sparkles">
+          <AdminCosmeticsPanel />
         </Accordion>
       </div>
 

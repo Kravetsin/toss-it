@@ -236,7 +236,12 @@ function remove(sw: Portal): void {
 function frame(now: number): void {
   raf = 0;
   if (!ctx || !canvas) return;
+  // Clear with the transform RESET: clearRect takes USER coordinates, so clearing (0,0,canvas.width,
+  // canvas.height) under the dpr transform only wipes the top-left 1/dpr of the canvas, leaving the
+  // right and bottom strips to accumulate overdraw at any dpr ≠ 1 (browser zoom, display scaling).
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const cRect = canvas.getBoundingClientRect();
   for (let s = active.length - 1; s >= 0; s--) {
     const sw = active[s]!;

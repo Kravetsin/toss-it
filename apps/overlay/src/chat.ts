@@ -614,8 +614,8 @@ if (DEMO) {
       role: 'moderator',
       fragments: [{ type: 'text', text: 'на этом канале с самого начала' }],
     },
-    // JS-rendered card effect (a canvas web wrapping the pill, swaying in wind) — not a CSS particle
-    // swarm; it exercises the render() hook on the smallest surface.
+    // JS-rendered card effect (a canvas web on a per-card canvas): a static contour + wind-swayed inner
+    // threads. Exercises the render() hook on the smallest surface (a flat pill = fewest nodes).
     {
       id: '5b',
       userId: 'u5b',
