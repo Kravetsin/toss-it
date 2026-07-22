@@ -29,6 +29,7 @@ import { cardRunes } from './effects/card-runes';
 import { cardWeb } from './effects/card-web';
 import { frameRunner } from './effects/frame-runner';
 import { frameRunnerDouble } from './effects/frame-runner-double';
+import { frameDragonBreath } from './effects/frame-dragon-breath';
 import { frameVine } from './effects/frame-vine';
 import { entranceGlitch } from './effects/entrance-glitch';
 import { entranceAstral } from './effects/entrance-astral';
@@ -176,8 +177,10 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   cardWisp,
   cardRunes,
   cardWeb,
+  // Frames group by the metric that earns them: chat-message ladder first, then watch-time.
   frameRunner,
   frameRunnerDouble,
+  frameDragonBreath,
   frameVine,
   entranceGlitch,
   entranceAstral,

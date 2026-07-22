@@ -67,7 +67,8 @@ const MOCK_ME: MeResponse = {
     // Own everything + equip a combo so the shop shows all cosmetics equippable and the signed-in
     // user's own nick/cards demo the effects live (dev preview only).
     ownedCosmetics: COSMETICS.map((c) => c.id),
-    // Between the two frame thresholds: Runner (500) earned, Twin runners (1000) still in progress.
+    // Mid-ladder: Runner (500) earned, Twin runners (1000) and Dragon's breath (2000) still locked,
+    // so the shop shows an earned frame and an in-progress one side by side.
     messagesTotal: 720,
     // Past the Vine's 3000 (50h), so the earned-by-watch-time frame shows as unlocked too.
     watchMinutesTotal: 3320,
@@ -218,6 +219,7 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderColor2: '#ff5f6d',
     senderEffect: 'nick-glow',
     senderCardEffect: 'card-embers',
+    senderFrame: 'frame-dragon-breath',
     text: 'зацени нарезку, го на стрим',
     url: '/mock-video.mp4',
     durationMs: 12_000,
