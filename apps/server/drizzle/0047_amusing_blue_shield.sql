@@ -1,0 +1,1 @@
+CREATE INDEX `idx_submissions_unclaimed` ON `submissions` (`sender_platform`,`sender_platform_user_id`) WHERE sender_user_id IS NULL AND sender_platform_user_id IS NOT NULL;

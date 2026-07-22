@@ -240,16 +240,17 @@ export async function addIdentity(
     .insert(linkedIdentities)
     .values({ provider, providerId, userId, createdAt: new Date() })
     .onConflictDoNothing();
-  await claimPlatformSubmissions(provider, providerId, userId);
 }
 
 /**
  * Re-attribute submissions this platform identity made before the account existed (channel-points
  * redemptions carry only the platform id). Every board and the XP curve key on senderUserId, so
- * without this an unregistered redeemer's sends stay invisible even after they log in — the same
- * "claim on link" rule pending dust already follows.
+ * without this an unregistered redeemer's sends stay invisible even after they log in.
+ *
+ * Runs on EVERY login next to claimPendingDust, not just when the identity is first created: rows
+ * left unattributed before this existed would otherwise never be claimed by a returning viewer.
  */
-async function claimPlatformSubmissions(
+export async function claimPlatformSubmissions(
   provider: string,
   providerId: string,
   userId: string,

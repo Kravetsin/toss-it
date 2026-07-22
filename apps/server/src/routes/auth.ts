@@ -16,6 +16,7 @@ import {
   addIdentity,
   buildAuthorizeUrl,
   buildGoogleAuthorizeUrl,
+  claimPlatformSubmissions,
   createSession,
   destroySession,
   ensureUniqueLogin,
@@ -199,7 +200,9 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
           .get();
         const returnToCp = safeReturnTo(saved.returnTo);
         if (!channel) {
-          return reply.redirect(oauthOrigin(req) + withParams(returnToCp, { cpError: 'not_owner' }));
+          return reply.redirect(
+            oauthOrigin(req) + withParams(returnToCp, { cpError: 'not_owner' }),
+          );
         }
         const tokens = await exchangeTwitchCode(req.query.code, twitchCallbackUri(req));
         const broadcaster = await fetchTwitchUser(tokens.accessToken);
@@ -232,6 +235,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
         const owner = await resolveIdentity('twitch', twitchId);
         if (!owner) {
           await addIdentity('twitch', twitchId, current.id);
+          await claimPlatformSubmissions('twitch', twitchId, current.id);
           const claimed = await claimPendingDust('twitch', twitchId, current.id);
           return reply.redirect(
             oauthOrigin(req) +
@@ -270,7 +274,9 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
         user = await upsertUser(info);
       }
       await createSession(reply, user.id);
-      // Dust the chat bot accrued for this Twitch id before the account existed.
+      // Dust the chat bot accrued for this Twitch id before the account existed, and the sends
+      // (channel-points redemptions) it made anonymously — both only reachable by the platform id.
+      await claimPlatformSubmissions('twitch', twitchId, user.id);
       const claimed = await claimPendingDust('twitch', twitchId, user.id);
       return reply.redirect(
         oauthOrigin(req) + withParams(returnTo, claimed > 0 ? { dustClaimed: claimed } : {}),
@@ -358,6 +364,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
         .set({ userId: user.id })
         .where(eq(linkedIdentities.userId, pending.otherUserId));
       await db.delete(sessions).where(eq(sessions.userId, pending.otherUserId));
+      await claimPlatformSubmissions('twitch', pending.twitchId, user.id);
       await claimPendingDust('twitch', pending.twitchId, user.id);
       return { ok: true, switched: false };
     }
@@ -367,6 +374,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
       .set({ userId: pending.otherUserId })
       .where(eq(linkedIdentities.userId, user.id));
     await db.delete(sessions).where(eq(sessions.userId, user.id));
+    await claimPlatformSubmissions('twitch', pending.twitchId, pending.otherUserId);
     await claimPendingDust('twitch', pending.twitchId, pending.otherUserId);
     await createSession(reply, pending.otherUserId);
     return { ok: true, switched: true };

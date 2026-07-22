@@ -429,6 +429,11 @@ export const submissions = sqliteTable(
     index('idx_submissions_files')
       .on(t.status, t.updatedAt)
       .where(sql`file_path IS NOT NULL`),
+    // Every login claims this identity's unattributed sends. Partial, so the index holds only
+    // rows still waiting for an account — it stays tiny however large the history grows.
+    index('idx_submissions_unclaimed')
+      .on(t.senderPlatform, t.senderPlatformUserId)
+      .where(sql`sender_user_id IS NULL AND sender_platform_user_id IS NOT NULL`),
   ],
 );
 
