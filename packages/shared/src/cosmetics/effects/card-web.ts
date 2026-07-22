@@ -151,7 +151,8 @@ function render(layer: HTMLElement, _surface: string, compact: boolean): (() => 
     H = cssH;
   }
   fit();
-  const ro = new ResizeObserver(fit);
+  // Calls refit (declared below) — the observer only ever fires after this function's body has run.
+  const ro = new ResizeObserver(() => refit());
   ro.observe(layer);
 
   let nodes: Node[] | null = null;
@@ -264,17 +265,70 @@ function render(layer: HTMLElement, _surface: string, compact: boolean): (() => 
 
   const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let raf = 0;
-  let io: IntersectionObserver | null = null;
-  let counted = false;
-  let isStatic = false;
+  let holdsSlot = false;
+  let visible = true;
 
-  // Re-fit on DPR change (browser ZOOM, or dragging the window to a monitor with different scaling).
-  // Zoom changes devicePixelRatio but NOT the layer's CSS-px size, so the layer's ResizeObserver stays
-  // silent — the backing grid would go stale and the browser would scale the canvas (the edge-doubling
-  // again). matchMedia on the current resolution fires exactly when dpr changes; re-arm it each time.
+  /** A fully-woven, motionless frame — what a web shows when it isn't animating. NEVER nothing. */
+  const drawStill = (): void => {
+    start = -WEAVE; // skip the weave-in: a still web is shown already woven
+    draw(0, true);
+  };
+  const stopAnim = (): void => {
+    if (raf) {
+      cancelAnimationFrame(raf);
+      raf = 0;
+    }
+  };
+  const releaseSlot = (): void => {
+    if (holdsSlot) {
+      live--;
+      holdsSlot = false;
+    }
+  };
+  const FRAME_MS = 1000 / 30; // ~30fps: the wind is slow, half the redraws look identical
+  let last = 0;
+  const loop = (now: number): void => {
+    raf = requestAnimationFrame(loop);
+    if (now - last < FRAME_MS) return;
+    last = now;
+    draw(now, false);
+  };
+
+  /**
+   * Decide what this web should be doing right now. Two rules that were both wrong before:
+   * - An off-screen web RELEASES its animation slot. It used to just pause while still holding one, so
+   *   in a chat that scrolled past MAX_LIVE messages every later web was starved forever.
+   * - A web that can't animate still DRAWS a still frame. It used to draw once, synchronously, before
+   *   the layer was even in the document (mountCardEffect fills the layer BEFORE appending it), so the
+   *   size was 0, the draw bailed out, and nothing ever put a picture there — the effect simply
+   *   vanished from those messages.
+   */
+  const apply = (): void => {
+    if (reduce || !visible) {
+      stopAnim();
+      releaseSlot();
+      if (reduce && visible) drawStill();
+      return;
+    }
+    if (!holdsSlot && live < MAX_LIVE) {
+      live++;
+      holdsSlot = true;
+    }
+    if (holdsSlot) {
+      if (!raf) raf = requestAnimationFrame(loop);
+    } else {
+      stopAnim();
+      drawStill();
+    }
+  };
+
+  // Re-fit on layer resize AND on DPR change (browser ZOOM, or a monitor with different scaling): zoom
+  // changes devicePixelRatio but NOT the layer's CSS-px size, so the ResizeObserver alone stays silent
+  // and the backing grid would go stale. Always redraw after re-fitting — resizing a canvas clears it,
+  // and a web that isn't animating has nothing to put the picture back.
   const refit = (): void => {
     fit();
-    if (isStatic) draw(0, true); // an animating web redraws itself next frame; a static one won't
+    if (!raf) drawStill();
   };
   let mq = window.matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
   const onDpr = (): void => {
@@ -286,45 +340,21 @@ function render(layer: HTMLElement, _surface: string, compact: boolean): (() => 
   mq.addEventListener('change', onDpr);
   window.addEventListener('resize', refit);
 
-  // Reduced motion OR over the module-wide cap → one still frame, no ongoing work. The look is the
-  // same (the contour is static anyway); only the inner threads and twinkle are missing.
-  if (reduce || live >= MAX_LIVE) {
-    isStatic = true;
-    start = -WEAVE;
-    draw(0, true);
-  } else {
-    live++;
-    counted = true;
-    const FRAME_MS = 1000 / 30; // ~30fps: the wind is slow, half the redraws look identical
-    let last = 0;
-    const loop = (now: number): void => {
-      raf = requestAnimationFrame(loop);
-      if (now - last < FRAME_MS) return;
-      last = now;
-      draw(now, false);
-    };
-    const startLoop = (): void => {
-      if (!raf) raf = requestAnimationFrame(loop);
-    };
-    const stopLoop = (): void => {
-      if (raf) {
-        cancelAnimationFrame(raf);
-        raf = 0;
-      }
-    };
-    // Pause entirely while the card is scrolled out of view.
-    io = new IntersectionObserver(
-      (entries) => (entries[entries.length - 1]!.isIntersecting ? startLoop() : stopLoop()),
-      { threshold: 0 },
-    );
-    io.observe(layer);
-    startLoop();
-  }
+  // Visibility drives everything (see apply): off-screen frees the slot, on-screen tries to take one.
+  const io = new IntersectionObserver(
+    (entries) => {
+      visible = entries[entries.length - 1]!.isIntersecting;
+      apply();
+    },
+    { threshold: 0 },
+  );
+  io.observe(layer);
+  apply();
 
   return () => {
-    if (counted) live--;
-    if (raf) cancelAnimationFrame(raf);
-    io?.disconnect();
+    releaseSlot();
+    stopAnim();
+    io.disconnect();
     ro.disconnect();
     mq.removeEventListener('change', onDpr);
     window.removeEventListener('resize', refit);

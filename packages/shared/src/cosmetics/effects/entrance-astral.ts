@@ -35,7 +35,6 @@ const DUR = 1600; // ms — stream in → weave → wrap → let go
 // Brand mint default; overridable per viewer by a future colour upgrade, like the portal's. NOT
 // --color-accent — a cosmetic must look identical on every surface.
 const DEFAULT_COLOR = '#8df0cc';
-const ACCENT_COLOR = '#cffff2'; // a paler mint, sprinkled through for a subtle two-tone glow
 const MARGIN = 2; // px the anchor ring sits outside the block's border — hugging it now the web is on top
 const TAU = Math.PI * 2;
 
@@ -50,6 +49,11 @@ interface Node {
 interface Assembly {
   el: HTMLElement;
   color: string;
+  /** A paler shade of `color`, sprinkled through the orbs for a two-tone glow. Derived, not fixed, so
+   *  the two-tone still works whatever colour the viewer picks. */
+  accent: string;
+  /** `color` as "r,g,b", for the rgba() stops of the inner glow. */
+  rgb: string;
   nodes: Node[] | null; // built on the first laid-out frame, when the perimeter is known
   start: number | null;
   safety: ReturnType<typeof setTimeout>;
@@ -257,9 +261,9 @@ function frame(now: number): void {
       ctx.translate(gx, gy);
       ctx.scale(rect.width * 0.62, rect.height * 0.74);
       const fg = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
-      fg.addColorStop(0, 'rgba(141,240,204,0.85)');
-      fg.addColorStop(0.6, 'rgba(141,240,204,0.4)');
-      fg.addColorStop(1, 'rgba(141,240,204,0)');
+      fg.addColorStop(0, `rgba(${a.rgb},0.85)`);
+      fg.addColorStop(0.6, `rgba(${a.rgb},0.4)`);
+      fg.addColorStop(1, `rgba(${a.rgb},0)`);
       ctx.fillStyle = fg;
       ctx.beginPath();
       ctx.arc(0, 0, 1, 0, TAU);
@@ -304,9 +308,11 @@ function frame(now: number): void {
         ctx!.quadraticCurveTo(mx + (mx - cx) * bow + w[0], my + (my - cy) * bow + w[1], q[0], q[1]);
       };
       ctx.globalCompositeOperation = 'source-over';
-      ctx.strokeStyle = DEFAULT_COLOR;
+      // The THREADS take the viewer's colour too, not just the orbs — otherwise a recoloured web still
+      // read as mint everywhere the eye actually looks.
+      ctx.strokeStyle = a.color;
       ctx.lineWidth = 1.1;
-      ctx.shadowColor = DEFAULT_COLOR;
+      ctx.shadowColor = a.color;
       ctx.shadowBlur = 6;
       // The border web: the ring hugging the edge + outward arcs layered over it.
       ctx.globalAlpha = clamp(webA * 0.55, 0, 1);
@@ -341,7 +347,7 @@ function frame(now: number): void {
       const tw = 0.72 + 0.28 * Math.sin(now * 0.007 + nd.tw);
       const alpha = clamp(fin * outA * tw, 0, 1);
       if (alpha <= 0.01) continue;
-      const col = nd.accent ? ACCENT_COLOR : a.color;
+      const col = nd.accent ? a.accent : a.color;
       const halo = 14 + 10 * nd.sz;
       ctx.globalAlpha = alpha * 0.5;
       ctx.drawImage(glowSpriteFor(col), px - halo / 2, py - halo / 2, halo, halo);
@@ -366,9 +372,18 @@ function play(
   ensureCanvas(mount);
   // Hide the block until the web weaves it in (applyEntrance runs before it is painted, so no flash).
   el.style.opacity = '0';
+  const base = color && /^#[0-9a-f]{6}$/i.test(color) ? color.toLowerCase() : DEFAULT_COLOR;
+  const [br, bg, bb] = hexToRgb(base);
+  // Keep the accent a HEX string — the sprite cache keys on it and parses it with hexToRgb.
+  const pale = (v: number) =>
+    Math.round(v + (255 - v) * 0.55)
+      .toString(16)
+      .padStart(2, '0');
   const a: Assembly = {
     el,
-    color: color && /^#[0-9a-f]{6}$/i.test(color) ? color.toLowerCase() : DEFAULT_COLOR,
+    color: base,
+    accent: `#${pale(br)}${pale(bg)}${pale(bb)}`,
+    rgb: `${br},${bg},${bb}`,
     nodes: null,
     start: null,
     safety: setTimeout(() => remove(a), DUR + 1500),

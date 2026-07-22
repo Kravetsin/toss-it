@@ -27,7 +27,8 @@ const DEFAULT_COLOR_2 = '#ff9ed8';
 const NICK_COLOR_ID = 'nick-color';
 const NICK_GRADIENT_ID = 'nick-gradient';
 const NICK_FLOW_ID = 'nick-flow';
-const PORTAL_ID = 'entrance-portal';
+// Entrance colour: the id is historical (it began as a portal-only upgrade) but it now tints ANY
+// equipped entrance — kept unchanged so existing buyers keep what they own. See entrance-portal-color.
 const PORTAL_COLOR_ID = 'entrance-portal-color';
 const DEFAULT_PORTAL_COLOR = '#8df0cc';
 
@@ -201,7 +202,6 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   // Account-wide chat messages — earned cosmetics (frames) unlock at a threshold instead of a price.
   const messagesTotal = user?.messagesTotal ?? 0;
   const equippedEntrance = user?.equipped.entrance ?? null;
-  const ownsPortal = user?.ownedCosmetics.includes(PORTAL_ID) ?? false;
   const ownsPortalColor = user?.ownedCosmetics.includes(PORTAL_COLOR_ID) ?? false;
   const equippedEntranceColor = user?.equipped.entranceColor ?? null;
   const balance = user?.stardust ?? 0;
@@ -388,7 +388,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
             <EntranceDemo
               id={e.id}
               label={previewName}
-              color={e.id === PORTAL_ID ? (equippedEntranceColor ?? undefined) : undefined}
+              color={equippedEntranceColor ?? undefined}
             />
           )}
           {isFrame && <FrameDemo id={e.id} label={previewName} />}
@@ -785,14 +785,23 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
               {entrances.map((e) =>
                 effectRow(e, equippedEntrance, (id) => equipEffect({ entrance: id })),
               )}
-              {/* Portal colour rung. ALWAYS shown — transparency: the viewer sees the whole ladder and
-                  what to save for. The gate is on BUYING, not on visibility: the buy is disabled with a
-                  "needs the previous item" hint until the portal itself is owned. Once bought, a free
-                  colour picker feeds the entranceColor slot, and it renders whenever the portal is the
-                  equipped entrance. */}
-              <div className="mt-1 flex flex-col gap-2 border-t border-border pt-3">
+            </>,
+            // Said once, in the only place a viewer decides to spend on this: the entrance lands on
+            // the stream, and the chat pill only exists if the streamer runs that overlay. Selling
+            // it without saying so would be a catch, and this product's whole pitch is no catches.
+            t('shop.entrancesNote'),
+          )}
+
+        {/* Entrance colour — its OWN block, not a rung under the portal: it tints WHICHEVER entrance is
+            equipped (see entrance-portal-color), so hanging it off one effect would misdescribe it. No
+            purchase gate either — it's bought on its own, whenever the viewer wants it. */}
+        {category === 'entrance' &&
+          section(
+            t('shop.entranceColor'),
+            <>
+              <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium text-text">{t('shop.entrancePortalColor')}</span>
+                  <span className="font-medium text-text">{t('shop.entranceColor')}</span>
                   {ownsPortalColor ? (
                     <Badge>{t('shop.owned')}</Badge>
                   ) : (
@@ -802,14 +811,14 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
                     </span>
                   )}
                 </div>
-                <p className="text-sm italic text-muted">{t('shop.entrancePortalColorDesc')}</p>
+                <p className="text-sm italic text-muted">{t('shop.entranceColorDesc')}</p>
                 {ownsPortalColor ? (
                   <div className="flex flex-wrap items-center gap-2">
                     <input
                       type="color"
                       value={portalColor}
                       onChange={(e) => setPortalColor(e.target.value)}
-                      aria-label={t('shop.entrancePortalColor')}
+                      aria-label={t('shop.entranceColor')}
                       className="h-10 w-14 shrink-0 cursor-pointer rounded-[var(--radius-sm)] border border-border bg-surface"
                     />
                     <Button
@@ -832,32 +841,19 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
                       variant="accent"
                       size="sm"
                       onClick={() =>
-                        buy(
-                          PORTAL_COLOR_ID,
-                          t('shop.entrancePortalColor'),
-                          portalColorItem.costDust,
-                        )
+                        buy(PORTAL_COLOR_ID, t('shop.entranceColor'), portalColorItem.costDust)
                       }
-                      disabled={!ownsPortal || balance < portalColorItem.costDust}
+                      disabled={balance < portalColorItem.costDust}
                     >
                       {t('shop.buy')}
                     </Button>
-                    {/* Say WHY it's locked: the ladder needs the portal first, then just funds. */}
-                    {!ownsPortal ? (
-                      <span className="label-mono text-faint">{t('shop.requiresPrev')}</span>
-                    ) : (
-                      balance < portalColorItem.costDust && (
-                        <span className="label-mono text-faint">{t('shop.notEnough')}</span>
-                      )
+                    {balance < portalColorItem.costDust && (
+                      <span className="label-mono text-faint">{t('shop.notEnough')}</span>
                     )}
                   </div>
                 )}
               </div>
             </>,
-            // Said once, in the only place a viewer decides to spend on this: the entrance lands on
-            // the stream, and the chat pill only exists if the streamer runs that overlay. Selling
-            // it without saying so would be a catch, and this product's whole pitch is no catches.
-            t('shop.entrancesNote'),
           )}
 
         {category === 'voices' &&

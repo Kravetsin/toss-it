@@ -86,9 +86,9 @@ export function marksFromEquipped(equipped: EquippedCosmetics | null): NickMarks
     cardEffect: equipped?.cardEffect ?? null,
     frame: equipped?.frame ?? null,
     entrance: equipped?.entrance ?? null,
-    // The colour tints only the portal; a stray colour with another entrance renders nothing.
-    entranceColor:
-      equipped?.entrance === 'entrance-portal' ? (equipped.entranceColor ?? null) : null,
+    // Tints WHICHEVER entrance is equipped (see entrance-portal-color): it used to be portal-only,
+    // which silently starved every other colourable entrance of the viewer's chosen colour.
+    entranceColor: equipped?.entranceColor ?? null,
   };
 }
 
