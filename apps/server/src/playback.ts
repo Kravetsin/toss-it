@@ -182,6 +182,11 @@ interface ChannelState {
   watchdog: NodeJS.Timeout | null;
   /** Streamer paused the current show — the auto-advance watchdog is off while true. */
   paused: boolean;
+  /**
+   * `current` came from startup recovery, not from this process starting it — so nothing has
+   * confirmed it is still on any screen. Cleared by the first overlay to report in.
+   */
+  restored: boolean;
 }
 
 /**
@@ -286,15 +291,71 @@ export class PlaybackManager {
     return ids.length;
   }
 
-  /** On server start, requeue everything that never got played. */
+  /** Mark a submission as aired. Shared by onDone and startup recovery. */
+  private async markPlayed(submissionId: string): Promise<void> {
+    await db
+      .update(submissions)
+      .set({ status: 'played', updatedAt: new Date() })
+      .where(eq(submissions.id, submissionId));
+  }
+
+  /**
+   * Backstop time left for a show that began at startedAt. <= 0 means it must be over by now, so
+   * recovery retires it instead of resurrecting it.
+   */
+  private remainingMs(sub: SubmissionRow): number {
+    // Known length: honour the ORIGINAL clock, so a restart cannot extend the clip.
+    if (sub.durationMs > 0) {
+      return (
+        sub.durationMs + config.watchdogGraceMs - (Date.now() - (sub.startedAt?.getTime() ?? 0))
+      );
+    }
+    // Length unknown (a YouTube row whose duration never reached the DB): elapsed time proves
+    // nothing, so never retire on it — let the reconnecting overlay say whether it is still on
+    // screen. This grace only bounds how long it may block the queue if no overlay claims it.
+    return config.youtube.loadGraceMs;
+  }
+
+  /**
+   * On server start, rebuild playback state from the DB. A row carrying startedAt was mid-show when
+   * the process went down: it is restored as `current` SILENTLY — the overlay's browser kept playing
+   * it across the outage and adopts it on reconnect (see onOverlayConnected). Requeuing it instead
+   * is what used to hand the overlay a different item, which reads on stream as a skip.
+   */
   async recoverFromDb(): Promise<void> {
     const rows = await db
       .select()
       .from(submissions)
       .where(eq(submissions.status, 'approved'))
+      .orderBy(submissions.createdAt)
       .all();
+    const started = new Map<string, SubmissionRow>();
     for (const row of rows) {
-      this.state(row.channelId).queue.push(row);
+      if (!row.startedAt) {
+        this.state(row.channelId).queue.push(row);
+        continue;
+      }
+      // More than one started row per channel only after an abnormal exit; the newest was on
+      // screen, the rest already aired.
+      const prev = started.get(row.channelId);
+      if (prev && (prev.startedAt?.getTime() ?? 0) >= row.startedAt.getTime()) {
+        await this.markPlayed(row.id);
+        continue;
+      }
+      if (prev) await this.markPlayed(prev.id);
+      started.set(row.channelId, row);
+    }
+    for (const [channelId, row] of started) {
+      const remaining = this.remainingMs(row);
+      if (remaining <= 0) {
+        await this.markPlayed(row.id);
+        continue;
+      }
+      const st = this.state(channelId);
+      st.current = row;
+      st.restored = true;
+      // Backstop from the ORIGINAL start, not from now — a restart must not extend the clip.
+      st.watchdog = setTimeout(() => void this.onDone(channelId, row.id), remaining);
     }
   }
 
@@ -362,17 +423,37 @@ export class PlaybackManager {
     return true;
   }
 
+  /**
+   * `nowPlaying` is what the overlay says is on its screen right now (null = nothing / an older
+   * overlay build that doesn't report it).
+   */
   async onOverlayConnected(
     channelId: string,
+    nowPlaying: string | null,
     replayTo: (payload: MediaPlayPayload) => void,
   ): Promise<void> {
     const st = this.state(channelId);
-    if (st.current) {
-      // Overlay reconnected mid-show: replay the current item.
-      replayTo(await this.buildPayload(st.current));
-    } else {
+    if (!st.current) {
       void this.tryNext(channelId);
+      return;
     }
+    // Still showing this exact item — a redeploy or a brief network drop, through which the browser
+    // kept playing. Adopt it: replaying would rebuild the card and restart the clip from zero.
+    if (nowPlaying === st.current.id) {
+      st.restored = false;
+      return;
+    }
+    if (st.restored) {
+      st.restored = false;
+      // Recovered a show the overlay's screen does not have: it ended during the outage (its
+      // playback:done never reached us) or OBS restarted. Advance instead of replaying — nobody
+      // wants a finished track, or a five-minute song, restarted from zero mid-stream.
+      if (!nowPlaying) {
+        await this.onDone(channelId, st.current.id);
+        return;
+      }
+    }
+    replayTo(await this.buildPayload(st.current));
   }
 
   /**
@@ -399,10 +480,7 @@ export class PlaybackManager {
     st.watchdog = null;
     st.current = null;
 
-    await db
-      .update(submissions)
-      .set({ status: 'played', updatedAt: new Date() })
-      .where(eq(submissions.id, submissionId));
+    await this.markPlayed(submissionId);
 
     // Clear straggler overlay copies (multiple open tabs etc.).
     this.io.to(roomOf(channelId)).emit('media:skip', submissionId);
@@ -424,6 +502,14 @@ export class PlaybackManager {
     )
       return;
     st.current.durationMs = durationMs;
+    // Persist it: startup recovery reads durationMs to decide whether a restored show is still
+    // running. YouTube rows are often stored with 0 (no API key, or the lookup failed), which would
+    // retire any track longer than the load grace on the next restart — the very skip we fixed.
+    void db
+      .update(submissions)
+      .set({ durationMs })
+      .where(eq(submissions.id, submissionId))
+      .catch(() => {});
     if (st.watchdog) clearTimeout(st.watchdog);
     st.watchdog = setTimeout(
       () => void this.onDone(channelId, submissionId),
@@ -464,6 +550,14 @@ export class PlaybackManager {
 
       st.current = fresh;
       st.paused = false;
+      st.restored = false; // this process started it, so its state is known-good
+      // Persist BEFORE the overlay is told to play: this stamp is what a restarted server reads to
+      // know the row was mid-show. Written first so a crash can't leave a playing item looking queued.
+      fresh.startedAt = new Date();
+      await db
+        .update(submissions)
+        .set({ startedAt: fresh.startedAt })
+        .where(eq(submissions.id, fresh.id));
       this.io.to(roomOf(channelId)).emit('media:play', await this.buildPayload(fresh));
       this.io.to(dashboardRoomOf(channelId)).emit('playback:started', await toLiveSummary(fresh));
       emitSubmissionStatus(this.io, fresh.id, 'playing');
@@ -558,7 +652,7 @@ export class PlaybackManager {
   private state(channelId: string): ChannelState {
     let st = this.states.get(channelId);
     if (!st) {
-      st = { queue: [], current: null, watchdog: null, paused: false };
+      st = { queue: [], current: null, watchdog: null, paused: false, restored: false };
       this.states.set(channelId, st);
     }
     return st;
@@ -723,8 +817,13 @@ export function setupRealtime(io: RealtimeServer, app: FastifyInstance): Playbac
           });
           // Last overlay gone → rescue a paused show from stranding as `current` forever.
           socket.on('disconnect', () => playback.onOverlayDisconnected(channel.id));
-          void playback.onOverlayConnected(channel.id, (payload) =>
-            socket.emit('media:play', payload),
+          // Sent via handshake auth (not query) because socket.io re-evaluates auth on every
+          // reconnect — this must reflect what is on screen NOW, not at page load.
+          const nowPlaying: unknown = socket.handshake.auth?.nowPlaying;
+          void playback.onOverlayConnected(
+            channel.id,
+            typeof nowPlaying === 'string' && nowPlaying ? nowPlaying : null,
+            (payload) => socket.emit('media:play', payload),
           );
           return;
         }

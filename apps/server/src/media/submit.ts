@@ -55,6 +55,7 @@ export async function createYoutubeSubmission(
     status: input.autoApproved ? 'approved' : 'pending',
     createdAt: now,
     updatedAt: now,
+    startedAt: null, // stamped by the playback manager when it actually goes on screen
     youtubeId: input.parsed.videoId,
     youtubeStart: input.parsed.startSeconds,
     giphyId: null,

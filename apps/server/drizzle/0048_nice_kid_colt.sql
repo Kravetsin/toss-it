@@ -1,0 +1,1 @@
+ALTER TABLE `submissions` ADD `started_at` integer;

@@ -407,6 +407,12 @@ export const submissions = sqliteTable(
     status: text('status').$type<SubmissionStatus>().notNull(),
     createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
     updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+    /**
+     * When this went on screen; null = never started. The ONLY thing that tells a restarted server
+     * which approved row was mid-show — without it recovery requeues the playing track and hands
+     * the overlay a different one, which reads on stream as a skip.
+     */
+    startedAt: integer('started_at', { mode: 'timestamp_ms' }),
     /** YouTube video id (kind='youtube'), else null. No file; played via embedded player. */
     youtubeId: text('youtube_id'),
     /** YouTube start second from the link timecode. */

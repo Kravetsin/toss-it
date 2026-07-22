@@ -108,11 +108,19 @@ if (!DEMO && !token) {
   throw new Error('overlay token missing');
 }
 
+// Declared before the socket: the auth callback below reads it on every reconnect.
+let currentId: string | null = null;
+
 const socket: Socket<ServerToOverlayEvents, OverlayToServerEvents> = DEMO
   ? demoSocketStub()
-  : io(SERVER_URL, { query: { role: 'overlay', token: token ?? '' } });
+  : io(SERVER_URL, {
+      query: { role: 'overlay', token: token ?? '' },
+      // Unlike `query` (frozen when the socket is built), auth re-runs on every reconnect. It tells
+      // a restarted server what is on screen right now, so it adopts the show instead of handing us
+      // a different one — the browser kept playing through the outage.
+      auth: (cb) => cb({ nowPlaying: currentId ?? '' }),
+    });
 
-let currentId: string | null = null;
 let hideTimer: number | undefined;
 let finishing = false;
 let ytPlayer: YTPlayer | null = null;
@@ -129,7 +137,16 @@ let timedElapsedMs = 0;
 let timedStartTs = 0;
 let progressTimer: number | undefined;
 
-socket.on('connect', () => console.log('[overlay] connected'));
+socket.on('connect', () => {
+  console.log('[overlay] connected');
+  // A restarted server adopts the show we are still playing but knows nothing about its length — its
+  // backstop watchdog would cut the track short. Re-send the duration we already have; the
+  // once-per-show guard exists to avoid chatter and must not block this.
+  if (currentId && ytPlayer) {
+    ytReportedSid = null;
+    reportYoutubeDuration(currentId, ytPlayer);
+  }
+});
 socket.on('media:play', show);
 socket.on('media:skip', (submissionId) => {
   if (submissionId === currentId) finish();
@@ -164,6 +181,10 @@ socket.on('music:config', applyMusicConfig);
 socket.on('music:command', handleMusicCommand);
 
 function show(payload: MediaPlayPayload): void {
+  // Already on screen — the server replayed it after a reconnect. Rebuilding the card would restart
+  // the clip from zero, audibly, mid-track. `finishing` still lets a replay through: that show is
+  // on its way out, so re-showing it is a genuine restart, not a duplicate.
+  if (payload.submissionId === currentId && !finishing) return;
   clearStage();
   hideSizeHint(); // a post is arriving — never leave the setup hint sitting over media on stream
   currentId = payload.submissionId;
@@ -603,6 +624,12 @@ let musicShuffle = false;
 let musicVolume = 50;
 let musicHidden = false;
 let musicSuspended = false; // a post is on screen → music faded out + paused + hidden
+/**
+ * The streamer pressed pause themselves. Kept apart from musicSuspended (our automatic ducking)
+ * because both end in pauseVideo(): without the distinction, a post arriving after a manual pause
+ * would resume the music on its way out, overriding the streamer.
+ */
+let musicUserPaused = false;
 let musicAppliedVol = 0; // last volume we pushed to the player (YT has no getVolume in our typings)
 let musicFadeTimer: number | undefined; // in-flight volume fade, if any
 let musicEpoch = 0; // bumped on teardown to invalidate in-flight async player creation
@@ -713,6 +740,12 @@ function suspendMusic(suspend: boolean): void {
     }, MUSIC_FADE_MS);
   } else {
     updateMusicVisibility(); // reveal before the fade-up (the OBS hide setting still wins)
+    if (musicUserPaused) {
+      // The streamer had it paused before the post arrived — come back to exactly that: card
+      // visible, music silent. Volume is restored (not faded) so their next play starts at level.
+      setMusicVol(musicVolume);
+      return;
+    }
     try {
       musicPlayer?.playVideo();
     } catch {
@@ -728,6 +761,7 @@ function handleMusicCommand(cmd: MusicCommand): void {
   if (!musicPlayer) return;
   switch (cmd.action) {
     case 'play':
+      musicUserPaused = false;
       musicPlayer.playVideo();
       // Re-assert state to the dashboard: a redundant play/pause (player already in that state)
       // fires no onStateChange, so without this the dashboard's toggle stays stuck on the wrong
@@ -735,19 +769,25 @@ function handleMusicCommand(cmd: MusicCommand): void {
       reportMusicState(true);
       break;
     case 'pause':
+      musicUserPaused = true;
       musicPlayer.pauseVideo();
       reportMusicState(false);
       break;
+    // next/prev/playAt all mean "start this track" — pressing one after a pause is a request to
+    // play, so they clear the manual-pause intent along with moving the queue.
     case 'next':
+      musicUserPaused = false;
       if (musicMode === 'list') stepMusic(1);
       else musicPlayer.nextVideo();
       break;
     case 'prev':
+      musicUserPaused = false;
       if (musicMode === 'list') stepMusic(-1);
       else musicPlayer.previousVideo();
       break;
     case 'playAt': {
       if (!cmd.videoId) break;
+      musicUserPaused = false;
       if (musicMode === 'list') {
         if (musicIds.includes(cmd.videoId)) playMusicId(cmd.videoId);
       } else {
@@ -893,6 +933,9 @@ function teardownMusic(): void {
   musicTitleTrack = null;
   musicCurrentId = null;
   musicHistory = [];
+  // A teardown means the source itself changed (new queue/playlist, or music switched off). The old
+  // pause was about the old source — a fresh one must not come up silently.
+  musicUserPaused = false;
 }
 
 interface MusicPlayerInit {
@@ -969,7 +1012,8 @@ async function createMusicPlayer(init: MusicPlayerInit): Promise<void> {
         if (init.mode === 'playlist') e.target.setShuffle(musicShuffle);
         setMusicVol(effectiveMusicVolume());
         e.target.playVideo();
-        if (musicSuspended) e.target.pauseVideo(); // recreated while a post is on screen
+        // Recreated while a post is on screen, or while the streamer had it paused.
+        if (musicSuspended || musicUserPaused) e.target.pauseVideo();
         disableCaptions(e.target);
         const f = e.target.getIframe();
         f.style.width = '100%';
@@ -1622,6 +1666,7 @@ if (DEMO) {
     volume: musicVolume,
     effective: effectiveMusicVolume(),
     suspended: musicSuspended,
+    userPaused: musicUserPaused,
     hidden: musicHidden,
     hasPlayer: !!musicPlayer,
     currentId: currentMusicVideoId(),

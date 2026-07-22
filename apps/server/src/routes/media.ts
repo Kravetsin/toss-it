@@ -383,6 +383,7 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
           status: autoApproved ? 'approved' : 'pending',
           createdAt: now,
           updatedAt: now,
+          startedAt: null, // stamped by the playback manager when it actually goes on screen
           youtubeId,
           youtubeStart,
           giphyId,
