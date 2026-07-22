@@ -1,8 +1,8 @@
 import crypto from 'node:crypto';
-import { and, eq, lt } from 'drizzle-orm';
+import { and, eq, isNull, lt } from 'drizzle-orm';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { db } from './db/index';
-import { linkedIdentities, sessions, users, type UserRow } from './db/schema';
+import { linkedIdentities, sessions, submissions, users, type UserRow } from './db/schema';
 import { config } from './config';
 
 const SESSION_COOKIE = 'sid';
@@ -206,7 +206,10 @@ export async function ensureUniqueLogin(base: string): Promise<string> {
  * of truth: linking repoints them, so any provider can open any account.
  * Self-heals legacy user rows that predate the identities backfill.
  */
-export async function resolveIdentity(provider: string, providerId: string): Promise<UserRow | null> {
+export async function resolveIdentity(
+  provider: string,
+  providerId: string,
+): Promise<UserRow | null> {
   const row = await db
     .select({ user: users })
     .from(linkedIdentities)
@@ -237,6 +240,30 @@ export async function addIdentity(
     .insert(linkedIdentities)
     .values({ provider, providerId, userId, createdAt: new Date() })
     .onConflictDoNothing();
+  await claimPlatformSubmissions(provider, providerId, userId);
+}
+
+/**
+ * Re-attribute submissions this platform identity made before the account existed (channel-points
+ * redemptions carry only the platform id). Every board and the XP curve key on senderUserId, so
+ * without this an unregistered redeemer's sends stay invisible even after they log in — the same
+ * "claim on link" rule pending dust already follows.
+ */
+async function claimPlatformSubmissions(
+  provider: string,
+  providerId: string,
+  userId: string,
+): Promise<void> {
+  await db
+    .update(submissions)
+    .set({ senderUserId: userId })
+    .where(
+      and(
+        isNull(submissions.senderUserId),
+        eq(submissions.senderPlatform, provider),
+        eq(submissions.senderPlatformUserId, providerId),
+      ),
+    );
 }
 
 export async function upsertUser(info: OAuthUserInfo): Promise<UserRow> {
