@@ -60,14 +60,16 @@ const GROUP_LABEL: Record<CardGroupKey, string> = {
   arcane: 'shop.groupArcane',
 };
 
-/** Demo for a frame: a stand-in message card wearing the runner ring, so the border effect shows on a
- *  realistic small card (the frame lives on the border, not a swarm — nothing to look at otherwise). */
+/** Demo for a frame: a stand-in message card wearing the frame, so the border effect shows on a
+ *  realistic small card (the frame lives on the border, not a swarm — nothing to look at otherwise).
+ *  Roomier than a chat pill on purpose: an ornament frame draws a band along each edge, and on a
+ *  tighter box the top and bottom bands nearly meet and read as clutter rather than a border. */
 function FrameDemo({ id, label }: { id: string; label: string }) {
   const cls = frameEffectClass(id);
   return (
     <div className="flex justify-start">
       <div
-        className={`relative inline-flex items-center gap-1.5 rounded-[10px] border border-[rgba(141,240,204,0.5)] bg-[#0e1413] px-3 py-1.5 ${cls}`}
+        className={`relative inline-flex items-center gap-1.5 rounded-[10px] border border-[rgba(141,240,204,0.5)] bg-[#0e1413] px-4 py-2.5 ${cls}`}
       >
         <span className="text-sm font-medium text-accent">{label}</span>
         <span className="text-sm text-muted">gg</span>
@@ -199,8 +201,9 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   const equippedNickEffect = user?.equipped.nickEffect ?? null;
   const equippedCardEffect = user?.equipped.cardEffect ?? null;
   const equippedFrame = user?.equipped.frame ?? null;
-  // Account-wide chat messages — earned cosmetics (frames) unlock at a threshold instead of a price.
+  // Account-wide activity — earned cosmetics (frames) unlock at a threshold instead of a price.
   const messagesTotal = user?.messagesTotal ?? 0;
+  const watchMinutesTotal = user?.watchMinutesTotal ?? 0;
   const equippedEntrance = user?.equipped.entrance ?? null;
   const ownsPortalColor = user?.ownedCosmetics.includes(PORTAL_COLOR_ID) ?? false;
   const equippedEntranceColor = user?.equipped.entranceColor ?? null;
@@ -331,9 +334,12 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     onEquip: (id: string | null) => void,
   ) => {
     // Earned items (frames) count as "owned" once the milestone is met; the rest are owned by purchase.
-    const owned = e.earn
-      ? messagesTotal >= e.earn.count
-      : (user?.ownedCosmetics.includes(e.id) ?? false);
+    const earn = e.earn;
+    const isWatchEarn = earn?.metric === 'watchMinutes';
+    const earnHave = earn ? (isWatchEarn ? watchMinutesTotal : messagesTotal) : 0;
+    // Watch time is stored in minutes but reads in hours, so both sides scale by the same unit.
+    const earnUnit = isWatchEarn ? 60 : 1;
+    const owned = earn ? earnHave >= earn.count : (user?.ownedCosmetics.includes(e.id) ?? false);
     const on = equippedId === e.id;
     const labels = cosmeticModule(e.id)?.labels;
     if (!labels) return null;
@@ -369,10 +375,11 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
               on ? (
                 <Badge>{t('shop.equippedBadge')}</Badge>
               ) : null
-            ) : e.earn ? (
+            ) : earn ? (
               <span className="inline-flex items-center gap-1.5 label-mono text-muted">
-                <Icon name="message-circle" size={13} />
-                {Math.min(messagesTotal, e.earn.count)} / {e.earn.count}
+                <Icon name={isWatchEarn ? 'clock' : 'message-circle'} size={13} />
+                {Math.floor(Math.min(earnHave, earn.count) / earnUnit)} /{' '}
+                {Math.round(earn.count / earnUnit)}
               </span>
             ) : (
               <span className="inline-flex items-center gap-1.5 label-mono text-accent">
@@ -394,10 +401,12 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
           {isFrame && <FrameDemo id={e.id} label={previewName} />}
           <div className="flex items-center gap-2">
             {!owned ? (
-              e.earn ? (
+              earn ? (
                 // Earned, not bought: no buy button — just how far off the milestone is.
                 <span className="label-mono text-faint">
-                  {t('shop.earnLocked', { n: e.earn.count - messagesTotal })}
+                  {t(isWatchEarn ? 'shop.earnLockedWatch' : 'shop.earnLocked', {
+                    n: Math.ceil((earn.count - earnHave) / earnUnit),
+                  })}
                 </span>
               ) : (
                 <Button

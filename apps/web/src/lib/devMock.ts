@@ -69,6 +69,8 @@ const MOCK_ME: MeResponse = {
     ownedCosmetics: COSMETICS.map((c) => c.id),
     // Between the two frame thresholds: Runner (500) earned, Twin runners (1000) still in progress.
     messagesTotal: 720,
+    // Past the Vine's 3000 (50h), so the earned-by-watch-time frame shows as unlocked too.
+    watchMinutesTotal: 3320,
     equipped: {
       nickColor: '#8df0cc',
       nickColor2: '#a78bfa',
@@ -197,6 +199,8 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderColor: '#8df0cc',
     senderEffect: 'nick-pulse',
     senderCardEffect: 'card-levitation',
+    // The ornament frame next to meme_lord's ring frame — the two mechanics side by side.
+    senderFrame: 'frame-vine',
     text: 'смотри какой котик получился',
     url: IMG,
     durationMs: 8000,

@@ -10,7 +10,7 @@ import {
 import { db } from '../db/index';
 import { userCosmetics, users } from '../db/schema';
 import { requireUser } from '../auth';
-import { messagesTotalFor } from '../level';
+import { messagesTotalFor, watchMinutesTotalFor } from '../level';
 
 /** Whether the user owns a given catalog item. */
 async function owns(userId: string, itemId: string): Promise<boolean> {
@@ -171,7 +171,11 @@ export function registerCosmeticsRoutes(app: FastifyInstance): void {
         // must be bought. The gate is live, so anyone already past the milestone qualifies at once.
         const earn = COSMETICS.find((c) => c.id === raw)?.earn;
         if (earn) {
-          if ((await messagesTotalFor(user.id)) < earn.count) {
+          const have =
+            earn.metric === 'watchMinutes'
+              ? await watchMinutesTotalFor(user.id)
+              : await messagesTotalFor(user.id);
+          if (have < earn.count) {
             return reply.code(403).send({ error: 'Достижение ещё не выполнено' });
           }
         } else if (!(await owns(user.id, raw))) {

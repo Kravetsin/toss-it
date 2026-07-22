@@ -29,6 +29,7 @@ import { cardRunes } from './effects/card-runes';
 import { cardWeb } from './effects/card-web';
 import { frameRunner } from './effects/frame-runner';
 import { frameRunnerDouble } from './effects/frame-runner-double';
+import { frameVine } from './effects/frame-vine';
 import { entranceGlitch } from './effects/entrance-glitch';
 import { entranceAstral } from './effects/entrance-astral';
 import { entrancePortal } from './effects/entrance-portal';
@@ -177,6 +178,7 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   cardWeb,
   frameRunner,
   frameRunnerDouble,
+  frameVine,
   entranceGlitch,
   entranceAstral,
   entrancePortal,

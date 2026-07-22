@@ -121,11 +121,13 @@ export async function levelsForSenders(
 }
 
 /**
- * Account-wide chat message count (summed across ALL channels), for earned cosmetics (frames). Sums
- * channelActivity.messages over every platform identity linked to the user — so a user who chats on
- * many channels earns from the total. 0 if the account has no linked identity yet.
+ * Sums one channelActivity column across ALL channels for every platform identity linked to the
+ * user — so someone active on many channels earns from the total. 0 if no identity is linked yet.
  */
-export async function messagesTotalFor(userId: string): Promise<number> {
+async function activityTotalFor(
+  userId: string,
+  col: typeof channelActivity.messages | typeof channelActivity.watchMinutes,
+): Promise<number> {
   const ids = await db
     .select({ provider: linkedIdentities.provider, providerId: linkedIdentities.providerId })
     .from(linkedIdentities)
@@ -133,7 +135,7 @@ export async function messagesTotalFor(userId: string): Promise<number> {
     .all();
   if (ids.length === 0) return 0;
   const row = await db
-    .select({ n: sql<number>`coalesce(sum(${channelActivity.messages}), 0)` })
+    .select({ n: sql<number>`coalesce(sum(${col}), 0)` })
     .from(channelActivity)
     .where(
       or(
@@ -147,6 +149,16 @@ export async function messagesTotalFor(userId: string): Promise<number> {
     )
     .get();
   return row?.n ?? 0;
+}
+
+/** Account-wide chat message count, for earned cosmetics gated on `earn.metric === 'messages'`. */
+export async function messagesTotalFor(userId: string): Promise<number> {
+  return activityTotalFor(userId, channelActivity.messages);
+}
+
+/** Account-wide watch time in minutes, for cosmetics gated on `earn.metric === 'watchMinutes'`. */
+export async function watchMinutesTotalFor(userId: string): Promise<number> {
+  return activityTotalFor(userId, channelActivity.watchMinutes);
 }
 
 /** Per-channel level for one sender (0 if anon/unknown) — for single live emits. */
