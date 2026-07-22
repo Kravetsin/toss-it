@@ -30,7 +30,9 @@ import { cardWeb } from './effects/card-web';
 import { frameRunner } from './effects/frame-runner';
 import { frameRunnerDouble } from './effects/frame-runner-double';
 import { frameDragonBreath } from './effects/frame-dragon-breath';
+import { frameVineSprout } from './effects/frame-vine-sprout';
 import { frameVine } from './effects/frame-vine';
+import { frameVineBloom } from './effects/frame-vine-bloom';
 import { entranceGlitch } from './effects/entrance-glitch';
 import { entranceAstral } from './effects/entrance-astral';
 import { entrancePortal } from './effects/entrance-portal';
@@ -177,11 +179,14 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   cardWisp,
   cardRunes,
   cardWeb,
-  // Frames group by the metric that earns them: chat-message ladder first, then watch-time.
+  // Frames group by the metric that earns them, each family in ladder order: chat messages first,
+  // then watch time. A rung is a separate item, so the shop shows what the next one looks like.
   frameRunner,
   frameRunnerDouble,
   frameDragonBreath,
+  frameVineSprout,
   frameVine,
+  frameVineBloom,
   entranceGlitch,
   entranceAstral,
   entrancePortal,

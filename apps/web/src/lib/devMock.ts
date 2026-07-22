@@ -256,6 +256,8 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderLevel: 1,
     senderColor: '#b0f5c0',
     senderCardEffect: 'card-snow',
+    // Entry rung of the vine ladder — leaves only, no blossom yet.
+    senderFrame: 'frame-vine-sprout',
     text: 'превед :)',
     createdAt: t - 18 * min,
   }),
@@ -269,6 +271,8 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderLevel: 5,
     senderColor: '#ffc2d8',
     senderCardEffect: 'card-sakura',
+    // Top rung, two rows below the plain vine: the rose blossoms are the whole tell.
+    senderFrame: 'frame-vine-bloom',
     text: 'принесла тебе весны в предложку',
     createdAt: t - 22 * min,
   }),
