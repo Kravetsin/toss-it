@@ -70,8 +70,11 @@ const MOCK_ME: MeResponse = {
     // Mid-ladder: Runner (500) earned, Twin runners (1000) and Dragon's breath (2000) still locked,
     // so the shop shows an earned frame and an in-progress one side by side.
     messagesTotal: 720,
-    // Past the Vine's 3000 (50h), so the earned-by-watch-time frame shows as unlocked too.
+    // Mid-ladder again on the watch axis: Tide (25h) and Embers (50h) earned, Canopy (75h) and
+    // Storm (100h) still in progress.
     watchMinutesTotal: 3320,
+    // Nothing is gated on sends yet — the metric is wired and waiting for its own frames.
+    submissionsTotal: 41,
     equipped: {
       nickColor: '#8df0cc',
       nickColor2: '#a78bfa',
@@ -201,7 +204,6 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderEffect: 'nick-pulse',
     senderCardEffect: 'card-levitation',
     // The ornament frame next to meme_lord's ring frame — the two mechanics side by side.
-    senderFrame: 'frame-vine',
     text: 'смотри какой котик получился',
     url: IMG,
     durationMs: 8000,
@@ -219,7 +221,8 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderColor2: '#ff5f6d',
     senderEffect: 'nick-glow',
     senderCardEffect: 'card-embers',
-    senderFrame: 'frame-dragon-breath',
+    // Schematic frames are meant to be worn WITH their card effect — coals under, embers above.
+    senderFrame: 'frame-embers',
     text: 'зацени нарезку, го на стрим',
     url: '/mock-video.mp4',
     durationMs: 12_000,
@@ -235,6 +238,8 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderColor: '#a5b4fc',
     senderEffect: 'nick-pulse',
     senderCardEffect: 'card-rain',
+    // The frame is meant to be worn WITH its card effect — rain above, tide along the bottom.
+    senderFrame: 'frame-water',
     youtubeId: 'dQw4w9WgXcQ',
     text: 'трек на фон, зайдёт',
     durationMs: 20_000,
@@ -256,8 +261,6 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderLevel: 1,
     senderColor: '#b0f5c0',
     senderCardEffect: 'card-snow',
-    // Entry rung of the vine ladder — leaves only, no blossom yet.
-    senderFrame: 'frame-vine-sprout',
     text: 'превед :)',
     createdAt: t - 18 * min,
   }),
@@ -271,8 +274,7 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderLevel: 5,
     senderColor: '#ffc2d8',
     senderCardEffect: 'card-sakura',
-    // Top rung, two rows below the plain vine: the rose blossoms are the whole tell.
-    senderFrame: 'frame-vine-bloom',
+    senderFrame: 'frame-canopy',
     text: 'принесла тебе весны в предложку',
     createdAt: t - 22 * min,
   }),
@@ -287,6 +289,7 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderNickFlow: true,
     senderEffect: 'nick-pulse',
     senderCardEffect: 'card-lightning',
+    senderFrame: 'frame-storm',
     text: 'бахнуло знатно, го смотреть',
     createdAt: t - 26 * min,
   }),
@@ -298,6 +301,7 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderLevel: 11,
     senderColor: '#a9c9ff',
     senderCardEffect: 'card-constellation',
+    senderFrame: 'frame-dragon-breath',
     text: 'зачекинься под звёздами на секунду',
     createdAt: t - 30 * min,
   }),

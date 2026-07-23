@@ -161,6 +161,21 @@ export async function watchMinutesTotalFor(userId: string): Promise<number> {
   return activityTotalFor(userId, channelActivity.watchMinutes);
 }
 
+/**
+ * Account-wide submission count, for cosmetics gated on `earn.metric === 'submissions'`. Counts every
+ * channel and every status — a channel-points song request counts the same as a clip, which is the
+ * point: the axis rewards bringing things, not passing moderation. Self-sends are excluded so a
+ * streamer can't farm it on their own channel.
+ */
+export async function submissionsTotalFor(userId: string): Promise<number> {
+  const row = await db
+    .select({ n: sql<number>`count(*)` })
+    .from(submissions)
+    .where(and(eq(submissions.senderUserId, userId), excludeSelfSends))
+    .get();
+  return row?.n ?? 0;
+}
+
 /** Per-channel level for one sender (0 if anon/unknown) — for single live emits. */
 export async function levelForSender(channelId: string, userId: string | null): Promise<number> {
   if (!userId) return 0;

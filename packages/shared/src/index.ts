@@ -615,6 +615,8 @@ export interface SessionUser {
   messagesTotal: number;
   /** Account-wide watch time in minutes (summed across channels) — unlocks watch-time frames. */
   watchMinutesTotal: number;
+  /** Account-wide submissions sent (all channels, any status, self-sends excluded). */
+  submissionsTotal: number;
   /** Currently equipped cosmetics (nick color, etc.). */
   equipped: EquippedCosmetics;
   /** A Twitch identity opens this account (native or linked) — chat dust reaches it. */

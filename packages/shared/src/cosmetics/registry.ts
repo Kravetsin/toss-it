@@ -30,9 +30,10 @@ import { cardWeb } from './effects/card-web';
 import { frameRunner } from './effects/frame-runner';
 import { frameRunnerDouble } from './effects/frame-runner-double';
 import { frameDragonBreath } from './effects/frame-dragon-breath';
-import { frameVineSprout } from './effects/frame-vine-sprout';
-import { frameVine } from './effects/frame-vine';
-import { frameVineBloom } from './effects/frame-vine-bloom';
+import { frameWater } from './effects/frame-water';
+import { frameEmbers } from './effects/frame-embers';
+import { frameCanopy } from './effects/frame-canopy';
+import { frameStorm } from './effects/frame-storm';
 import { entranceGlitch } from './effects/entrance-glitch';
 import { entranceAstral } from './effects/entrance-astral';
 import { entrancePortal } from './effects/entrance-portal';
@@ -184,9 +185,10 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   frameRunner,
   frameRunnerDouble,
   frameDragonBreath,
-  frameVineSprout,
-  frameVine,
-  frameVineBloom,
+  frameCanopy,
+  frameEmbers,
+  frameWater,
+  frameStorm,
   entranceGlitch,
   entranceAstral,
   entrancePortal,

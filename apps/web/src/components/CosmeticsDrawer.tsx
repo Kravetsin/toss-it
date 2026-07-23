@@ -45,6 +45,15 @@ const EARN_ROWS = [
 
 type ShopCategory = 'nick' | 'card' | 'frame' | 'entrance' | 'voices';
 
+/** Per-metric presentation for earned items. A table rather than a branch per metric, so the next
+ *  axis is one line here. `unit` divides the raw count for display (watch time is stored in minutes,
+ *  shown in hours). */
+const EARN_META = {
+  messages: { icon: 'message-circle', unit: 1, lockedKey: 'shop.earnLocked' },
+  watchMinutes: { icon: 'clock', unit: 60, lockedKey: 'shop.earnLockedWatch' },
+  submissions: { icon: 'send', unit: 1, lockedKey: 'shop.earnLockedSends' },
+} as const;
+
 /** Which tab an item lands in. Exhaustive by type, so a new cosmetic type can't quietly miss its
  *  "new" dot — adding one to the registry fails typecheck until it's placed here. */
 const CATEGORY_OF: Record<CosmeticType, ShopCategory> = {
@@ -228,8 +237,11 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   const equippedCardEffect = user?.equipped.cardEffect ?? null;
   const equippedFrame = user?.equipped.frame ?? null;
   // Account-wide activity — earned cosmetics (frames) unlock at a threshold instead of a price.
-  const messagesTotal = user?.messagesTotal ?? 0;
-  const watchMinutesTotal = user?.watchMinutesTotal ?? 0;
+  const earnTotals = {
+    messages: user?.messagesTotal ?? 0,
+    watchMinutes: user?.watchMinutesTotal ?? 0,
+    submissions: user?.submissionsTotal ?? 0,
+  };
   const equippedEntrance = user?.equipped.entrance ?? null;
   const ownsPortalColor = user?.ownedCosmetics.includes(PORTAL_COLOR_ID) ?? false;
   const equippedEntranceColor = user?.equipped.entranceColor ?? null;
@@ -361,10 +373,9 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   ) => {
     // Earned items (frames) count as "owned" once the milestone is met; the rest are owned by purchase.
     const earn = e.earn;
-    const isWatchEarn = earn?.metric === 'watchMinutes';
-    const earnHave = earn ? (isWatchEarn ? watchMinutesTotal : messagesTotal) : 0;
-    // Watch time is stored in minutes but reads in hours, so both sides scale by the same unit.
-    const earnUnit = isWatchEarn ? 60 : 1;
+    const earnMeta = earn ? EARN_META[earn.metric] : null;
+    const earnHave = earn ? earnTotals[earn.metric] : 0;
+    const earnUnit = earnMeta?.unit ?? 1;
     const owned = earn ? earnHave >= earn.count : (user?.ownedCosmetics.includes(e.id) ?? false);
     const on = equippedId === e.id;
     const labels = cosmeticModule(e.id)?.labels;
@@ -407,9 +418,9 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
               on ? (
                 <Badge>{t('shop.equippedBadge')}</Badge>
               ) : null
-            ) : earn ? (
+            ) : earn && earnMeta ? (
               <span className="inline-flex items-center gap-1.5 label-mono text-muted">
-                <Icon name={isWatchEarn ? 'clock' : 'message-circle'} size={13} />
+                <Icon name={earnMeta.icon} size={13} />
                 {Math.floor(Math.min(earnHave, earn.count) / earnUnit)} /{' '}
                 {Math.round(earn.count / earnUnit)}
               </span>
@@ -433,12 +444,10 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
           {isFrame && <FrameDemo id={e.id} label={previewName} />}
           <div className="flex items-center gap-2">
             {!owned ? (
-              earn ? (
+              earn && earnMeta ? (
                 // Earned, not bought: no buy button — just how far off the milestone is.
                 <span className="label-mono text-faint">
-                  {t(isWatchEarn ? 'shop.earnLockedWatch' : 'shop.earnLocked', {
-                    n: Math.ceil((earn.count - earnHave) / earnUnit),
-                  })}
+                  {t(earnMeta.lockedKey, { n: Math.ceil((earn.count - earnHave) / earnUnit) })}
                 </span>
               ) : (
                 <Button

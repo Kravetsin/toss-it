@@ -10,7 +10,7 @@ import {
 import { db } from '../db/index';
 import { userCosmetics, users } from '../db/schema';
 import { requireUser } from '../auth';
-import { messagesTotalFor, watchMinutesTotalFor } from '../level';
+import { messagesTotalFor, submissionsTotalFor, watchMinutesTotalFor } from '../level';
 
 /** Whether the user owns a given catalog item. */
 async function owns(userId: string, itemId: string): Promise<boolean> {
@@ -174,7 +174,9 @@ export function registerCosmeticsRoutes(app: FastifyInstance): void {
           const have =
             earn.metric === 'watchMinutes'
               ? await watchMinutesTotalFor(user.id)
-              : await messagesTotalFor(user.id);
+              : earn.metric === 'submissions'
+                ? await submissionsTotalFor(user.id)
+                : await messagesTotalFor(user.id);
           if (have < earn.count) {
             return reply.code(403).send({ error: 'Достижение ещё не выполнено' });
           }

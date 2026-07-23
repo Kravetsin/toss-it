@@ -66,7 +66,7 @@ export interface CosmeticItem {
 /** How an earned (non-bought) cosmetic is unlocked. */
 export interface CosmeticEarn {
   /** The account-wide metric that unlocks it, summed across every channel and linked identity. */
-  metric: 'messages' | 'watchMinutes';
+  metric: 'messages' | 'watchMinutes' | 'submissions';
   /** How many of the metric are needed (watchMinutes counts minutes, shown as hours in the shop). */
   count: number;
 }
