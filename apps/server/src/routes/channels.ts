@@ -105,6 +105,7 @@ async function sendsBoard(
     nickFlow: r.equipped?.nickFlow ?? false,
     nickEffect: r.equipped?.nickEffect ?? null,
     cardEffect: r.equipped?.cardEffect ?? null,
+    seal: r.equipped?.seal ?? null,
     level: levels[i] ?? 0,
   }));
 }
@@ -181,6 +182,7 @@ async function chatBoard(
       nickFlow: u?.equipped?.nickFlow ?? false,
       nickEffect: u?.equipped?.nickEffect ?? null,
       cardEffect: u?.equipped?.cardEffect ?? null,
+      seal: u?.equipped?.seal ?? null,
       level,
     };
   });

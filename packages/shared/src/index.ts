@@ -118,6 +118,8 @@ export interface MediaPlayPayload {
   senderCardEffect?: string;
   /** Sender's equipped frame id (e.g. 'frame-runner'); absent if none. Border decoration on the card. */
   senderFrame?: string;
+  /** Sender's equipped seal id (e.g. 'seal-eye-open'); absent if none. A small object, own slot. */
+  senderSeal?: string;
   /** Sender's equipped entrance id (e.g. 'entrance-glitch'); absent = the stage's own pop-in. */
   senderEntrance?: string;
   /** Portal entrance tint (#rrggbb) from the 'entrance-portal-color' upgrade; absent = default mint. */
@@ -423,6 +425,8 @@ export interface SubmissionSummary {
   senderCardEffect: string | null;
   /** Sender's equipped frame id, null if none. Border decoration on the submission card. */
   senderFrame: string | null;
+  /** Sender's equipped seal id, null if none. A small object in the card's free corner. */
+  senderSeal: string | null;
   /** Sender's per-channel level 0–10 (0/absent = no rank) — drives the curation rail + numeral. */
   senderLevel?: number;
   kind: MediaKind;
@@ -617,6 +621,8 @@ export interface SessionUser {
   watchMinutesTotal: number;
   /** Account-wide submissions sent (all channels, any status, self-sends excluded). */
   submissionsTotal: number;
+  /** Lifetime stardust earned (never lowered by spending) — unlocks the "wealth" seal. */
+  dustEarnedTotal: number;
   /** Currently equipped cosmetics (nick color, etc.). */
   equipped: EquippedCosmetics;
   /** A Twitch identity opens this account (native or linked) — chat dust reaches it. */
@@ -858,6 +864,8 @@ export interface LeaderboardEntry {
   nickEffect: string | null;
   /** Equipped card effect id, null if none. */
   cardEffect: string | null;
+  /** Equipped seal id, null if none — shown next to the badges. */
+  seal: string | null;
   /** Per-channel level 0–10 (0/absent = no rank) — the rarity rail + Roman numeral. */
   level?: number;
 }

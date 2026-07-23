@@ -1,0 +1,1 @@
+ALTER TABLE `users` ADD `dust_earned` integer DEFAULT 0 NOT NULL;

@@ -75,6 +75,8 @@ const MOCK_ME: MeResponse = {
     watchMinutesTotal: 3320,
     // Nothing is gated on sends yet — the metric is wired and waiting for its own frames.
     submissionsTotal: 41,
+    // Lifetime earned dust — the "wealth" axis. High enough to show a mid-ladder wealth seal.
+    dustEarnedTotal: 5400,
     equipped: {
       nickColor: '#8df0cc',
       nickColor2: '#a78bfa',
@@ -82,6 +84,7 @@ const MOCK_ME: MeResponse = {
       nickEffect: 'nick-pulse',
       cardEffect: 'card-web',
       frame: 'frame-runner',
+      seal: 'seal-star-lit',
       entrance: 'entrance-astral',
       entranceColor: '#ff8a3d',
     },
@@ -168,6 +171,7 @@ const sub = (
   senderEffect: null,
   senderCardEffect: null,
   senderFrame: null,
+  senderSeal: null,
   mime: 'text/plain',
   text: null,
   durationMs: 6000,
@@ -190,6 +194,7 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderEffect: 'nick-glow',
     senderCardEffect: 'card-stardust',
     senderFrame: 'frame-runner',
+    senderSeal: 'seal-star-dormant',
     text: 'каеф, врубай этого на стрим 🔥🔥🔥',
     createdAt: t - 1 * min,
   }),
@@ -203,7 +208,7 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderColor: '#8df0cc',
     senderEffect: 'nick-pulse',
     senderCardEffect: 'card-levitation',
-    // The ornament frame next to meme_lord's ring frame — the two mechanics side by side.
+    senderSeal: 'seal-gem-clear',
     text: 'смотри какой котик получился',
     url: IMG,
     durationMs: 8000,
@@ -240,6 +245,7 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderCardEffect: 'card-rain',
     // The frame is meant to be worn WITH its card effect — rain above, tide along the bottom.
     senderFrame: 'frame-water',
+    senderSeal: 'seal-star-lit',
     youtubeId: 'dQw4w9WgXcQ',
     text: 'трек на фон, зайдёт',
     durationMs: 20_000,
@@ -275,6 +281,7 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderColor: '#ffc2d8',
     senderCardEffect: 'card-sakura',
     senderFrame: 'frame-canopy',
+    senderSeal: 'seal-gem-crown',
     text: 'принесла тебе весны в предложку',
     createdAt: t - 22 * min,
   }),
@@ -290,6 +297,7 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderEffect: 'nick-pulse',
     senderCardEffect: 'card-lightning',
     senderFrame: 'frame-storm',
+    senderSeal: 'seal-star-awake',
     text: 'бахнуло знатно, го смотреть',
     createdAt: t - 26 * min,
   }),
@@ -489,6 +497,7 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     nickFlow: true,
     nickEffect: 'nick-glow',
     cardEffect: 'card-lightning',
+    seal: 'seal-star-awake',
     level: 8,
   },
   {
@@ -502,6 +511,7 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     nickFlow: false,
     nickEffect: null,
     cardEffect: null,
+    seal: 'seal-star-lit',
     level: 4,
   },
   {
@@ -515,6 +525,7 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     nickFlow: false,
     nickEffect: 'nick-pulse',
     cardEffect: 'card-snow',
+    seal: null,
     level: 10,
   },
   {
@@ -528,6 +539,7 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     nickFlow: false,
     nickEffect: 'nick-glow',
     cardEffect: 'card-rain',
+    seal: null,
     level: 6,
   },
   {
@@ -542,6 +554,7 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     nickFlow: false,
     nickEffect: null,
     cardEffect: 'card-sakura',
+    seal: null,
     level: 2,
   },
 ];

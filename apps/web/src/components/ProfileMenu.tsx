@@ -13,7 +13,7 @@ import { Icon, type IconName } from '@/ui/icons';
 import { DustMark } from '@/components/DustMark';
 import { NewDotGroup } from '@/components/NewDot';
 import { CardEffect } from '@/components/CardEffect';
-import { PlatformIcon, UserBadges } from '@/components/UserMarks';
+import { PlatformIcon, SealMark, UserBadges } from '@/components/UserMarks';
 
 function Row({
   icon,
@@ -174,6 +174,7 @@ export function ProfileMenu({
               </span>
             </Tooltip>
           )}
+          <SealMark seal={user.equipped.seal} />
           <UserBadges isFounder={user.isFounder} variant="icons" />
           <span
             className={`truncate text-sm font-semibold text-text ${nick.className}`}

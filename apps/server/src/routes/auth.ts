@@ -34,7 +34,12 @@ import {
   twitchCallbackUri,
   upsertUser,
 } from '../auth';
-import { messagesTotalFor, submissionsTotalFor, watchMinutesTotalFor } from '../level';
+import {
+  dustEarnedFor,
+  messagesTotalFor,
+  submissionsTotalFor,
+  watchMinutesTotalFor,
+} from '../level';
 import { notifyNewUser } from '../notify';
 import { claimPendingDust } from '../modules/twitch-chat/accrual';
 import { saveBotCredentials } from '../modules/twitch-chat/token';
@@ -463,6 +468,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
         messagesTotal: await messagesTotalFor(user.id),
         watchMinutesTotal: await watchMinutesTotalFor(user.id),
         submissionsTotal: await submissionsTotalFor(user.id),
+        dustEarnedTotal: await dustEarnedFor(user.id),
         equipped: user.equipped ?? {},
         hasTwitch: !!twitchIdentity,
       },

@@ -23,8 +23,12 @@ export const users = sqliteTable('users', {
   avatarUrl: text('avatar_url'),
   /** When founder status was granted (via promo code); null = regular user. */
   founderSince: integer('founder_since', { mode: 'timestamp_ms' }),
-  /** Global cosmetic currency, earned through activity. */
+  /** Global cosmetic currency, earned through activity. Spending lowers it. */
   stardust: integer('stardust').notNull().default(0),
+  /** Lifetime dust EARNED — only ever goes up (spending doesn't touch it), so it measures total
+   *  contribution for a "wealth" cosmetic. Counts chat/watch/sends/channel-points; not promo grants,
+   *  refunds or admin edits. Forward-only: starts at 0, nothing backfilled. */
+  dustEarned: integer('dust_earned').notNull().default(0),
   /** Equipped cosmetics (nick color, etc.); null = nothing equipped. */
   equipped: text('equipped', { mode: 'json' }).$type<EquippedCosmetics>(),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),

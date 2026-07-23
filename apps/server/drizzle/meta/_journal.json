@@ -344,6 +344,13 @@
       "when": 1784748568690,
       "tag": "0048_nice_kid_colt",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "6",
+      "when": 1784834966295,
+      "tag": "0049_dapper_gladiator",
+      "breakpoints": true
     }
   ]
 }

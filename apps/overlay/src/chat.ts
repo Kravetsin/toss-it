@@ -14,6 +14,7 @@ import {
   levelTier,
   mountCardEffect,
   nickRender,
+  sealEffectClass,
   toRoman,
   type ChatFragment,
   type ChatOverlayConfig,
@@ -148,6 +149,8 @@ function renderMessage(msg: ChatOverlayMessage): void {
     row.appendChild(dot);
   }
 
+  const sealCls = sealEffectClass(msg.cosmetics?.seal);
+
   // Name on its own line above the message, so long pastes never wrap around it.
   const nameLine = document.createElement('div');
   nameLine.className = 'name-line';
@@ -220,7 +223,19 @@ function renderMessage(msg: ChatOverlayMessage): void {
   body.className = 'body';
   renderFragments(body, msg.fragments);
   bubble.appendChild(body);
-  row.appendChild(bubble);
+  // The seal rides WITH the bubble, not with the row: the name line's height varies (numeral,
+  // badges), so anything positioned from the row's top drifts off the first line. Anchoring to a
+  // wrapper that starts exactly where the bubble starts makes the offset a constant.
+  if (sealCls) {
+    const bodyRow = document.createElement('div');
+    bodyRow.className = 'body-row';
+    const seal = document.createElement('span');
+    seal.className = `seal ${sealCls}`;
+    bodyRow.append(seal, bubble);
+    row.appendChild(bodyRow);
+  } else {
+    row.appendChild(bubble);
+  }
   appendRow(row, tier?.color ?? color);
 }
 
@@ -547,10 +562,10 @@ if (DEMO) {
       userId: 'u1',
       name: 'newbie_guy',
       twitchColor: '#9ab0ad',
-      cosmetics: null,
+      cosmetics: { seal: 'seal-star-dormant' },
       isFounder: false,
       level: 0,
-      fragments: [{ type: 'text', text: 'привет, впервые тут (без звезды)' }],
+      fragments: [{ type: 'text', text: 'печать без уровня — висит от точки' }],
     },
     {
       id: '2',
@@ -575,6 +590,8 @@ if (DEMO) {
         nickFlow: true,
         nickEffect: 'nick-glow',
         cardEffect: 'card-stardust',
+        frame: 'frame-storm',
+        seal: 'seal-star-awake',
       },
       isFounder: true,
       level: 8,
@@ -607,7 +624,7 @@ if (DEMO) {
       userId: 'u5',
       name: 'oldtimer',
       twitchColor: '#f5d76e',
-      cosmetics: { cardEffect: 'card-sakura' },
+      cosmetics: { cardEffect: 'card-sakura', seal: 'seal-star-lit' },
       isFounder: false,
       level: 10,
       badges: [MODERATOR, VIP],
@@ -631,7 +648,7 @@ if (DEMO) {
       userId: 'u6',
       name: 'subfan',
       twitchColor: '#7ec8ff',
-      cosmetics: { cardEffect: 'card-snow' },
+      cosmetics: { cardEffect: 'card-snow', seal: 'seal-star-charged' },
       isFounder: false,
       level: 2,
       badges: [SUB],

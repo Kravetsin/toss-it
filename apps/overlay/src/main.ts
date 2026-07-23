@@ -10,6 +10,7 @@ import {
   applyEntrance,
   applyStyleMap,
   frameEffectClass,
+  sealEffectClass,
   giphyGifUrl,
   injectCosmeticsStyles,
   injectLevelStyles,
@@ -262,6 +263,13 @@ function decorateSender(el: HTMLElement, payload: MediaPlayPayload): void {
     badges.className = 'badges';
     badges.innerHTML = badgeSvgs.map((svg) => `<span class="badge">${svg}</span>`).join('');
     el.appendChild(badges);
+  }
+  // Seal sits with the badges — it IS an earned mark, and the name row is where marks live.
+  const sealCls = sealEffectClass(payload.senderSeal);
+  if (sealCls) {
+    const seal = document.createElement('span');
+    seal.className = `sender-seal ${sealCls}`;
+    el.appendChild(seal);
   }
   if (payload.senderCardEffect) mountCardEffect(el, payload.senderCardEffect, 'overlayCard', true);
 }

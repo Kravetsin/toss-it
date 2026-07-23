@@ -1,7 +1,7 @@
 import type { SessionUser } from '@tmw/shared';
 import { Avatar } from '@/ui';
 import { CardEffect } from '@/components/CardEffect';
-import { PlatformIcon, UserBadges } from '@/components/UserMarks';
+import { PlatformIcon, SealMark, UserBadges } from '@/components/UserMarks';
 import { nickProps } from '@/lib/nick';
 
 /**
@@ -23,6 +23,7 @@ export function ProfileCard({ user }: { user: SessionUser }) {
         <Avatar url={user.avatarUrl} name={user.displayName} size={40} />
         <div className="min-w-0 flex-1">
           <p className="flex items-center gap-1.5 text-sm font-semibold text-text">
+            <SealMark seal={user.equipped.seal} />
             <span className={`truncate ${nick.className}`} style={nick.style}>
               {user.displayName}
             </span>

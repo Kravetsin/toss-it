@@ -8,6 +8,23 @@ import { linkedIdentities, pendingDust, users } from '../../db/schema';
  * Weights mirror the level XP ones (1 msg = 1, 1 watched minute = 1, aired send = 10) so there is
  * one mental model. No cooldown by design — Twitch's own chat rate limits are the spam ceiling.
  */
+/**
+ * Credit EARNED dust to a real account: bumps the spendable balance AND the lifetime-earned counter
+ * together, so every genuine earning (chat, watch, sends, channel-points, claimed pending) is the
+ * single place both move as one. Grants (promo), refunds and admin edits deliberately DON'T go
+ * through here — they touch only the balance, never the earned total.
+ */
+export async function creditDust(userId: string, amount: number): Promise<void> {
+  if (amount <= 0) return;
+  await db
+    .update(users)
+    .set({
+      stardust: sql`${users.stardust} + ${amount}`,
+      dustEarned: sql`${users.dustEarned} + ${amount}`,
+    })
+    .where(eq(users.id, userId));
+}
+
 export async function awardDust(chatterTwitchId: string, amount = 1): Promise<void> {
   if (amount <= 0) return;
   const identity = await db
@@ -21,10 +38,7 @@ export async function awardDust(chatterTwitchId: string, amount = 1): Promise<vo
     )
     .get();
   if (identity) {
-    await db
-      .update(users)
-      .set({ stardust: sql`${users.stardust} + ${amount}` })
-      .where(eq(users.id, identity.userId));
+    await creditDust(identity.userId, amount);
     return;
   }
 
@@ -92,9 +106,8 @@ export async function claimPendingDust(
     .returning({ amount: pendingDust.amount });
   const amount = taken[0]?.amount ?? 0;
   if (amount <= 0) return 0;
-  await db
-    .update(users)
-    .set({ stardust: sql`${users.stardust} + ${amount}` })
-    .where(eq(users.id, creditUserId));
+  // Pending dust was earned (chat/watch/points) while anonymous — count it toward the lifetime
+  // total the moment it lands on a real account, not before.
+  await creditDust(creditUserId, amount);
   return amount;
 }

@@ -3,7 +3,7 @@ import fsp from 'node:fs/promises';
 import path from 'node:path';
 import { createWriteStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
-import { and, count, desc, eq, gt, sql } from 'drizzle-orm';
+import { and, count, desc, eq, gt } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { fileTypeFromFile } from 'file-type';
 import {
@@ -50,6 +50,7 @@ import {
   type RealtimeServer,
 } from '../playback';
 import type { Storage } from '../storage';
+import { creditDust } from '../modules/twitch-chat/accrual';
 
 export interface MediaRoutesDeps {
   playback: PlaybackManager;
@@ -58,13 +59,8 @@ export interface MediaRoutesDeps {
   io: RealtimeServer;
 }
 
-/** Atomic increment of a user's stardust balance. */
-async function addStardust(userId: string, n: number): Promise<void> {
-  await db
-    .update(users)
-    .set({ stardust: sql`${users.stardust} + ${n}` })
-    .where(eq(users.id, userId));
-}
+/** Send dust for viewer + streamer — an EARNING, so it also lifts the lifetime-earned counter. */
+const addStardust = (userId: string, n: number): Promise<void> => creditDust(userId, n);
 
 export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps): void {
   const { playback, storage, tmpDir, io } = deps;

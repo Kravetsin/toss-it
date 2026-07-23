@@ -13,7 +13,7 @@ import { useI18n } from '@/i18n';
 import { useMe } from '@/hooks/useMe';
 import { Icon, type IconName } from '@/ui/icons';
 import { Card } from '@/ui';
-import { PlatformIcon, UserBadges } from '@/components/UserMarks';
+import { PlatformIcon, SealMark, UserBadges } from '@/components/UserMarks';
 import { CardEffect } from '@/components/CardEffect';
 import { nickProps } from '@/lib/nick';
 import { StarMark } from '@/components/StarMark';
@@ -128,6 +128,7 @@ export function LeaderboardRow({
             {toRoman(e.level!)}
           </span>
         )}
+        <SealMark seal={e.seal} />
         <b
           className={`${isYou ? 'text-accent' : 'text-text'} ${nick.className}`}
           style={nick.style}

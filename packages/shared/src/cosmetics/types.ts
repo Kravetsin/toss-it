@@ -14,6 +14,7 @@ export type CosmeticType =
   | 'nick_effect'
   | 'card_effect'
   | 'frame'
+  | 'seal'
   | 'entrance'
   | 'tts_voice';
 
@@ -66,7 +67,7 @@ export interface CosmeticItem {
 /** How an earned (non-bought) cosmetic is unlocked. */
 export interface CosmeticEarn {
   /** The account-wide metric that unlocks it, summed across every channel and linked identity. */
-  metric: 'messages' | 'watchMinutes' | 'submissions';
+  metric: 'messages' | 'watchMinutes' | 'submissions' | 'dustEarned';
   /** How many of the metric are needed (watchMinutes counts minutes, shown as hours in the shop). */
   count: number;
 }
@@ -191,6 +192,22 @@ export interface FrameModule extends BaseModule {
 }
 
 /**
+ * A small OBJECT the sender carries, rather than a treatment of the card's edge — so it gets its own
+ * equip slot and can be worn alongside a frame. Deliberately a real ELEMENT and not a pseudo: every
+ * surface puts it somewhere different (the card's free corner, the chat gutter under the star), and
+ * an element can be placed per surface while a pseudo cannot. That also leaves both pseudo-elements
+ * to the frame.
+ *
+ * Rungs of one seal are separate catalog items with their own thresholds — the silhouette stays put
+ * and only the state changes, so the shop can show what the next one looks like.
+ */
+export interface SealModule extends BaseModule {
+  type: 'seal';
+  /** Class set on the seal element (e.g. 'seal-fx-eye-open'); the module's CSS paints its background. */
+  className: string;
+}
+
+/**
  * How a viewer's thing ARRIVES, on the surfaces that have an arrival: a pill appearing in chat, an
  * alert hitting the stage. A one-shot, unlike a card effect's endless swarm — the two are different
  * axes and stack freely (a glitching arrival can still drift sakura afterwards).
@@ -253,6 +270,7 @@ export type CosmeticModule =
   | NickEffectModule
   | CardEffectModule
   | FrameModule
+  | SealModule
   | EntranceModule
   | TtsVoiceModule;
 
@@ -278,6 +296,12 @@ export interface EquippedCosmetics {
   /** Equipped frame item id (e.g. 'frame-runner'); requires owning it. A border decoration on the
    *  sender's card, layered over its role colour (the colour is untouched). */
   frame?: string | null;
+  /**
+   * Equipped seal item id (e.g. 'seal-eye-open'). A small OBJECT rather than a border treatment, so
+   * it has its own slot and can be worn together with a frame. Each surface places it where it has
+   * room — the card's free corner, or hanging under the star in the chat gutter.
+   */
+  seal?: string | null;
   /**
    * Equipped entrance item id (e.g. 'entrance-glitch'); requires owning it. Only surfaces that HAVE
    * an arrival honour it — the chat pill and the stage alert. Unset = the surface's own entrance.

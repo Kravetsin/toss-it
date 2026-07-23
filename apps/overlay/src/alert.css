@@ -58,9 +58,16 @@
 /* One unified submission card: media (or text) on top, a single meta row below. Every kind — image,
    gif, video, YouTube, audio, text — shares this glass frame; width follows --overlay-size (% of
    viewport), clamped so it never overflows a small source. */
+/* Seal: rides the name row with the badges. Bigger than a web badge because this is read from a
+   couch — .seal-fx sizes in em, so the font-size here is its scale knob on this surface. */
+.sender-seal {
+  font-size: 30px;
+  flex: none;
+  z-index: 1;
+}
 .player {
   box-sizing: border-box;
-  position: relative; /* containing block for an equipped frame's ::after ring */
+  position: relative; /* containing block for an equipped frame's ::after ring + seal */
   display: flex;
   flex-direction: column;
   gap: 12px;

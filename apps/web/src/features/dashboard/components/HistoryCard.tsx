@@ -2,7 +2,7 @@ import { LEVEL_GLOW_FROM, levelTier, toRoman, type HistoryEntry } from '@tmw/sha
 import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
 import { LinkedText, Tooltip } from '@/ui';
-import { PlatformIcon, UserBadges } from '@/components/UserMarks';
+import { PlatformIcon, SealMark, UserBadges } from '@/components/UserMarks';
 import { nickProps } from '@/lib/nick';
 import { STATUS_ICON } from '../constants';
 
@@ -52,6 +52,7 @@ export function HistoryCard({
                         {toRoman(h.senderLevel!)}
                       </span>
                     )}
+                    <SealMark seal={h.senderSeal} />
                     <b className={`text-text ${nick.className}`} style={nick.style}>
                       {h.senderName ?? t('common.anon')}
                     </b>

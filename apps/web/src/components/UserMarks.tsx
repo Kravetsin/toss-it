@@ -1,3 +1,4 @@
+import { sealEffectClass } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { Badge } from '@/ui';
 import { Icon, type IconName } from '@/ui/icons';
@@ -76,6 +77,24 @@ interface BadgeDef {
   key: string;
   icon: IconName;
   label: string;
+}
+
+/** The ONE way to render an equipped seal outside the chat overlay: always immediately before the
+ *  nick (after the level numeral), never trailing the badges — a seal is an artifact worn by the
+ *  person, not an achievement chip. Sized via inline font-size (the shared .seal-fx scales from it)
+ *  rather than a Tailwind class, so a caller can pass any size without a purge-safe literal. */
+export function SealMark({
+  seal,
+  size = 24,
+  className = '',
+}: {
+  seal: string | null | undefined;
+  size?: number;
+  className?: string;
+}) {
+  const cls = sealEffectClass(seal);
+  if (!cls) return null;
+  return <span aria-hidden style={{ fontSize: size }} className={`shrink-0 ${cls} ${className}`} />;
 }
 
 /**

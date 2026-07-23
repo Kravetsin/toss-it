@@ -1,7 +1,13 @@
 import { and, eq, inArray, or, sql } from 'drizzle-orm';
 import { LEVEL_POINTS, xpToLevel } from '@tmw/shared';
 import { db } from './db/index';
-import { channelActivity, excludeSelfSends, linkedIdentities, submissions } from './db/schema';
+import {
+  channelActivity,
+  excludeSelfSends,
+  linkedIdentities,
+  submissions,
+  users,
+} from './db/schema';
 
 export interface LevelKey {
   userId: string | null;
@@ -159,6 +165,18 @@ export async function messagesTotalFor(userId: string): Promise<number> {
 /** Account-wide watch time in minutes, for cosmetics gated on `earn.metric === 'watchMinutes'`. */
 export async function watchMinutesTotalFor(userId: string): Promise<number> {
   return activityTotalFor(userId, channelActivity.watchMinutes);
+}
+
+/** Lifetime dust EARNED (never decremented by spending), for cosmetics gated on
+ *  `earn.metric === 'dustEarned'`. A direct column read — the counter is kept live at every earn
+ *  site (see creditDust), so nothing to aggregate here. */
+export async function dustEarnedFor(userId: string): Promise<number> {
+  const row = await db
+    .select({ n: users.dustEarned })
+    .from(users)
+    .where(eq(users.id, userId))
+    .get();
+  return row?.n ?? 0;
 }
 
 /**

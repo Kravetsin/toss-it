@@ -57,6 +57,8 @@ export interface NickMarks {
   cardEffect: string | null;
   /** Border decoration on the card (e.g. 'frame-runner'); null = none. */
   frame: string | null;
+  /** Small object the sender carries (e.g. 'seal-eye-open'); null = none. Own slot, not a frame. */
+  seal: string | null;
   /** How the alert arrives on stage; null = the stage's own pop-in. */
   entrance: string | null;
   /** Portal entrance tint (#rrggbb); only set when `entrance` is the portal. */
@@ -69,6 +71,7 @@ const NO_MARKS: NickMarks = {
   nickEffect: null,
   cardEffect: null,
   frame: null,
+  seal: null,
   entrance: null,
   entranceColor: null,
 };
@@ -86,6 +89,7 @@ export function marksFromEquipped(equipped: EquippedCosmetics | null): NickMarks
     nickEffect: equipped?.nickEffect ?? null,
     cardEffect: equipped?.cardEffect ?? null,
     frame: equipped?.frame ?? null,
+    seal: equipped?.seal ?? null,
     entrance: equipped?.entrance ?? null,
     // Tints WHICHEVER entrance is equipped (see entrance-portal-color): it used to be portal-only,
     // which silently starved every other colourable entrance of the viewer's chosen colour.
@@ -108,6 +112,7 @@ export function toSummary(
     senderEffect: marks.nickEffect,
     senderCardEffect: marks.cardEffect,
     senderFrame: marks.frame,
+    senderSeal: marks.seal,
     senderLevel,
     kind: sub.kind,
     mime: sub.mime,

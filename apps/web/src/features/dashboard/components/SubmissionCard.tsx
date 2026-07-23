@@ -23,7 +23,7 @@ import { useFidgetEnabled } from '@/hooks/useFidgetEnabled';
 import { disintegrate } from '@/lib/burst';
 import { Icon } from '@/ui/icons';
 import { IconButton } from '@/ui';
-import { PlatformIcon, UserBadges } from '@/components/UserMarks';
+import { PlatformIcon, SealMark, UserBadges } from '@/components/UserMarks';
 import { CardEffect } from '@/components/CardEffect';
 import { nickProps } from '@/lib/nick';
 import { formatTrackDuration } from '../constants';
@@ -191,6 +191,7 @@ export function SubmissionCard({
                   {toRoman(s.senderLevel!)}
                 </span>
               )}
+              <SealMark seal={s.senderSeal} />
               <b className={`truncate text-sm text-text ${nick.className}`} style={nick.style}>
                 {s.senderName ?? t('common.anon')}
               </b>

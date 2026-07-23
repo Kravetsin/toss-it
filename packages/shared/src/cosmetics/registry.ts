@@ -6,6 +6,7 @@ import type {
   EntranceModule,
   FrameModule,
   NickEffectModule,
+  SealModule,
   Rnd,
   Surface,
 } from './types';
@@ -34,6 +35,8 @@ import { frameWater } from './effects/frame-water';
 import { frameEmbers } from './effects/frame-embers';
 import { frameCanopy } from './effects/frame-canopy';
 import { frameStorm } from './effects/frame-storm';
+import { sealStarDormant, sealStarCharged, sealStarLit, sealStarAwake } from './effects/seal-star';
+import { sealGemDull, sealGemCut, sealGemClear, sealGemCrown } from './effects/seal-gem';
 import { entranceGlitch } from './effects/entrance-glitch';
 import { entranceAstral } from './effects/entrance-astral';
 import { entrancePortal } from './effects/entrance-portal';
@@ -155,6 +158,23 @@ const BASE_CSS = `
     animation: none;
   }
 }
+/* Seals: a small square object the sender carries. Sized in em so it tracks whatever surface it
+   lands on (the chat gutter scales with --chat-font); each surface positions it itself — the card's
+   free corner, or under the star in the chat gutter. Only the artwork comes from the module. */
+.seal-fx {
+  width: 0.95em;
+  height: 0.95em;
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+  pointer-events: none;
+  flex: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .seal-fx {
+    animation: none;
+  }
+}
 `;
 
 /**
@@ -189,6 +209,16 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   frameEmbers,
   frameWater,
   frameStorm,
+  // Seals are a separate slot from frames, so a viewer wears one of each rather than choosing.
+  // Grouped by earning axis: the spark on submissions, the gem on lifetime dust earned.
+  sealStarDormant,
+  sealStarCharged,
+  sealStarLit,
+  sealStarAwake,
+  sealGemDull,
+  sealGemCut,
+  sealGemClear,
+  sealGemCrown,
   entranceGlitch,
   entranceAstral,
   entrancePortal,
@@ -271,6 +301,23 @@ export function frameModule(id: string | null | undefined): FrameModule | undefi
  *  none/unknown. The class alone drives the effect — the injected stylesheet does the rest. */
 export function frameEffectClass(id: string | null | undefined): string {
   return frameModule(id)?.className ?? '';
+}
+
+/** Seal module by catalog id, or undefined for unknown / non-seal ids. */
+export function sealModule(id: string | null | undefined): SealModule | undefined {
+  if (!id) return undefined;
+  const m = BY_ID.get(id);
+  return m?.type === 'seal' ? m : undefined;
+}
+
+/**
+ * Classes a surface puts on its seal element (e.g. 'seal-fx seal-fx-eye-open'), or '' for
+ * none/unknown. Includes the shared `seal-fx` base, so a surface only has to create the element and
+ * place it — sizing and the artwork both come from the stylesheet.
+ */
+export function sealEffectClass(id: string | null | undefined): string {
+  const m = sealModule(id);
+  return m ? `seal-fx ${m.className}` : '';
 }
 
 /** Entrance module by catalog id, or undefined for unknown / non-entrance ids. */

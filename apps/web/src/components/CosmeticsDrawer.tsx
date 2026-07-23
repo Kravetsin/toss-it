@@ -7,6 +7,7 @@ import {
   entranceModule,
   frameEffectClass,
   nickEffectClass,
+  sealEffectClass,
   nickEffectModule,
   type CosmeticItem,
   type CosmeticType,
@@ -43,7 +44,7 @@ const EARN_ROWS = [
   { icon: 'message-circle', key: 'wallet.earnChat', n: DUST_POINTS.message },
 ] as const;
 
-type ShopCategory = 'nick' | 'card' | 'frame' | 'entrance' | 'voices';
+type ShopCategory = 'nick' | 'card' | 'frame' | 'seal' | 'entrance' | 'voices';
 
 /** Per-metric presentation for earned items. A table rather than a branch per metric, so the next
  *  axis is one line here. `unit` divides the raw count for display (watch time is stored in minutes,
@@ -52,6 +53,7 @@ const EARN_META = {
   messages: { icon: 'message-circle', unit: 1, lockedKey: 'shop.earnLocked' },
   watchMinutes: { icon: 'clock', unit: 60, lockedKey: 'shop.earnLockedWatch' },
   submissions: { icon: 'send', unit: 1, lockedKey: 'shop.earnLockedSends' },
+  dustEarned: { icon: 'sparkles', unit: 1, lockedKey: 'shop.earnLockedDust' },
 } as const;
 
 /** Which tab an item lands in. Exhaustive by type, so a new cosmetic type can't quietly miss its
@@ -61,6 +63,7 @@ const CATEGORY_OF: Record<CosmeticType, ShopCategory> = {
   nick_effect: 'nick',
   card_effect: 'card',
   frame: 'frame',
+  seal: 'seal',
   entrance: 'entrance',
   tts_voice: 'voices',
 };
@@ -68,6 +71,7 @@ const CATEGORY_IDS: Record<ShopCategory, string[]> = {
   nick: [],
   card: [],
   frame: [],
+  seal: [],
   entrance: [],
   voices: [],
 };
@@ -106,6 +110,13 @@ function FrameDemo({ id, label }: { id: string; label: string }) {
       </div>
     </div>
   );
+}
+
+/** Seal preview: deliberately far BIGGER than it renders in place. A seal lands in a chat gutter or
+ *  next to a nick at ~14px, and chats run at wildly different font sizes — at life size a viewer
+ *  could own one for months and never make out what it is. The shop is where they get to see it. */
+function SealDemo({ id }: { id: string }) {
+  return <span aria-hidden className={`text-[64px] ${sealEffectClass(id)}`} />;
 }
 
 /**
@@ -222,6 +233,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     return groups.filter((g) => g.effects.length > 0);
   })();
   const frames = COSMETICS.filter((c) => c.type === 'frame');
+  const seals = COSMETICS.filter((c) => c.type === 'seal');
   // `upgrade` items (the portal colour) aren't equippable entrances — they're a rung, rendered below.
   const entrances = COSMETICS.filter((c) => c.type === 'entrance' && !c.upgrade);
   const portalColorItem = COSMETICS.find((c) => c.id === PORTAL_COLOR_ID)!;
@@ -236,11 +248,13 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   const equippedNickEffect = user?.equipped.nickEffect ?? null;
   const equippedCardEffect = user?.equipped.cardEffect ?? null;
   const equippedFrame = user?.equipped.frame ?? null;
+  const equippedSeal = user?.equipped.seal ?? null;
   // Account-wide activity — earned cosmetics (frames) unlock at a threshold instead of a price.
   const earnTotals = {
     messages: user?.messagesTotal ?? 0,
     watchMinutes: user?.watchMinutesTotal ?? 0,
     submissions: user?.submissionsTotal ?? 0,
+    dustEarned: user?.dustEarnedTotal ?? 0,
   };
   const equippedEntrance = user?.equipped.entrance ?? null;
   const ownsPortalColor = user?.ownedCosmetics.includes(PORTAL_COLOR_ID) ?? false;
@@ -338,6 +352,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     nickEffect?: string | null;
     cardEffect?: string | null;
     frame?: string | null;
+    seal?: string | null;
     entrance?: string | null;
   }) =>
     void act(() => equipCosmetic(patch), {
@@ -384,6 +399,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     const isNick = e.type === 'nick_effect';
     const isEntrance = e.type === 'entrance';
     const isFrame = e.type === 'frame';
+    const isSeal = e.type === 'seal';
     return (
       <div
         key={e.id}
@@ -442,6 +458,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
             />
           )}
           {isFrame && <FrameDemo id={e.id} label={previewName} />}
+          {isSeal && <SealDemo id={e.id} />}
           <div className="flex items-center gap-2">
             {!owned ? (
               earn && earnMeta ? (
@@ -605,6 +622,12 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
             onClick={() => setCategory('frame')}
             label={t('shop.catFrame')}
             category="frame"
+          />
+          <CategoryBtn
+            active={category === 'seal'}
+            onClick={() => setCategory('seal')}
+            label={t('shop.catSeal')}
+            category="seal"
           />
           <CategoryBtn
             active={category === 'entrance'}
@@ -842,6 +865,12 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
           section(
             t('shop.frames'),
             frames.map((e) => effectRow(e, equippedFrame, (id) => equipEffect({ frame: id }))),
+          )}
+
+        {category === 'seal' &&
+          section(
+            t('shop.seals'),
+            seals.map((e) => effectRow(e, equippedSeal, (id) => equipEffect({ seal: id }))),
           )}
 
         {category === 'entrance' &&

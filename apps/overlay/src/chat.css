@@ -92,6 +92,39 @@
   width: 100%;
   height: 100%;
 }
+/* Seal: on the thread's axis, centred on the bubble's FIRST line whatever the row above it does.
+   It is positioned inside .body-row (a wrapper whose top is the bubble's top) rather than the row,
+   because the name line's height moves with the numeral and badges — anything measured from the
+   row's top drifts off the text. No lead drawn to the marker: a hairline meeting a different
+   silhouette per seal clips badly, and it reads fine floating.
+
+   top: bubble border (1px) + padding-top (0.28em) + half a line (1.4/2) − half the seal (0.475em).
+   left: pulls out of the content box (1.65em) back to the marker's x (0.06em). */
+.msg .body-row {
+  position: relative;
+  max-width: 100%;
+}
+.msg .body-row .seal {
+  position: absolute;
+  /* Bigger than gutter-badge size: at 0.95em it was unreadable. 1.3em ≈ 25px fits the gutter width
+     (padding-left 1.65em) and stays clear of the bubble. left/top re-centre for the new size. */
+  width: 1.3em;
+  height: 1.3em;
+  left: -1.74em;
+  top: 0.41em;
+}
+/* Purchase and bot-answer rows have no name line — the card is the first thing in the row, so the
+   marker (placed for a name line at 0.22em) sits above the card's text. Centred on the card's first
+   line instead, computed from each card's own box rather than measured at runtime:
+   sys = padding 0.3em + half a line (1.25/2) − half the star (0.475em) = 0.45em. The redemption
+   card's row is baseline-aligned around a bigger amount glyph, so its first line sits higher than
+   the box maths suggests — 0.47em is the measured correction. */
+.msg.system .star {
+  top: 0.45em;
+}
+.msg.redeem .star {
+  top: 0.47em;
+}
 /* No-level newcomers: a small nick-colored bead on the thread instead of a star
    (same split-off entry). Center matches the star's (0.775em down the name row). */
 .msg .dot {
