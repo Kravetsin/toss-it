@@ -424,12 +424,15 @@ export class PlaybackManager {
   }
 
   /**
-   * `nowPlaying` is what the overlay says is on its screen right now (null = nothing / an older
-   * overlay build that doesn't report it).
+   * `screen` is what the connecting overlay has on display, or NULL when that socket does not render
+   * media at all — the chat overlay joins the same room with the same role and token, so only a
+   * client that declares itself the media surface may speak for what is on screen. Treating the chat
+   * overlay's silence as "nothing playing" is how a live track got skipped on the next redeploy.
+   * `screen.nowPlaying` is null when the media surface is genuinely showing nothing.
    */
   async onOverlayConnected(
     channelId: string,
-    nowPlaying: string | null,
+    screen: { nowPlaying: string | null } | null,
     replayTo: (payload: MediaPlayPayload) => void,
   ): Promise<void> {
     const st = this.state(channelId);
@@ -437,20 +440,22 @@ export class PlaybackManager {
       void this.tryNext(channelId);
       return;
     }
-    // Still showing this exact item — a redeploy or a brief network drop, through which the browser
-    // kept playing. Adopt it: replaying would rebuild the card and restart the clip from zero.
-    if (nowPlaying === st.current.id) {
-      st.restored = false;
-      return;
-    }
-    if (st.restored) {
-      st.restored = false;
-      // Recovered a show the overlay's screen does not have: it ended during the outage (its
-      // playback:done never reached us) or OBS restarted. Advance instead of replaying — nobody
-      // wants a finished track, or a five-minute song, restarted from zero mid-stream.
-      if (!nowPlaying) {
-        await this.onDone(channelId, st.current.id);
+    if (screen) {
+      // Still showing this exact item — a redeploy or a brief network drop, through which the
+      // browser kept playing. Adopt it: replaying would rebuild the card and restart it from zero.
+      if (screen.nowPlaying === st.current.id) {
+        st.restored = false;
         return;
+      }
+      if (st.restored) {
+        st.restored = false;
+        // Recovered a show the media surface does not have: it ended during the outage (its
+        // playback:done never reached us) or OBS restarted. Advance instead of replaying — nobody
+        // wants a finished track, or a five-minute song, restarted from zero mid-stream.
+        if (!screen.nowPlaying) {
+          await this.onDone(channelId, st.current.id);
+          return;
+        }
       }
     }
     replayTo(await this.buildPayload(st.current));
@@ -818,12 +823,17 @@ export function setupRealtime(io: RealtimeServer, app: FastifyInstance): Playbac
           // Last overlay gone → rescue a paused show from stranding as `current` forever.
           socket.on('disconnect', () => playback.onOverlayDisconnected(channel.id));
           // Sent via handshake auth (not query) because socket.io re-evaluates auth on every
-          // reconnect — this must reflect what is on screen NOW, not at page load.
-          const nowPlaying: unknown = socket.handshake.auth?.nowPlaying;
-          void playback.onOverlayConnected(
-            channel.id,
-            typeof nowPlaying === 'string' && nowPlaying ? nowPlaying : null,
-            (payload) => socket.emit('media:play', payload),
+          // reconnect — this must reflect what is on screen NOW, not at page load. Only the media
+          // surface declares itself; the chat overlay shares this role and must not be mistaken
+          // for a media overlay with an empty screen.
+          const auth: Record<string, unknown> = socket.handshake.auth ?? {};
+          const nowPlaying = auth.nowPlaying;
+          const screen =
+            auth.surface === 'media'
+              ? { nowPlaying: typeof nowPlaying === 'string' && nowPlaying ? nowPlaying : null }
+              : null;
+          void playback.onOverlayConnected(channel.id, screen, (payload) =>
+            socket.emit('media:play', payload),
           );
           return;
         }

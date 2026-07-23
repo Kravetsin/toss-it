@@ -117,8 +117,10 @@ const socket: Socket<ServerToOverlayEvents, OverlayToServerEvents> = DEMO
       query: { role: 'overlay', token: token ?? '' },
       // Unlike `query` (frozen when the socket is built), auth re-runs on every reconnect. It tells
       // a restarted server what is on screen right now, so it adopts the show instead of handing us
-      // a different one — the browser kept playing through the outage.
-      auth: (cb) => cb({ nowPlaying: currentId ?? '' }),
+      // a different one — the browser kept playing through the outage. `surface` marks this as THE
+      // media overlay: the chat overlay connects with the same role and token but renders no media,
+      // so the server must not read its silence as an empty stage.
+      auth: (cb) => cb({ surface: 'media', nowPlaying: currentId ?? '' }),
     });
 
 let hideTimer: number | undefined;
