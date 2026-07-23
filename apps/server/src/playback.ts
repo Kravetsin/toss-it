@@ -1,5 +1,5 @@
 import { and, eq, inArray } from 'drizzle-orm';
-import type { FastifyInstance } from 'fastify';
+import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import type { Server } from 'socket.io';
 import {
   musicConfigFrom,
@@ -199,7 +199,12 @@ export type QueueState = { playing: true } | { playing: false; position: number 
 export class PlaybackManager {
   private states = new Map<string, ChannelState>();
 
-  constructor(private io: RealtimeServer) {}
+  constructor(
+    private io: RealtimeServer,
+    // Playback decisions are invisible on stream when they go wrong (a skip just "happens"), so
+    // recovery/adopt/advance paths log their reasoning; optional to keep tests/sims silent.
+    private log?: FastifyBaseLogger,
+  ) {}
 
   /** Returns queue position (1 = next). */
   enqueue(sub: SubmissionRow): number {
@@ -348,14 +353,25 @@ export class PlaybackManager {
     for (const [channelId, row] of started) {
       const remaining = this.remainingMs(row);
       if (remaining <= 0) {
+        this.log?.info(
+          { channelId, submissionId: row.id, durationMs: row.durationMs },
+          'playback recovery: mid-show row must have ended during downtime, retiring',
+        );
         await this.markPlayed(row.id);
         continue;
       }
       const st = this.state(channelId);
+      this.log?.info(
+        { channelId, submissionId: row.id, remaining, queued: st.queue.length },
+        'playback recovery: restored mid-show row as current',
+      );
       st.current = row;
       st.restored = true;
       // Backstop from the ORIGINAL start, not from now — a restart must not extend the clip.
-      st.watchdog = setTimeout(() => void this.onDone(channelId, row.id), remaining);
+      st.watchdog = setTimeout(
+        () => void this.onDone(channelId, row.id, 'watchdog-recovery'),
+        remaining,
+      );
     }
   }
 
@@ -370,7 +386,7 @@ export class PlaybackManager {
     // Overlay gets media:skip and clears the screen; onDone advances the queue
     // regardless of whether the overlay is alive.
     this.io.to(roomOf(channelId)).emit('media:skip', current.id);
-    await this.onDone(channelId, current.id);
+    await this.onDone(channelId, current.id, 'streamer-skip');
     return true;
   }
 
@@ -398,7 +414,10 @@ export class PlaybackManager {
     const watchdogMs =
       sub.kind === 'youtube' ? config.youtube.loadGraceMs : sub.durationMs + config.watchdogGraceMs;
     if (st.watchdog) clearTimeout(st.watchdog);
-    st.watchdog = setTimeout(() => void this.onDone(channelId, sub.id), watchdogMs);
+    st.watchdog = setTimeout(
+      () => void this.onDone(channelId, sub.id, 'watchdog-resume'),
+      watchdogMs,
+    );
     this.io.to(roomOf(channelId)).emit('media:control', 'resume');
     return true;
   }
@@ -417,7 +436,10 @@ export class PlaybackManager {
     if (!st.paused && cur.durationMs > 0) {
       const remainingMs = Math.max(0, cur.durationMs - pos * 1000) + config.watchdogGraceMs;
       if (st.watchdog) clearTimeout(st.watchdog);
-      st.watchdog = setTimeout(() => void this.onDone(channelId, cur.id), remainingMs);
+      st.watchdog = setTimeout(
+        () => void this.onDone(channelId, cur.id, 'watchdog-seek'),
+        remainingMs,
+      );
     }
     this.io.to(roomOf(channelId)).emit('media:seek', pos);
     return true;
@@ -444,6 +466,10 @@ export class PlaybackManager {
       // Still showing this exact item — a redeploy or a brief network drop, through which the
       // browser kept playing. Adopt it: replaying would rebuild the card and restart it from zero.
       if (screen.nowPlaying === st.current.id) {
+        this.log?.info(
+          { channelId, submissionId: st.current.id },
+          'playback: overlay adopted the current show',
+        );
         st.restored = false;
         return;
       }
@@ -453,11 +479,19 @@ export class PlaybackManager {
         // playback:done never reached us) or OBS restarted. Advance instead of replaying — nobody
         // wants a finished track, or a five-minute song, restarted from zero mid-stream.
         if (!screen.nowPlaying) {
-          await this.onDone(channelId, st.current.id);
+          await this.onDone(channelId, st.current.id, 'recovery-advance');
           return;
         }
       }
     }
+    this.log?.info(
+      {
+        channelId,
+        submissionId: st.current.id,
+        overlayShows: screen ? (screen.nowPlaying ?? '(empty)') : '(no media surface)',
+      },
+      'playback: replaying current to a (re)connected overlay',
+    );
     replayTo(await this.buildPayload(st.current));
   }
 
@@ -475,12 +509,13 @@ export class PlaybackManager {
     const sub = st.current;
     const ms =
       sub.durationMs > 0 ? sub.durationMs + config.watchdogGraceMs : config.youtube.loadGraceMs;
-    st.watchdog = setTimeout(() => void this.onDone(channelId, sub.id), ms);
+    st.watchdog = setTimeout(() => void this.onDone(channelId, sub.id, 'watchdog-orphaned'), ms);
   }
 
-  async onDone(channelId: string, submissionId: string): Promise<void> {
+  async onDone(channelId: string, submissionId: string, cause = 'overlay-done'): Promise<void> {
     const st = this.state(channelId);
     if (st.current?.id !== submissionId) return;
+    this.log?.info({ channelId, submissionId, cause }, 'playback: show ended');
     if (st.watchdog) clearTimeout(st.watchdog);
     st.watchdog = null;
     st.current = null;
@@ -517,7 +552,7 @@ export class PlaybackManager {
       .catch(() => {});
     if (st.watchdog) clearTimeout(st.watchdog);
     st.watchdog = setTimeout(
-      () => void this.onDone(channelId, submissionId),
+      () => void this.onDone(channelId, submissionId, 'watchdog-duration'),
       durationMs + config.watchdogGraceMs,
     );
     // "Now playing" panel gets the real time instead of zero (with nick color).
@@ -574,7 +609,10 @@ export class PlaybackManager {
         fresh.kind === 'youtube'
           ? config.youtube.loadGraceMs
           : fresh.durationMs + config.watchdogGraceMs;
-      st.watchdog = setTimeout(() => void this.onDone(channelId, fresh.id), watchdogMs);
+      st.watchdog = setTimeout(
+        () => void this.onDone(channelId, fresh.id, 'watchdog-start'),
+        watchdogMs,
+      );
       return;
     }
   }
@@ -699,7 +737,7 @@ function resolveLayout(
 }
 
 export function setupRealtime(io: RealtimeServer, app: FastifyInstance): PlaybackManager {
-  const playback = new PlaybackManager(io);
+  const playback = new PlaybackManager(io, app.log);
 
   io.on('connection', (socket) => {
     void (async () => {
@@ -832,6 +870,10 @@ export function setupRealtime(io: RealtimeServer, app: FastifyInstance): Playbac
             auth.surface === 'media'
               ? { nowPlaying: typeof nowPlaying === 'string' && nowPlaying ? nowPlaying : null }
               : null;
+          app.log.info(
+            { channelId: channel.id, surface: auth.surface ?? '(none)', nowPlaying },
+            'overlay socket connected',
+          );
           void playback.onOverlayConnected(channel.id, screen, (payload) =>
             socket.emit('media:play', payload),
           );

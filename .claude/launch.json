@@ -9,6 +9,12 @@
       "port": 3100
     },
     {
+      "name": "server-dev",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@tmw/server", "exec", "tsx", "src/index.ts"],
+      "port": 3000
+    },
+    {
       "name": "web-dev",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@tmw/web", "dev"],
