@@ -108,21 +108,11 @@ if (!DEMO && !token) {
   throw new Error('overlay token missing');
 }
 
-// Declared before the socket: the auth callback below reads it on every reconnect.
-let currentId: string | null = null;
-
 const socket: Socket<ServerToOverlayEvents, OverlayToServerEvents> = DEMO
   ? demoSocketStub()
-  : io(SERVER_URL, {
-      query: { role: 'overlay', token: token ?? '' },
-      // Unlike `query` (frozen when the socket is built), auth re-runs on every reconnect. It tells
-      // a restarted server what is on screen right now, so it adopts the show instead of handing us
-      // a different one — the browser kept playing through the outage. `surface` marks this as THE
-      // media overlay: the chat overlay connects with the same role and token but renders no media,
-      // so the server must not read its silence as an empty stage.
-      auth: (cb) => cb({ surface: 'media', nowPlaying: currentId ?? '' }),
-    });
+  : io(SERVER_URL, { query: { role: 'overlay', token: token ?? '' } });
 
+let currentId: string | null = null;
 let hideTimer: number | undefined;
 let finishing = false;
 let ytPlayer: YTPlayer | null = null;
@@ -139,16 +129,7 @@ let timedElapsedMs = 0;
 let timedStartTs = 0;
 let progressTimer: number | undefined;
 
-socket.on('connect', () => {
-  console.log('[overlay] connected');
-  // A restarted server adopts the show we are still playing but knows nothing about its length — its
-  // backstop watchdog would cut the track short. Re-send the duration we already have; the
-  // once-per-show guard exists to avoid chatter and must not block this.
-  if (currentId && ytPlayer) {
-    ytReportedSid = null;
-    reportYoutubeDuration(currentId, ytPlayer);
-  }
-});
+socket.on('connect', () => console.log('[overlay] connected'));
 socket.on('media:play', show);
 socket.on('media:skip', (submissionId) => {
   if (submissionId === currentId) finish();
@@ -183,10 +164,9 @@ socket.on('music:config', applyMusicConfig);
 socket.on('music:command', handleMusicCommand);
 
 function show(payload: MediaPlayPayload): void {
-  // Already on screen — the server replayed it after a reconnect. Rebuilding the card would restart
-  // the clip from zero, audibly, mid-track. `finishing` still lets a replay through: that show is
-  // on its way out, so re-showing it is a genuine restart, not a duplicate.
-  if (payload.submissionId === currentId && !finishing) return;
+  // Deliberately unconditional, even for the show already on screen: after a server restart the
+  // overlay is told to play the current post again, and rebuilding it from scratch is what makes
+  // the two sides agree. Skipping the rebuild left the card playing but the controls dead.
   clearStage();
   hideSizeHint(); // a post is arriving — never leave the setup hint sitting over media on stream
   currentId = payload.submissionId;
