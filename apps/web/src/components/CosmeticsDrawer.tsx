@@ -181,7 +181,10 @@ function CategoryBtn({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`flex flex-1 items-center justify-center gap-1.5 rounded-none px-3 py-1.5 label-mono transition-colors duration-200 ease-out ${
+      // min-w-fit + nowrap: flex-1 alone gives every tab a 0 basis, so once the labels stop fitting
+      // they get squeezed narrower than their own text and it spills out of the tab. Clamped to the
+      // label instead, the strip overflows and scrolls (see the container) rather than clipping.
+      className={`flex min-w-fit flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-none px-3 py-1.5 label-mono transition-colors duration-200 ease-out ${
         active ? 'bg-accent text-accent-contrast' : 'text-muted hover:text-text'
       }`}
     >
@@ -675,7 +678,9 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
           </Card>
         )}
 
-        <div className="flex gap-1 border border-border bg-surface-2 p-1">
+        {/* Scrolls sideways when the tabs stop fitting — a longer word in another locale (or one more
+            category) must never push a tab off the edge where it can't be reached. */}
+        <div className="flex gap-1 overflow-x-auto border border-border bg-surface-2 p-1">
           <CategoryBtn
             active={category === 'nick'}
             onClick={() => setCategory('nick')}
