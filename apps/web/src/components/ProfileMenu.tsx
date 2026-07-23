@@ -186,11 +186,11 @@ export function ProfileMenu({
         <span className="relative ml-1 flex shrink-0 items-center gap-1 label-mono text-accent">
           <DustMark size={14} />
           <span className="tabular-nums">{user.stardust}</span>
-          {/* The shop lives one click inside this menu, so the dot has to surface on the card
-              itself — otherwise nothing on the viewer page ever hints there's something new. */}
-          <NewDotGroup />
         </span>
       </button>
+      {/* Outside the button, not in it: the card clips its own overflow for the particle layer, so a
+          corner mark placed inside would be cut off. The shop is one click deeper, in the menu. */}
+      <NewDotGroup corner />
 
       {open && (
         <div

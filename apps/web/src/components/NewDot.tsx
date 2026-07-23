@@ -5,13 +5,42 @@ import { useWhatsNew } from '@/providers/WhatsNewProvider';
 /** How long the dot must stay on screen before it counts as read — scrolling past it doesn't. */
 const DWELL_MS = 900;
 
-function Dot({ className, label }: { className: string; label: string }) {
+/**
+ * `corner`: pin the mark to the top-right of a `relative` parent so it breaks the button's edge
+ * instead of sitting inside it — a dot that shares a box with a label reads as part of the label.
+ * It also gets a spreading ring, which is what actually catches the eye off-centre. Inline marks
+ * (rows, tabs) stay a quiet dot: the ring is for pulling someone TO the shop, not for shouting at
+ * them once they're reading it.
+ */
+function Dot({
+  className,
+  label,
+  corner = false,
+}: {
+  className: string;
+  label: string;
+  corner?: boolean;
+}) {
   return (
     <span
       role="status"
       aria-label={label}
-      className={`pointer-events-none size-1.5 shrink-0 rounded-full bg-accent shadow-[0_0_6px_var(--color-accent)] motion-safe:animate-pulse ${className}`}
-    />
+      className={`pointer-events-none shrink-0 ${
+        corner ? 'absolute -right-1 -top-1 inline-flex size-2' : 'inline-flex size-1.5'
+      } ${className}`}
+    >
+      {corner && (
+        <span
+          aria-hidden
+          className="absolute inset-0 rounded-full bg-accent opacity-70 motion-safe:animate-ping"
+        />
+      )}
+      <span
+        className={`relative size-full rounded-full bg-accent shadow-[0_0_6px_var(--color-accent)] ${
+          corner ? '' : 'motion-safe:animate-pulse'
+        }`}
+      />
+    </span>
   );
 }
 
@@ -66,12 +95,15 @@ export function NewDot({ id, className = '' }: { id: string; className?: string 
 export function NewDotGroup({
   ids,
   className = '',
+  corner = false,
 }: {
   ids?: readonly string[];
   className?: string;
+  /** Hang off the parent's top-right corner — the parent must be `relative`. */
+  corner?: boolean;
 }) {
   const { t } = useI18n();
   const { hasNew } = useWhatsNew();
   if (!hasNew(ids)) return null;
-  return <Dot className={className} label={t('common.new')} />;
+  return <Dot className={className} label={t('common.new')} corner={corner} />;
 }

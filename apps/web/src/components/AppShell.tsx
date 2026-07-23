@@ -185,16 +185,14 @@ function AccountBlock({
         type="button"
         onClick={openShop}
         aria-label={t('shop.open')}
-        className="mt-2 flex w-full cursor-pointer items-center justify-between gap-2 border border-border bg-surface-2 px-3 py-2 text-sm outline-none transition-colors hover:border-accent focus-visible:[box-shadow:var(--shadow-focus)]"
+        className="relative mt-2 flex w-full cursor-pointer items-center justify-between gap-2 border border-border bg-surface-2 px-3 py-2 text-sm outline-none transition-colors hover:border-accent focus-visible:[box-shadow:var(--shadow-focus)]"
       >
         <span className="flex items-center gap-1.5 text-muted">
           <DustMark size={15} className="text-accent" />
           <span className="tabular-nums text-text">{user.stardust}</span>
         </span>
-        <span className="flex items-center gap-1.5 label-mono text-accent">
-          {t('wallet.shopLabel')}
-          <NewDotGroup />
-        </span>
+        <span className="label-mono text-accent">{t('wallet.shopLabel')}</span>
+        <NewDotGroup corner />
       </button>
 
       <div className="mt-2 flex flex-col gap-0.5">
@@ -363,8 +361,7 @@ function Sidebar({
               className="relative inline-flex size-8 cursor-pointer items-center justify-center rounded-full border border-border text-muted outline-none transition-colors hover:border-accent hover:text-text focus-visible:[box-shadow:var(--shadow-focus)]"
             >
               <DustMark size={16} className="text-accent" />
-              {/* Collapsed rail: no label to sit beside, so the dot rides the button's edge. */}
-              <NewDotGroup className="absolute right-0.5 top-0.5" />
+              <NewDotGroup corner />
             </button>
           </Tooltip>
           <MobileNavIcon to="/promo" icon="gift" label={t('promo.haveCode')} tip="right" />

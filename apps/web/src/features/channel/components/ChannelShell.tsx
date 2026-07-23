@@ -29,11 +29,11 @@ function GuestActions() {
       <button
         type="button"
         onClick={openShop}
-        className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 py-1 text-sm text-muted outline-none transition-colors hover:border-accent hover:text-text focus-visible:[box-shadow:var(--shadow-focus)]"
+        className="relative inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 py-1 text-sm text-muted outline-none transition-colors hover:border-accent hover:text-text focus-visible:[box-shadow:var(--shadow-focus)]"
       >
         <Icon name="sparkles" size={15} className="text-accent" />
         {t('wallet.shopLabel')}
-        <NewDotGroup />
+        <NewDotGroup corner />
       </button>
       <a href={`/api/auth/login?returnTo=${returnTo}`}>
         <Button variant="primary" size="sm">
