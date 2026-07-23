@@ -98,7 +98,8 @@ registerRoutes(app, { playback, storage, tmpDir, io, twitchChat, channelPoints }
 
 const { ttsAvailable, ttsBinPath } = await import('./tts');
 app.log.info(`TTS: piper ${ttsAvailable() ? 'available' : 'MISSING'} at ${ttsBinPath}`);
-startCleanup(storage, app.log);
+// Channels with a connected overlay are on air; their queues are exempt from the TTL sweep.
+startCleanup(storage, app.log, () => [...playback.liveChannels().keys()]);
 startBackups(serverRoot, app.log);
 
 if (config.allowFakeAuth) {

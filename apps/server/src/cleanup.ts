@@ -1,4 +1,4 @@
-import { and, inArray, isNotNull, isNull, lt, eq } from 'drizzle-orm';
+import { and, inArray, isNotNull, isNull, lt, eq, notInArray } from 'drizzle-orm';
 import type { FastifyBaseLogger } from 'fastify';
 import { db } from './db/index';
 import { submissions } from './db/schema';
@@ -8,28 +8,63 @@ import type { Storage } from './storage';
 /**
  * Ephemeral storage: file lives from upload until shown. Sweep deletes files in
  * terminal statuses (with slack for overlay reconnect) and never-played expired ones.
+ *
+ * `liveChannelIds` returns the channels currently in the air (an overlay is connected). Their queues
+ * are exempt from the TTL sweep — see sweep().
  */
-export function startCleanup(storage: Storage, log: FastifyBaseLogger): NodeJS.Timeout {
+export function startCleanup(
+  storage: Storage,
+  log: FastifyBaseLogger,
+  liveChannelIds: () => string[],
+): NodeJS.Timeout {
   const timer = setInterval(() => {
-    sweep(storage, log).catch((err) => log.error(err, 'cleanup sweep failed'));
+    sweep(storage, log, liveChannelIds()).catch((err) => log.error(err, 'cleanup sweep failed'));
   }, config.cleanup.intervalMs);
   timer.unref();
   return timer;
 }
 
-async function sweep(storage: Storage, log: FastifyBaseLogger): Promise<void> {
+async function sweep(
+  storage: Storage,
+  log: FastifyBaseLogger,
+  liveChannelIds: string[],
+): Promise<void> {
   const now = Date.now();
 
-  // Not shown within queuedTtl -> expire (e.g. stream ended).
-  await db
-    .update(submissions)
-    .set({ status: 'expired', updatedAt: new Date() })
-    .where(
-      and(
-        eq(submissions.status, 'approved'),
-        lt(submissions.createdAt, new Date(now - config.cleanup.queuedTtlMs)),
-      ),
+  // Not shown within queuedTtl -> expire. The TTL means "the stream ended without showing this", so
+  // a channel that is ON AIR right now is exempt: its queue is still being worked through, and the
+  // clock runs from created_at, which would otherwise kill a viewer's submission mid-broadcast just
+  // because they sent it hours before the stream started.
+  //
+  // This is the one sweep that can empty a queue — the queue is nothing but the set of `approved`
+  // rows — and until the process restarts the in-memory copy keeps showing the items, so the loss
+  // only surfaces on the next deploy. Log which rows went, or the next investigation starts from
+  // "the queue vanished for no reason".
+  const expiryWhere = and(
+    eq(submissions.status, 'approved'),
+    lt(submissions.createdAt, new Date(now - config.cleanup.queuedTtlMs)),
+    ...(liveChannelIds.length ? [notInArray(submissions.channelId, liveChannelIds)] : []),
+  );
+  const doomed = await db
+    .select({ id: submissions.id, channelId: submissions.channelId })
+    .from(submissions)
+    .where(expiryWhere)
+    .all();
+  if (doomed.length > 0) {
+    await db
+      .update(submissions)
+      .set({ status: 'expired', updatedAt: new Date() })
+      .where(expiryWhere);
+    log.warn(
+      {
+        n: doomed.length,
+        ttlHours: config.cleanup.queuedTtlMs / 3_600_000,
+        ids: doomed.map((d) => d.id),
+        channels: [...new Set(doomed.map((d) => d.channelId))],
+      },
+      'cleanup: queued submissions expired past TTL — these left their channel queue',
     );
+  }
 
   // Terminal statuses past retention: delete file, keep row as history.
   const stale = await db
