@@ -419,10 +419,18 @@
   position: relative;
   z-index: 1;
 }
+/* Inline flow, NOT a flex row. As flex the nick and the answer were siblings splitting one line, so
+   a long answer only ever got the width left over beside the nick and wrapped inside it — a narrow
+   column running down the card. Inline children keep the badge+nick whole (they are inline-flex)
+   while the text wraps across the card's full width like ordinary prose. */
 .msg.system .sys-line {
-  display: flex;
-  align-items: baseline;
-  gap: 0.4em;
+  display: block;
+}
+/* Stands in for the flex gap that went with it: the parts are appended with no whitespace between
+   them, so each one has to carry its own trailing space. */
+.msg.system .sys-who,
+.msg.system .sys-text {
+  margin-right: 0.4em;
 }
 /* Badge + nick as one centered unit, so the founder glyph tracks the name regardless of the
    baseline row it sits on. */
