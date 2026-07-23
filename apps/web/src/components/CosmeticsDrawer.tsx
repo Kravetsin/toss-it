@@ -9,6 +9,7 @@ import {
   nickEffectClass,
   nickEffectModule,
   type CosmeticItem,
+  type CosmeticType,
 } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { useMe } from '@/hooks/useMe';
@@ -17,6 +18,7 @@ import { useConfirm } from '@/providers/ConfirmProvider';
 import { Badge, Button, Card, Drawer, IconButton } from '@/ui';
 import { Icon } from '@/ui/icons';
 import { DustMark } from '@/components/DustMark';
+import { NewDot, NewDotGroup } from '@/components/NewDot';
 import { CardEffect } from '@/components/CardEffect';
 import { buyCosmetic, equipCosmetic } from '@/lib/api/shop';
 import { nickProps } from '@/lib/nick';
@@ -42,6 +44,25 @@ const EARN_ROWS = [
 ] as const;
 
 type ShopCategory = 'nick' | 'card' | 'frame' | 'entrance' | 'voices';
+
+/** Which tab an item lands in. Exhaustive by type, so a new cosmetic type can't quietly miss its
+ *  "new" dot — adding one to the registry fails typecheck until it's placed here. */
+const CATEGORY_OF: Record<CosmeticType, ShopCategory> = {
+  nick_color: 'nick',
+  nick_effect: 'nick',
+  card_effect: 'card',
+  frame: 'frame',
+  entrance: 'entrance',
+  tts_voice: 'voices',
+};
+const CATEGORY_IDS: Record<ShopCategory, string[]> = {
+  nick: [],
+  card: [],
+  frame: [],
+  entrance: [],
+  voices: [],
+};
+for (const c of COSMETICS) CATEGORY_IDS[CATEGORY_OF[c.type]].push(c.id);
 
 /** Card effects split into themed shop sub-tabs: only the active group's previews mount at once, so a
  *  growing catalog doesn't run a dozen live particle layers and drop the shop's FPS. A card effect not
@@ -135,21 +156,26 @@ function CategoryBtn({
   active,
   onClick,
   label,
+  category,
 }: {
   active: boolean;
   onClick: () => void;
   label: string;
+  category: ShopCategory;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`flex-1 rounded-none px-3 py-1.5 label-mono transition-colors duration-200 ease-out ${
+      className={`flex flex-1 items-center justify-center gap-1.5 rounded-none px-3 py-1.5 label-mono transition-colors duration-200 ease-out ${
         active ? 'bg-accent text-accent-contrast' : 'text-muted hover:text-text'
       }`}
     >
       {label}
+      {/* Not while the tab is open: on an active tab the mint dot lands on the mint fill and the
+          rows below carry their own marks anyway. */}
+      {!active && <NewDotGroup ids={CATEGORY_IDS[category]} />}
     </button>
   );
 }
@@ -361,15 +387,21 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
           <div className="flex items-center justify-between gap-2">
             {/* The demo needs the effect's `animation` explicitly: nick modules declare it instead
                 of putting it in their css (they share one element — see NickEffectModule). */}
-            <span
-              className={`font-medium text-text ${isNick ? nickEffectClass(e.id) : ''}`}
-              style={
-                isNick
-                  ? ({ ...glowVar, animation: nickEffectModule(e.id)?.animation } as CSSProperties)
-                  : undefined
-              }
-            >
-              {t(labels.name)}
+            <span className="flex min-w-0 items-center gap-1.5">
+              <span
+                className={`font-medium text-text ${isNick ? nickEffectClass(e.id) : ''}`}
+                style={
+                  isNick
+                    ? ({
+                        ...glowVar,
+                        animation: nickEffectModule(e.id)?.animation,
+                      } as CSSProperties)
+                    : undefined
+                }
+              >
+                {t(labels.name)}
+              </span>
+              <NewDot id={e.id} />
             </span>
             {owned ? (
               on ? (
@@ -447,6 +479,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
           <div className="flex items-center justify-between gap-2">
             <span className="flex items-center gap-2 font-medium text-text">
               {t(labels.name)}
+              <NewDot id={e.id} />
               <IconButton
                 name="play"
                 size="sm"
@@ -550,26 +583,31 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
             active={category === 'nick'}
             onClick={() => setCategory('nick')}
             label={t('shop.catNick')}
+            category="nick"
           />
           <CategoryBtn
             active={category === 'card'}
             onClick={() => setCategory('card')}
             label={t('shop.catCard')}
+            category="card"
           />
           <CategoryBtn
             active={category === 'frame'}
             onClick={() => setCategory('frame')}
             label={t('shop.catFrame')}
+            category="frame"
           />
           <CategoryBtn
             active={category === 'entrance'}
             onClick={() => setCategory('entrance')}
             label={t('shop.catEntrance')}
+            category="entrance"
           />
           <CategoryBtn
             active={category === 'voices'}
             onClick={() => setCategory('voices')}
             label={t('shop.catVoices')}
+            category="voices"
           />
         </div>
 
@@ -578,7 +616,10 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
             t('shop.nickColor'),
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-sm italic text-muted">{t('shop.nickColorDesc')}</p>
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <p className="text-sm italic text-muted">{t('shop.nickColorDesc')}</p>
+                  <NewDot id={NICK_COLOR_ID} />
+                </div>
                 {ownsColor ? (
                   <Badge>{t('shop.owned')}</Badge>
                 ) : (
@@ -646,7 +687,10 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
                   "needs the previous item" hint until the base colour is owned. */}
               <div className="mt-1 flex flex-col gap-2 border-t border-border pt-3">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium text-text">{t('shop.nickGradient')}</span>
+                  <span className="flex min-w-0 items-center gap-1.5 font-medium text-text">
+                    {t('shop.nickGradient')}
+                    <NewDot id={NICK_GRADIENT_ID} />
+                  </span>
                   {ownsGradient ? (
                     <Badge>{t('shop.owned')}</Badge>
                   ) : (
@@ -695,7 +739,10 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
                   the toggle with its own hint rather than hiding the rung. */}
               <div className="mt-1 flex flex-col gap-2 border-t border-border pt-3">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium text-text">{t('shop.nickFlow')}</span>
+                  <span className="flex min-w-0 items-center gap-1.5 font-medium text-text">
+                    {t('shop.nickFlow')}
+                    <NewDot id={NICK_FLOW_ID} />
+                  </span>
                   {ownsFlow ? (
                     <Badge>{t('shop.owned')}</Badge>
                   ) : (
@@ -762,13 +809,14 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
                   type="button"
                   aria-pressed={cardGroup === g.key}
                   onClick={() => setCardGroup(g.key)}
-                  className={`rounded-none border px-2.5 py-1 label-mono transition-colors duration-200 ${
+                  className={`flex items-center gap-1.5 rounded-none border px-2.5 py-1 label-mono transition-colors duration-200 ${
                     cardGroup === g.key
                       ? 'border-accent bg-accent text-accent-contrast'
                       : 'border-border text-muted hover:text-text'
                   }`}
                 >
                   {t(GROUP_LABEL[g.key])}
+                  {cardGroup !== g.key && <NewDotGroup ids={g.effects.map((e) => e.id)} />}
                 </button>
               ))}
             </div>
@@ -810,7 +858,10 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
             <>
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium text-text">{t('shop.entranceColor')}</span>
+                  <span className="flex min-w-0 items-center gap-1.5 font-medium text-text">
+                    {t('shop.entranceColor')}
+                    <NewDot id={PORTAL_COLOR_ID} />
+                  </span>
                   {ownsPortalColor ? (
                     <Badge>{t('shop.owned')}</Badge>
                   ) : (

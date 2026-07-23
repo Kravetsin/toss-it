@@ -12,6 +12,7 @@ export const frameVineBloom: FrameModule = {
   // EARNED, not bought: 4500 watch-minutes (75h) account-wide.
   costDust: 0,
   earn: { metric: 'watchMinutes', count: 4500 },
+  since: '2026-07-22',
   className: 'frame-fx-vine-bloom',
   labels: { name: 'shop.frameVineBloom', desc: 'shop.frameVineBloomDesc' },
   css: `

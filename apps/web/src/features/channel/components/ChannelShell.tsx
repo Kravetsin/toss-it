@@ -6,6 +6,7 @@ import { useShop } from '@/providers/ShopProvider';
 import { Button, PageShell } from '@/ui';
 import { Icon } from '@/ui/icons';
 import { BackgroundStars } from '@/components/BackgroundStars';
+import { NewDotGroup } from '@/components/NewDot';
 import { NebulaBackground } from '@/components/NebulaBackground';
 import { BlackHoleBackground } from '@/components/BlackHoleBackground';
 import { IS_THEME_PREVIEW } from '../lib/themeQuery';
@@ -32,6 +33,7 @@ function GuestActions() {
       >
         <Icon name="sparkles" size={15} className="text-accent" />
         {t('wallet.shopLabel')}
+        <NewDotGroup />
       </button>
       <a href={`/api/auth/login?returnTo=${returnTo}`}>
         <Button variant="primary" size="sm">

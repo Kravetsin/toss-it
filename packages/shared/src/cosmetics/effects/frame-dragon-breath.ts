@@ -13,6 +13,7 @@ export const frameDragonBreath: FrameModule = {
   // EARNED, not bought: 2000 chat messages on the account (see CosmeticItem.earn / the equip gate).
   costDust: 0,
   earn: { metric: 'messages', count: 2000 },
+  since: '2026-07-22',
   className: 'frame-fx-dragon-breath',
   labels: { name: 'shop.frameDragonBreath', desc: 'shop.frameDragonBreathDesc' },
   css: `

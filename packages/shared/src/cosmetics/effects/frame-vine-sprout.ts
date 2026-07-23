@@ -11,6 +11,7 @@ export const frameVineSprout: FrameModule = {
   // EARNED, not bought: 1500 watch-minutes (25h) account-wide — the axis's entry rung.
   costDust: 0,
   earn: { metric: 'watchMinutes', count: 1500 },
+  since: '2026-07-22',
   className: 'frame-fx-vine-sprout',
   labels: { name: 'shop.frameVineSprout', desc: 'shop.frameVineSproutDesc' },
   css: `

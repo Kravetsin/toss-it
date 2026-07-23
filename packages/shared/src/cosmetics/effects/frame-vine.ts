@@ -14,6 +14,7 @@ export const frameVine: FrameModule = {
   // so it lands well above what a single channel's top-viewers board shows for a few days of watching.
   costDust: 0,
   earn: { metric: 'watchMinutes', count: 3000 },
+  since: '2026-07-22',
   className: 'frame-fx-vine',
   labels: { name: 'shop.frameVine', desc: 'shop.frameVineDesc' },
   css: `

@@ -55,6 +55,12 @@ export interface CosmeticItem {
    * there's no grant to backfill. The shop shows progress toward it instead of a price.
    */
   earn?: CosmeticEarn;
+  /**
+   * Date this entered the catalog (YYYY-MM-DD) — drives the shop's "new" dot. A DATE, never a
+   * boolean: a flag has to be cleared by hand, and the one nobody clears turns half the catalog
+   * "new" forever. Omit on anything already shipped; no date simply means never new.
+   */
+  since?: string;
 }
 
 /** How an earned (non-bought) cosmetic is unlocked. */

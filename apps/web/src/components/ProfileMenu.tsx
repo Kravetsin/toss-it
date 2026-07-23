@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { LEVEL_GLOW_FROM, levelThreshold, levelTier, MAX_LEVEL, toRoman } from '@tmw/shared';
 import { logout } from '@/lib/api';
@@ -11,6 +11,7 @@ import { nickProps } from '@/lib/nick';
 import { Avatar, Tooltip } from '@/ui';
 import { Icon, type IconName } from '@/ui/icons';
 import { DustMark } from '@/components/DustMark';
+import { NewDotGroup } from '@/components/NewDot';
 import { CardEffect } from '@/components/CardEffect';
 import { PlatformIcon, UserBadges } from '@/components/UserMarks';
 
@@ -20,12 +21,14 @@ function Row({
   to,
   onClick,
   danger = false,
+  trailing,
 }: {
   icon: IconName;
   label: string;
   to?: string;
   onClick?: () => void;
   danger?: boolean;
+  trailing?: ReactNode;
 }) {
   const cls = `flex items-center gap-2.5 px-2.5 py-2 text-sm text-muted outline-none transition-colors duration-[var(--dur-fast)] ${
     danger ? 'hover:bg-danger-soft hover:text-danger' : 'hover:bg-surface-2 hover:text-text'
@@ -34,6 +37,7 @@ function Row({
     <>
       <Icon name={icon} size={16} className="shrink-0 opacity-80" />
       <span className="truncate">{label}</span>
+      {trailing}
     </>
   );
   return to ? (
@@ -182,6 +186,9 @@ export function ProfileMenu({
         <span className="relative ml-1 flex shrink-0 items-center gap-1 label-mono text-accent">
           <DustMark size={14} />
           <span className="tabular-nums">{user.stardust}</span>
+          {/* The shop lives one click inside this menu, so the dot has to surface on the card
+              itself — otherwise nothing on the viewer page ever hints there's something new. */}
+          <NewDotGroup />
         </span>
       </button>
 
@@ -194,6 +201,7 @@ export function ProfileMenu({
           <Row
             icon="sparkles"
             label={t('wallet.shopLabel')}
+            trailing={<NewDotGroup />}
             onClick={() => {
               setOpen(false);
               openShop();

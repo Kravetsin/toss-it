@@ -10,6 +10,7 @@ import { Avatar, IconButton, Tooltip } from '@/ui';
 import { Icon, type IconName } from '@/ui/icons';
 import { BackgroundStars } from '@/components/BackgroundStars';
 import { DustMark } from '@/components/DustMark';
+import { NewDotGroup } from '@/components/NewDot';
 import { ProfileCard } from '@/components/ProfileCard';
 import { useShop } from '@/providers/ShopProvider';
 import { NotificationBell } from '@/components/NotificationBell';
@@ -190,7 +191,10 @@ function AccountBlock({
           <DustMark size={15} className="text-accent" />
           <span className="tabular-nums text-text">{user.stardust}</span>
         </span>
-        <span className="label-mono text-accent">{t('wallet.shopLabel')}</span>
+        <span className="flex items-center gap-1.5 label-mono text-accent">
+          {t('wallet.shopLabel')}
+          <NewDotGroup />
+        </span>
       </button>
 
       <div className="mt-2 flex flex-col gap-0.5">
@@ -356,9 +360,11 @@ function Sidebar({
               type="button"
               onClick={openShop}
               aria-label={t('shop.open')}
-              className="inline-flex size-8 cursor-pointer items-center justify-center rounded-full border border-border text-muted outline-none transition-colors hover:border-accent hover:text-text focus-visible:[box-shadow:var(--shadow-focus)]"
+              className="relative inline-flex size-8 cursor-pointer items-center justify-center rounded-full border border-border text-muted outline-none transition-colors hover:border-accent hover:text-text focus-visible:[box-shadow:var(--shadow-focus)]"
             >
               <DustMark size={16} className="text-accent" />
+              {/* Collapsed rail: no label to sit beside, so the dot rides the button's edge. */}
+              <NewDotGroup className="absolute right-0.5 top-0.5" />
             </button>
           </Tooltip>
           <MobileNavIcon to="/promo" icon="gift" label={t('promo.haveCode')} tip="right" />
