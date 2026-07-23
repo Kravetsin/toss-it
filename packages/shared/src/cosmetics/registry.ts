@@ -201,17 +201,31 @@ export function cosmeticModule(id: string): CosmeticModule | undefined {
   return BY_ID.get(id);
 }
 
+/**
+ * Every CosmeticItem field, as a set. Typed as a full Record on purpose: the catalog below copies
+ * metadata off each module key by key, and a field added to CosmeticItem but not listed here would
+ * be dropped in silence — which is exactly how `since` first shipped doing nothing.
+ */
+const META_KEYS: Record<keyof CosmeticItem, true> = {
+  id: true,
+  type: true,
+  costDust: true,
+  requires: true,
+  upgrade: true,
+  earn: true,
+  since: true,
+};
+
 /** Catalog metadata — the back-compat `COSMETICS` array many callers still consume. */
-export const COSMETICS: CosmeticItem[] = COSMETIC_MODULES.map(
-  ({ id, type, costDust, requires, upgrade, earn }) => ({
-    id,
-    type,
-    costDust,
-    requires,
-    upgrade,
-    earn,
-  }),
-);
+export const COSMETICS: CosmeticItem[] = COSMETIC_MODULES.map((m) => {
+  // Required fields up front so a new one also fails typecheck here; the loop then copies the rest.
+  const item: CosmeticItem = { id: m.id, type: m.type, costDust: m.costDust };
+  for (const key of Object.keys(META_KEYS) as (keyof CosmeticItem)[]) {
+    const value = m[key];
+    if (value !== undefined) Object.assign(item, { [key]: value });
+  }
+  return item;
+});
 
 /** Whether an id is a buyable cosmetic of the given type. */
 export function isCosmeticOfType(id: string, type: CosmeticType): boolean {
