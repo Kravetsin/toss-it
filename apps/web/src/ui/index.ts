@@ -8,6 +8,7 @@ export * from './Card';
 export * from './Accordion';
 export * from './Alert';
 export * from './Badge';
+export * from './CountBadge';
 export * from './ProgressBar';
 export * from './Loader';
 export * from './Avatar';

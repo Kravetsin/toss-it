@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useI18n } from '@/i18n';
 import { Icon, type IconName } from '@/ui/icons';
-import { Tooltip } from '@/ui';
+import { CountBadge, Tooltip } from '@/ui';
 import { useNotifications, type NotificationItem } from '@/providers/NotificationsProvider';
 
 const PANEL_MAX_H = 440;
@@ -165,15 +165,9 @@ export function NotificationBell({
     navigate('/dashboard');
   };
 
-  const badge =
-    unreadCount > 0 ? (
-      <span
-        aria-hidden
-        className="pointer-events-none flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[0.625rem] font-bold leading-none text-accent-contrast"
-      >
-        {unreadCount > 99 ? '99+' : unreadCount}
-      </span>
-    ) : null;
+  const badge = unreadCount > 0 ? <CountBadge count={unreadCount} /> : null;
+  // The count is aria-hidden (it's decoration on an already-labelled button), so the label carries it.
+  const bellLabel = unreadCount > 0 ? `${t('notif.title')} (${unreadCount})` : t('notif.title');
 
   const trigger =
     variant === 'sidebar' ? (
@@ -181,9 +175,11 @@ export function NotificationBell({
         ref={triggerRef}
         type="button"
         onClick={toggleOpen}
-        aria-label={t('notif.title')}
+        aria-label={bellLabel}
         aria-expanded={open}
-        className={`relative flex w-full items-center overflow-hidden px-3 py-2.5 label-mono text-muted outline-none transition-colors duration-[var(--dur-fast)] ease-out hover:text-text focus-visible:[box-shadow:var(--shadow-focus)] ${
+        // No overflow-hidden here: the collapsing label clips itself, and clipping the row would
+        // cut the badge's ring off at the rail's edge.
+        className={`relative flex w-full items-center px-3 py-2.5 label-mono text-muted outline-none transition-colors duration-[var(--dur-fast)] ease-out hover:text-text focus-visible:[box-shadow:var(--shadow-focus)] ${
           collapsed ? 'justify-center' : 'justify-start gap-3'
         } ${open ? 'text-text' : ''}`}
       >
@@ -204,7 +200,7 @@ export function NotificationBell({
         ref={triggerRef}
         type="button"
         onClick={toggleOpen}
-        aria-label={t('notif.title')}
+        aria-label={bellLabel}
         aria-expanded={open}
         className={`relative inline-flex size-9 shrink-0 items-center justify-center rounded-full border outline-none transition-colors duration-[var(--dur-fast)] ease-out focus-visible:[box-shadow:var(--shadow-focus)] ${
           open
