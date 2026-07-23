@@ -182,7 +182,15 @@ interface ChannelState {
   watchdog: NodeJS.Timeout | null;
   /** Streamer paused the current show — the auto-advance watchdog is off while true. */
   paused: boolean;
+  /** Last playback:progress from the overlay for `current` — proof it is genuinely still playing. */
+  progress: { at: number; positionMs: number; submissionId: string } | null;
 }
+
+/**
+ * How recently the overlay must have reported progress for the watchdog to treat it as alive. The
+ * overlay ticks once a second, so this tolerates a few missed ticks.
+ */
+const PROGRESS_ALIVE_MS = 5_000;
 
 /**
  * Per-channel playback queue, strictly one at a time: next item goes to the
@@ -465,6 +473,7 @@ export class PlaybackManager {
     // restamp startedAt. Without this a file clip keeps the watchdog left over from its first run and
     // gets cut mid-way, and the next restart would measure staleness from a start that never was.
     st.paused = false;
+    st.progress = null; // the clip starts over — pre-restart positions must not vouch for it
     sub.startedAt = new Date();
     await db
       .update(submissions)
@@ -495,13 +504,49 @@ export class PlaybackManager {
     st.watchdog = setTimeout(() => void this.onDone(channelId, sub.id, 'watchdog-orphaned'), ms);
   }
 
+  /**
+   * The overlay's live position for the current show. Recorded (not just relayed to dashboards) so
+   * the watchdog can tell a dead overlay from one whose clock has drifted from ours.
+   */
+  noteProgress(channelId: string, submissionId: string, positionMs: number): void {
+    const st = this.state(channelId);
+    if (st.current?.id !== submissionId || !Number.isFinite(positionMs)) return;
+    st.progress = { at: Date.now(), positionMs: Math.max(0, positionMs), submissionId };
+  }
+
   async onDone(channelId: string, submissionId: string, cause = 'overlay-done'): Promise<void> {
     const st = this.state(channelId);
     if (st.current?.id !== submissionId) return;
+
+    // A watchdog exists to reap a DEAD overlay, never to cut a live one. Our clock drifts from the
+    // scene's (a deploy restarts the clip, pause/resume shifts it, a stale OBS bundle ignores the
+    // restart entirely) — so if the overlay is still ticking progress, defer and re-arm from its
+    // REAL position. Every "track skipped mid-play by itself" incident traces back to this cut.
+    const p = st.progress;
+    if (
+      cause.startsWith('watchdog') &&
+      p?.submissionId === submissionId &&
+      Date.now() - p.at < PROGRESS_ALIVE_MS &&
+      !st.paused
+    ) {
+      const left =
+        st.current.durationMs > 0
+          ? Math.max(0, st.current.durationMs - p.positionMs) + config.watchdogGraceMs
+          : config.youtube.loadGraceMs;
+      this.log?.info(
+        { channelId, submissionId, cause, positionMs: p.positionMs, rearmMs: left },
+        'playback: watchdog deferred — overlay is still reporting progress',
+      );
+      if (st.watchdog) clearTimeout(st.watchdog);
+      st.watchdog = setTimeout(() => void this.onDone(channelId, submissionId, cause), left);
+      return;
+    }
+
     this.log?.info({ channelId, submissionId, cause }, 'playback: show ended');
     if (st.watchdog) clearTimeout(st.watchdog);
     st.watchdog = null;
     st.current = null;
+    st.progress = null;
 
     await this.markPlayed(submissionId);
 
@@ -573,6 +618,7 @@ export class PlaybackManager {
 
       st.current = fresh;
       st.paused = false;
+      st.progress = null; // the previous show's ticks must not vouch for this one
       // Persist BEFORE the overlay is told to play: this stamp is what a restarted server reads to
       // know the row was mid-show. Written first so a crash can't leave a playing item looking queued.
       fresh.startedAt = new Date();
@@ -677,7 +723,7 @@ export class PlaybackManager {
   private state(channelId: string): ChannelState {
     let st = this.states.get(channelId);
     if (!st) {
-      st = { queue: [], current: null, watchdog: null, paused: false };
+      st = { queue: [], current: null, watchdog: null, paused: false, progress: null };
       this.states.set(channelId, st);
     }
     return st;
@@ -830,9 +876,13 @@ export function setupRealtime(io: RealtimeServer, app: FastifyInstance): Playbac
               playback.reportDuration(channel.id, submissionId, durationMs);
             }
           });
-          // Relay the current show's live position to the channel's dashboards (progress bar).
+          // Relay the current show's live position to the channel's dashboards (progress bar), and
+          // record it: it is the watchdog's only proof the overlay is alive and still playing.
           socket.on('playback:progress', (p) => {
             if (p && typeof p.submissionId === 'string') {
+              if (typeof p.positionMs === 'number' && !p.paused) {
+                playback.noteProgress(channel.id, p.submissionId, p.positionMs);
+              }
               io.to(dashboardRoomOf(channel.id)).emit('playback:progress', p);
             }
           });
