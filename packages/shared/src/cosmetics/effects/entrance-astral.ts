@@ -235,7 +235,7 @@ function frame(now: number): void {
       continue;
     }
 
-    // The message resolves inside the web as it weaves. The block itself just fades up (a hair of blur);
+    // The message resolves inside the web as it weaves. The block itself just fades up (a hair of blur)
     // the light it wears is an INNER glow painted on the canvas over the card (see below) that drains
     // clear — no outer flash, which on every message would strobe the viewer.
     const co = clamp((g - 0.34) / 0.26, 0, 1);
