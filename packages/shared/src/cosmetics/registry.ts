@@ -246,6 +246,7 @@ const META_KEYS: Record<keyof CosmeticItem, true> = {
   upgrade: true,
   earn: true,
   since: true,
+  ladder: true,
 };
 
 /** Catalog metadata — the back-compat `COSMETICS` array many callers still consume. */

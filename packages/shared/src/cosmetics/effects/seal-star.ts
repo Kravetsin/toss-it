@@ -15,8 +15,6 @@ function star(rung: {
   id: string;
   count: number;
   className: string;
-  name: string;
-  desc: string;
   svg: string;
   /** Peak glow [blur px, alpha] once the spark lights up; omit for the cold lower rungs. The top
    *  rung glows harder so it still reads as the pinnacle. Keyframe name is derived from className, so
@@ -30,8 +28,9 @@ function star(rung: {
     costDust: 0,
     earn: { metric: 'submissions', count: rung.count },
     since: '2026-07-23',
+    ladder: 'seal-star',
     className: rung.className,
-    labels: { name: rung.name, desc: rung.desc },
+    labels: { name: 'shop.sealStar', desc: 'shop.sealStarDesc' },
     css: `
 .${rung.className} {
   background-image: url("data:image/svg+xml,${rung.svg}");
@@ -71,8 +70,6 @@ export const sealStarDormant = star({
   id: 'seal-star-dormant',
   count: 25,
   className: 'seal-fx-star-dormant',
-  name: 'shop.sealStarDormant',
-  desc: 'shop.sealStarDormantDesc',
   svg: RINGED('0e1512', '454f5a', '1.6', '3d4650'),
 });
 
@@ -80,8 +77,6 @@ export const sealStarCharged = star({
   id: 'seal-star-charged',
   count: 75,
   className: 'seal-fx-star-charged',
-  name: 'shop.sealStarCharged',
-  desc: 'shop.sealStarChargedDesc',
   svg: RINGED('0e1512', '62b09c', '1.7', '4f9a8c'),
 });
 
@@ -89,8 +84,6 @@ export const sealStarLit = star({
   id: 'seal-star-lit',
   count: 200,
   className: 'seal-fx-star-lit',
-  name: 'shop.sealStarLit',
-  desc: 'shop.sealStarLitDesc',
   svg: RINGED('0c1a15', 'cdfff0', '1.8', '8df0cc'),
   glow: [4, 0.5],
 });
@@ -99,8 +92,6 @@ export const sealStarAwake = star({
   id: 'seal-star-awake',
   count: 500,
   className: 'seal-fx-star-awake',
-  name: 'shop.sealStarAwake',
-  desc: 'shop.sealStarAwakeDesc',
   svg: RINGED('0c1a15', 'eafff9', '1.9', 'd9fff5'),
   glow: [6, 0.75],
 });

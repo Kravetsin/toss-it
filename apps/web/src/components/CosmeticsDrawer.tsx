@@ -112,13 +112,6 @@ function FrameDemo({ id, label }: { id: string; label: string }) {
   );
 }
 
-/** Seal preview: deliberately far BIGGER than it renders in place. A seal lands in a chat gutter or
- *  next to a nick at ~14px, and chats run at wildly different font sizes — at life size a viewer
- *  could own one for months and never make out what it is. The shop is where they get to see it. */
-function SealDemo({ id }: { id: string }) {
-  return <span aria-hidden className={`text-[64px] ${sealEffectClass(id)}`} />;
-}
-
 /**
  * Demo for an entrance: a stand-in for the thing that arrives, replaying the effect on demand.
  *
@@ -234,6 +227,15 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   })();
   const frames = COSMETICS.filter((c) => c.type === 'frame');
   const seals = COSMETICS.filter((c) => c.type === 'seal');
+  // Rungs of one artifact collapse into a single row (see CosmeticItem.ladder): four full-width
+  // blocks per seal would turn this tab into a scroll wall as families are added.
+  const sealLadders: CosmeticItem[][] = [];
+  for (const s of seals) {
+    const key = s.ladder ?? s.id;
+    const open = sealLadders.find((g) => (g[0]?.ladder ?? g[0]?.id) === key);
+    if (open) open.push(s);
+    else sealLadders.push([s]);
+  }
   // `upgrade` items (the portal colour) aren't equippable entrances — they're a rung, rendered below.
   const entrances = COSMETICS.filter((c) => c.type === 'entrance' && !c.upgrade);
   const portalColorItem = COSMETICS.find((c) => c.id === PORTAL_COLOR_ID)!;
@@ -399,7 +401,6 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     const isNick = e.type === 'nick_effect';
     const isEntrance = e.type === 'entrance';
     const isFrame = e.type === 'frame';
-    const isSeal = e.type === 'seal';
     return (
       <div
         key={e.id}
@@ -458,7 +459,6 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
             />
           )}
           {isFrame && <FrameDemo id={e.id} label={previewName} />}
-          {isSeal && <SealDemo id={e.id} />}
           <div className="flex items-center gap-2">
             {!owned ? (
               earn && earnMeta ? (
@@ -488,6 +488,77 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
             {!owned && !e.earn && balance < e.costDust && (
               <span className="label-mono text-faint">{t('shop.notEnough')}</span>
             )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  /**
+   * One seal ladder as a single row: shared name/desc on top, then the rungs side by side. Each rung
+   * carries only its own state — equip button, or how far off it is — because the TIER is already
+   * legible from the artwork, so repeating it in prose would just cost vertical space.
+   */
+  const sealLadderRow = (rungs: CosmeticItem[]) => {
+    const head = rungs[0];
+    if (!head) return null;
+    const labels = cosmeticModule(head.id)?.labels;
+    if (!labels) return null;
+    return (
+      <div
+        key={head.ladder ?? head.id}
+        className="relative border-t border-border pt-3 first:border-t-0 first:pt-0"
+      >
+        <div className="flex flex-col gap-2">
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="font-medium text-text">{t(labels.name)}</span>
+            <NewDotGroup ids={rungs.map((r) => r.id)} />
+          </span>
+          <p className="text-sm italic text-muted">{t(labels.desc)}</p>
+          <div className="grid grid-cols-4 gap-2">
+            {rungs.map((r) => {
+              const earn = r.earn;
+              const earnMeta = earn ? EARN_META[earn.metric] : null;
+              const have = earn ? earnTotals[earn.metric] : 0;
+              const unit = earnMeta?.unit ?? 1;
+              const owned = earn
+                ? have >= earn.count
+                : (user?.ownedCosmetics.includes(r.id) ?? false);
+              const on = equippedSeal === r.id;
+              return (
+                <div key={r.id} className="flex flex-col items-center gap-2 text-center">
+                  {/* Locked rungs stay visible but dimmed — the ladder doubles as the roadmap. */}
+                  <span
+                    aria-hidden
+                    className={`text-[44px] ${sealEffectClass(r.id)} ${owned ? '' : 'opacity-40'}`}
+                  />
+                  {/* Fixed-height slot: a button is 26px tall and a bare progress label 12px, so
+                      without one the four rungs' text lands at four different heights — an actual
+                      staircase across a row whose whole point is being one line. */}
+                  <span className="flex h-7 items-center justify-center">
+                    {on ? (
+                      <Button variant="ghost" size="sm" onClick={() => equipEffect({ seal: null })}>
+                        {t('shop.unequip')}
+                      </Button>
+                    ) : owned ? (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => equipEffect({ seal: r.id })}
+                      >
+                        {t('shop.equip')}
+                      </Button>
+                    ) : earn && earnMeta ? (
+                      <span className="inline-flex items-center gap-1 label-mono text-muted">
+                        <Icon name={earnMeta.icon} size={12} />
+                        {Math.floor(Math.min(have, earn.count) / unit)}/
+                        {Math.round(earn.count / unit)}
+                      </span>
+                    ) : null}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -867,11 +938,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
             frames.map((e) => effectRow(e, equippedFrame, (id) => equipEffect({ frame: id }))),
           )}
 
-        {category === 'seal' &&
-          section(
-            t('shop.seals'),
-            seals.map((e) => effectRow(e, equippedSeal, (id) => equipEffect({ seal: id }))),
-          )}
+        {category === 'seal' && section(t('shop.seals'), sealLadders.map(sealLadderRow))}
 
         {category === 'entrance' &&
           section(

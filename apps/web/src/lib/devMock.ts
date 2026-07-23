@@ -73,8 +73,9 @@ const MOCK_ME: MeResponse = {
     // Mid-ladder again on the watch axis: Tide (25h) and Embers (50h) earned, Canopy (75h) and
     // Storm (100h) still in progress.
     watchMinutesTotal: 3320,
-    // Nothing is gated on sends yet — the metric is wired and waiting for its own frames.
-    submissionsTotal: 41,
+    // Past the star seal's third rung (200) but not its fourth (500), so the ladder previews all
+    // three states at once: earned+equipped, earned+equippable, and still locked.
+    submissionsTotal: 220,
     // Lifetime earned dust — the "wealth" axis. High enough to show a mid-ladder wealth seal.
     dustEarnedTotal: 5400,
     equipped: {

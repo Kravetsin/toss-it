@@ -14,8 +14,6 @@ function gem(rung: {
   id: string;
   count: number;
   className: string;
-  name: string;
-  desc: string;
   svg: string;
   /** Peak glow [blur px, alpha] once the gem catches light; omit for the cold lower rungs. Keyframe
    *  name derives from className, so it never collides with another seal's glow. */
@@ -28,8 +26,9 @@ function gem(rung: {
     costDust: 0,
     earn: { metric: 'dustEarned', count: rung.count },
     since: '2026-07-23',
+    ladder: 'seal-gem',
     className: rung.className,
-    labels: { name: rung.name, desc: rung.desc },
+    labels: { name: 'shop.sealGem', desc: 'shop.sealGemDesc' },
     css: `
 .${rung.className} {
   background-image: url("data:image/svg+xml,${rung.svg}");
@@ -71,8 +70,6 @@ export const sealGemDull = gem({
   id: 'seal-gem-dull',
   count: 1000,
   className: 'seal-fx-gem-dull',
-  name: 'shop.sealGemDull',
-  desc: 'shop.sealGemDullDesc',
   svg: GEM('22303a', '4a5560', '33414d', '1.6'),
 });
 
@@ -80,8 +77,6 @@ export const sealGemCut = gem({
   id: 'seal-gem-cut',
   count: 3000,
   className: 'seal-fx-gem-cut',
-  name: 'shop.sealGemCut',
-  desc: 'shop.sealGemCutDesc',
   svg: GEM('285a52', '5aa892', '3f7d70', '1.7'),
 });
 
@@ -89,8 +84,6 @@ export const sealGemClear = gem({
   id: 'seal-gem-clear',
   count: 10_000,
   className: 'seal-fx-gem-clear',
-  name: 'shop.sealGemClear',
-  desc: 'shop.sealGemClearDesc',
   svg: GEM('2f8f78', '8df0cc', 'bff2e4', '1.8', 'eafff8'),
   glow: [3, 0.45],
 });
@@ -99,8 +92,6 @@ export const sealGemCrown = gem({
   id: 'seal-gem-crown',
   count: 50_000,
   className: 'seal-fx-gem-crown',
-  name: 'shop.sealGemCrown',
-  desc: 'shop.sealGemCrownDesc',
   svg: GEM('3fae94', 'd9fff5', 'eafff9', '1.9', 'ffffff'),
   glow: [5, 0.7],
 });

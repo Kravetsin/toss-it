@@ -62,6 +62,13 @@ export interface CosmeticItem {
    * "new" forever. Omit on anything already shipped; no date simply means never new.
    */
   since?: string;
+  /**
+   * Rungs of ONE artifact that differ only by tier (the seals). The shop collapses a ladder into a
+   * single row of tier icons instead of one full-width block per rung, so a tab stays short as
+   * families are added — which is also why every rung shares one name/desc. Omit for standalone
+   * items; each rung still equips on its own.
+   */
+  ladder?: string;
 }
 
 /** How an earned (non-bought) cosmetic is unlocked. */
