@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { useFillEffect } from '@/ui/useFillEffect';
 import {
   animate,
@@ -71,8 +71,6 @@ export function SubmissionCard({
   // Track drag to distinguish from tap: prevent expansion on slight drag (tap only).
   const draggedRef = useRef(false);
   const reduce = useReducedMotion();
-  // Swipe starts from the collapsed row only — otherwise the drag gesture swallows text selection
-  // and link clicks in the expanded preview.
   const dragControls = useDragControls();
   const x = useMotionValue(0);
   const cardOpacity = useMotionValue(1);
@@ -96,6 +94,13 @@ export function SubmissionCard({
       ease: [0.4, 0, 0.2, 1],
       onComplete: action,
     });
+  };
+
+  // Drag is started by hand (dragListener={false}) so content marked data-no-drag keeps the pointer:
+  // text stays selectable, links clickable, media scrubbable. Anywhere else on the card swipes.
+  const startDrag = (e: ReactPointerEvent) => {
+    if (e.target instanceof Element && e.target.closest('[data-no-drag]')) return;
+    dragControls.start(e);
   };
 
   const onDragEnd = (_e: PointerEvent | MouseEvent | TouchEvent, info: PanInfo) => {
@@ -132,6 +137,7 @@ export function SubmissionCard({
         onPointerDownCapture={() => {
           draggedRef.current = false;
         }}
+        onPointerDown={startDrag}
         onDragStart={() => {
           draggedRef.current = true;
         }}
@@ -158,13 +164,14 @@ export function SubmissionCard({
         )}
         <button
           type="button"
-          onPointerDown={(e) => dragControls.start(e)}
           onClick={() => {
             if (draggedRef.current) return;
             setExpanded((e) => !e);
           }}
           aria-expanded={expanded}
-          className="relative z-[1] flex w-full items-center gap-3 p-3 text-left outline-none focus-visible:[box-shadow:inset_var(--shadow-focus)]"
+          // The row both expands and swipes; the cursor advertises the click (the swipe is spelled
+          // out above the queue) and flips to grabbing once a drag is actually under way.
+          className="relative z-[1] flex w-full cursor-pointer items-center gap-3 p-3 text-left outline-none focus-visible:[box-shadow:inset_var(--shadow-focus)] active:cursor-grabbing"
         >
           <SubmissionThumb s={s} />
           <span className="min-w-0 flex-1">

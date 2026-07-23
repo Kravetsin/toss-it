@@ -169,6 +169,12 @@ textarea {
   caret-color: var(--color-accent);
 }
 
+/* Opts a subtree out of a draggable card's swipe (see SubmissionCard). The grab cursor is dropped
+   with it: a hand where nothing drags reads as a broken control. */
+[data-no-drag] {
+  cursor: auto;
+}
+
 @utility label-mono {
   font-family: var(--font-mono);
   text-transform: uppercase;

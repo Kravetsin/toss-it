@@ -46,10 +46,16 @@ export function SubmissionPreview({ s }: { s: SubmissionSummary }) {
     ) : null;
 
   return (
+    // data-no-drag marks what the card's swipe gesture must not steal: players and scrubbers need
+    // the pointer, text needs to stay selectable. `contents` keeps the media layout untouched.
     <div className="flex flex-col items-start gap-2">
-      {media}
+      {media && (
+        <div data-no-drag className="contents">
+          {media}
+        </div>
+      )}
       {s.text && (
-        <div className="flex w-full items-start gap-2">
+        <div data-no-drag className="flex w-full items-start gap-2">
           <p className="min-w-0 flex-1 select-text whitespace-pre-wrap break-words border-l border-accent/50 bg-surface-2 px-3 py-2 text-sm text-text">
             <LinkedText text={s.text} />
           </p>
