@@ -187,7 +187,15 @@ interface ChannelState {
    * confirmed it is still on any screen. Cleared by the first overlay to report in.
    */
   restored: boolean;
+  /** Last playback:progress from the overlay for `current` — proof it is genuinely still playing. */
+  progress: { at: number; positionMs: number; submissionId: string } | null;
 }
+
+/**
+ * How recently the overlay must have reported progress for the watchdog to treat it as alive. The
+ * overlay ticks once a second, so this tolerates a couple of missed ticks.
+ */
+const PROGRESS_ALIVE_MS = 5_000;
 
 /**
  * Per-channel playback queue, strictly one at a time: next item goes to the
@@ -446,15 +454,19 @@ export class PlaybackManager {
   }
 
   /**
-   * `screen` is what the connecting overlay has on display, or NULL when that socket does not render
-   * media at all — the chat overlay joins the same room with the same role and token, so only a
-   * client that declares itself the media surface may speak for what is on screen. Treating the chat
-   * overlay's silence as "nothing playing" is how a live track got skipped on the next redeploy.
-   * `screen.nowPlaying` is null when the media surface is genuinely showing nothing.
+   * `nowPlaying` is the submission the connecting overlay already has on screen, null when it has
+   * nothing (or is a surface that renders no media — the chat overlay shares this role and token).
+   *
+   * This path may only ever ADOPT or REPLAY, never end a show. An earlier version advanced the queue
+   * when the overlay reported an empty screen, to cover a playback:done lost across the outage; that
+   * made a reconnect able to kill a live track, and socket.io already buffers those emits and
+   * redelivers them on reconnect. Adoption is matched on the id alone: gating it on a client-declared
+   * "I am the media surface" made correctness depend on the OBS bundle being current, which on the
+   * very deploy that matters it never is.
    */
   async onOverlayConnected(
     channelId: string,
-    screen: { nowPlaying: string | null } | null,
+    nowPlaying: string | null,
     replayTo: (payload: MediaPlayPayload) => void,
   ): Promise<void> {
     const st = this.state(channelId);
@@ -462,33 +474,21 @@ export class PlaybackManager {
       void this.tryNext(channelId);
       return;
     }
-    if (screen) {
-      // Still showing this exact item — a redeploy or a brief network drop, through which the
-      // browser kept playing. Adopt it: replaying would rebuild the card and restart it from zero.
-      if (screen.nowPlaying === st.current.id) {
-        this.log?.info(
-          { channelId, submissionId: st.current.id },
-          'playback: overlay adopted the current show',
-        );
-        st.restored = false;
-        return;
-      }
-      if (st.restored) {
-        st.restored = false;
-        // Recovered a show the media surface does not have: it ended during the outage (its
-        // playback:done never reached us) or OBS restarted. Advance instead of replaying — nobody
-        // wants a finished track, or a five-minute song, restarted from zero mid-stream.
-        if (!screen.nowPlaying) {
-          await this.onDone(channelId, st.current.id, 'recovery-advance');
-          return;
-        }
-      }
+    // Still showing this exact item — a redeploy or a brief network drop, through which the browser
+    // kept playing. Adopt it: replaying would rebuild the card and restart it from zero.
+    if (nowPlaying === st.current.id) {
+      this.log?.info(
+        { channelId, submissionId: st.current.id },
+        'playback: overlay adopted the current show',
+      );
+      st.restored = false;
+      return;
     }
     this.log?.info(
       {
         channelId,
         submissionId: st.current.id,
-        overlayShows: screen ? (screen.nowPlaying ?? '(empty)') : '(no media surface)',
+        overlayShows: nowPlaying ?? '(empty)',
       },
       'playback: replaying current to a (re)connected overlay',
     );
@@ -512,13 +512,48 @@ export class PlaybackManager {
     st.watchdog = setTimeout(() => void this.onDone(channelId, sub.id, 'watchdog-orphaned'), ms);
   }
 
+  /**
+   * The overlay's live position for the current show. Recorded (not just relayed) so the watchdog
+   * can tell a dead overlay from a slow one.
+   */
+  noteProgress(channelId: string, submissionId: string, positionMs: number): void {
+    const st = this.state(channelId);
+    if (st.current?.id !== submissionId || !Number.isFinite(positionMs)) return;
+    st.progress = { at: Date.now(), positionMs: Math.max(0, positionMs), submissionId };
+  }
+
   async onDone(channelId: string, submissionId: string, cause = 'overlay-done'): Promise<void> {
     const st = this.state(channelId);
     if (st.current?.id !== submissionId) return;
+
+    // A watchdog is a backstop for a DEAD overlay, not a hard cap on the clip. If the overlay is
+    // still ticking progress, our duration estimate was simply short (a restored show whose length
+    // we guessed, buffering, ads) — re-arm from the real position instead of cutting it on stream.
+    const p = st.progress;
+    if (
+      cause.startsWith('watchdog') &&
+      p?.submissionId === submissionId &&
+      Date.now() - p.at < PROGRESS_ALIVE_MS &&
+      !st.paused
+    ) {
+      const left =
+        st.current.durationMs > 0
+          ? Math.max(0, st.current.durationMs - p.positionMs) + config.watchdogGraceMs
+          : config.youtube.loadGraceMs;
+      this.log?.info(
+        { channelId, submissionId, cause, positionMs: p.positionMs, rearmMs: left },
+        'playback: watchdog deferred — overlay is still reporting progress',
+      );
+      if (st.watchdog) clearTimeout(st.watchdog);
+      st.watchdog = setTimeout(() => void this.onDone(channelId, submissionId, cause), left);
+      return;
+    }
+
     this.log?.info({ channelId, submissionId, cause }, 'playback: show ended');
     if (st.watchdog) clearTimeout(st.watchdog);
     st.watchdog = null;
     st.current = null;
+    st.progress = null;
 
     await this.markPlayed(submissionId);
 
@@ -591,6 +626,7 @@ export class PlaybackManager {
       st.current = fresh;
       st.paused = false;
       st.restored = false; // this process started it, so its state is known-good
+      st.progress = null; // the previous show's ticks must not vouch for this one
       // Persist BEFORE the overlay is told to play: this stamp is what a restarted server reads to
       // know the row was mid-show. Written first so a crash can't leave a playing item looking queued.
       fresh.startedAt = new Date();
@@ -695,7 +731,14 @@ export class PlaybackManager {
   private state(channelId: string): ChannelState {
     let st = this.states.get(channelId);
     if (!st) {
-      st = { queue: [], current: null, watchdog: null, paused: false, restored: false };
+      st = {
+        queue: [],
+        current: null,
+        watchdog: null,
+        paused: false,
+        restored: false,
+        progress: null,
+      };
       this.states.set(channelId, st);
     }
     return st;
@@ -848,9 +891,13 @@ export function setupRealtime(io: RealtimeServer, app: FastifyInstance): Playbac
               playback.reportDuration(channel.id, submissionId, durationMs);
             }
           });
-          // Relay the current show's live position to the channel's dashboards (progress bar).
+          // Relay the current show's live position to the channel's dashboards (progress bar), and
+          // record it: it is the server's only proof that the overlay is alive and still playing.
           socket.on('playback:progress', (p) => {
             if (p && typeof p.submissionId === 'string') {
+              if (typeof p.positionMs === 'number' && !p.paused) {
+                playback.noteProgress(channel.id, p.submissionId, p.positionMs);
+              }
               io.to(dashboardRoomOf(channel.id)).emit('playback:progress', p);
             }
           });
@@ -861,20 +908,17 @@ export function setupRealtime(io: RealtimeServer, app: FastifyInstance): Playbac
           // Last overlay gone → rescue a paused show from stranding as `current` forever.
           socket.on('disconnect', () => playback.onOverlayDisconnected(channel.id));
           // Sent via handshake auth (not query) because socket.io re-evaluates auth on every
-          // reconnect — this must reflect what is on screen NOW, not at page load. Only the media
-          // surface declares itself; the chat overlay shares this role and must not be mistaken
-          // for a media overlay with an empty screen.
+          // reconnect — this must reflect what is on screen NOW, not at page load. The chat overlay
+          // shares this role but never sends it, so it can never match the current show; `surface`
+          // is logged for diagnosis only and deliberately gates nothing.
           const auth: Record<string, unknown> = socket.handshake.auth ?? {};
-          const nowPlaying = auth.nowPlaying;
-          const screen =
-            auth.surface === 'media'
-              ? { nowPlaying: typeof nowPlaying === 'string' && nowPlaying ? nowPlaying : null }
-              : null;
+          const raw = auth.nowPlaying;
+          const nowPlaying = typeof raw === 'string' && raw ? raw : null;
           app.log.info(
             { channelId: channel.id, surface: auth.surface ?? '(none)', nowPlaying },
             'overlay socket connected',
           );
-          void playback.onOverlayConnected(channel.id, screen, (payload) =>
+          void playback.onOverlayConnected(channel.id, nowPlaying, (payload) =>
             socket.emit('media:play', payload),
           );
           return;
