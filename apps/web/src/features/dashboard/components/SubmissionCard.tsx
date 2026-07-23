@@ -18,6 +18,7 @@ import {
   type SubmissionSummary,
 } from '@tmw/shared';
 import { useI18n } from '@/i18n';
+import { useClipboard } from '@/hooks/useClipboard';
 import { useFidgetEnabled } from '@/hooks/useFidgetEnabled';
 import { disintegrate } from '@/lib/burst';
 import { Icon } from '@/ui/icons';
@@ -26,6 +27,7 @@ import { PlatformIcon, UserBadges } from '@/components/UserMarks';
 import { CardEffect } from '@/components/CardEffect';
 import { nickProps } from '@/lib/nick';
 import { formatTrackDuration } from '../constants';
+import { sourceLink } from '../lib/sourceLink';
 import { RepChip } from './RepChip';
 import { SubmissionThumb } from './SubmissionThumb';
 import { SubmissionPreview } from './SubmissionPreview';
@@ -64,6 +66,8 @@ export function SubmissionCard({
     effect: s.senderEffect,
   });
   const { fillRef, handlers: fillHandlers } = useFillEffect();
+  const { copiedKey, copy } = useClipboard();
+  const link = sourceLink(s);
   const [expanded, setExpanded] = useState(false);
   const [fx, setFx] = useState<'approve' | 'reject' | null>(null);
   const fidget = useFidgetEnabled();
@@ -213,6 +217,31 @@ export function SubmissionCard({
           <div className="relative z-[1] select-text border-t border-border p-3">
             <SubmissionPreview s={s} />
             <div className="mt-3 flex items-center justify-end gap-2">
+              {/* Take-away actions live far left, away from the two irreversible ones, and always in
+                  the same spot — only their presence depends on what the submission carries. */}
+              {(s.text || link) && (
+                <div className="mr-auto flex items-center gap-2">
+                  {s.text && (
+                    <IconButton
+                      name={copiedKey ? 'check' : 'copy'}
+                      label={t('dash.copyText')}
+                      size="sm"
+                      active={!!copiedKey}
+                      onClick={() => copy(s.text!)}
+                    />
+                  )}
+                  {link && (
+                    <IconButton
+                      name={link.download ? 'download' : 'external-link'}
+                      label={link.download ? t('dash.download') : t('dash.openSource')}
+                      size="sm"
+                      href={link.href}
+                      download={link.download}
+                      newTab={!link.download}
+                    />
+                  )}
+                </div>
+              )}
               <IconButton
                 name="star"
                 label={t('dash.approveWhitelist')}

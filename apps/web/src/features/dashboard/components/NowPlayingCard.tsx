@@ -165,7 +165,7 @@ export function NowPlayingCard({
 
         {/* The message currently on screen: the streamer reads it live, so links must be reachable here. */}
         {now?.text && (
-          <p className="mt-3 max-h-28 select-text overflow-y-auto whitespace-pre-wrap break-words border-l border-accent/50 bg-surface-2 px-3 py-2 text-sm text-text">
+          <p className="mt-3 max-h-28 select-text overflow-y-auto whitespace-pre-wrap break-words border-l-2 border-accent/40 py-0.5 pl-3 text-sm text-text">
             <LinkedText text={now.text} />
           </p>
         )}

@@ -23,6 +23,12 @@ interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 
   tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
   /** Classes for the tooltip wrapper (layout, e.g. ml-auto); className targets the button itself. */
   wrapClassName?: string;
+  /** Renders an <a> instead of a <button> — keeps middle-click / "open in new tab" working. */
+  href?: string;
+  /** With href: save the target instead of navigating (same-origin only, per the HTML spec). */
+  download?: string;
+  /** With href: open in a new tab. Always noopener — these targets are user-submitted. */
+  newTab?: boolean;
 }
 
 /** Round icon button; label shown via Tooltip rather than native `title`. */
@@ -37,20 +43,33 @@ export function IconButton({
   tooltipAlign = 'center',
   tooltipPlacement = 'bottom',
   wrapClassName = '',
+  href,
+  download,
+  newTab = false,
   ...rest
 }: IconButtonProps) {
   const s = SIZE[size];
   const base =
     variant === 'ghost' ? 'border-transparent bg-transparent' : 'border-border bg-surface';
-  const btn = (
-    <button
-      type="button"
-      aria-label={label}
-      aria-pressed={active || undefined}
-      data-active={active ? 'true' : undefined}
-      className={`inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full border text-muted outline-none transition-[color,background-color,border-color,transform] duration-[180ms] ease-out hover:border-border-strong hover:text-text focus-visible:[box-shadow:var(--shadow-focus)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 data-[active=true]:bg-accent-soft data-[active=true]:text-accent ${s.box} ${base} ${className}`}
-      {...rest}
+  const shared = {
+    'aria-label': label,
+    'aria-pressed': active || undefined,
+    'data-active': active ? 'true' : undefined,
+    className: `inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full border text-muted outline-none transition-[color,background-color,border-color,transform] duration-[180ms] ease-out hover:border-border-strong hover:text-text focus-visible:[box-shadow:var(--shadow-focus)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 data-[active=true]:bg-accent-soft data-[active=true]:text-accent ${s.box} ${base} ${className}`,
+  };
+  const btn = href ? (
+    // Button-only props (onClick, disabled…) are deliberately not forwarded here: a link navigates.
+    <a
+      {...shared}
+      href={href}
+      download={download}
+      target={newTab ? '_blank' : undefined}
+      rel={newTab ? 'noopener noreferrer nofollow' : undefined}
     >
+      <Icon name={name} size={s.glyph} />
+    </a>
+  ) : (
+    <button type="button" {...shared} {...rest}>
       <Icon name={name} size={s.glyph} />
     </button>
   );

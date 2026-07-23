@@ -1,12 +1,10 @@
 import { giphyGifUrl, type SubmissionSummary } from '@tmw/shared';
 import { useI18n } from '@/i18n';
-import { useClipboard } from '@/hooks/useClipboard';
-import { IconButton, LinkedText } from '@/ui';
+import { LinkedText } from '@/ui';
 import { AudioPlayer, ImageFrame, VideoThumb, YouTubeFrame } from '@/ui/media';
 
 export function SubmissionPreview({ s }: { s: SubmissionSummary }) {
   const { t } = useI18n();
-  const { copiedKey, copy } = useClipboard();
   const label = s.senderName ?? t('common.anon');
   const hint = s.durationMs > 0 ? s.durationMs / 1000 : undefined;
 
@@ -55,18 +53,14 @@ export function SubmissionPreview({ s }: { s: SubmissionSummary }) {
         </div>
       )}
       {s.text && (
-        <div data-no-drag className="flex w-full items-start gap-2">
-          <p className="min-w-0 flex-1 select-text whitespace-pre-wrap break-words border-l border-accent/50 bg-surface-2 px-3 py-2 text-sm text-text">
-            <LinkedText text={s.text} />
-          </p>
-          <IconButton
-            name={copiedKey ? 'check' : 'copy'}
-            label={t('dash.copyText')}
-            size="sm"
-            active={!!copiedKey}
-            onClick={() => copy(s.text!)}
-          />
-        </div>
+        // Rule on the left, no box: marks the text as the viewer's words without claiming width
+        // the swipe area could have had.
+        <p
+          data-no-drag
+          className="max-w-full select-text whitespace-pre-wrap break-words border-l-2 border-accent/40 py-0.5 pl-3 text-sm text-text"
+        >
+          <LinkedText text={s.text} />
+        </p>
       )}
     </div>
   );

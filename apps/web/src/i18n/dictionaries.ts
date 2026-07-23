@@ -553,6 +553,8 @@ export const en: Dict = {
   'dash.history': 'History',
   'dash.historyEmpty': 'Nothing has been shown yet.',
   'dash.copyText': 'Copy message',
+  'dash.download': 'Download file',
+  'dash.openSource': 'Open the original',
 
   // Status names are brand terms — English only, not translated.
   'badge.founder': 'Founder',
@@ -1184,6 +1186,8 @@ export const ru: Dict = {
   'dash.history': 'История',
   'dash.historyEmpty': 'Пока ничего не показывалось.',
   'dash.copyText': 'Скопировать сообщение',
+  'dash.download': 'Скачать файл',
+  'dash.openSource': 'Открыть оригинал',
 
   // Status names are brand terms — English only, not translated.
   'badge.founder': 'Founder',
@@ -1816,6 +1820,8 @@ export const uk: Dict = {
   'dash.history': 'Історія',
   'dash.historyEmpty': 'Поки нічого не показувалося.',
   'dash.copyText': 'Скопіювати повідомлення',
+  'dash.download': 'Завантажити файл',
+  'dash.openSource': 'Відкрити оригінал',
 
   // Status names are brand terms — English only, not translated.
   'badge.founder': 'Founder',
