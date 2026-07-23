@@ -3,6 +3,7 @@ import { useFillEffect } from '@/ui/useFillEffect';
 import {
   animate,
   motion,
+  useDragControls,
   useMotionValue,
   useReducedMotion,
   useTransform,
@@ -70,6 +71,9 @@ export function SubmissionCard({
   // Track drag to distinguish from tap: prevent expansion on slight drag (tap only).
   const draggedRef = useRef(false);
   const reduce = useReducedMotion();
+  // Swipe starts from the collapsed row only — otherwise the drag gesture swallows text selection
+  // and link clicks in the expanded preview.
+  const dragControls = useDragControls();
   const x = useMotionValue(0);
   const cardOpacity = useMotionValue(1);
   const approveOpacity = useTransform(x, [10, SWIPE_DISTANCE], [0, 1]);
@@ -121,6 +125,8 @@ export function SubmissionCard({
 
       <motion.div
         drag="x"
+        dragListener={false}
+        dragControls={dragControls}
         dragMomentum={false}
         style={{ x, opacity: cardOpacity, touchAction: 'pan-y' }}
         onPointerDownCapture={() => {
@@ -152,6 +158,7 @@ export function SubmissionCard({
         )}
         <button
           type="button"
+          onPointerDown={(e) => dragControls.start(e)}
           onClick={() => {
             if (draggedRef.current) return;
             setExpanded((e) => !e);
@@ -196,7 +203,7 @@ export function SubmissionCard({
         </button>
 
         {expanded && (
-          <div className="relative z-[1] border-t border-border p-3">
+          <div className="relative z-[1] select-text border-t border-border p-3">
             <SubmissionPreview s={s} />
             <div className="mt-3 flex items-center justify-end gap-2">
               <IconButton

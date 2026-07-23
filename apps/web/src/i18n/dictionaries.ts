@@ -552,6 +552,7 @@ export const en: Dict = {
   'dash.removeUser': 'remove',
   'dash.history': 'History',
   'dash.historyEmpty': 'Nothing has been shown yet.',
+  'dash.copyText': 'Copy message',
 
   // Status names are brand terms — English only, not translated.
   'badge.founder': 'Founder',
@@ -1182,6 +1183,7 @@ export const ru: Dict = {
   'dash.removeUser': 'убрать',
   'dash.history': 'История',
   'dash.historyEmpty': 'Пока ничего не показывалось.',
+  'dash.copyText': 'Скопировать сообщение',
 
   // Status names are brand terms — English only, not translated.
   'badge.founder': 'Founder',
@@ -1813,6 +1815,7 @@ export const uk: Dict = {
   'dash.removeUser': 'прибрати',
   'dash.history': 'Історія',
   'dash.historyEmpty': 'Поки нічого не показувалося.',
+  'dash.copyText': 'Скопіювати повідомлення',
 
   // Status names are brand terms — English only, not translated.
   'badge.founder': 'Founder',

@@ -18,5 +18,6 @@ export * from './Select';
 export * from './Switch';
 export * from './PageShell';
 export * from './CopyableLinkBox';
+export * from './LinkedText';
 export * from './Tooltip';
 export * from './media';

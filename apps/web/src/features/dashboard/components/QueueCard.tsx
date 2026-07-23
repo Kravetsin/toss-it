@@ -4,7 +4,7 @@ import { clearQueue, removeFromQueue, reorderQueue } from '@/lib/api';
 import { youtubeThumbnail } from '@/lib/youtube';
 import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
-import { Card, IconButton } from '@/ui';
+import { Card, IconButton, LinkedText } from '@/ui';
 import { KIND_ICON, formatTrackDuration } from '../constants';
 import { useReorderList } from '../hooks/useReorderList';
 
@@ -103,7 +103,11 @@ export function QueueCard({ channelId, queue }: { channelId: string; queue: Subm
             <Thumb s={s} />
             <div className="min-w-0 flex-1">
               <p className="truncate text-text">{s.senderName ?? t('common.anon')}</p>
-              {s.text && <p className="truncate text-xs text-muted">{s.text}</p>}
+              {s.text && (
+                <p className="select-text truncate text-xs text-muted">
+                  <LinkedText text={s.text} />
+                </p>
+              )}
             </div>
             <span className="shrink-0 text-xs tabular-nums text-faint">
               {formatTrackDuration(s.kind, s.durationMs, t)}

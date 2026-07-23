@@ -8,7 +8,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
-import { Button, Card } from '@/ui';
+import { Button, Card, LinkedText } from '@/ui';
 import { SeekBar } from '@/ui/media/SeekBar';
 import { VolumeSlider, volumeIcon } from '@/ui/media/VolumeSlider';
 import { PlatformIcon } from '@/components/UserMarks';
@@ -162,6 +162,13 @@ export function NowPlayingCard({
             </div>
           )}
         </div>
+
+        {/* The message currently on screen: the streamer reads it live, so links must be reachable here. */}
+        {now?.text && (
+          <p className="mt-3 max-h-28 select-text overflow-y-auto whitespace-pre-wrap break-words border-l border-accent/50 bg-surface-2 px-3 py-2 text-sm text-text">
+            <LinkedText text={now.text} />
+          </p>
+        )}
 
         {now && (
           <div className="mt-3 flex items-center gap-2">

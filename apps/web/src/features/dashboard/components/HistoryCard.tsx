@@ -1,7 +1,7 @@
 import { LEVEL_GLOW_FROM, levelTier, toRoman, type HistoryEntry } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
-import { Tooltip } from '@/ui';
+import { LinkedText, Tooltip } from '@/ui';
 import { PlatformIcon, UserBadges } from '@/components/UserMarks';
 import { nickProps } from '@/lib/nick';
 import { STATUS_ICON } from '../constants';
@@ -60,7 +60,16 @@ export function HistoryCard({
                   </span>
                 </td>
                 <td className="py-1.5 pr-3 align-middle label-mono text-faint">{h.kind}</td>
-                <td className="w-full whitespace-nowrap py-1.5 pr-2 text-right align-middle text-xs text-muted">
+                {/* max-w-0 + w-full: the message takes the leftover width and clamps instead of
+                    stretching the row — the link inside stays clickable. */}
+                <td className="w-full max-w-0 py-1.5 pr-3 align-middle">
+                  {h.text && (
+                    <p className="line-clamp-2 select-text break-words text-xs text-muted">
+                      <LinkedText text={h.text} />
+                    </p>
+                  )}
+                </td>
+                <td className="whitespace-nowrap py-1.5 pr-2 text-right align-middle text-xs text-muted">
                   {new Date(h.createdAt).toLocaleString()}
                 </td>
                 <td className="py-1.5 text-right align-middle">
