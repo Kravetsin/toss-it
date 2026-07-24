@@ -85,6 +85,9 @@ const MOCK_ME: MeResponse = {
       nickFlow: true,
       nickEffect: 'nick-pulse',
       cardEffect: 'card-web',
+      // Saved butterfly colour (the card-butterflies-color upgrade) — the shop picker shows it and the
+      // butterflies preview row renders in it; owned via ownedCosmetics = every catalog id.
+      cardEffectColor: '#5ad1ff',
       frame: 'frame-runner',
       seal: 'seal-star-lit',
       entrance: 'entrance-astral',
@@ -175,6 +178,7 @@ const sub = (
   senderNickFlow: false,
   senderEffect: null,
   senderCardEffect: null,
+  senderCardEffectColor: null,
   senderFrame: null,
   senderSeal: null,
   mime: 'text/plain',
@@ -350,6 +354,19 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderCardEffect: 'card-runes',
     text: 'начертал на удачу, должно сработать',
     createdAt: t - 42 * min,
+  }),
+  sub({
+    id: 's12',
+    kind: 'text',
+    senderUserId: 'twitch:v15',
+    senderName: 'mothwing',
+    senderLevel: 6,
+    senderColor: '#ff8fd6',
+    senderCardEffect: 'card-butterflies',
+    // Showcase the colour upgrade: this sender recoloured their butterflies cyan.
+    senderCardEffectColor: '#5ad1ff',
+    text: 'замри на секунду — они сядут',
+    createdAt: t - 46 * min,
   }),
 ];
 
@@ -730,6 +747,7 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
       'nickColor2',
       'nickEffect',
       'cardEffect',
+      'cardEffectColor',
       'entrance',
       'entranceColor',
     ] as const) {

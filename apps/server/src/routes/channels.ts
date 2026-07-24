@@ -105,6 +105,7 @@ async function sendsBoard(
     nickFlow: r.equipped?.nickFlow ?? false,
     nickEffect: r.equipped?.nickEffect ?? null,
     cardEffect: r.equipped?.cardEffect ?? null,
+    cardEffectColor: r.equipped?.cardEffectColor ?? null,
     seal: r.equipped?.seal ?? null,
     level: levels[i] ?? 0,
   }));
@@ -182,6 +183,7 @@ async function chatBoard(
       nickFlow: u?.equipped?.nickFlow ?? false,
       nickEffect: u?.equipped?.nickEffect ?? null,
       cardEffect: u?.equipped?.cardEffect ?? null,
+      cardEffectColor: u?.equipped?.cardEffectColor ?? null,
       seal: u?.equipped?.seal ?? null,
       level,
     };
@@ -313,6 +315,7 @@ export function registerChannelRoutes(app: FastifyInstance): void {
       nickFlow: equipped?.nickFlow ?? false,
       nickEffect: equipped?.nickEffect ?? null,
       cardEffect: equipped?.cardEffect ?? null,
+      cardEffectColor: equipped?.cardEffectColor ?? null,
       // Render the streamer's chosen background only if the channel has actually earned it; '' else.
       pageBackground: earnedBackgroundIds(played?.n ?? 0).includes(pageBackground)
         ? pageBackground

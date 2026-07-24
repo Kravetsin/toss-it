@@ -271,7 +271,14 @@ function decorateSender(el: HTMLElement, payload: MediaPlayPayload): void {
     seal.className = `sender-seal ${sealCls}`;
     el.appendChild(seal);
   }
-  if (payload.senderCardEffect) mountCardEffect(el, payload.senderCardEffect, 'overlayCard', true);
+  if (payload.senderCardEffect)
+    mountCardEffect(
+      el,
+      payload.senderCardEffect,
+      'overlayCard',
+      true,
+      payload.senderCardEffectColor,
+    );
 }
 
 /** Build the one unified submission card: media (or text) on top, a single meta row (sender + caption
@@ -1433,6 +1440,8 @@ function demoPayload(kind: MediaKind, st: DemoState): MediaPlayPayload {
     senderLevel: st.sender ? 7 : undefined,
     senderEffect: st.sender && st.nickGlow ? 'nick-glow' : undefined,
     senderCardEffect: st.cardEffect !== 'none' ? st.cardEffect : undefined,
+    // Demo a non-default butterfly colour so the card-colour upgrade shows on the stage without a picker.
+    senderCardEffectColor: st.cardEffect === 'card-butterflies' ? '#5ad1ff' : undefined,
     senderEntrance: st.entrance !== 'none' ? st.entrance : undefined,
     // Demo a non-default portal tint so the colour upgrade is visible on the stage without a picker.
     senderEntranceColor: st.entrance === 'entrance-portal' ? '#b57bff' : undefined,

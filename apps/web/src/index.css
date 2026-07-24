@@ -164,6 +164,44 @@ h4 {
   color: var(--color-muted);
 }
 
+/* Hero headline: larger, with a slow mint sheen sweeping across it. Frozen (solid text) under
+   reduced motion. Applied on top of the base h1 (keeps its display font + tracking + line-height). */
+.hero-title {
+  font-size: clamp(30px, 5.5vw, 46px);
+  font-weight: 600;
+  background: linear-gradient(
+    100deg,
+    var(--color-text) 0%,
+    var(--color-text) 32%,
+    var(--color-accent) 50%,
+    var(--color-text) 68%,
+    var(--color-text) 100%
+  );
+  /* size + travel must match: with a 200% image (repeating), shifting position by exactly 200%
+     lands on the next tile, so the loop restart is invisible. Both edges of the gradient are the
+     text colour, so the tile seam is solid text — no visible break. */
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: hero-sheen 5.5s linear infinite;
+}
+@keyframes hero-sheen {
+  from {
+    background-position: 0% 50%;
+  }
+  to {
+    background-position: 200% 50%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-title {
+    animation: none;
+    background-position: 0% 50%;
+  }
+}
+
 input,
 textarea {
   caret-color: var(--color-accent);

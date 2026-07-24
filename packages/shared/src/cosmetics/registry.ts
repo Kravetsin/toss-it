@@ -26,6 +26,8 @@ import { cardSnow } from './effects/card-snow';
 import { cardConstellation } from './effects/card-constellation';
 import { cardBubbles } from './effects/card-bubbles';
 import { cardWisp } from './effects/card-wisp';
+import { cardButterflies } from './effects/card-butterflies';
+import { cardButterfliesColor } from './effects/card-butterflies-color';
 import { cardRunes } from './effects/card-runes';
 import { cardWeb } from './effects/card-web';
 import { frameRunner } from './effects/frame-runner';
@@ -198,6 +200,8 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   cardConstellation,
   cardBubbles,
   cardWisp,
+  cardButterflies,
+  cardButterfliesColor,
   cardRunes,
   cardWeb,
   // Frames group by the metric that earns them, each family in ladder order: chat messages first,
@@ -373,10 +377,11 @@ export function makeParticles(
   id: string,
   count: number,
   compact: boolean,
+  color?: string,
 ): Record<string, string>[] {
   const m = asCardEffect(id);
   if (!m || !m.particle) return [];
-  return Array.from({ length: count }, (_, i) => m.particle!(rnd, compact, i));
+  return Array.from({ length: count }, (_, i) => m.particle!(rnd, compact, i, color));
 }
 
 /**
@@ -422,15 +427,16 @@ export function fillCardEffect(
   id: string,
   surface: Surface,
   compact: boolean,
+  color?: string,
 ): () => void {
   // A JS-rendered effect (a canvas web, not a particle swarm) owns the whole layer itself.
   const m = asCardEffect(id);
   if (m?.render && typeof window !== 'undefined') {
-    return m.render(layer, surface, compact) ?? (() => {});
+    return m.render(layer, surface, compact, color) ?? (() => {});
   }
   const count = particleCount(id, surface);
   if (!count) return () => {};
-  const particles = makeParticles(id, count, compact);
+  const particles = makeParticles(id, count, compact, color);
   const added: HTMLElement[] = [];
   for (const ps of particles) {
     const p = document.createElement('span');
@@ -448,7 +454,7 @@ export function fillCardEffect(
     layer.appendChild(g);
     added.push(g);
   }
-  const off = bindRespawn(layer, id, particles, compact);
+  const off = bindRespawn(layer, id, particles, compact, color);
   return () => {
     off();
     for (const el of added) el.remove();
@@ -467,13 +473,14 @@ export function mountCardEffect(
   id: string,
   surface: Surface,
   compact: boolean,
+  color?: string,
 ): () => void {
   const cls = cardEffectLayerClass(id, surface, compact);
   if (!cls) return () => {};
   const layer = document.createElement('span');
   layer.className = cls;
   layer.setAttribute('aria-hidden', 'true');
-  const off = fillCardEffect(layer, id, surface, compact);
+  const off = fillCardEffect(layer, id, surface, compact, color);
   host.appendChild(layer);
   return () => {
     off();
@@ -511,6 +518,7 @@ export function bindRespawn(
   id: string,
   particles: Record<string, string>[],
   compact: boolean,
+  color?: string,
 ): () => void {
   const m = asCardEffect(id);
   if (!m || !m.particle || typeof window === 'undefined') return () => {};
@@ -524,7 +532,10 @@ export function bindRespawn(
     if (!map) return;
     const onIteration = (e: AnimationEvent) => {
       if (e.pseudoElement) return;
-      const fresh = m.particle!(rnd, compact, i);
+      // When an effect runs a second animation on .p (e.g. a fast wing-beat surge), only the declared
+      // slow cycle marks a rebirth — ignore the others, which loop mid-flight at full opacity.
+      if (m.cycleAnimation && e.animationName !== m.cycleAnimation) return;
+      const fresh = m.particle!(rnd, compact, i, color);
       if (!fresh.left) return;
       // The column, plus whatever else the module says is safe to be reborn with.
       for (const k of ['left', ...(m.respawnKeys ?? [])]) {

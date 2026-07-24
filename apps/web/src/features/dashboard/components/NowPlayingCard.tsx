@@ -103,7 +103,7 @@ export function NowPlayingCard({
 
   return (
     <Card>
-      <CardEffect effect={now?.senderCardEffect} />
+      <CardEffect effect={now?.senderCardEffect} color={now?.senderCardEffectColor} />
       {tier && (
         <span
           aria-hidden

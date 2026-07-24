@@ -201,7 +201,13 @@ function renderMessage(msg: ChatOverlayMessage): void {
   // trajectory crosses it and starts/ends outside. No teardown — the listeners live on the pill's
   // own particles and go when the row does.
   if (msg.cosmetics?.cardEffect)
-    mountCardEffect(bubble, msg.cosmetics.cardEffect, 'overlayChat', true);
+    mountCardEffect(
+      bubble,
+      msg.cosmetics.cardEffect,
+      'overlayChat',
+      true,
+      msg.cosmetics.cardEffectColor ?? undefined,
+    );
   // The bubble is what arrives, so the bubble wears the entrance. Unequipped leaves the chat's own
   // unfold-from-the-star running (see .bubble:not([data-fx]) in chat.html).
   applyEntrance(bubble, msg.cosmetics?.entrance, reduceMotion, msg.cosmetics?.entranceColor);
@@ -286,7 +292,13 @@ function renderSystem(line: ChatSystemEvent): void {
   if (line.cosmetics?.cardEffect) {
     const fx = document.createElement('div');
     fx.className = 'sys-fx';
-    mountCardEffect(fx, line.cosmetics.cardEffect, 'overlayChat', true);
+    mountCardEffect(
+      fx,
+      line.cosmetics.cardEffect,
+      'overlayChat',
+      true,
+      line.cosmetics.cardEffectColor ?? undefined,
+    );
     card.appendChild(fx);
   }
 
@@ -785,6 +797,16 @@ if (DEMO) {
       isFounder: false,
       level: 9,
       fragments: [{ type: 'text', text: 'начертано на удачу' }],
+    },
+    {
+      id: '20',
+      userId: 'u20',
+      name: 'mothwing',
+      twitchColor: '#ff8fd6',
+      cosmetics: { cardEffect: 'card-butterflies', cardEffectColor: '#5ad1ff' },
+      isFounder: false,
+      level: 6,
+      fragments: [{ type: 'text', text: 'замри — они сядут' }],
     },
     // 7-9 walk the big-emote ladder: 1 → 6em, 2-3 → 3.75em, 4-6 → 2.25em.
     {

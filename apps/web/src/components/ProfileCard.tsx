@@ -18,7 +18,11 @@ export function ProfileCard({ user }: { user: SessionUser }) {
   });
   return (
     <div className="relative overflow-hidden border border-border bg-surface-2 p-3 shadow-1">
-      <CardEffect effect={user.equipped?.cardEffect} compact />
+      <CardEffect
+        effect={user.equipped?.cardEffect}
+        color={user.equipped?.cardEffectColor}
+        compact
+      />
       <div className="relative flex items-center gap-3">
         <Avatar url={user.avatarUrl} name={user.displayName} size={40} />
         <div className="min-w-0 flex-1">

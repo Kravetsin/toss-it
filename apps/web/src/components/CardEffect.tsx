@@ -16,10 +16,13 @@ export function CardEffect({
   effect,
   compact = false,
   surface = 'web',
+  color,
 }: {
   effect?: string | null;
   compact?: boolean;
   surface?: Surface;
+  /** Viewer's chosen #rrggbb for a colourable effect (butterflies); undefined = the effect's palette. */
+  color?: string | null;
 }) {
   // React owns the layer ELEMENT — it must, it is part of its tree, and its `border-radius: inherit`
   // has to read the card directly. The registry owns everything inside it: React never rendered the
@@ -29,8 +32,8 @@ export function CardEffect({
   useEffect(() => {
     const el = layerRef.current;
     if (!el || !effect) return;
-    return fillCardEffect(el, effect, surface, compact);
-  }, [effect, compact, surface]);
+    return fillCardEffect(el, effect, surface, compact, color ?? undefined);
+  }, [effect, compact, surface, color]);
   const cls = effect ? cardEffectLayerClass(effect, surface, compact) : '';
   if (!cls) return null;
   return <span ref={layerRef} className={cls} aria-hidden />;

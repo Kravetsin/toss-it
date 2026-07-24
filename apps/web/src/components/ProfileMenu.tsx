@@ -134,7 +134,11 @@ export function ProfileMenu({
         aria-expanded={open}
         className={`relative flex items-center gap-2.5 overflow-hidden rounded-[var(--radius-sm)] border border-border bg-surface-2 py-1 pl-2.5 pr-3 text-left outline-none transition-[border-color,transform] duration-200 hover:border-accent focus-visible:[box-shadow:var(--shadow-focus)] ${pop ? 'scale-105' : ''}`}
       >
-        <CardEffect effect={user.equipped?.cardEffect} compact />
+        <CardEffect
+          effect={user.equipped?.cardEffect}
+          color={user.equipped?.cardEffectColor}
+          compact
+        />
         {tier && (
           <span
             aria-hidden

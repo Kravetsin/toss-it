@@ -116,6 +116,8 @@ export interface MediaPlayPayload {
   senderEffect?: string;
   /** Sender's equipped card effect id (e.g. 'card-levitation', 'card-stardust'); absent if none. */
   senderCardEffect?: string;
+  /** Card effect tint (#rrggbb) from the 'card-butterflies-color' upgrade; absent = effect's palette. */
+  senderCardEffectColor?: string;
   /** Sender's equipped frame id (e.g. 'frame-runner'); absent if none. Border decoration on the card. */
   senderFrame?: string;
   /** Sender's equipped seal id (e.g. 'seal-eye-open'); absent if none. A small object, own slot. */
@@ -423,6 +425,8 @@ export interface SubmissionSummary {
   senderEffect: string | null;
   /** Sender's equipped card effect id, null if none. */
   senderCardEffect: string | null;
+  /** Card effect tint (#rrggbb) from the 'card-butterflies-color' upgrade; null = effect's palette. */
+  senderCardEffectColor: string | null;
   /** Sender's equipped frame id, null if none. Border decoration on the submission card. */
   senderFrame: string | null;
   /** Sender's equipped seal id, null if none. A small object in the card's free corner. */
@@ -735,6 +739,8 @@ export interface PublicChannelInfo {
   nickFlow: boolean;
   nickEffect: string | null;
   cardEffect: string | null;
+  /** Card effect tint (#rrggbb) from the 'card-butterflies-color' upgrade; absent = effect's palette. */
+  cardEffectColor?: string | null;
   /** The page background to render: the streamer's chosen id, but only if the channel has earned it
    *  (see PAGE_BACKGROUNDS); '' otherwise. A reward for airing submissions, never a purchase. */
   pageBackground: string;
@@ -867,6 +873,8 @@ export interface LeaderboardEntry {
   nickEffect: string | null;
   /** Equipped card effect id, null if none. */
   cardEffect: string | null;
+  /** Card effect tint (#rrggbb) from the 'card-butterflies-color' upgrade; absent = effect's palette. */
+  cardEffectColor?: string | null;
   /** Equipped seal id, null if none — shown next to the badges. */
   seal: string | null;
   /** Per-channel level 0–10 (0/absent = no rank) — the rarity rail + Roman numeral. */

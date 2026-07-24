@@ -15,9 +15,9 @@ import { config } from './config';
  */
 
 const SITE_NAME = 'Tossit';
-const DEFAULT_TITLE = 'Tossit — submissions inbox for streamers';
+const DEFAULT_TITLE = 'Tossit — a submissions inbox and multitool for streamers';
 const DEFAULT_DESC =
-  'Tossit — a submissions inbox for streamers. Viewers send images, GIFs, videos and sounds straight to your stream, with moderation, a whitelist and limits.';
+  'Tossit — a submissions inbox and a multitool for stream interaction: viewer submissions, moderation, an overlay and chat cosmetics, everything for viewers to shape your stream.';
 
 type Lang = 'en' | 'ru' | 'uk';
 
@@ -33,25 +33,25 @@ const LOCALES: Record<
     title: DEFAULT_TITLE,
     desc: DEFAULT_DESC,
     tagline:
-      'Viewers send images, GIFs, videos and sounds straight to your stream — with moderation, a whitelist and limits.',
+      'Viewer submissions, moderation, an overlay and chat cosmetics — everything for viewers to shape your stream.',
     how: 'How it works: upload → processing → moderation → on stream',
   },
   ru: {
     path: '/ru',
     ogLocale: 'ru_RU',
-    title: 'Tossit — предложка для стримеров',
-    desc: 'Tossit — предложка для стримеров: зрители отправляют картинки, гифки, видео и звуки прямо на твой стрим, с модерацией, белым списком и лимитами.',
+    title: 'Tossit — предложка и мультитул для стримеров',
+    desc: 'Tossit — предложка и мультитул для интерактива на стриме: заявки от зрителей, модерация, оверлей и косметика в чате — всё, чтобы зрители влияли на эфир.',
     tagline:
-      'Зрители отправляют картинки, гифки, видео и звуки прямо на твой стрим — с модерацией, белым списком и лимитами.',
+      'Заявки от зрителей, модерация, оверлей и косметика в чате — всё, чтобы зрители влияли на эфир.',
     how: 'Как это работает: загрузка → обработка → модерация → на стриме',
   },
   uk: {
     path: '/uk',
     ogLocale: 'uk_UA',
-    title: 'Tossit — предложка для стрімерів',
-    desc: 'Tossit — предложка для стрімерів: глядачі надсилають картинки, GIF, відео та звуки прямо на твій стрім, з модерацією, білим списком і лімітами.',
+    title: 'Tossit — предложка і мультитул для стрімерів',
+    desc: 'Tossit — предложка і мультитул для інтерактиву на стрімі: заявки від глядачів, модерація, оверлей і косметика в чаті — усе, щоб глядачі впливали на ефір.',
     tagline:
-      'Глядачі надсилають картинки, GIF, відео та звуки прямо на твій стрім — з модерацією, білим списком і лімітами.',
+      'Заявки від глядачів, модерація, оверлей і косметика в чаті — усе, щоб глядачі впливали на ефір.',
     how: 'Як це працює: завантаження → обробка → модерація → у ефірі',
   },
 };
@@ -183,7 +183,7 @@ function homeBody(lang: Lang): string {
   return (
     `<div style="${FALLBACK_WRAP}">` +
     `<img src="/favicon.svg" width="72" height="72" alt="Tossit logo" />` +
-    `<h1 style="font-size:40px;margin:0">Tossit</h1>` +
+    `<h1 style="font-size:40px;margin:0">${esc(L.title)}</h1>` +
     `<p style="max-width:520px;color:#9fb0b5;margin:0;line-height:1.5">${esc(L.tagline)}</p>` +
     `<p style="color:#5b6b70;font-size:14px;margin:0">${esc(L.how)}</p>` +
     LANG_LINKS +
@@ -304,13 +304,13 @@ function llmsTxt(): string {
   return [
     '# Tossit',
     '',
-    '> A submissions inbox for streamers (a "предложка"): viewers send images, GIFs, videos and sounds straight to a streamer\'s stream, with moderation, a whitelist and limits. Platform-agnostic — Twitch, Kick, YouTube.',
+    '> A submissions inbox and a multitool for streamers (a "предложка" and more): viewers send images, GIFs, videos and sounds to a streamer\'s stream — with moderation, an overlay, chat cosmetics and rewards. Twitch now; Kick and YouTube coming.',
     '',
     '## Pages',
     '',
     `- [Home](${b}/): what Tossit is and how to get started.`,
-    `- [Главная — RU](${b}/ru): предложка для стримеров.`,
-    `- [Головна — UK](${b}/uk): предложка для стрімерів.`,
+    `- [Главная — RU](${b}/ru): предложка и мультитул для стримеров.`,
+    `- [Головна — UK](${b}/uk): предложка і мультитул для стрімерів.`,
     '',
     '## How it works',
     '',

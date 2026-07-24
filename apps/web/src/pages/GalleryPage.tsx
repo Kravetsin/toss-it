@@ -144,6 +144,7 @@ const DEMO_SUBMISSION: SubmissionSummary = {
   senderNickFlow: false,
   senderEffect: null,
   senderCardEffect: null,
+  senderCardEffectColor: null,
   senderSeal: null,
   senderFrame: null,
   senderLevel: 8,

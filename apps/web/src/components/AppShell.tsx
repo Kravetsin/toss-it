@@ -9,6 +9,7 @@ import { LanguageToggle, LanguageToggleCycle, useI18n } from '@/i18n';
 import { Avatar, IconButton, Tooltip } from '@/ui';
 import { Icon, type IconName } from '@/ui/icons';
 import { BackgroundStars } from '@/components/BackgroundStars';
+import { BrandSeal } from '@/components/BrandSeal';
 import { DustMark } from '@/components/DustMark';
 import { NewDotGroup } from '@/components/NewDot';
 import { ProfileCard } from '@/components/ProfileCard';
@@ -18,9 +19,7 @@ import { NotificationBell } from '@/components/NotificationBell';
 function Brand({ compact = false }: { compact?: boolean }) {
   return (
     <Link to="/" className="flex items-center gap-2" aria-label="Tossit">
-      <span className="flex size-7 items-center justify-center bg-accent font-mono text-base font-bold text-accent-contrast">
-        T
-      </span>
+      <BrandSeal size={28} />
       {!compact && <span className="label-mono text-text">tossit</span>}
     </Link>
   );
@@ -307,9 +306,7 @@ function Sidebar({
           className="flex shrink-0 items-center"
           style={{ gap: collapsed ? 0 : '0.5rem', transition: 'gap var(--dur) ease-out' }}
         >
-          <span className="flex size-7 shrink-0 items-center justify-center bg-accent font-mono text-base font-bold text-accent-contrast">
-            T
-          </span>
+          <BrandSeal size={28} />
           <span
             className="overflow-hidden whitespace-nowrap label-mono text-text transition-[max-width,opacity] duration-[var(--dur)] ease-out"
             style={{ maxWidth: collapsed ? 0 : '8rem', opacity: collapsed ? 0 : 1 }}
@@ -445,9 +442,7 @@ function MobileSidebar({
       >
         <div className="flex items-center justify-between px-5 py-5">
           <Link to="/" onClick={onClose} className="flex items-center gap-2" aria-label="Tossit">
-            <span className="flex size-7 shrink-0 items-center justify-center bg-accent font-mono text-base font-bold text-accent-contrast">
-              T
-            </span>
+            <BrandSeal size={28} />
             <span className="label-mono text-text">tossit</span>
           </Link>
           <IconButton name="close" label="Close menu" variant="ghost" size="sm" onClick={onClose} />

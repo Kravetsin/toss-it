@@ -55,6 +55,8 @@ export interface NickMarks {
   flow: boolean;
   nickEffect: string | null;
   cardEffect: string | null;
+  /** Card effect tint (#rrggbb); only meaningful for a colourable effect (butterflies). */
+  cardEffectColor: string | null;
   /** Border decoration on the card (e.g. 'frame-runner'); null = none. */
   frame: string | null;
   /** Small object the sender carries (e.g. 'seal-eye-open'); null = none. Own slot, not a frame. */
@@ -70,6 +72,7 @@ const NO_MARKS: NickMarks = {
   flow: false,
   nickEffect: null,
   cardEffect: null,
+  cardEffectColor: null,
   frame: null,
   seal: null,
   entrance: null,
@@ -88,6 +91,9 @@ export function marksFromEquipped(equipped: EquippedCosmetics | null): NickMarks
     flow: equipped?.nickFlow ?? false,
     nickEffect: equipped?.nickEffect ?? null,
     cardEffect: equipped?.cardEffect ?? null,
+    // Persisted across card-effect changes (see EquippedCosmetics.cardEffectColor); only a colourable
+    // effect uses it, so carrying it always is harmless and survives switching effects and back.
+    cardEffectColor: equipped?.cardEffectColor ?? null,
     frame: equipped?.frame ?? null,
     seal: equipped?.seal ?? null,
     entrance: equipped?.entrance ?? null,
@@ -111,6 +117,7 @@ export function toSummary(
     senderNickFlow: marks.flow,
     senderEffect: marks.nickEffect,
     senderCardEffect: marks.cardEffect,
+    senderCardEffectColor: marks.cardEffectColor,
     senderFrame: marks.frame,
     senderSeal: marks.seal,
     senderLevel,
@@ -708,6 +715,7 @@ export class PlaybackManager {
       senderNickFlow: marks.flow || undefined,
       senderEffect: marks.nickEffect ?? undefined,
       senderCardEffect: marks.cardEffect ?? undefined,
+      senderCardEffectColor: marks.cardEffectColor ?? undefined,
       senderFrame: marks.frame ?? undefined,
       senderEntrance: marks.entrance ?? undefined,
       senderEntranceColor: marks.entranceColor ?? undefined,

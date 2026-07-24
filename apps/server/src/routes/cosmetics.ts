@@ -102,6 +102,7 @@ export function registerCosmeticsRoutes(app: FastifyInstance): void {
       nickFlow?: unknown;
       nickEffect?: unknown;
       cardEffect?: unknown;
+      cardEffectColor?: unknown;
       frame?: unknown;
       seal?: unknown;
       entrance?: unknown;
@@ -119,6 +120,7 @@ export function registerCosmeticsRoutes(app: FastifyInstance): void {
       ['nickColor', 'nick-color'],
       ['nickColor2', 'nick-gradient'],
       ['entranceColor', 'entrance-portal-color'],
+      ['cardEffectColor', 'card-butterflies-color'],
     ] as const) {
       if (!(field in body)) continue;
       const raw = body[field];

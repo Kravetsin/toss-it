@@ -133,6 +133,13 @@ export interface CardEffectModule extends BaseModule {
   /** Particle count per surface (small pills need fewer than a full-screen alert). */
   counts: Record<Surface, number>;
   /**
+   * This effect honours the viewer's chosen card colour (EquippedCosmetics.cardEffectColor): its
+   * `particle()`/`render()` are handed that `#rrggbb` and paint from it instead of their own palette.
+   * The shop shows the colour picker (the `card-butterflies-color` upgrade) only for colourable
+   * effects; the pipeline still passes `color` to every effect, and a non-colourable one ignores it.
+   */
+  colorable?: boolean;
+  /**
    * Inline style for ONE randomized particle. Randomize spawn/size/speed and set the animation
    * timing through the `--dur`/`--delay` custom properties (NEGATIVE delay so particles start
    * mid-flight, desynced) — the css should read `animation: <name> var(--dur) linear var(--delay)`
@@ -153,8 +160,11 @@ export interface CardEffectModule extends BaseModule {
    *
    * Absent ONLY for a `render` effect (a canvas web), which owns its layer wholesale and has no
    * particles; every other card effect must provide it.
+   *
+   * `color` is the viewer's chosen `#rrggbb` (only ever set for a `colorable` effect); paint from it
+   * instead of the effect's own palette. Undefined = use the default palette.
    */
-  particle?: (rnd: Rnd, compact: boolean, index: number) => Record<string, string>;
+  particle?: (rnd: Rnd, compact: boolean, index: number, color?: string) => Record<string, string>;
   /**
    * Extra keys of `particle()`'s output that a respawn re-rolls, on top of the spawn column (see
    * bindRespawn). Empty by default, and that default is load-bearing: most of what `particle()`
@@ -164,6 +174,15 @@ export interface CardEffectModule extends BaseModule {
    * with, like card-lightning's generated silhouette.
    */
   respawnKeys?: string[];
+  /**
+   * Name of the ONE `@keyframes` on `.p` whose loop marks a particle's rebirth, when the effect runs
+   * MORE than one animation on `.p`. bindRespawn re-rolls on every non-pseudo `animationiteration`, so
+   * a second `.p` animation (e.g. a fast wing-beat surge alongside the slow flight) would fire the
+   * respawn on its own cadence, mid-flight, at full opacity. Set this to the slow cycle's name and
+   * bindRespawn ignores iterations from any other. Omit for the usual single-`.p`-animation effect —
+   * then every iteration is the cycle, exactly as before.
+   */
+  cycleAnimation?: string;
   /**
    * Optional: given a particle's generated style, return the style for a fixed "ground glow"
    * element (class `g`) pinned to the bottom of the card at that particle's origin (rising effects)
@@ -181,8 +200,15 @@ export interface CardEffectModule extends BaseModule {
    * sits behind the card's own content, which a global canvas can't reproduce. MUST be browser-only —
    * the server imports this catalog. `counts` must be non-zero (that gets the layer created), but is
    * otherwise unused for a render effect.
+   *
+   * `color` is the viewer's chosen `#rrggbb` (only for a `colorable` effect); undefined = own palette.
    */
-  render?: (layer: HTMLElement, surface: Surface, compact: boolean) => (() => void) | void;
+  render?: (
+    layer: HTMLElement,
+    surface: Surface,
+    compact: boolean,
+    color?: string,
+  ) => (() => void) | void;
 }
 
 /**
@@ -300,6 +326,14 @@ export interface EquippedCosmetics {
   nickEffect?: string | null;
   /** Equipped card effect item id (e.g. 'card-levitation'); requires owning it. */
   cardEffect?: string | null;
+  /**
+   * Free-form #rrggbb tint for the equipped card effect; requires owning 'card-butterflies-color'.
+   * Applied only by a `colorable` card effect (butterflies) — it recolours from this instead of its
+   * own palette. Like `entranceColor` it PERSISTS across card-effect changes: a non-colourable effect
+   * simply ignores it, so a stored-but-inactive tint is harmless and survives switching effects and
+   * back. Unset = the effect's own palette.
+   */
+  cardEffectColor?: string | null;
   /** Equipped frame item id (e.g. 'frame-runner'); requires owning it. A border decoration on the
    *  sender's card, layered over its role colour (the colour is untouched). */
   frame?: string | null;
