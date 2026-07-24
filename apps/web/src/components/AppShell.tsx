@@ -319,6 +319,8 @@ function Sidebar({
         </Link>
       </div>
 
+      {/* Primary destinations pinned to the top; occasional ones (stats/achievements) sink to the
+          bottom via the flex spacer, next to the account block. */}
       <nav className="flex flex-col gap-1 px-2">
         <NavItem to="/" icon="home" label={t('nav.home')} collapsed={collapsed} />
         <NavItem
@@ -328,6 +330,19 @@ function Sidebar({
           collapsed={collapsed}
           end
         />
+        <NavItem
+          to="/dashboard/settings"
+          icon="settings"
+          label={t('nav.settings')}
+          collapsed={collapsed}
+        />
+      </nav>
+
+      <div className="flex-1" />
+
+      {/* Notifications sit with the occasional group: it's a signal (its badge self-announces), not
+          a tab people seek out, so it needn't take a prime top slot. */}
+      <nav className="flex flex-col gap-1 px-2 pb-2">
         <NavItem to="/dashboard/stats" icon="chart" label={t('nav.stats')} collapsed={collapsed} />
         <NavItem
           to="/dashboard/achievements"
@@ -335,16 +350,8 @@ function Sidebar({
           label={t('nav.achievements')}
           collapsed={collapsed}
         />
-        <NavItem
-          to="/dashboard/settings"
-          icon="settings"
-          label={t('nav.settings')}
-          collapsed={collapsed}
-        />
         <NotificationBell variant="sidebar" collapsed={collapsed} />
       </nav>
-
-      <div className="flex-1" />
 
       {collapsed ? (
         <div className="flex flex-col items-center gap-1.5 border-t border-border p-2">
@@ -449,13 +456,6 @@ function MobileSidebar({
         <nav className="flex flex-col gap-1 px-3">
           <NavItem to="/" icon="home" label={t('nav.home')} onClick={onClose} />
           <NavItem to="/dashboard" icon="shield" label={t('nav.dashboard')} onClick={onClose} end />
-          <NavItem to="/dashboard/stats" icon="chart" label={t('nav.stats')} onClick={onClose} />
-          <NavItem
-            to="/dashboard/achievements"
-            icon="trophy"
-            label={t('nav.achievements')}
-            onClick={onClose}
-          />
           <NavItem
             to="/dashboard/settings"
             icon="settings"
@@ -465,6 +465,16 @@ function MobileSidebar({
         </nav>
 
         <div className="flex-1" />
+
+        <nav className="flex flex-col gap-1 px-3 pb-2">
+          <NavItem to="/dashboard/stats" icon="chart" label={t('nav.stats')} onClick={onClose} />
+          <NavItem
+            to="/dashboard/achievements"
+            icon="trophy"
+            label={t('nav.achievements')}
+            onClick={onClose}
+          />
+        </nav>
 
         <AccountBlock
           user={user}

@@ -4,7 +4,9 @@ import { ACCEPT } from '../components/FileDropzone';
 const ACCEPTED_TYPES = ACCEPT.split(',');
 
 function isAccepted(type: string): boolean {
-  return ACCEPTED_TYPES.some((a) => (a.endsWith('/*') ? type.startsWith(a.slice(0, -1)) : a === type));
+  return ACCEPTED_TYPES.some((a) =>
+    a.endsWith('/*') ? type.startsWith(a.slice(0, -1)) : a === type,
+  );
 }
 
 /**

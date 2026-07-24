@@ -237,7 +237,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
   /** Chat-dust indicator: /mod state on Twitch is the only source of truth, no toggle. */
   const chatBotInfo = async (
     ch: ChannelRow,
-  ): Promise<{ login: string | null; reading: boolean }> => {
+  ): Promise<{ login: string | null; reading: boolean; serviceLogin: string | null }> => {
     const s = deps.twitchChat.status();
     // Owner's twitch identity may be native or linked to a Google account.
     const twitchIdentity = s.connected
@@ -253,8 +253,11 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
           .get()
       : undefined;
     return {
+      // `login` gates the bot as usable HERE (owner linked); `serviceLogin` is just the bot's public
+      // name whenever the service runs — shown so a not-yet-linked owner can pre-mod the bot.
       login: s.connected && twitchIdentity ? s.login : null,
       reading: deps.twitchChat.readsChannel(ch.id),
+      serviceLogin: s.connected ? s.login : null,
     };
   };
 
@@ -597,6 +600,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         hasViewerSend: !!viewerSend,
         botAvailable: bot.login !== null,
         botReading: bot.reading,
+        botLogin: bot.serviceLogin,
       };
     },
   );

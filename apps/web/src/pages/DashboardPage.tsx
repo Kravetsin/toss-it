@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import type { ChannelSettings } from '@tmw/shared';
 import {
   removeBan,
   removeFromWhitelist,
@@ -20,6 +21,8 @@ import { QueueCard } from '@/features/dashboard/components/QueueCard';
 import { TestSendModal } from '@/features/dashboard/components/TestSendModal';
 import { MusicPlayerCard } from '@/features/dashboard/components/MusicPlayerCard';
 import { ModerationQueue } from '@/features/dashboard/components/ModerationQueue';
+import { ModerationSettings } from '@/features/dashboard/components/ModerationSettings';
+import { SubmissionLimits } from '@/features/dashboard/components/SubmissionLimits';
 import { MembersPanel } from '@/features/dashboard/components/MembersPanel';
 import { HistoryCard } from '@/features/dashboard/components/HistoryCard';
 import { useChannels } from '@/features/dashboard/hooks/useChannels';
@@ -40,6 +43,7 @@ export function DashboardPage() {
   const data = useChannelData(channelId, isOwner, soundOnRef);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [testOpen, setTestOpen] = useState(false);
+  const [modSettingsOpen, setModSettingsOpen] = useState(false);
   const actions = useModerationActions({
     channelId,
     refreshLists: data.refreshLists,
@@ -56,6 +60,13 @@ export function DashboardPage() {
   const onSeek = (seconds: number) => {
     if (channelId) void seekPlayback(channelId, seconds).catch(() => {});
   };
+
+  // Owner-only moderation settings, edited in a drawer beside the queue instead of a page trip
+  // (moderation is the in-stream loop). Mirrors the settings page's save: persist + sync local.
+  const saveModSettings = (patch: Partial<ChannelSettings>) =>
+    void act(async () => data.setSettings(await saveSettings(channelId!, patch)), {
+      success: t('toast.saved'),
+    });
 
   // DJ knobs (owner + mods): persist via the mod-accessible music endpoint (not the owner-only
   // settings PATCH), then sync local state; the server re-emits music:config to the overlay.
@@ -166,6 +177,7 @@ export function DashboardPage() {
             onTrust={actions.onTrust}
             onReject={actions.onReject}
             onBan={actions.onBan}
+            onOpenSettings={isOwner && data.settings ? () => setModSettingsOpen(true) : undefined}
           />
         </div>
 
@@ -225,6 +237,21 @@ export function DashboardPage() {
       >
         <HistoryCard history={data.history} bannedIds={bannedIds} onBan={actions.banById} />
       </Drawer>
+
+      {isOwner && data.settings && (
+        <Drawer
+          open={modSettingsOpen}
+          onClose={() => setModSettingsOpen(false)}
+          title={t('dash.modSettings')}
+          closeLabel={t('common.close')}
+          width="max-w-xl"
+        >
+          <div className="flex flex-col gap-4">
+            <ModerationSettings settings={data.settings} onSave={saveModSettings} />
+            <SubmissionLimits settings={data.settings} onSave={saveModSettings} />
+          </div>
+        </Drawer>
+      )}
     </Content>
   );
 }

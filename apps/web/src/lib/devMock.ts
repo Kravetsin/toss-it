@@ -13,6 +13,7 @@ import {
   type ListedUser,
   type LivePresence,
   type MeResponse,
+  type OnboardingStatus,
   type PublicChannelInfo,
   type ReputationStats,
   type StatsSummary,
@@ -116,7 +117,10 @@ const MOCK_SETTINGS: ChannelSettings = {
   autoApproveYoutubeVideo: false,
   youtubeAutoMaxMinutes: 10,
   autoApproveGifs: true,
-  chatBotLogin: 'tossitbot',
+  // Mock owner has no linked Twitch (MOCK_ME.hasTwitch=false), so the bot isn't usable here and has
+  // no login — matches production (chatBotLogin is non-null only for Twitch-linked owners). This
+  // hides ChatDustSettings and surfaces ChatUpsellCard, the consistent not-linked home view.
+  chatBotLogin: null,
   chatBotReading: false,
   showSenderName: true,
   soundAlert: true,
@@ -754,6 +758,16 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
         return MOCK_STATS;
       case 'live':
         return MOCK_LIVE;
+      case 'onboarding':
+        // Mock owner has no Twitch (hasTwitch: false) — exercises the chat step's link + pre-mod
+        // branch. botLogin is surfaced regardless of linking, so the /mod command shows.
+        return {
+          overlayAdded: true,
+          hasViewerSend: false,
+          botAvailable: false,
+          botReading: false,
+          botLogin: 'tossitbot',
+        } satisfies OnboardingStatus;
       case 'settings': {
         // PUT merges the patch so sliders/toggles don't snap back on the echoed response.
         if (init?.method === 'PUT' && init.body) {

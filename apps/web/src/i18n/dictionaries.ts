@@ -247,11 +247,11 @@ export const en: Dict = {
   'home.logout': 'Log out',
   'home.noChannel': 'No channel yet. Create one — you get a viewer page and an OBS overlay.',
   'home.createChannel': 'Create channel',
-  'home.manage': 'Manage',
-  'home.dashboardBtn': 'Moderation dashboard',
+  'home.myPage': 'Your page',
+  'home.myPageDesc': 'What viewers see — they send you files through this link.',
+  'home.openPage': 'Open page',
   'home.viewerPageBtn': 'Viewer page',
   'home.viewerPageSettingsBtn': 'Page settings',
-  'home.viewerLinkLabel': 'Viewer link — drop it in chat or pin it in your stream description:',
   'home.overlayTitle': 'OBS overlay',
   'home.overlayDesc':
     'Add a Browser Source with this URL. The URL contains a secret token — don’t show it on stream.',
@@ -260,10 +260,25 @@ export const en: Dict = {
   'home.chatOverlayDesc':
     'Chat overlay: add this as a SECOND Browser Source (a vertical strip) — it shows your Twitch chat with Tossit cosmetics. Optional; toggle it in overlay settings.',
   'home.overlaySettingsBtn': 'Overlay settings',
-  'onboard.title': 'Getting started',
-  'onboard.step1': 'Add the overlay to OBS as a Browser Source — the URL is below',
-  'onboard.step2': 'Share your viewer link and get the first send',
-  'onboard.step3': 'Enable chat stardust: type /mod {bot} in your Twitch chat',
+  'guide.title': 'Setup',
+  'guide.subtitle': 'A few steps to your first stream with Tossit.',
+  'guide.optional': 'optional',
+  'guide.showSteps': 'Show steps',
+  'guide.allDoneTitle': 'You’re all set — everything’s connected',
+  'guide.overlay.title': 'Add the overlay to OBS',
+  'guide.overlay.why': 'Shows viewers’ submissions right on your stream.',
+  'guide.viewer.title': 'Share your viewer link',
+  'guide.viewer.why':
+    'Viewers open it to send you files — drop it in chat or pin it in your stream description.',
+  'guide.chat.title': 'Connect the chat bot',
+  'guide.chat.why':
+    'Powers your chat overlay with cosmetics and earns viewers dust for every message.',
+  'guide.chat.modInstruction': 'Type this in your Twitch chat — the bot joins within ~5 minutes:',
+  'guide.chat.noTwitch':
+    'Chat cosmetics and dust run through our bot, which is Twitch-only. Two steps, in any order: mod the bot in your Twitch chat, and link Twitch here.',
+  'guide.chat.preMod':
+    'You can mod the bot right now — type this in your Twitch chat. It joins within ~5 minutes after you link Twitch.',
+  'guide.chat.unavailable': 'The chat bot is temporarily unavailable — check back a little later.',
   'home.rotate': 'Reissue token',
   'home.rotateConfirm': 'The old URL in OBS will stop working. Reissue?',
 
@@ -526,6 +541,7 @@ export const en: Dict = {
   'theme.reset': 'Reset to default',
   'theme.previewLabel': 'Live preview of your page',
   'dash.modQueue': 'Moderation queue',
+  'dash.modSettings': 'Moderation settings',
   'dash.modEmpty': 'Empty. New submissions will appear here automatically.',
   'dash.swipeApprove': 'approve',
   'dash.swipeReject': 'reject',
@@ -889,11 +905,11 @@ export const ru: Dict = {
   'home.noChannel':
     'Канала ещё нет. Создай его — получишь страницу для зрителей и оверлей для OBS.',
   'home.createChannel': 'Создать канал',
-  'home.manage': 'Управление',
-  'home.dashboardBtn': 'Дашборд модерации',
+  'home.myPage': 'Твоя страница',
+  'home.myPageDesc': 'То, что видят зрители — по этой ссылке они шлют тебе файлы.',
+  'home.openPage': 'Открыть страницу',
   'home.viewerPageBtn': 'Страница зрителя',
   'home.viewerPageSettingsBtn': 'Настройки страницы',
-  'home.viewerLinkLabel': 'Ссылка для зрителей — отправь её в чат или закрепи в описании стрима:',
   'home.overlayTitle': 'Оверлей для OBS',
   'home.overlayDesc':
     'Добавь Browser Source с этим URL. URL содержит секретный токен — не показывай его на стриме.',
@@ -902,10 +918,24 @@ export const ru: Dict = {
   'home.chatOverlayDesc':
     'Оверлей чата: добавь как ВТОРОЙ Browser Source (полоса сбоку) — он показывает твой чат Twitch с косметикой Tossit. Необязательно; включается в настройках оверлея.',
   'home.overlaySettingsBtn': 'Настройки оверлея',
-  'onboard.title': 'С чего начать',
-  'onboard.step1': 'Добавь оверлей в OBS как Browser Source — ссылка ниже',
-  'onboard.step2': 'Кинь зрителям ссылку на страницу и получи первую отправку',
-  'onboard.step3': 'Включи пыль за чат: напиши /mod {bot} в своём чате Twitch',
+  'guide.title': 'Настройка',
+  'guide.subtitle': 'Несколько шагов до первого стрима с Tossit.',
+  'guide.optional': 'необязательно',
+  'guide.showSteps': 'Показать шаги',
+  'guide.allDoneTitle': 'Всё настроено — подключено',
+  'guide.overlay.title': 'Добавь оверлей в OBS',
+  'guide.overlay.why': 'Показывает заявки зрителей прямо на стриме.',
+  'guide.viewer.title': 'Дай зрителям ссылку',
+  'guide.viewer.why': 'По ней зрители шлют тебе файлы — кинь в чат или закрепи в описании стрима.',
+  'guide.chat.title': 'Подключи чат-бота',
+  'guide.chat.why':
+    'Включает чат-оверлей с косметикой и начисляет зрителям пыль за каждое сообщение.',
+  'guide.chat.modInstruction': 'Напиши это в своём чате Twitch — бот подключится за ~5 минут:',
+  'guide.chat.noTwitch':
+    'Косметика в чате и пыль за сообщения работают через нашего бота, а он — только для Twitch. Два шага в любом порядке: замодь бота в своём чате Twitch и привяжи Twitch здесь.',
+  'guide.chat.preMod':
+    'Замодить можно прямо сейчас — введи это в своём чате Twitch. Бот подключится в течение ~5 минут после привязки.',
+  'guide.chat.unavailable': 'Чат-бот временно недоступен — загляни чуть позже.',
   'home.rotate': 'Перевыпустить токен',
   'home.rotateConfirm': 'Старый URL в OBS перестанет работать. Перевыпустить?',
 
@@ -1169,6 +1199,7 @@ export const ru: Dict = {
   'theme.reset': 'Сбросить',
   'theme.previewLabel': 'Живой предпросмотр твоей страницы',
   'dash.modQueue': 'Очередь модерации',
+  'dash.modSettings': 'Настройки модерации',
   'dash.modEmpty': 'Пусто. Новые отправки появятся здесь сами.',
   'dash.swipeApprove': 'одобрить',
   'dash.swipeReject': 'отклонить',
@@ -1532,11 +1563,11 @@ export const uk: Dict = {
   'home.noChannel':
     'Каналу ще немає. Створи його — отримаєш сторінку для глядачів і оверлей для OBS.',
   'home.createChannel': 'Створити канал',
-  'home.manage': 'Керування',
-  'home.dashboardBtn': 'Дашборд модерації',
+  'home.myPage': 'Твоя сторінка',
+  'home.myPageDesc': 'Те, що бачать глядачі — за цим посиланням вони надсилають тобі файли.',
+  'home.openPage': 'Відкрити сторінку',
   'home.viewerPageBtn': 'Сторінка глядача',
   'home.viewerPageSettingsBtn': 'Налаштування сторінки',
-  'home.viewerLinkLabel': 'Посилання для глядачів — кинь у чат або закріпи в описі стріму:',
   'home.overlayTitle': 'Оверлей для OBS',
   'home.overlayDesc':
     'Додай Browser Source з цим URL. URL містить секретний токен — не показуй його на стрімі.',
@@ -1545,10 +1576,25 @@ export const uk: Dict = {
   'home.chatOverlayDesc':
     'Оверлей чату: додай як ДРУГИЙ Browser Source (смуга збоку) — він показує твій чат Twitch з косметикою Tossit. Необовʼязково; вмикається в налаштуваннях оверлея.',
   'home.overlaySettingsBtn': 'Налаштування оверлея',
-  'onboard.title': 'З чого почати',
-  'onboard.step1': 'Додай оверлей в OBS як Browser Source — посилання нижче',
-  'onboard.step2': 'Кинь глядачам посилання на сторінку та отримай перше надсилання',
-  'onboard.step3': 'Увімкни пил за чат: напиши /mod {bot} у своєму чаті Twitch',
+  'guide.title': 'Налаштування',
+  'guide.subtitle': 'Кілька кроків до першого стріму з Tossit.',
+  'guide.optional': 'необов’язково',
+  'guide.showSteps': 'Показати кроки',
+  'guide.allDoneTitle': 'Усе налаштовано — під’єднано',
+  'guide.overlay.title': 'Додай оверлей в OBS',
+  'guide.overlay.why': 'Показує заявки глядачів прямо на стрімі.',
+  'guide.viewer.title': 'Дай глядачам посилання',
+  'guide.viewer.why':
+    'За ним глядачі надсилають тобі файли — кинь у чат або закріпи в описі стріму.',
+  'guide.chat.title': 'Під’єднай чат-бота',
+  'guide.chat.why':
+    'Вмикає чат-оверлей з косметикою та нараховує глядачам пил за кожне повідомлення.',
+  'guide.chat.modInstruction': 'Напиши це у своєму чаті Twitch — бот під’єднається за ~5 хвилин:',
+  'guide.chat.noTwitch':
+    'Косметика в чаті та пил за повідомлення працюють через нашого бота, а він — лише для Twitch. Два кроки в будь-якому порядку: замодь бота у своєму чаті Twitch і прив’яжи Twitch тут.',
+  'guide.chat.preMod':
+    'Замодити можна прямо зараз — введи це у своєму чаті Twitch. Бот під’єднається протягом ~5 хвилин після прив’язки.',
+  'guide.chat.unavailable': 'Чат-бот тимчасово недоступний — зазирни трохи пізніше.',
   'home.rotate': 'Перевипустити токен',
   'home.rotateConfirm': 'Старий URL в OBS перестане працювати. Перевипустити?',
 
@@ -1813,6 +1859,7 @@ export const uk: Dict = {
   'theme.reset': 'Скинути',
   'theme.previewLabel': 'Живий перегляд твоєї сторінки',
   'dash.modQueue': 'Черга модерації',
+  'dash.modSettings': 'Налаштування модерації',
   'dash.modEmpty': 'Порожньо. Нові відправки з’являться тут самі.',
   'dash.swipeApprove': 'схвалити',
   'dash.swipeReject': 'відхилити',

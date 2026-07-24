@@ -680,9 +680,12 @@ export interface OnboardingStatus {
   overlayAdded: boolean;
   /** At least one submission from a non-owner. */
   hasViewerSend: boolean;
-  /** Chat bot is configured server-side (step hidden otherwise). */
+  /** Bot can actually read THIS channel: bot service up AND owner has a linked Twitch identity. */
   botAvailable: boolean;
   botReading: boolean;
+  /** The bot's public login whenever the bot service is up — independent of Twitch linking, so the
+   *  /mod command can be shown (and pre-run) before the owner links Twitch. Null if no bot. */
+  botLogin: string | null;
 }
 
 /** Page backgrounds a channel EARNS (never buys) by airing submissions on stream. Ordered by cost.

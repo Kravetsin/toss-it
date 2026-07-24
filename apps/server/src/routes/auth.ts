@@ -242,6 +242,9 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
           await addIdentity('twitch', twitchId, current.id);
           await claimPlatformSubmissions('twitch', twitchId, current.id);
           const claimed = await claimPendingDust('twitch', twitchId, current.id);
+          // The bot can now read this owner's channel (if it's already modded) — reconcile now
+          // instead of waiting up to 5 min, so a pre-modded bot joins right after linking.
+          deps.twitchChat.settingsChanged();
           return reply.redirect(
             oauthOrigin(req) +
               withParams(
@@ -371,6 +374,8 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
       await db.delete(sessions).where(eq(sessions.userId, pending.otherUserId));
       await claimPlatformSubmissions('twitch', pending.twitchId, user.id);
       await claimPendingDust('twitch', pending.twitchId, user.id);
+      // Identities moved — the bot's channel set changed; pick it up now, not in ≤5 min.
+      deps.twitchChat.settingsChanged();
       return { ok: true, switched: false };
     }
     // The other (Twitch-native) account wins: move this account's doors there and re-login.
@@ -382,6 +387,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
     await claimPlatformSubmissions('twitch', pending.twitchId, pending.otherUserId);
     await claimPendingDust('twitch', pending.twitchId, pending.otherUserId);
     await createSession(reply, pending.otherUserId);
+    deps.twitchChat.settingsChanged();
     return { ok: true, switched: true };
   });
 
