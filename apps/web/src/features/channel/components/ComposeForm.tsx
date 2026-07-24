@@ -10,6 +10,7 @@ import { FileDropzone } from './FileDropzone';
 import { SelectedFileCard } from './SelectedFileCard';
 import { YouTubePreview } from './YouTubePreview';
 import { GifPicker } from './GifPicker';
+import { usePasteFile } from '../hooks/usePasteFile';
 import type { SelectedGif } from '../hooks/useMediaSubmission';
 
 export function ComposeForm({
@@ -54,6 +55,7 @@ export function ComposeForm({
 }) {
   const { t } = useI18n();
   const { openShop } = useShop();
+  usePasteFile(onPickFile);
   const cooling = cooldownSec > 0;
   // YouTube preview only for a text link with no file/gif selected.
   const ytId = file || gif ? null : youtubeIdFromText(text);

@@ -2,7 +2,7 @@ import { useRef, useState, type DragEvent } from 'react';
 import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
 
-const ACCEPT = 'image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,audio/*';
+export const ACCEPT = 'image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,audio/*';
 
 export function FileDropzone({ onPick }: { onPick: (file: File | null) => void }) {
   const { t } = useI18n();
