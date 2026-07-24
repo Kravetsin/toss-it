@@ -1,13 +1,13 @@
 import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
 import { Button, Tooltip } from '@/ui';
-import { ScrollFlow } from '@/marketing/ScrollFlow/ScrollFlow';
+import { LandingDemo } from '@/marketing/LandingDemo';
 
 export function LoggedOutHero() {
   const { t } = useI18n();
   return (
     <>
-      <div className="flex flex-col items-center gap-6 py-16 text-center">
+      <div className="flex flex-col items-center gap-6 px-4 py-16 text-center">
         <img src="/favicon.svg" alt="Tossit" width={72} height={72} />
         <h1>
           Toss<span className="text-accent-hover">it</span>
@@ -37,7 +37,7 @@ export function LoggedOutHero() {
           </a>
         </div>
       </div>
-      <ScrollFlow />
+      <LandingDemo />
     </>
   );
 }

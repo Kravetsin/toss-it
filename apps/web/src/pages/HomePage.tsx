@@ -38,11 +38,8 @@ export function HomePage() {
   }
 
   if (!me?.user) {
-    return (
-      <Content>
-        <LoggedOutHero />
-      </Content>
-    );
+    // Full-width: the hero centers its own content, and the demo needs room the narrow Content denies.
+    return <LoggedOutHero />;
   }
 
   const overlayUrl = me.channel ? `${OVERLAY_BASE_URL}/?token=${me.channel.overlayToken}` : null;

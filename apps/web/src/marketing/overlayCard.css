@@ -1,0 +1,98 @@
+/* Faithful copy of the overlay's submission card (.player) for the landing demo — the real thing
+   lives in apps/overlay/src/alert.css and is built with document.createElement (a different app), so
+   it can't be imported here. Keep these visuals in sync with that source. Scoped under .demo-overlay,
+   and resized for a small on-page "streamer's screen" (the real card sizes to the OBS canvas via vw/vh). */
+.demo-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+}
+.demo-overlay .player {
+  box-sizing: border-box;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: fit-content;
+  max-width: 90%;
+  padding: 14px 16px;
+  background: rgba(13, 17, 17, 0.78);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(141, 240, 204, 0.2);
+  border-radius: 6px;
+  box-shadow:
+    inset 0 1px 0 0 rgba(141, 240, 204, 0.5),
+    0 14px 40px -12px rgba(0, 0, 0, 0.65);
+  animation: demo-card-pop 0.32s ease-out;
+}
+.demo-overlay .player-media {
+  display: flex;
+  justify-content: center;
+}
+.demo-overlay .player-media img,
+.demo-overlay .player-media video {
+  display: block;
+  max-width: 100%;
+  max-height: 240px;
+  border-radius: 6px;
+}
+.demo-overlay .text-body {
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 22px;
+  line-height: 1.4;
+  text-align: center;
+  color: #ededec;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+/* The real overlay clips the caption to the media width and marquee-scrolls the overflow; the demo
+   has no marquee, so let the row size to its content (card grows to fit) — the caption reads fully
+   instead of truncating mid-word. */
+.demo-overlay .player-meta {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-weight: 600;
+  font-size: 16px;
+  color: #ededec;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+}
+.demo-overlay .player-meta .name {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.demo-overlay .player-meta .meta-sep {
+  flex: none;
+  color: #7a8180;
+}
+.demo-overlay .player-caption {
+  flex: 0 100 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 400;
+  font-size: 14px;
+  color: #b9c2c0;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+@keyframes demo-card-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
