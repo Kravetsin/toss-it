@@ -77,8 +77,8 @@ export const cardButterflies: CardEffectModule = {
   since: '2026-07-24',
   className: 'card-fx-butterflies',
   counts: { web: 5, overlayCard: 6, overlayChat: 4 },
-  // Honours the viewer's chosen colour (the card-butterflies-color upgrade) — drawn exactly; see particle().
-  colorable: true,
+  // Recolourable via its own upgrade — drawn exactly (see particle()).
+  colorUpgrade: 'card-butterflies-color',
   labels: { name: 'shop.cardButterflies', desc: 'shop.cardButterfliesDesc' },
   // .p runs TWO animations (the slow flight + the fast wing-beat surge); only the flight's loop is a
   // rebirth. Without this, bindRespawn would re-roll on every surge beat, mid-flight (see its use).

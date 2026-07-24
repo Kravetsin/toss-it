@@ -33,10 +33,8 @@ const NICK_FLOW_ID = 'nick-flow';
 // Entrance colour: the id is historical (it began as a portal-only upgrade) but it now tints ANY
 // equipped entrance — kept unchanged so existing buyers keep what they own. See entrance-portal-color.
 const PORTAL_COLOR_ID = 'entrance-portal-color';
-// Card-effect colour upgrade (first upgrade in the card category): tints the colourable card effect.
-// Gated on owning the effect it colours (card-butterflies), like a ladder rung.
-const CARD_COLOR_ID = 'card-butterflies-color';
-const BUTTERFLIES_ID = 'card-butterflies';
+// A colourable card effect (butterflies, eyes) carries its OWN colour upgrade (CardEffectModule
+// .colorUpgrade), bought separately and rendered INSIDE that effect's own card — see effectRow.
 const DEFAULT_CARD_COLOR = '#ff2e9a';
 const DEFAULT_PORTAL_COLOR = '#8df0cc';
 
@@ -89,7 +87,7 @@ const CARD_GROUPS = [
   { key: 'cosmic', ids: ['card-stardust', 'card-constellation', 'card-levitation'] },
   { key: 'elements', ids: ['card-rain', 'card-snow', 'card-lightning', 'card-embers'] },
   { key: 'nature', ids: ['card-sakura', 'card-bubbles', 'card-butterflies'] },
-  { key: 'arcane', ids: ['card-wisp', 'card-runes', 'card-web'] },
+  { key: 'arcane', ids: ['card-wisp', 'card-runes', 'card-web', 'card-eyes'] },
 ] as const;
 type CardGroupKey = (typeof CARD_GROUPS)[number]['key'];
 const GROUP_LABEL: Record<CardGroupKey, string> = {
@@ -249,7 +247,6 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   // `upgrade` items (the portal colour) aren't equippable entrances — they're a rung, rendered below.
   const entrances = COSMETICS.filter((c) => c.type === 'entrance' && !c.upgrade);
   const portalColorItem = COSMETICS.find((c) => c.id === PORTAL_COLOR_ID)!;
-  const cardColorItem = COSMETICS.find((c) => c.id === CARD_COLOR_ID)!;
   // Every specific voice is a purchase; the free path is the "auto" option in the compose form.
   const voiceItems = COSMETICS.filter((c) => c.type === 'tts_voice');
   const ownsColor = user?.ownedCosmetics.includes(NICK_COLOR_ID) ?? false;
@@ -260,9 +257,8 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   const equippedFlow = user?.equipped.nickFlow ?? false;
   const equippedNickEffect = user?.equipped.nickEffect ?? null;
   const equippedCardEffect = user?.equipped.cardEffect ?? null;
-  const equippedCardEffectColor = user?.equipped.cardEffectColor ?? null;
-  const ownsCardColor = user?.ownedCosmetics.includes(CARD_COLOR_ID) ?? false;
-  const ownsButterflies = user?.ownedCosmetics.includes(BUTTERFLIES_ID) ?? false;
+  // Per-effect saved colours (butterflies, eyes) — the picker inside each effect card reads/writes here.
+  const equippedCardEffectColors = user?.equipped.cardEffectColors ?? {};
   const equippedFrame = user?.equipped.frame ?? null;
   const equippedSeal = user?.equipped.seal ?? null;
   // Account-wide activity — earned cosmetics (frames) unlock at a threshold instead of a price.
@@ -280,14 +276,6 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
 
   const [category, setCategory] = useState<ShopCategory>('nick');
   const [cardGroup, setCardGroup] = useState<CardGroupKey>('cosmic');
-  // The colour picker lives with the effect it tints: show it only on the sub-tab whose group holds a
-  // colourable effect (butterflies → 'nature'), not on every card sub-tab.
-  const activeGroupColorable = (cardGroups.find((g) => g.key === cardGroup)?.effects ?? []).some(
-    (e) => {
-      const m = cosmeticModule(e.id);
-      return m?.type === 'card_effect' && m.colorable === true;
-    },
-  );
   const [color, setColor] = useState(equippedColor ?? DEFAULT_COLOR);
   const [color2, setColor2] = useState(equippedColor2 ?? DEFAULT_COLOR_2);
   // Whether the viewer is composing a gradient right now — a second stop can be picked and previewed
@@ -298,10 +286,9 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   useEffect(() => {
     if (equippedEntranceColor) setPortalColor(equippedEntranceColor);
   }, [equippedEntranceColor]);
-  const [cardColor, setCardColor] = useState(equippedCardEffectColor ?? DEFAULT_CARD_COLOR);
-  useEffect(() => {
-    if (equippedCardEffectColor) setCardColor(equippedCardEffectColor);
-  }, [equippedCardEffectColor]);
+  // Draft colours being picked, keyed by effect id (butterflies, eyes). Seeded lazily from the saved
+  // colour on first edit; unset entries fall back to the saved colour (or the default) in effectRow.
+  const [cardColorDraft, setCardColorDraft] = useState<Record<string, string>>({});
   // Reflect the saved colors when they change (e.g. after a refresh) without fighting active edits.
   useEffect(() => {
     if (equippedColor) setColor(equippedColor);
@@ -398,15 +385,14 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     void act(() => equipCosmetic({ entranceColor: null }), { after: refresh });
   const portalColorDirty =
     portalColor.toLowerCase() !== (equippedEntranceColor ?? '').toLowerCase();
-  // Card-effect colour: same Apply-on-commit flow as the portal tint (see applyPortalColor).
-  const applyCardColor = () =>
-    void act(() => equipCosmetic({ cardEffectColor: cardColor }), {
+  // Per-effect card colour: set/clear the colour for ONE effect id (the picker lives in its card).
+  const applyCardColorFor = (id: string, hex: string) =>
+    void act(() => equipCosmetic({ cardEffectColors: { [id]: hex } }), {
       after: refresh,
       success: t('shop.equipped'),
     });
-  const removeCardColor = () =>
-    void act(() => equipCosmetic({ cardEffectColor: null }), { after: refresh });
-  const cardColorDirty = cardColor.toLowerCase() !== (equippedCardEffectColor ?? '').toLowerCase();
+  const removeCardColorFor = (id: string) =>
+    void act(() => equipCosmetic({ cardEffectColors: { [id]: null } }), { after: refresh });
 
   // Glow demo uses the equipped nick color (or mint), without recoloring the demo text.
   const glowVar = { ['--nick-glow']: equippedColor || 'var(--color-accent)' } as CSSProperties;
@@ -430,12 +416,21 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     const earnUnit = earnMeta?.unit ?? 1;
     const owned = earn ? earnHave >= earn.count : (user?.ownedCosmetics.includes(e.id) ?? false);
     const on = equippedId === e.id;
-    const labels = cosmeticModule(e.id)?.labels;
+    const mod = cosmeticModule(e.id);
+    const labels = mod?.labels;
     if (!labels) return null;
     const isCard = e.type === 'card_effect';
     const isNick = e.type === 'nick_effect';
     const isEntrance = e.type === 'entrance';
     const isFrame = e.type === 'frame';
+    // Colourable card effects carry their own colour upgrade, whose buy/picker renders INSIDE this card.
+    const colorUp = mod?.type === 'card_effect' ? mod.colorUpgrade : undefined;
+    const colorMod = colorUp ? cosmeticModule(colorUp) : undefined;
+    const colorItem = colorUp ? COSMETICS.find((c) => c.id === colorUp) : undefined;
+    const ownsColorUp = colorUp ? (user?.ownedCosmetics.includes(colorUp) ?? false) : false;
+    const savedColor = equippedCardEffectColors[e.id];
+    const draftColor = cardColorDraft[e.id] ?? savedColor ?? DEFAULT_CARD_COLOR;
+    const colorDirty = draftColor.toLowerCase() !== (savedColor ?? '').toLowerCase();
     return (
       <div
         key={e.id}
@@ -445,7 +440,10 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
           isCard ? 'pb-6' : ''
         }`}
       >
-        {isCard && <CardEffect effect={e.id} color={equippedCardEffectColor} />}
+        {/* Preview shows the SAVED colour, not the live draft: a colour effect regenerates its whole
+            particle swarm on a colour change, so previewing every slider tick would respawn it
+            frantically. It updates once on Apply (the native picker swatch shows the draft live). */}
+        {isCard && <CardEffect effect={e.id} color={savedColor} />}
         <div className="relative flex flex-col gap-2">
           <div className="flex items-center justify-between gap-2">
             {/* The demo needs the effect's `animation` explicitly: nick modules declare it instead
@@ -524,6 +522,65 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
               <span className="label-mono text-faint">{t('shop.notEnough')}</span>
             )}
           </div>
+          {/* Colour upgrade — lives INSIDE its effect's card, shown once the effect is owned. Buying it
+              merges the picker in; a plain effect (no colorUpgrade) never shows this. */}
+          {colorUp && owned && colorItem && colorMod && (
+            <div className="mt-1 flex flex-col gap-2 border-t border-border pt-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex min-w-0 items-center gap-1.5">
+                  {upgradeTag}
+                  <span className="font-medium text-text">{t(colorMod.labels.name)}</span>
+                  <NewDot id={colorUp} />
+                </span>
+                {ownsColorUp ? (
+                  <Badge>{t('shop.owned')}</Badge>
+                ) : (
+                  <span className="inline-flex shrink-0 items-center gap-1.5 label-mono text-accent">
+                    <DustMark size={14} />
+                    {colorItem.costDust}
+                  </span>
+                )}
+              </div>
+              {ownsColorUp ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    type="color"
+                    value={draftColor}
+                    onChange={(ev) => setCardColorDraft((p) => ({ ...p, [e.id]: ev.target.value }))}
+                    aria-label={t(colorMod.labels.name)}
+                    className="h-10 w-14 shrink-0 cursor-pointer rounded-[var(--radius-sm)] border border-border bg-surface"
+                  />
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => applyCardColorFor(e.id, draftColor)}
+                    disabled={!colorDirty}
+                  >
+                    {t('shop.apply')}
+                  </Button>
+                  {savedColor && (
+                    <Button variant="ghost" size="sm" onClick={() => removeCardColorFor(e.id)}>
+                      {t('shop.resetColor')}
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="accent"
+                    size="sm"
+                    onClick={() => buy(colorUp, t(colorMod.labels.name), colorItem.costDust)}
+                    disabled={balance < colorItem.costDust}
+                  >
+                    {t('shop.buy')}
+                  </Button>
+                  {balance < colorItem.costDust && (
+                    <span className="label-mono text-faint">{t('shop.notEnough')}</span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -657,6 +714,14 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
       {note && <p className="mt-1 text-sm text-muted">{note}</p>}
       <div className="mt-3 flex flex-col gap-3">{body}</div>
     </Card>
+  );
+
+  // A small tag marking an item as an UPGRADE of another cosmetic (a colour picker, gradient, flow) —
+  // it modifies something else rather than standing on its own, so it must not read as a plain effect.
+  const upgradeTag = (
+    <span className="inline-flex shrink-0 items-center rounded-full border border-[rgba(141,240,204,0.4)] bg-[rgba(141,240,204,0.08)] px-2 py-[3px] label-mono text-accent">
+      {t('shop.upgrade')}
+    </span>
   );
 
   return createPortal(
@@ -829,6 +894,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
                 <div className="flex items-center justify-between gap-2">
                   <span className="flex min-w-0 items-center gap-1.5 font-medium text-text">
                     {t('shop.nickGradient')}
+                    {upgradeTag}
                     <NewDot id={NICK_GRADIENT_ID} />
                   </span>
                   {ownsGradient ? (
@@ -881,6 +947,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
                 <div className="flex items-center justify-between gap-2">
                   <span className="flex min-w-0 items-center gap-1.5 font-medium text-text">
                     {t('shop.nickFlow')}
+                    {upgradeTag}
                     <NewDot id={NICK_FLOW_ID} />
                   </span>
                   {ownsFlow ? (
@@ -966,78 +1033,6 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
                 effectRow(e, equippedCardEffect, (id) => equipEffect({ cardEffect: id })),
               ),
             )}
-            {/* Colour upgrade — the first in this category. Its OWN block (like the entrance tint): it
-                recolours the equipped colourable effect, not a rung under any single one. Shown only on
-                the sub-tab that holds a colourable effect (see activeGroupColorable), so it doesn't
-                repeat on every card group. The purchase is gated on owning the effect it colours
-                (card-butterflies), so the buy is disabled with a hint until then. */}
-            {activeGroupColorable &&
-              section(
-                t('shop.cardColor'),
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="flex min-w-0 items-center gap-1.5 font-medium text-text">
-                      {t('shop.cardColor')}
-                      <NewDot id={CARD_COLOR_ID} />
-                    </span>
-                    {ownsCardColor ? (
-                      <Badge>{t('shop.owned')}</Badge>
-                    ) : (
-                      <span className="inline-flex shrink-0 items-center gap-1.5 label-mono text-accent">
-                        <DustMark size={14} />
-                        {cardColorItem.costDust}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm italic text-muted">{t('shop.cardColorDesc')}</p>
-                  {ownsCardColor ? (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <input
-                        type="color"
-                        value={cardColor}
-                        onChange={(e) => setCardColor(e.target.value)}
-                        aria-label={t('shop.cardColor')}
-                        className="h-10 w-14 shrink-0 cursor-pointer rounded-[var(--radius-sm)] border border-border bg-surface"
-                      />
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={applyCardColor}
-                        disabled={!cardColorDirty}
-                      >
-                        {t('shop.apply')}
-                      </Button>
-                      {equippedCardEffectColor && (
-                        <Button variant="ghost" size="sm" onClick={removeCardColor}>
-                          {t('shop.remove')}
-                        </Button>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="accent"
-                        size="sm"
-                        onClick={() =>
-                          buy(CARD_COLOR_ID, t('shop.cardColor'), cardColorItem.costDust)
-                        }
-                        disabled={!ownsButterflies || balance < cardColorItem.costDust}
-                      >
-                        {t('shop.buy')}
-                      </Button>
-                      {!ownsButterflies ? (
-                        <span className="label-mono text-faint">
-                          {t('shop.cardColorNeedsEffect')}
-                        </span>
-                      ) : (
-                        balance < cardColorItem.costDust && (
-                          <span className="label-mono text-faint">{t('shop.notEnough')}</span>
-                        )
-                      )}
-                    </div>
-                  )}
-                </div>,
-              )}
           </div>
         )}
 
@@ -1074,6 +1069,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
                 <div className="flex items-center justify-between gap-2">
                   <span className="flex min-w-0 items-center gap-1.5 font-medium text-text">
                     {t('shop.entranceColor')}
+                    {upgradeTag}
                     <NewDot id={PORTAL_COLOR_ID} />
                   </span>
                   {ownsPortalColor ? (

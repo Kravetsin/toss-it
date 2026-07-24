@@ -133,12 +133,13 @@ export interface CardEffectModule extends BaseModule {
   /** Particle count per surface (small pills need fewer than a full-screen alert). */
   counts: Record<Surface, number>;
   /**
-   * This effect honours the viewer's chosen card colour (EquippedCosmetics.cardEffectColor): its
-   * `particle()`/`render()` are handed that `#rrggbb` and paint from it instead of their own palette.
-   * The shop shows the colour picker (the `card-butterflies-color` upgrade) only for colourable
-   * effects; the pipeline still passes `color` to every effect, and a non-colourable one ignores it.
+   * The catalog id of the colour UPGRADE that unlocks recolouring THIS effect (e.g. butterflies →
+   * 'card-butterflies-color'). Each colourable effect has its OWN upgrade, bought separately, and its
+   * own stored colour (EquippedCosmetics.cardEffectColors[effectId]). When set, the effect is
+   * colourable: `particle()`/`render()` are handed that `#rrggbb` and paint from it. Unset = the effect
+   * has no colour option; the pipeline still passes `color` to every effect and a plain one ignores it.
    */
-  colorable?: boolean;
+  colorUpgrade?: string;
   /**
    * Inline style for ONE randomized particle. Randomize spawn/size/speed and set the animation
    * timing through the `--dur`/`--delay` custom properties (NEGATIVE delay so particles start
@@ -327,13 +328,13 @@ export interface EquippedCosmetics {
   /** Equipped card effect item id (e.g. 'card-levitation'); requires owning it. */
   cardEffect?: string | null;
   /**
-   * Free-form #rrggbb tint for the equipped card effect; requires owning 'card-butterflies-color'.
-   * Applied only by a `colorable` card effect (butterflies) — it recolours from this instead of its
-   * own palette. Like `entranceColor` it PERSISTS across card-effect changes: a non-colourable effect
-   * simply ignores it, so a stored-but-inactive tint is harmless and survives switching effects and
-   * back. Unset = the effect's own palette.
+   * Per-effect #rrggbb tints, keyed by card-effect id (e.g. { 'card-butterflies': '#ff2e9a' }). Each
+   * colourable effect keeps its OWN colour and has its OWN upgrade (see CardEffectModule.colorUpgrade),
+   * bought separately — an entry only exists once that effect's upgrade is owned (enforced on equip).
+   * The render reads the entry for the equipped effect; a plain effect has no entry and uses its own
+   * palette. Persists across card-effect changes (switching effects keeps each one's colour).
    */
-  cardEffectColor?: string | null;
+  cardEffectColors?: Record<string, string>;
   /** Equipped frame item id (e.g. 'frame-runner'); requires owning it. A border decoration on the
    *  sender's card, layered over its role colour (the colour is untouched). */
   frame?: string | null;

@@ -136,7 +136,7 @@ export function ProfileMenu({
       >
         <CardEffect
           effect={user.equipped?.cardEffect}
-          color={user.equipped?.cardEffectColor}
+          color={user.equipped?.cardEffectColors?.[user.equipped?.cardEffect ?? '']}
           compact
         />
         {tier && (

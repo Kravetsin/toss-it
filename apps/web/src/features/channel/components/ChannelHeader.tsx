@@ -16,7 +16,9 @@ export function ChannelHeader({ channel }: { channel: PublicChannelInfo }) {
   // viewing their OWN page, read live equipped state from `me` so an equip shows without a reload.
   const mine = me?.user && me.user.login === channel.login ? me.user.equipped : undefined;
   const cardEffect = mine ? (mine.cardEffect ?? null) : channel.cardEffect;
-  const cardEffectColor = mine ? (mine.cardEffectColor ?? null) : channel.cardEffectColor;
+  const cardEffectColor = mine
+    ? (mine.cardEffectColors?.[mine.cardEffect ?? ''] ?? null)
+    : channel.cardEffectColor;
   const nick = nickProps({
     color: mine ? mine.nickColor : channel.nickColor,
     color2: mine ? mine.nickColor2 : channel.nickColor2,

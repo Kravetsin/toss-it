@@ -30,6 +30,8 @@ import { cardButterflies } from './effects/card-butterflies';
 import { cardButterfliesColor } from './effects/card-butterflies-color';
 import { cardRunes } from './effects/card-runes';
 import { cardWeb } from './effects/card-web';
+import { cardEyes } from './effects/card-eyes';
+import { cardEyesColor } from './effects/card-eyes-color';
 import { frameRunner } from './effects/frame-runner';
 import { frameRunnerDouble } from './effects/frame-runner-double';
 import { frameDragonBreath } from './effects/frame-dragon-breath';
@@ -204,6 +206,8 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   cardButterfliesColor,
   cardRunes,
   cardWeb,
+  cardEyes,
+  cardEyesColor,
   // Frames group by the metric that earns them, each family in ladder order: chat messages first,
   // then watch time. A rung is a separate item, so the shop shows what the next one looks like.
   frameRunner,

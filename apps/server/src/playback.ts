@@ -91,9 +91,10 @@ export function marksFromEquipped(equipped: EquippedCosmetics | null): NickMarks
     flow: equipped?.nickFlow ?? false,
     nickEffect: equipped?.nickEffect ?? null,
     cardEffect: equipped?.cardEffect ?? null,
-    // Persisted across card-effect changes (see EquippedCosmetics.cardEffectColor); only a colourable
-    // effect uses it, so carrying it always is harmless and survives switching effects and back.
-    cardEffectColor: equipped?.cardEffectColor ?? null,
+    // The colour stored FOR the equipped effect (per-effect map; see EquippedCosmetics.cardEffectColors).
+    // Null unless that effect has a colour set — a plain effect has no entry and renders its own palette.
+    cardEffectColor:
+      (equipped?.cardEffect && equipped.cardEffectColors?.[equipped.cardEffect]) ?? null,
     frame: equipped?.frame ?? null,
     seal: equipped?.seal ?? null,
     entrance: equipped?.entrance ?? null,

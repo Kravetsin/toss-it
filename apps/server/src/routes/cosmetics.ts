@@ -2,6 +2,7 @@ import { and, eq, gte, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import {
   COSMETICS,
+  cosmeticModule,
   isCosmeticOfType,
   isHexColor,
   type CosmeticStateResponse,
@@ -102,7 +103,7 @@ export function registerCosmeticsRoutes(app: FastifyInstance): void {
       nickFlow?: unknown;
       nickEffect?: unknown;
       cardEffect?: unknown;
-      cardEffectColor?: unknown;
+      cardEffectColors?: unknown;
       frame?: unknown;
       seal?: unknown;
       entrance?: unknown;
@@ -120,7 +121,6 @@ export function registerCosmeticsRoutes(app: FastifyInstance): void {
       ['nickColor', 'nick-color'],
       ['nickColor2', 'nick-gradient'],
       ['entranceColor', 'entrance-portal-color'],
-      ['cardEffectColor', 'card-butterflies-color'],
     ] as const) {
       if (!(field in body)) continue;
       const raw = body[field];
@@ -134,6 +134,33 @@ export function registerCosmeticsRoutes(app: FastifyInstance): void {
       } else {
         return reply.code(400).send({ error: 'Некорректный цвет' });
       }
+    }
+
+    // Per-effect card colours: a partial { effectId: '#rrggbb' | null } map. Each effect has its own
+    // colour upgrade, so a set is gated on owning THAT effect's upgrade (see CardEffectModule.colorUpgrade).
+    if ('cardEffectColors' in body) {
+      const raw = body.cardEffectColors;
+      if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+        return reply.code(400).send({ error: 'Некорректный цвет' });
+      }
+      const next: Record<string, string> = { ...(equipped.cardEffectColors ?? {}) };
+      for (const [effectId, value] of Object.entries(raw as Record<string, unknown>)) {
+        const mod = cosmeticModule(effectId);
+        if (mod?.type !== 'card_effect' || !mod.colorUpgrade) {
+          return reply.code(400).send({ error: 'Некорректный эффект' });
+        }
+        if (value === null) {
+          delete next[effectId];
+        } else if (typeof value === 'string' && isHexColor(value)) {
+          if (!(await owns(user.id, mod.colorUpgrade))) {
+            return reply.code(403).send({ error: 'Предмет не куплен' });
+          }
+          next[effectId] = value.toLowerCase();
+        } else {
+          return reply.code(400).send({ error: 'Некорректный цвет' });
+        }
+      }
+      equipped.cardEffectColors = next;
     }
 
     if ('nickFlow' in body) {

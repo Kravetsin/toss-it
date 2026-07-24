@@ -20,7 +20,7 @@ export function ProfileCard({ user }: { user: SessionUser }) {
     <div className="relative overflow-hidden border border-border bg-surface-2 p-3 shadow-1">
       <CardEffect
         effect={user.equipped?.cardEffect}
-        color={user.equipped?.cardEffectColor}
+        color={user.equipped?.cardEffectColors?.[user.equipped?.cardEffect ?? '']}
         compact
       />
       <div className="relative flex items-center gap-3">

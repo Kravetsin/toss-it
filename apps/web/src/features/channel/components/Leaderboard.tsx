@@ -86,7 +86,9 @@ export function LeaderboardRow({
   };
   const mine = cosmetics;
   const cardEffect = mine ? (mine.cardEffect ?? null) : e.cardEffect;
-  const cardEffectColor = mine ? (mine.cardEffectColor ?? null) : e.cardEffectColor;
+  const cardEffectColor = mine
+    ? (mine.cardEffectColors?.[mine.cardEffect ?? ''] ?? null)
+    : e.cardEffectColor;
   const nick = nickProps({
     color: mine ? mine.nickColor : e.nickColor,
     color2: mine ? mine.nickColor2 : e.nickColor2,

@@ -12,9 +12,14 @@ export function buyCosmetic(itemId: string): Promise<CosmeticStateResponse> {
 
 /**
  * Equip/unequip cosmetics: a value sets that slot, null removes it, an omitted key leaves it alone.
- * Typed as the equipped state itself so a new cosmetic slot can never drift out of this client.
+ * Typed as the equipped state itself so a new cosmetic slot can never drift out of this client — except
+ * the per-effect colour map, whose values may be null here (removing one effect's colour).
  */
-export function equipCosmetic(patch: EquippedCosmetics): Promise<CosmeticStateResponse> {
+export function equipCosmetic(
+  patch: Omit<EquippedCosmetics, 'cardEffectColors'> & {
+    cardEffectColors?: Record<string, string | null>;
+  },
+): Promise<CosmeticStateResponse> {
   return fetch('/api/cosmetics/equip', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },

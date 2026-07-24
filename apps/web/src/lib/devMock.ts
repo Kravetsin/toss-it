@@ -85,9 +85,9 @@ const MOCK_ME: MeResponse = {
       nickFlow: true,
       nickEffect: 'nick-pulse',
       cardEffect: 'card-web',
-      // Saved butterfly colour (the card-butterflies-color upgrade) — the shop picker shows it and the
-      // butterflies preview row renders in it; owned via ownedCosmetics = every catalog id.
-      cardEffectColor: '#5ad1ff',
+      // Per-effect saved colours — the picker inside each effect's card shows these; owned via
+      // ownedCosmetics = every catalog id (so both colour upgrades are owned).
+      cardEffectColors: { 'card-butterflies': '#5ad1ff', 'card-eyes': '#7cff4f' },
       frame: 'frame-runner',
       seal: 'seal-star-lit',
       entrance: 'entrance-astral',
@@ -367,6 +367,19 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderCardEffectColor: '#5ad1ff',
     text: 'замри на секунду — они сядут',
     createdAt: t - 46 * min,
+  }),
+  sub({
+    id: 's13',
+    kind: 'text',
+    senderUserId: 'twitch:v16',
+    senderName: 'peekaboo',
+    senderLevel: 7,
+    senderColor: '#ff5a7a',
+    senderCardEffect: 'card-eyes',
+    // Showcase the (now general) colour upgrade recolouring the eyes too — acid green.
+    senderCardEffectColor: '#7CFF4F',
+    text: 'не оборачивайся',
+    createdAt: t - 50 * min,
   }),
 ];
 
@@ -747,13 +760,23 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
       'nickColor2',
       'nickEffect',
       'cardEffect',
-      'cardEffectColor',
       'entrance',
       'entranceColor',
     ] as const) {
       if (slot in body) next[slot] = body[slot] || undefined;
     }
     if ('nickFlow' in body) next.nickFlow = body.nickFlow || undefined;
+    // Per-effect card colours: merge the partial { effectId: hex | null } map (null removes one).
+    const colorPatch = (body as { cardEffectColors?: Record<string, string | null> })
+      .cardEffectColors;
+    if (colorPatch && typeof colorPatch === 'object') {
+      const map = { ...(u.equipped.cardEffectColors ?? {}) };
+      for (const [k, v] of Object.entries(colorPatch)) {
+        if (v) map[k] = v;
+        else delete map[k];
+      }
+      next.cardEffectColors = map;
+    }
     // Mirror the server's ladder: an upgrade can't outlive the rung it stands on.
     if (!next.nickColor) next.nickColor2 = undefined;
     if (!next.nickColor2) next.nickFlow = undefined;

@@ -206,7 +206,7 @@ function renderMessage(msg: ChatOverlayMessage): void {
       msg.cosmetics.cardEffect,
       'overlayChat',
       true,
-      msg.cosmetics.cardEffectColor ?? undefined,
+      msg.cosmetics.cardEffectColors?.[msg.cosmetics.cardEffect] ?? undefined,
     );
   // The bubble is what arrives, so the bubble wears the entrance. Unequipped leaves the chat's own
   // unfold-from-the-star running (see .bubble:not([data-fx]) in chat.html).
@@ -297,7 +297,7 @@ function renderSystem(line: ChatSystemEvent): void {
       line.cosmetics.cardEffect,
       'overlayChat',
       true,
-      line.cosmetics.cardEffectColor ?? undefined,
+      line.cosmetics.cardEffectColors?.[line.cosmetics.cardEffect] ?? undefined,
     );
     card.appendChild(fx);
   }
@@ -803,10 +803,23 @@ if (DEMO) {
       userId: 'u20',
       name: 'mothwing',
       twitchColor: '#ff8fd6',
-      cosmetics: { cardEffect: 'card-butterflies', cardEffectColor: '#5ad1ff' },
+      cosmetics: {
+        cardEffect: 'card-butterflies',
+        cardEffectColors: { 'card-butterflies': '#5ad1ff' },
+      },
       isFounder: false,
       level: 6,
       fragments: [{ type: 'text', text: 'замри — они сядут' }],
+    },
+    {
+      id: '21',
+      userId: 'u21',
+      name: 'peekaboo',
+      twitchColor: '#ff5a7a',
+      cosmetics: { cardEffect: 'card-eyes' },
+      isFounder: false,
+      level: 7,
+      fragments: [{ type: 'text', text: 'не оборачивайся' }],
     },
     // 7-9 walk the big-emote ladder: 1 → 6em, 2-3 → 3.75em, 4-6 → 2.25em.
     {
