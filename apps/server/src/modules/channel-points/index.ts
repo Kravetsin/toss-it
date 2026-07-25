@@ -1,16 +1,7 @@
-import { and, eq } from 'drizzle-orm';
 import type { FastifyBaseLogger } from 'fastify';
 import { CHANNEL_POINTS, DUST_POINTS } from '@tmw/shared';
-import { db } from '../../db/index';
-import { channels, linkedIdentities } from '../../db/schema';
 import { roomOf, type PlaybackManager, type RealtimeServer } from '../../playback';
-import {
-  fetchVideoInfo,
-  parseYoutube,
-  validateYoutube,
-  YT_MUSIC_CATEGORY_ID,
-} from '../../media/youtube';
-import { createYoutubeSubmission } from '../../media/submit';
+import { resolvePlayableYoutube, submitResolvedYoutube } from '../../media/submit';
 import { awardDust } from '../twitch-chat/accrual';
 import { ChannelPointsEventSub, type RedemptionEvent } from './eventsub';
 import {
@@ -241,9 +232,8 @@ export function createChannelPointsModule(deps: {
     conn: ConnectionRecord,
     ev: RedemptionEvent,
   ): Promise<void> {
-    const parsed = parseYoutube(ev.userInput);
-    const meta = parsed ? await validateYoutube(parsed.videoId) : null;
-    if (!parsed || !meta) {
+    const resolved = await resolvePlayableYoutube(ev.userInput);
+    if (!resolved) {
       // Nothing playable — refund the points rather than take them for a bad/private link.
       await authorized(reward.channelId, (token) =>
         cancelRedemption(token, conn.broadcasterId, reward.rewardId, ev.redemptionId),
@@ -265,61 +255,22 @@ export function createChannelPointsModule(deps: {
       );
       return;
     }
-    const channel = await db.select().from(channels).where(eq(channels.id, reward.channelId)).get();
-    const info = (await fetchVideoInfo([parsed.videoId])).get(parsed.videoId);
-    const durationSec = info?.durationSec ?? 0;
-    // Music if the link is from music.youtube.com OR the video's YouTube category is Music (10) — so a
-    // plain youtube.com music track still renders as the compact player, not full-screen video.
-    const isMusic = parsed.isMusic || info?.categoryId === YT_MUSIC_CATEGORY_ID;
-    // Auto-approve is split by type: video can take over the whole screen, so it's gated separately
-    // from music. Only within the duration cap; longer / unknown-length → moderation.
-    const capSec = (channel?.youtubeAutoMaxMinutes ?? 10) * 60;
-    const autoAllowed = isMusic
-      ? !!channel?.autoApproveYoutubeMusic
-      : !!channel?.autoApproveYoutubeVideo;
-    const autoApproved = autoAllowed && durationSec > 0 && durationSec <= capSec;
-    // Sender = the viewer's linked Tossit account, or null (anonymous — dust still accrues to twitch id).
-    const link = await db
-      .select({ userId: linkedIdentities.userId })
-      .from(linkedIdentities)
-      .where(
-        and(
-          eq(linkedIdentities.provider, 'twitch'),
-          eq(linkedIdentities.providerId, ev.redeemerId),
-        ),
-      )
-      .get();
-    await createYoutubeSubmission(
+    // Music/video, auto-approve, submission routing and send-dust are shared with the !play chat
+    // command (see media/submit.ts) so a link is treated identically however it arrived.
+    const { autoApproved } = await submitResolvedYoutube(
       { playback, io },
       {
         channelId: reward.channelId,
-        senderUserId: link?.userId ?? null,
+        broadcasterId: conn.broadcasterId,
+        resolved,
+        senderTwitchId: ev.redeemerId,
         senderName: ev.redeemerName,
-        // Kept even when the account resolved: this is the only handle we have on a redeemer
-        // who never logged in, and it is what a chat command can match them by.
-        senderPlatform: 'twitch',
-        senderPlatformUserId: ev.redeemerId,
-        parsed,
-        title: (parsed.caption ?? meta.title ?? undefined)?.slice(0, 280),
-        durationMs: durationSec > 0 ? durationSec * 1000 : 0,
-        isMusic,
-        autoApproved,
-        isSelfSend: ev.redeemerId === conn.broadcasterId,
       },
     );
     log.info(
-      { channelId: reward.channelId, videoId: parsed.videoId, autoApproved, durationSec },
+      { channelId: reward.channelId, videoId: resolved.parsed.videoId, autoApproved },
       'channel-points: youtube submitted',
     );
-    // Send-dust (mirrored to the owner) unless the broadcaster requested their own video.
-    if (ev.redeemerId !== conn.broadcasterId) {
-      await awardDust(ev.redeemerId, DUST_POINTS.send);
-      await awardDust(conn.broadcasterId, DUST_POINTS.send);
-      io.to(roomOf(reward.channelId)).emit('chat:redemption', {
-        name: ev.redeemerName,
-        dust: DUST_POINTS.send,
-      });
-    }
   }
 
   async function onRedemption(ev: RedemptionEvent): Promise<void> {

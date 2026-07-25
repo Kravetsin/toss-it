@@ -84,6 +84,7 @@ const { createTwitchChatModule } = await import('./modules/twitch-chat/index');
 const twitchChat = createTwitchChatModule({
   overlayCount: (channelId) => playback.overlayCount(channelId),
   queueState: (channelId, submissionId) => playback.queueState(channelId, submissionId),
+  playback,
   io,
   log: app.log,
 });

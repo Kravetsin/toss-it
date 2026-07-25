@@ -22,6 +22,7 @@ export function ChatDustSettings({
 }) {
   const { t } = useI18n();
   const [botReplies, setBotReplies] = useState(settings.chatBotReplies);
+  const [playCommand, setPlayCommand] = useState(settings.chatPlayCommand);
   const [botLocale, setBotLocale] = useState<BotLocale>(settings.botLocale);
   if (!settings.chatBotLogin) return null;
 
@@ -55,6 +56,14 @@ export function ChatDustSettings({
             checked={botReplies}
             onChange={setBotReplies}
           />
+          {/* No channel points needed: viewers order YouTube with !play, same limits as a web send. */}
+          <Switch
+            icon="play"
+            label={t('dash.chatPlayCommand')}
+            description={t('dash.chatPlayCommandNote')}
+            checked={playCommand}
+            onChange={setPlayCommand}
+          />
           <div className="flex flex-col gap-1.5">
             {/* Select renders `label` as aria only, so the visible caption is ours to draw. */}
             <span className="label-mono text-faint">{t('dash.botLocale')}</span>
@@ -66,7 +75,11 @@ export function ChatDustSettings({
             />
             <span className="text-xs text-faint">{t('dash.botLocaleNote')}</span>
           </div>
-          <SaveRow onClick={() => onSave({ chatBotReplies: botReplies, botLocale })} />
+          <SaveRow
+            onClick={() =>
+              onSave({ chatBotReplies: botReplies, chatPlayCommand: playCommand, botLocale })
+            }
+          />
         </div>
       )}
     </Card>

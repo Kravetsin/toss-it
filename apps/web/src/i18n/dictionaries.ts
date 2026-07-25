@@ -529,6 +529,9 @@ export const en: Dict = {
   'dash.chatBotReplies': 'Let the bot answer commands in Twitch chat',
   'dash.chatBotRepliesNote':
     'Answers like !balance go to the chat itself, so viewers see them without the chat overlay.',
+  'dash.chatPlayCommand': 'Let viewers order tracks with !play',
+  'dash.chatPlayCommandNote':
+    'No channel points needed: !play <link> queues a YouTube video, same limits (1/min) as a site send.',
   'dash.botLocale': 'Bot answer language',
   'dash.botLocale.en': 'English',
   'dash.botLocale.ru': 'Russian',
@@ -1212,6 +1215,9 @@ export const ru: Dict = {
   'dash.chatBotReplies': 'Разрешить боту отвечать в чат Twitch',
   'dash.chatBotRepliesNote':
     'Ответы вроде !balance уходят в сам чат — зрители увидят их и без оверлея чата.',
+  'dash.chatPlayCommand': 'Разрешить заказ треков командой !play',
+  'dash.chatPlayCommandNote':
+    'Без баллов канала: !play <ссылка> ставит видео с YouTube в очередь, лимит тот же (1/мин), что и при отправке с сайта.',
   'dash.botLocale': 'Язык ответов бота',
   'dash.botLocale.en': 'Английский',
   'dash.botLocale.ru': 'Русский',
@@ -1897,6 +1903,9 @@ export const uk: Dict = {
   'dash.chatBotReplies': 'Дозволити боту відповідати в чат Twitch',
   'dash.chatBotRepliesNote':
     'Відповіді на кшталт !balance йдуть у сам чат — глядачі побачать їх і без оверлея чату.',
+  'dash.chatPlayCommand': 'Дозволити замовлення треків командою !play',
+  'dash.chatPlayCommandNote':
+    'Без балів каналу: !play <посилання> ставить відео з YouTube у чергу, ліміт той самий (1/хв), що й при надсиланні із сайту.',
   'dash.botLocale': 'Мова відповідей бота',
   'dash.botLocale.en': 'Англійська',
   'dash.botLocale.ru': 'Російська',

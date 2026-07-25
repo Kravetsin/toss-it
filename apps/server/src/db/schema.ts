@@ -103,6 +103,12 @@ export const channels = sqliteTable('channels', {
    * different thing — the streamer says yes to it separately.
    */
   chatBotReplies: integer('chat_bot_replies', { mode: 'boolean' }).notNull().default(false),
+  /**
+   * Let viewers order YouTube links straight from chat with `!play <link>`, no channel points
+   * needed. Off by default: it queues media on the streamer's behalf, so it is opted into
+   * deliberately. Same pipeline, rate limit and auto-approve rules as a web/channel-points send.
+   */
+  chatPlayCommand: integer('chat_play_command', { mode: 'boolean' }).notNull().default(false),
   /** Language the bot answers commands in. Seeded from the dashboard's language at channel
    *  creation, then owned by the streamer — the UI language and the chat language differ often. */
   botLocale: text('bot_locale').$type<BotLocale>().notNull().default('ru'),

@@ -206,6 +206,7 @@ function toSettings(
     ttsMessage: ch.ttsMessage,
     chatOverlayEnabled: ch.chatOverlayEnabled,
     chatBotReplies: ch.chatBotReplies,
+    chatPlayCommand: ch.chatPlayCommand,
     botLocale: ch.botLocale,
     chatFontSize: ch.chatFontSize,
     chatFadeSeconds: ch.chatFadeSeconds,
@@ -656,6 +657,8 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
             : channel.chatOverlayEnabled,
         chatBotReplies:
           typeof b.chatBotReplies === 'boolean' ? b.chatBotReplies : channel.chatBotReplies,
+        chatPlayCommand:
+          typeof b.chatPlayCommand === 'boolean' ? b.chatPlayCommand : channel.chatPlayCommand,
         botLocale: BOT_LOCALES.includes(b.botLocale as BotLocale)
           ? (b.botLocale as BotLocale)
           : channel.botLocale,

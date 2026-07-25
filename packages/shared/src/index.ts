@@ -506,6 +506,8 @@ export interface ChannelSettings {
   chatOverlayEnabled: boolean;
   /** Let the bot answer chat commands in the Twitch chat itself, not only in the overlay. */
   chatBotReplies: boolean;
+  /** Let viewers order YouTube links from chat with `!play <link>` (no channel points needed). */
+  chatPlayCommand: boolean;
   /** Language the bot answers in. Separate from the dashboard's own language: the streamer may
    *  read the UI in one language and run a chat in another. */
   botLocale: BotLocale;

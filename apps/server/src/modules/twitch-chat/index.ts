@@ -1,4 +1,4 @@
-import { and, eq, sql } from 'drizzle-orm';
+import { and, count, desc, eq, gt, or, sql } from 'drizzle-orm';
 import type { FastifyBaseLogger } from 'fastify';
 import {
   DUST_POINTS,
@@ -20,11 +20,13 @@ import {
   users,
 } from '../../db/schema';
 import { config } from '../../config';
-import { roomOf, type QueueState, type RealtimeServer } from '../../playback';
+import { roomOf, type PlaybackManager, type QueueState, type RealtimeServer } from '../../playback';
+import { resolvePlayableYoutube, submitResolvedYoutube } from '../../media/submit';
 import { EventSubClient } from './eventsub';
 import { createBadgeResolver, roleFromBadges, type EventBadge } from './badges';
 import { awardDust } from './accrual';
 import { isCommand, runCommand, toChatText } from './commands/index';
+import type { PlayResult } from './commands/types';
 import { getRewardById } from '../channel-points/store';
 import { bumpMessage, bumpWatch, flushActivity } from './stats';
 import { loadBotCredentials, refreshBotCredentials, type BotCredentials } from './token';
@@ -45,6 +47,8 @@ export interface TwitchChatDeps {
   overlayCount(channelId: string): number;
   /** A submission's spot in the play order, for the !queue command (in-memory, not in SQL). */
   queueState(channelId: string, submissionId: string): QueueState | null;
+  /** Enqueue/route submissions — needed by the !play command to order YouTube links from chat. */
+  playback: PlaybackManager;
   /** Emit chat events to a channel's overlay sockets. */
   io: RealtimeServer;
   log: FastifyBaseLogger;
@@ -84,6 +88,8 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
   let chatEnabledChannels = new Set<string>();
   /** Channel ids whose streamer opted the bot into writing answers back to Twitch chat. */
   let botReplyChannels = new Set<string>();
+  /** Channel ids whose streamer enabled `!play` (order YouTube links from chat). Off by default. */
+  let playCommandChannels = new Set<string>();
   /** Per-channel bot answer language. Refreshed on reconcile; missing = the column default. */
   let botLocales = new Map<string, BotLocale>();
   /** twitch id -> Tossit cosmetics, short-lived cache (chat volume; avoid a DB read per msg). */
@@ -179,6 +185,89 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     };
     cosmeticsCache.set(twitchId, value);
     return value;
+  }
+
+  /** channelId -> the owner's broadcaster twitch id, among channels the bot currently serves. */
+  function broadcasterOf(channelId: string): string | null {
+    for (const [broadcasterId, chId] of channelByBroadcaster) {
+      if (chId === channelId) return broadcasterId;
+    }
+    return null;
+  }
+
+  /**
+   * Back the `!play` command: order a YouTube link from chat with the exact same guardrails a web
+   * send has. Disabled unless the streamer opted in; then the per-viewer 1/min cooldown and the
+   * channel's hourly ceiling (both from config.moderation, matched to what media.ts enforces), then
+   * the shared submission pipeline (music/auto-approve/dust). The command turns the result into a line.
+   */
+  async function playFromChat(input: {
+    channelId: string;
+    twitchId: string;
+    name: string;
+    link: string;
+  }): Promise<PlayResult> {
+    if (!playCommandChannels.has(input.channelId)) return { kind: 'disabled' };
+    const broadcasterId = broadcasterOf(input.channelId);
+    if (!broadcasterId) return { kind: 'disabled' }; // not a channel we currently serve
+
+    // Per-viewer cooldown: matched by the platform id (works for the unregistered) OR the linked
+    // account, so it can't be dodged by logging in/out. Same window as a web send.
+    const identity = await db
+      .select({ userId: linkedIdentities.userId })
+      .from(linkedIdentities)
+      .where(
+        and(
+          eq(linkedIdentities.provider, 'twitch'),
+          eq(linkedIdentities.providerId, input.twitchId),
+        ),
+      )
+      .get();
+    const mine = identity
+      ? or(
+          eq(submissions.senderPlatformUserId, input.twitchId),
+          eq(submissions.senderUserId, identity.userId),
+        )
+      : eq(submissions.senderPlatformUserId, input.twitchId);
+    const last = await db
+      .select({ createdAt: submissions.createdAt })
+      .from(submissions)
+      .where(and(eq(submissions.channelId, input.channelId), mine))
+      .orderBy(desc(submissions.createdAt))
+      .get();
+    const cd = config.moderation.viewerCooldownMs;
+    if (last) {
+      const elapsed = Date.now() - last.createdAt.getTime();
+      if (elapsed < cd) return { kind: 'ratelimited', waitS: Math.ceil((cd - elapsed) / 1000) };
+    }
+
+    // Channel hourly ceiling — the same flood/raid backstop the web path uses (owner tests excluded).
+    const hourly = await db
+      .select({ n: count() })
+      .from(submissions)
+      .where(
+        and(
+          eq(submissions.channelId, input.channelId),
+          gt(submissions.createdAt, new Date(Date.now() - 3_600_000)),
+          excludeSelfSends,
+        ),
+      )
+      .get();
+    if ((hourly?.n ?? 0) >= config.moderation.channelHourlyLimit) return { kind: 'channelFull' };
+
+    const resolved = await resolvePlayableYoutube(input.link);
+    if (!resolved) return { kind: 'unplayable' };
+    const { autoApproved } = await submitResolvedYoutube(
+      { playback: deps.playback, io: deps.io },
+      {
+        channelId: input.channelId,
+        broadcasterId,
+        resolved,
+        senderTwitchId: input.twitchId,
+        senderName: input.name,
+      },
+    );
+    return { kind: autoApproved ? 'queued' : 'moderation' };
   }
 
   /** Single-flight guard: concurrent 401s must share one refresh, because Twitch
@@ -287,7 +376,10 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     // shared bot account off Twitch's platform-wide spam radar.
     const toOverlay = chatEnabledChannels.has(channelId) && live;
     const toChat = botReplyChannels.has(channelId) && live;
-    if (toOverlay || toChat) {
+    // !play has a side effect (it queues media), so the registry must run even when no answer can
+    // land — the confirmation is then simply dropped, but the link still reaches the queue.
+    const playOn = playCommandChannels.has(channelId) && live;
+    if (toOverlay || toChat || playOn) {
       void runCommand(
         ev.fragments,
         {
@@ -297,7 +389,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
           name: ev.chatterName,
           locale: botLocales.get(channelId) ?? 'ru',
         },
-        { queueState: deps.queueState, xpFor: lookupXp },
+        { queueState: deps.queueState, xpFor: lookupXp, play: playFromChat },
       )
         .then((line) => {
           if (!line) return;
@@ -509,6 +601,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
         broadcasterId: linkedIdentities.providerId,
         chatEnabled: channels.chatOverlayEnabled,
         botReplies: channels.chatBotReplies,
+        playCommand: channels.chatPlayCommand,
         botLocale: channels.botLocale,
       })
       .from(channels)
@@ -524,6 +617,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     channelByBroadcaster = new Map(modded.map((r) => [r.broadcasterId, r.id]));
     chatEnabledChannels = new Set(modded.filter((r) => r.chatEnabled).map((r) => r.id));
     botReplyChannels = new Set(modded.filter((r) => r.botReplies).map((r) => r.id));
+    playCommandChannels = new Set(modded.filter((r) => r.playCommand).map((r) => r.id));
     botLocales = new Map(modded.map((r) => [r.id, r.botLocale]));
     client.setBroadcasters(new Set(channelByBroadcaster.keys()));
     await loadExclusions();

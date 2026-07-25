@@ -17,6 +17,12 @@ const STRINGS = {
     queueUnlinked: 'nothing here — link your Twitch if you sent from the site',
     xpProgress: 'lvl {lvl} · {xp}/{next} XP',
     xpMax: 'lvl {lvl} · {xp} XP · max',
+    playUsage: 'paste a YouTube link: !play <link>',
+    playWait: 'too fast — wait {n}s',
+    playFull: 'the queue is full right now, try later',
+    playBad: "couldn't read that link",
+    playQueued: 'added to the queue',
+    playModeration: 'sent for review',
   },
   ru: {
     queueAhead: 'перед тобой {n}',
@@ -28,6 +34,12 @@ const STRINGS = {
     queueUnlinked: 'ничего не вижу — если отправлял с сайта, привяжи Twitch',
     xpProgress: 'ур. {lvl} · {xp}/{next} XP',
     xpMax: 'ур. {lvl} · {xp} XP · макс',
+    playUsage: 'вставь ссылку на YouTube: !play <ссылка>',
+    playWait: 'слишком часто — подожди ещё {n}с',
+    playFull: 'очередь сейчас переполнена, попробуй позже',
+    playBad: 'не смог прочитать ссылку',
+    playQueued: 'добавил в очередь',
+    playModeration: 'отправил на модерацию',
   },
   uk: {
     queueAhead: 'перед тобою {n}',
@@ -39,6 +51,12 @@ const STRINGS = {
     queueUnlinked: "нічого не бачу — якщо надсилав із сайту, прив'яжи Twitch",
     xpProgress: 'рів. {lvl} · {xp}/{next} XP',
     xpMax: 'рів. {lvl} · {xp} XP · макс',
+    playUsage: 'встав посилання на YouTube: !play <посилання>',
+    playWait: 'занадто часто — почекай ще {n}с',
+    playFull: 'черга зараз переповнена, спробуй пізніше',
+    playBad: 'не зміг прочитати посилання',
+    playQueued: 'додав у чергу',
+    playModeration: 'надіслав на модерацію',
   },
 } as const satisfies Record<BotLocale, Record<string, string>>;
 

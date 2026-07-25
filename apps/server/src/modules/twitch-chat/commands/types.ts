@@ -15,6 +15,18 @@ export interface CommandContext {
   locale: BotLocale;
 }
 
+/**
+ * Outcome of a `!play` link, mapped to a chat answer by the command. `disabled` = the channel
+ * never turned the command on (stay silent); the rest each get a short localized line.
+ */
+export type PlayResult =
+  | { kind: 'disabled' }
+  | { kind: 'ratelimited'; waitS: number }
+  | { kind: 'channelFull' }
+  | { kind: 'unplayable' }
+  | { kind: 'queued' }
+  | { kind: 'moderation' };
+
 /** Live state a command cannot read from the DB, injected by the twitch-chat module. */
 export interface CommandDeps {
   /** The playback queue lives in server memory, not in SQL — see PlaybackManager.queueState. */
@@ -22,6 +34,14 @@ export interface CommandDeps {
   /** All-time per-channel XP for a twitch id (messages + watch-minutes + 10× aired sends). The
    *  module already computes and caches this for level badges, so commands reuse it. */
   xpFor(channelId: string, twitchId: string): Promise<number>;
+  /** Order a YouTube link from chat (`!play`). Owns the enable gate, the per-viewer rate limit and
+   *  the submission — the command only turns the result into a line. Injected by the module. */
+  play(input: {
+    channelId: string;
+    twitchId: string;
+    name: string;
+    link: string;
+  }): Promise<PlayResult>;
 }
 
 /** One command = one file in this folder + one entry in the registry (see ./index.ts). */

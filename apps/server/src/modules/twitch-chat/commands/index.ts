@@ -1,5 +1,6 @@
 import type { ChatFragment, ChatSystemLine } from '@tmw/shared';
 import { balance } from './balance';
+import { play } from './play';
 import { queue } from './queue';
 import { xp } from './xp';
 import type { ChatCommand, CommandContext, CommandDeps } from './types';
@@ -7,7 +8,7 @@ import type { ChatCommand, CommandContext, CommandDeps } from './types';
 export type { ChatCommand, CommandContext, CommandDeps } from './types';
 
 /** The registry: one entry per command file in this folder. */
-const COMMANDS: ChatCommand[] = [balance, queue, xp];
+const COMMANDS: ChatCommand[] = [balance, play, queue, xp];
 
 const byTrigger = new Map<string, ChatCommand>();
 for (const cmd of COMMANDS) {
