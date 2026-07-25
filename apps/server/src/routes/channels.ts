@@ -108,6 +108,7 @@ async function sendsBoard(
     cardEffectColor:
       (r.equipped?.cardEffect && r.equipped.cardEffectColors?.[r.equipped.cardEffect]) ?? null,
     seal: r.equipped?.seal ?? null,
+    sealColor: (r.equipped?.seal && r.equipped.sealColors?.[r.equipped.seal]) ?? null,
     level: levels[i] ?? 0,
   }));
 }
@@ -187,6 +188,7 @@ async function chatBoard(
       cardEffectColor:
         (u?.equipped?.cardEffect && u.equipped.cardEffectColors?.[u.equipped.cardEffect]) ?? null,
       seal: u?.equipped?.seal ?? null,
+      sealColor: (u?.equipped?.seal && u.equipped.sealColors?.[u.equipped.seal]) ?? null,
       level,
     };
   });

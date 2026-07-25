@@ -237,6 +237,11 @@ function renderMessage(msg: ChatOverlayMessage): void {
     bodyRow.className = 'body-row';
     const seal = document.createElement('span');
     seal.className = `seal ${sealCls}`;
+    // Colourable seals (butterfly/eye) read their tint from --seal-tint; a plain seal has no entry.
+    const sealColor = msg.cosmetics?.seal
+      ? msg.cosmetics.sealColors?.[msg.cosmetics.seal]
+      : undefined;
+    if (sealColor) seal.style.setProperty('--seal-tint', sealColor);
     bodyRow.append(seal, bubble);
     row.appendChild(bodyRow);
   } else {
@@ -806,6 +811,9 @@ if (DEMO) {
       cosmetics: {
         cardEffect: 'card-butterflies',
         cardEffectColors: { 'card-butterflies': '#5ad1ff' },
+        // The butterfly seal, recoloured cyan via its own colour upgrade.
+        seal: 'seal-butterfly',
+        sealColors: { 'seal-butterfly': '#5ad1ff' },
       },
       isFounder: false,
       level: 6,
@@ -816,7 +824,7 @@ if (DEMO) {
       userId: 'u21',
       name: 'peekaboo',
       twitchColor: '#ff5a7a',
-      cosmetics: { cardEffect: 'card-eyes' },
+      cosmetics: { cardEffect: 'card-eyes', seal: 'seal-eye' },
       isFounder: false,
       level: 7,
       fragments: [{ type: 'text', text: 'не оборачивайся' }],

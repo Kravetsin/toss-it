@@ -5,6 +5,7 @@ import {
   cosmeticModule,
   isCosmeticOfType,
   isHexColor,
+  type CosmeticEarn,
   type CosmeticStateResponse,
   type EquippedCosmetics,
 } from '@tmw/shared';
@@ -26,6 +27,26 @@ async function owns(userId: string, itemId: string): Promise<boolean> {
     .where(and(eq(userCosmetics.userId, userId), eq(userCosmetics.itemId, itemId)))
     .get();
   return !!row;
+}
+
+/** Live total for an earn metric (summed across channels/identities). */
+function earnTotal(userId: string, metric: CosmeticEarn['metric']): Promise<number> {
+  return metric === 'watchMinutes'
+    ? watchMinutesTotalFor(userId)
+    : metric === 'submissions'
+      ? submissionsTotalFor(userId)
+      : metric === 'dustEarned'
+        ? dustEarnedFor(userId)
+        : messagesTotalFor(userId);
+}
+
+/** Whether the user may USE an item — meets its earn milestone (live) if earned, else owns it. */
+async function unlocked(userId: string, itemId: string): Promise<boolean> {
+  const item = COSMETICS.find((c) => c.id === itemId);
+  if (!item) return false;
+  return item.earn
+    ? (await earnTotal(userId, item.earn.metric)) >= item.earn.count
+    : owns(userId, itemId);
 }
 
 /** Current cosmetic state of a user (balance + owned + equipped). */
@@ -106,6 +127,7 @@ export function registerCosmeticsRoutes(app: FastifyInstance): void {
       cardEffectColors?: unknown;
       frame?: unknown;
       seal?: unknown;
+      sealColors?: unknown;
       entrance?: unknown;
       entranceColor?: unknown;
     } | null;
@@ -163,6 +185,34 @@ export function registerCosmeticsRoutes(app: FastifyInstance): void {
       equipped.cardEffectColors = next;
     }
 
+    // Per-seal colours: a partial { sealId: '#rrggbb' | null } map, mirroring cardEffectColors. Each
+    // colourable seal has its own EARNED colour upgrade, so a set is gated on that upgrade's milestone
+    // being met (live), not on ownership (see SealModule.colorUpgrade).
+    if ('sealColors' in body) {
+      const raw = body.sealColors;
+      if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+        return reply.code(400).send({ error: 'Некорректный цвет' });
+      }
+      const next: Record<string, string> = { ...(equipped.sealColors ?? {}) };
+      for (const [sealId, value] of Object.entries(raw as Record<string, unknown>)) {
+        const mod = cosmeticModule(sealId);
+        if (mod?.type !== 'seal' || !mod.colorUpgrade) {
+          return reply.code(400).send({ error: 'Некорректная печать' });
+        }
+        if (value === null) {
+          delete next[sealId];
+        } else if (typeof value === 'string' && isHexColor(value)) {
+          if (!(await unlocked(user.id, mod.colorUpgrade))) {
+            return reply.code(403).send({ error: 'Апгрейд ещё не открыт' });
+          }
+          next[sealId] = value.toLowerCase();
+        } else {
+          return reply.code(400).send({ error: 'Некорректный цвет' });
+        }
+      }
+      equipped.sealColors = next;
+    }
+
     if ('nickFlow' in body) {
       const raw = body.nickFlow;
       if (raw === null || raw === false) {
@@ -203,19 +253,11 @@ export function registerCosmeticsRoutes(app: FastifyInstance): void {
         // renders nothing, so equipping it would blank the slot.
         !COSMETICS.find((c) => c.id === raw)?.upgrade
       ) {
-        // Earned cosmetics (frames) gate on the live activity count, not ownership; everything else
-        // must be bought. The gate is live, so anyone already past the milestone qualifies at once.
+        // Earned cosmetics (frames, the card-effect seals) gate on the live activity count, not
+        // ownership; everything else must be bought. The gate is live, so anyone past it qualifies now.
         const earn = COSMETICS.find((c) => c.id === raw)?.earn;
         if (earn) {
-          const have =
-            earn.metric === 'watchMinutes'
-              ? await watchMinutesTotalFor(user.id)
-              : earn.metric === 'submissions'
-                ? await submissionsTotalFor(user.id)
-                : earn.metric === 'dustEarned'
-                  ? await dustEarnedFor(user.id)
-                  : await messagesTotalFor(user.id);
-          if (have < earn.count) {
+          if ((await earnTotal(user.id, earn.metric)) < earn.count) {
             return reply.code(403).send({ error: 'Достижение ещё не выполнено' });
           }
         } else if (!(await owns(user.id, raw))) {

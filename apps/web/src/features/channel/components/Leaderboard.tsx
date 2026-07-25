@@ -131,7 +131,7 @@ export function LeaderboardRow({
             {toRoman(e.level!)}
           </span>
         )}
-        <SealMark seal={e.seal} />
+        <SealMark seal={e.seal} color={e.sealColor} />
         <b
           className={`${isYou ? 'text-accent' : 'text-text'} ${nick.className}`}
           style={nick.style}

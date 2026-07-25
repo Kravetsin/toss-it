@@ -52,7 +52,7 @@ export function HistoryCard({
                         {toRoman(h.senderLevel!)}
                       </span>
                     )}
-                    <SealMark seal={h.senderSeal} />
+                    <SealMark seal={h.senderSeal} color={h.senderSealColor} />
                     <b className={`text-text ${nick.className}`} style={nick.style}>
                       {h.senderName ?? t('common.anon')}
                     </b>

@@ -41,6 +41,10 @@ import { frameCanopy } from './effects/frame-canopy';
 import { frameStorm } from './effects/frame-storm';
 import { sealStarDormant, sealStarCharged, sealStarLit, sealStarAwake } from './effects/seal-star';
 import { sealGemDull, sealGemCut, sealGemClear, sealGemCrown } from './effects/seal-gem';
+import { sealButterfly } from './effects/seal-butterfly';
+import { sealButterflyColor } from './effects/seal-butterfly-color';
+import { sealEye } from './effects/seal-eye';
+import { sealEyeColor } from './effects/seal-eye-color';
 import { entranceGlitch } from './effects/entrance-glitch';
 import { entranceAstral } from './effects/entrance-astral';
 import { entrancePortal } from './effects/entrance-portal';
@@ -175,7 +179,11 @@ const BASE_CSS = `
   flex: none;
 }
 @media (prefers-reduced-motion: reduce) {
-  .seal-fx {
+  /* Pseudo-elements too: the animated seals (eye blink, butterfly flap) run on ::before/::after,
+     which the bare .seal-fx rule alone would not reach. */
+  .seal-fx,
+  .seal-fx::before,
+  .seal-fx::after {
     animation: none;
   }
 }
@@ -227,6 +235,12 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   sealGemCut,
   sealGemClear,
   sealGemCrown,
+  // Card-effect seals: one tier each (no ladder), EARNED by an activity metric, each with its own
+  // earned colour upgrade — the butterfly on chat messages, the eye on watch time.
+  sealButterfly,
+  sealButterflyColor,
+  sealEye,
+  sealEyeColor,
   entranceGlitch,
   entranceAstral,
   entrancePortal,

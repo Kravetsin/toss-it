@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { sealEffectClass } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { Badge } from '@/ui';
@@ -82,19 +83,24 @@ interface BadgeDef {
 /** The ONE way to render an equipped seal outside the chat overlay: always immediately before the
  *  nick (after the level numeral), never trailing the badges — a seal is an artifact worn by the
  *  person, not an achievement chip. Sized via inline font-size (the shared .seal-fx scales from it)
- *  rather than a Tailwind class, so a caller can pass any size without a purge-safe literal. */
+ *  rather than a Tailwind class, so a caller can pass any size without a purge-safe literal. A
+ *  colourable seal (butterfly/eye) reads its tint from the `--seal-tint` custom property set here. */
 export function SealMark({
   seal,
+  color,
   size = 24,
   className = '',
 }: {
   seal: string | null | undefined;
+  /** #rrggbb tint for a colourable seal; omit/null to use the seal's own palette. */
+  color?: string | null;
   size?: number;
   className?: string;
 }) {
   const cls = sealEffectClass(seal);
   if (!cls) return null;
-  return <span aria-hidden style={{ fontSize: size }} className={`shrink-0 ${cls} ${className}`} />;
+  const style = { fontSize: size, ...(color ? { '--seal-tint': color } : {}) } as CSSProperties;
+  return <span aria-hidden style={style} className={`shrink-0 ${cls} ${className}`} />;
 }
 
 /**

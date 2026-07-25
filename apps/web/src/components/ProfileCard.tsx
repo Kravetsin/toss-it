@@ -27,7 +27,10 @@ export function ProfileCard({ user }: { user: SessionUser }) {
         <Avatar url={user.avatarUrl} name={user.displayName} size={40} />
         <div className="min-w-0 flex-1">
           <p className="flex items-center gap-1.5 text-sm font-semibold text-text">
-            <SealMark seal={user.equipped.seal} />
+            <SealMark
+              seal={user.equipped.seal}
+              color={user.equipped.seal ? user.equipped.sealColors?.[user.equipped.seal] : null}
+            />
             <span className={`truncate ${nick.className}`} style={nick.style}>
               {user.displayName}
             </span>

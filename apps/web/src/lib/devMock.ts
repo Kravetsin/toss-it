@@ -68,11 +68,12 @@ const MOCK_ME: MeResponse = {
     // Own everything + equip a combo so the shop shows all cosmetics equippable and the signed-in
     // user's own nick/cards demo the effects live (dev preview only).
     ownedCosmetics: COSMETICS.map((c) => c.id),
-    // Mid-ladder: Runner (500) earned, Twin runners (1000) and Dragon's breath (2000) still locked,
-    // so the shop shows an earned frame and an in-progress one side by side.
-    messagesTotal: 720,
-    // Mid-ladder again on the watch axis: Tide (25h) and Embers (50h) earned, Canopy (75h) and
-    // Storm (100h) still in progress.
+    // Past the butterfly seal (1000) AND its colour upgrade (2000), so the shop previews an earned
+    // colourable seal with its picker; this also earns every message-frame.
+    messagesTotal: 2100,
+    // Mid-ladder on the watch axis (the in-progress demo lives here now): Tide (25h) and Embers (50h)
+    // earned, Canopy (75h) and Storm (100h) still in progress — and the eye seal (100h) + its colour
+    // upgrade (250h) still locked, so the shop previews a colourable seal's LOCKED/progress state too.
     watchMinutesTotal: 3320,
     // Past the star seal's third rung (200) but not its fourth (500), so the ladder previews all
     // three states at once: earned+equipped, earned+equippable, and still locked.
@@ -88,6 +89,8 @@ const MOCK_ME: MeResponse = {
       // Per-effect saved colours — the picker inside each effect's card shows these; owned via
       // ownedCosmetics = every catalog id (so both colour upgrades are owned).
       cardEffectColors: { 'card-butterflies': '#5ad1ff', 'card-eyes': '#7cff4f' },
+      // Saved per-seal colours — the picker inside each colourable seal's row seeds from these.
+      sealColors: { 'seal-butterfly': '#5ad1ff', 'seal-eye': '#7cff4f' },
       frame: 'frame-runner',
       seal: 'seal-star-lit',
       entrance: 'entrance-astral',
@@ -181,6 +184,7 @@ const sub = (
   senderCardEffectColor: null,
   senderFrame: null,
   senderSeal: null,
+  senderSealColor: null,
   mime: 'text/plain',
   text: null,
   durationMs: 6000,
@@ -365,6 +369,9 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderCardEffect: 'card-butterflies',
     // Showcase the colour upgrade: this sender recoloured their butterflies cyan.
     senderCardEffectColor: '#5ad1ff',
+    // The butterfly seal, recoloured cyan via its own colour upgrade.
+    senderSeal: 'seal-butterfly',
+    senderSealColor: '#5ad1ff',
     text: 'замри на секунду — они сядут',
     createdAt: t - 46 * min,
   }),
@@ -378,6 +385,8 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderCardEffect: 'card-eyes',
     // Showcase the (now general) colour upgrade recolouring the eyes too — acid green.
     senderCardEffectColor: '#7CFF4F',
+    senderSeal: 'seal-eye',
+    senderSealColor: '#7CFF4F',
     text: 'не оборачивайся',
     createdAt: t - 50 * min,
   }),
@@ -533,6 +542,7 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     nickEffect: 'nick-glow',
     cardEffect: 'card-lightning',
     seal: 'seal-star-awake',
+    sealColor: null,
     level: 8,
   },
   {
@@ -547,6 +557,7 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     nickEffect: null,
     cardEffect: null,
     seal: 'seal-star-lit',
+    sealColor: null,
     level: 4,
   },
   {
@@ -560,7 +571,9 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     nickFlow: false,
     nickEffect: 'nick-pulse',
     cardEffect: 'card-snow',
-    seal: null,
+    // Colourable eye seal, recoloured — previews a tinted seal in the leaderboard.
+    seal: 'seal-eye',
+    sealColor: '#7cff4f',
     level: 10,
   },
   {
@@ -574,7 +587,9 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     nickFlow: false,
     nickEffect: 'nick-glow',
     cardEffect: 'card-rain',
-    seal: null,
+    // Colourable butterfly seal, recoloured cyan.
+    seal: 'seal-butterfly',
+    sealColor: '#5ad1ff',
     level: 6,
   },
   {
@@ -590,6 +605,7 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     nickEffect: null,
     cardEffect: 'card-sakura',
     seal: null,
+    sealColor: null,
     level: 2,
   },
 ];

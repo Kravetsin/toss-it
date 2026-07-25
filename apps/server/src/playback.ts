@@ -61,6 +61,8 @@ export interface NickMarks {
   frame: string | null;
   /** Small object the sender carries (e.g. 'seal-eye-open'); null = none. Own slot, not a frame. */
   seal: string | null;
+  /** Seal tint (#rrggbb); only meaningful for a colourable seal (butterfly/eye). */
+  sealColor: string | null;
   /** How the alert arrives on stage; null = the stage's own pop-in. */
   entrance: string | null;
   /** Portal entrance tint (#rrggbb); only set when `entrance` is the portal. */
@@ -75,6 +77,7 @@ const NO_MARKS: NickMarks = {
   cardEffectColor: null,
   frame: null,
   seal: null,
+  sealColor: null,
   entrance: null,
   entranceColor: null,
 };
@@ -97,6 +100,9 @@ export function marksFromEquipped(equipped: EquippedCosmetics | null): NickMarks
       (equipped?.cardEffect && equipped.cardEffectColors?.[equipped.cardEffect]) ?? null,
     frame: equipped?.frame ?? null,
     seal: equipped?.seal ?? null,
+    // The colour stored FOR the equipped seal (per-seal map; see EquippedCosmetics.sealColors). Null
+    // unless that seal has a colour set — a plain seal has no entry and renders its own palette.
+    sealColor: (equipped?.seal && equipped.sealColors?.[equipped.seal]) ?? null,
     entrance: equipped?.entrance ?? null,
     // Tints WHICHEVER entrance is equipped (see entrance-portal-color): it used to be portal-only,
     // which silently starved every other colourable entrance of the viewer's chosen colour.
@@ -121,6 +127,7 @@ export function toSummary(
     senderCardEffectColor: marks.cardEffectColor,
     senderFrame: marks.frame,
     senderSeal: marks.seal,
+    senderSealColor: marks.sealColor,
     senderLevel,
     kind: sub.kind,
     mime: sub.mime,

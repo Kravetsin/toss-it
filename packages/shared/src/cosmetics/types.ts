@@ -239,6 +239,14 @@ export interface SealModule extends BaseModule {
   type: 'seal';
   /** Class set on the seal element (e.g. 'seal-fx-eye-open'); the module's CSS paints its background. */
   className: string;
+  /**
+   * The catalog id of the colour UPGRADE that unlocks recolouring THIS seal (e.g. seal-butterfly →
+   * 'seal-butterfly-color'). Same shape as CardEffectModule.colorUpgrade, but the seal upgrades are
+   * EARNED (own `earn` metric), not bought. When set, the seal is colourable: the surface sets a
+   * `--seal-tint` custom property on the seal element and the module's css paints from
+   * `var(--seal-tint, <default>)`. The chosen colour is stored per-seal in EquippedCosmetics.sealColors.
+   */
+  colorUpgrade?: string;
 }
 
 /**
@@ -344,6 +352,14 @@ export interface EquippedCosmetics {
    * room — the card's free corner, or hanging under the star in the chat gutter.
    */
   seal?: string | null;
+  /**
+   * Per-seal #rrggbb tints, keyed by seal id (e.g. { 'seal-butterfly': '#5ad1ff' }). Mirrors
+   * cardEffectColors: each colourable seal keeps its OWN colour and has its OWN upgrade (see
+   * SealModule.colorUpgrade), so switching seals keeps each one's colour. An entry exists only once
+   * that seal's colour upgrade is EARNED (enforced on equip). The render reads the entry for the
+   * equipped seal; a plain seal has no entry and uses its own palette.
+   */
+  sealColors?: Record<string, string>;
   /**
    * Equipped entrance item id (e.g. 'entrance-glitch'); requires owning it. Only surfaces that HAVE
    * an arrival honour it — the chat pill and the stage alert. Unset = the surface's own entrance.

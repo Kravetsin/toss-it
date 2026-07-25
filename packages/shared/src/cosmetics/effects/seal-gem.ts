@@ -4,7 +4,9 @@ import type { SealModule } from '../types';
  * The Gem: the "wealth" seal, earned by LIFETIME dust earned (never lowered by spending, so it can
  * only climb). A faceted hexagon whose material gets richer up the ladder — dull ore → cut → clear
  * mint → crown jewel. Same rules as the other seals: one bold silhouette that survives 14px in the
- * chat gutter, tier read from colour, only the top rungs glow.
+ * chat gutter, tier read from colour, only the top rungs glow. Those two also BREATHE — a slow scale
+ * pulse paired with a brightness lift, so the cut stone reads as catching light; the dull lower rungs
+ * stay inert, so the motion itself signals tier.
  *
  * Thresholds are lifetime dust EARNED. The ladder is stretched at the top on purpose: dust arrives in
  * bulk (a send is 50, and channel points convert straight to dust), so a casual viewer clears the
@@ -36,14 +38,25 @@ function gem(rung: {
 ${
   rung.glow
     ? `.${rung.className} {
-  animation: ${kf} 4.6s ease-in-out infinite;
+  animation: ${kf} 4.6s ease-in-out infinite, seal-gem-breathe 5.4s ease-in-out infinite;
 }
 @keyframes ${kf} {
   0%, 100% {
-    filter: drop-shadow(0 0 1px rgba(174, 245, 224, 0.3));
+    filter: drop-shadow(0 0 1px rgba(174, 245, 224, 0.3)) brightness(1);
   }
   50% {
-    filter: drop-shadow(0 0 ${rung.glow[0]}px rgba(174, 245, 224, ${rung.glow[1]}));
+    filter: drop-shadow(0 0 ${rung.glow[0]}px rgba(174, 245, 224, ${rung.glow[1]})) brightness(1.16);
+  }
+}
+/* A gentle catch-the-light breathe (scale) on top of the glow. Shared name across the lit rungs —
+   identical keyframe, so the duplicate in the concatenated sheet is harmless. It uses transform, not
+   the filter track (brightness rides the glow keyframe), so neither animation clobbers the other. */
+@keyframes seal-gem-breathe {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
   }
 }`
     : ''

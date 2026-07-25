@@ -146,6 +146,7 @@ const DEMO_SUBMISSION: SubmissionSummary = {
   senderCardEffect: null,
   senderCardEffectColor: null,
   senderSeal: null,
+  senderSealColor: null,
   senderFrame: null,
   senderLevel: 8,
   kind: 'text',
@@ -168,6 +169,7 @@ const DEMO_ENTRY: LeaderboardEntry = {
   nickEffect: null,
   cardEffect: null,
   seal: null,
+  sealColor: null,
   level: 8,
 };
 

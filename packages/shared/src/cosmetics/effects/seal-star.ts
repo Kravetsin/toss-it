@@ -7,7 +7,9 @@ import type { SealModule } from '../types';
  *
  * A seal has to read at 14px in the chat gutter, where internal detail collapses into mush. So the
  * rungs never assemble or grow — the stamp stays put and only its MATERIAL changes: cold stone →
- * teal charge → brand mint → white-hot.
+ * teal charge → brand mint → white-hot. The two lit rungs add ONE motion on top of that: a slow spin.
+ * The ring is a circle so it turns invisibly; only the four-point spark inside is seen to rotate, so
+ * the silhouette never changes — the cold lower rungs stay dead still, and movement reads as tier.
  */
 
 /** Shared shell for every rung; only the artwork, threshold and glow differ. */
@@ -38,7 +40,7 @@ function star(rung: {
 ${
   rung.glow
     ? `.${rung.className} {
-  animation: ${kf} 4.6s ease-in-out infinite;
+  animation: ${kf} 4.6s ease-in-out infinite, seal-star-spin 18s linear infinite;
 }
 @keyframes ${kf} {
   0%, 100% {
@@ -46,6 +48,14 @@ ${
   }
   50% {
     filter: drop-shadow(0 0 ${rung.glow[0]}px rgba(174, 245, 224, ${rung.glow[1]}));
+  }
+}
+/* Spins the whole stamp; the circular ring hides it, only the spark is seen to turn. Shared name
+   across the lit rungs — the keyframe is identical, so the duplicate in the concatenated sheet is
+   harmless. */
+@keyframes seal-star-spin {
+  to {
+    transform: rotate(360deg);
   }
 }`
     : ''

@@ -16,8 +16,9 @@ export function buyCosmetic(itemId: string): Promise<CosmeticStateResponse> {
  * the per-effect colour map, whose values may be null here (removing one effect's colour).
  */
 export function equipCosmetic(
-  patch: Omit<EquippedCosmetics, 'cardEffectColors'> & {
+  patch: Omit<EquippedCosmetics, 'cardEffectColors' | 'sealColors'> & {
     cardEffectColors?: Record<string, string | null>;
+    sealColors?: Record<string, string | null>;
   },
 ): Promise<CosmeticStateResponse> {
   return fetch('/api/cosmetics/equip', {

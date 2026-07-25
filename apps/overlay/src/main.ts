@@ -269,6 +269,8 @@ function decorateSender(el: HTMLElement, payload: MediaPlayPayload): void {
   if (sealCls) {
     const seal = document.createElement('span');
     seal.className = `sender-seal ${sealCls}`;
+    // Colourable seals (butterfly/eye) read their tint from --seal-tint; a plain seal ignores it.
+    if (payload.senderSealColor) seal.style.setProperty('--seal-tint', payload.senderSealColor);
     el.appendChild(seal);
   }
   if (payload.senderCardEffect)
@@ -1420,6 +1422,8 @@ interface DemoState {
   cardEffect: string;
   /** Catalog id, or 'none' for the stage's own pop-in. */
   entrance: string;
+  /** Seal catalog id, or 'none'. */
+  seal: string;
 }
 
 function demoPayload(kind: MediaKind, st: DemoState): MediaPlayPayload {
@@ -1440,6 +1444,14 @@ function demoPayload(kind: MediaKind, st: DemoState): MediaPlayPayload {
     senderLevel: st.sender ? 7 : undefined,
     senderEffect: st.sender && st.nickGlow ? 'nick-glow' : undefined,
     senderCardEffect: st.cardEffect !== 'none' ? st.cardEffect : undefined,
+    senderSeal: st.sender && st.seal !== 'none' ? st.seal : undefined,
+    // Demo the seal colour upgrade on the colourable seals, without a picker.
+    senderSealColor:
+      st.sender && st.seal === 'seal-butterfly'
+        ? '#5ad1ff'
+        : st.sender && st.seal === 'seal-eye'
+          ? '#7cff4f'
+          : undefined,
     // Demo a non-default butterfly colour so the card-colour upgrade shows on the stage without a picker.
     senderCardEffectColor: st.cardEffect === 'card-butterflies' ? '#5ad1ff' : undefined,
     senderEntrance: st.entrance !== 'none' ? st.entrance : undefined,
@@ -1477,6 +1489,7 @@ function mountDemoPanel(): void {
     // On by default: an entrance is invisible unless you happen to fire an alert while looking, so
     // the demo shows it rather than hiding it behind a click nobody knows to make.
     entrance: 'entrance-glitch',
+    seal: 'seal-eye',
   };
 
   const style = document.createElement('style');
@@ -1617,6 +1630,28 @@ function mountDemoPanel(): void {
     return b;
   });
   panel.appendChild(entRow);
+
+  section('печать');
+  const sealRow = document.createElement('div');
+  sealRow.className = 'row';
+  // Registry-driven like the rows above: a new seal shows up here for free (id sans 'seal-' prefix).
+  const sealButtons = (
+    [
+      ['none', 'Нет'],
+      ...COSMETICS.filter((c) => c.type === 'seal').map(
+        (c) => [c.id, c.id.replace(/^seal-/, '')] as [string, string],
+      ),
+    ] as [string, string][]
+  ).map(([val, label]) => {
+    const b = btn(label, () => {
+      st.seal = val;
+      sealButtons.forEach((x) => x.classList.toggle('on', x === b));
+    });
+    if (val === st.seal) b.classList.add('on');
+    sealRow.appendChild(b);
+    return b;
+  });
+  panel.appendChild(sealRow);
 
   section('донат');
   panel.appendChild(

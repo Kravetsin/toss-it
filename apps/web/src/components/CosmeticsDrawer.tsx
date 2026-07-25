@@ -261,6 +261,8 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   const equippedCardEffectColors = user?.equipped.cardEffectColors ?? {};
   const equippedFrame = user?.equipped.frame ?? null;
   const equippedSeal = user?.equipped.seal ?? null;
+  // Per-seal saved colours (butterfly, eye) — the picker inside each seal's row reads/writes here.
+  const equippedSealColors = user?.equipped.sealColors ?? {};
   // Account-wide activity — earned cosmetics (frames) unlock at a threshold instead of a price.
   const earnTotals = {
     messages: user?.messagesTotal ?? 0,
@@ -289,6 +291,8 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   // Draft colours being picked, keyed by effect id (butterflies, eyes). Seeded lazily from the saved
   // colour on first edit; unset entries fall back to the saved colour (or the default) in effectRow.
   const [cardColorDraft, setCardColorDraft] = useState<Record<string, string>>({});
+  // Same, keyed by seal id (butterfly, eye) — the picker inside each seal's row.
+  const [sealColorDraft, setSealColorDraft] = useState<Record<string, string>>({});
   // Reflect the saved colors when they change (e.g. after a refresh) without fighting active edits.
   useEffect(() => {
     if (equippedColor) setColor(equippedColor);
@@ -393,6 +397,14 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     });
   const removeCardColorFor = (id: string) =>
     void act(() => equipCosmetic({ cardEffectColors: { [id]: null } }), { after: refresh });
+  // Per-seal colour: set/clear the tint for ONE seal id (the picker lives in that seal's row).
+  const applySealColorFor = (id: string, hex: string) =>
+    void act(() => equipCosmetic({ sealColors: { [id]: hex } }), {
+      after: refresh,
+      success: t('shop.equipped'),
+    });
+  const removeSealColorFor = (id: string) =>
+    void act(() => equipCosmetic({ sealColors: { [id]: null } }), { after: refresh });
 
   // Glow demo uses the equipped nick color (or mint), without recoloring the demo text.
   const glowVar = { ['--nick-glow']: equippedColor || 'var(--color-accent)' } as CSSProperties;
@@ -594,8 +606,26 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   const sealLadderRow = (rungs: CosmeticItem[]) => {
     const head = rungs[0];
     if (!head) return null;
-    const labels = cosmeticModule(head.id)?.labels;
+    const headMod = cosmeticModule(head.id);
+    const labels = headMod?.labels;
     if (!labels) return null;
+    // Colourable seals (butterfly/eye) carry an EARNED colour upgrade; its picker renders below the
+    // ladder, unlocked once the seal itself is earned AND the upgrade's own milestone is met.
+    const colorUp = headMod?.type === 'seal' ? headMod.colorUpgrade : undefined;
+    const colorItem = colorUp ? COSMETICS.find((c) => c.id === colorUp) : undefined;
+    const colorMod = colorUp ? cosmeticModule(colorUp) : undefined;
+    const headEarn = head.earn;
+    const headOwned = headEarn
+      ? earnTotals[headEarn.metric] >= headEarn.count
+      : (user?.ownedCosmetics.includes(head.id) ?? false);
+    const colorEarn = colorItem?.earn;
+    const colorMet = colorEarn ? earnTotals[colorEarn.metric] >= colorEarn.count : false;
+    const colorEarnMeta = colorEarn ? EARN_META[colorEarn.metric] : null;
+    const colorHave = colorEarn ? earnTotals[colorEarn.metric] : 0;
+    const colorUnit = colorEarnMeta?.unit ?? 1;
+    const savedSealColor = equippedSealColors[head.id];
+    const draftSealColor = sealColorDraft[head.id] ?? savedSealColor ?? DEFAULT_CARD_COLOR;
+    const sealColorDirty = draftSealColor.toLowerCase() !== (savedSealColor ?? '').toLowerCase();
     return (
       <div
         key={head.ladder ?? head.id}
@@ -652,6 +682,54 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
               );
             })}
           </div>
+          {/* Colour upgrade — inside the seal's row, once the seal is earned. Same shape as the card
+              effect picker, but the upgrade is EARNED (progress shown), not bought. */}
+          {colorUp && colorItem && colorMod && headOwned && (
+            <div className="mt-1 flex flex-col gap-2 border-t border-border pt-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex min-w-0 items-center gap-1.5">
+                  {upgradeTag}
+                  <span className="font-medium text-text">{t(colorMod.labels.name)}</span>
+                  <NewDot id={colorUp} />
+                </span>
+                {!colorMet && colorEarnMeta && colorEarn && (
+                  <span className="inline-flex items-center gap-1 label-mono text-muted">
+                    <Icon name={colorEarnMeta.icon} size={12} />
+                    {Math.floor(Math.min(colorHave, colorEarn.count) / colorUnit)}/
+                    {Math.round(colorEarn.count / colorUnit)}
+                  </span>
+                )}
+              </div>
+              {colorMet ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    type="color"
+                    value={draftSealColor}
+                    onChange={(ev) =>
+                      setSealColorDraft((p) => ({ ...p, [head.id]: ev.target.value }))
+                    }
+                    aria-label={t(colorMod.labels.name)}
+                    className="h-10 w-14 shrink-0 cursor-pointer rounded-[var(--radius-sm)] border border-border bg-surface"
+                  />
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => applySealColorFor(head.id, draftSealColor)}
+                    disabled={!sealColorDirty}
+                  >
+                    {t('shop.apply')}
+                  </Button>
+                  {savedSealColor && (
+                    <Button variant="ghost" size="sm" onClick={() => removeSealColorFor(head.id)}>
+                      {t('shop.resetColor')}
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm italic text-muted">{t(colorMod.labels.desc)}</p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );

@@ -178,7 +178,10 @@ export function ProfileMenu({
               </span>
             </Tooltip>
           )}
-          <SealMark seal={user.equipped.seal} />
+          <SealMark
+            seal={user.equipped.seal}
+            color={user.equipped.seal ? user.equipped.sealColors?.[user.equipped.seal] : null}
+          />
           <UserBadges isFounder={user.isFounder} variant="icons" />
           <span
             className={`truncate text-sm font-semibold text-text ${nick.className}`}

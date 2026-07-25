@@ -191,7 +191,7 @@ export function SubmissionCard({
                   {toRoman(s.senderLevel!)}
                 </span>
               )}
-              <SealMark seal={s.senderSeal} />
+              <SealMark seal={s.senderSeal} color={s.senderSealColor} />
               <b className={`truncate text-sm text-text ${nick.className}`} style={nick.style}>
                 {s.senderName ?? t('common.anon')}
               </b>
