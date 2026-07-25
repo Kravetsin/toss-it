@@ -240,6 +240,18 @@ export interface SealModule extends BaseModule {
   /** Class set on the seal element (e.g. 'seal-fx-eye-open'); the module's CSS paints its background. */
   className: string;
   /**
+   * Optional inner markup (an `<svg>`) the surface places INSIDE the seal element, for a seal that
+   * needs more layers than the element plus its two pseudo-elements can give — the black hole has to
+   * interleave particles both behind and in front of its core, which is seven layers deep and cannot
+   * be faked with `::before`/`::after`. The module's own CSS targets the classes inside it.
+   *
+   * A CONSTANT from this registry, never user input — surfaces inject it with innerHTML (the chat
+   * overlay already does the same for its star glyph), so it must stay a literal here. Inline SVG
+   * rather than a background-image data-URI on purpose: only inline markup inherits `--seal-tint`,
+   * so a background-image seal could never be recoloured.
+   */
+  svg?: string;
+  /**
    * The catalog id of the colour UPGRADE that unlocks recolouring THIS seal (e.g. seal-butterfly →
    * 'seal-butterfly-color'). Same shape as CardEffectModule.colorUpgrade, but the seal upgrades are
    * EARNED (own `earn` metric), not bought. When set, the seal is colourable: the surface sets a

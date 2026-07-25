@@ -1,11 +1,12 @@
-// The site's own 4-point stardust spark (same path as DustMark / the Sealed-star cosmetic).
+// The site's own 4-point stardust spark (same path as DustMark).
 const SPARK =
   'M12 0C12 6.627 6.627 12 0 12C6.627 12 12 17.373 12 24C12 17.373 17.373 12 24 12C17.373 12 12 6.627 12 0Z';
 
 /**
- * Brand emblem: the spark sealed in a ring — the "Sealed star" cosmetic, fixed as the logo. Mint
- * spark on a dark disc; the spark and ring track the accent token, the disc stays dark so the spark
- * always pops. Mirrors apps/../cosmetics/effects/seal-star.ts (lit rung) — keep them visually aligned.
+ * Brand emblem: the spark sealed in a ring. Mint spark on a dark disc; the spark and ring track the
+ * accent token, the disc stays dark so the spark always pops. This is the LOGO and stands on its own —
+ * it deliberately no longer mirrors any seal cosmetic (the ringed-star seal was retired for reading as
+ * a UI icon, which is exactly what a logo should read as). Don't re-couple them.
  */
 export function BrandSeal({ size = 80, className = '' }: { size?: number; className?: string }) {
   return (

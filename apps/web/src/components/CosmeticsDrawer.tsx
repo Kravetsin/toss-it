@@ -7,7 +7,6 @@ import {
   entranceModule,
   frameEffectClass,
   nickEffectClass,
-  sealEffectClass,
   nickEffectModule,
   type CosmeticItem,
   type CosmeticType,
@@ -20,6 +19,7 @@ import { Badge, Button, Card, Drawer, IconButton } from '@/ui';
 import { Icon } from '@/ui/icons';
 import { DustMark } from '@/components/DustMark';
 import { NewDot, NewDotGroup } from '@/components/NewDot';
+import { SealMark } from '@/components/UserMarks';
 import { CardEffect } from '@/components/CardEffect';
 import { buyCosmetic, equipCosmetic } from '@/lib/api/shop';
 import { nickProps } from '@/lib/nick';
@@ -234,7 +234,9 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     return groups.filter((g) => g.effects.length > 0);
   })();
   const frames = COSMETICS.filter((c) => c.type === 'frame');
-  const seals = COSMETICS.filter((c) => c.type === 'seal');
+  // `upgrade` items (the per-seal colours) aren't equippable seals — they render inside their own
+  // seal's row, so they must not form a ladder of their own here.
+  const seals = COSMETICS.filter((c) => c.type === 'seal' && !c.upgrade);
   // Rungs of one artifact collapse into a single row (see CosmeticItem.ladder): four full-width
   // blocks per seal would turn this tab into a scroll wall as families are added.
   const sealLadders: CosmeticItem[][] = [];
@@ -397,14 +399,18 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     });
   const removeCardColorFor = (id: string) =>
     void act(() => equipCosmetic({ cardEffectColors: { [id]: null } }), { after: refresh });
-  // Per-seal colour: set/clear the tint for ONE seal id (the picker lives in that seal's row).
-  const applySealColorFor = (id: string, hex: string) =>
-    void act(() => equipCosmetic({ sealColors: { [id]: hex } }), {
+  // Per-seal colour. Written for EVERY rung of the ladder at once, not just the one whose row hosts
+  // the picker: the tint is stored per seal id, so a family with two rungs would otherwise keep two
+  // separate colours and the one you actually wear would come out untinted.
+  const sealColorPatch = (ids: string[], hex: string | null) =>
+    Object.fromEntries(ids.map((id) => [id, hex]));
+  const applySealColorFor = (ids: string[], hex: string) =>
+    void act(() => equipCosmetic({ sealColors: sealColorPatch(ids, hex) }), {
       after: refresh,
       success: t('shop.equipped'),
     });
-  const removeSealColorFor = (id: string) =>
-    void act(() => equipCosmetic({ sealColors: { [id]: null } }), { after: refresh });
+  const removeSealColorFor = (ids: string[]) =>
+    void act(() => equipCosmetic({ sealColors: sealColorPatch(ids, null) }), { after: refresh });
 
   // Glow demo uses the equipped nick color (or mint), without recoloring the demo text.
   const glowVar = { ['--nick-glow']: equippedColor || 'var(--color-accent)' } as CSSProperties;
@@ -440,6 +446,9 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     const colorMod = colorUp ? cosmeticModule(colorUp) : undefined;
     const colorItem = colorUp ? COSMETICS.find((c) => c.id === colorUp) : undefined;
     const ownsColorUp = colorUp ? (user?.ownedCosmetics.includes(colorUp) ?? false) : false;
+    // One source of truth for whether the upgrade gets its own block below — the "new" mark on the
+    // name covers the upgrade exactly when it does NOT, so the id always has something to clear it.
+    const upgradeShown = !!(colorUp && owned && colorItem && colorMod);
     const savedColor = equippedCardEffectColors[e.id];
     const draftColor = cardColorDraft[e.id] ?? savedColor ?? DEFAULT_CARD_COLOR;
     const colorDirty = draftColor.toLowerCase() !== (savedColor ?? '').toLowerCase();
@@ -474,7 +483,9 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
               >
                 {t(labels.name)}
               </span>
-              <NewDot id={e.id} />
+              {/* Picks up the colour upgrade while ITS row is hidden (shown only once the effect is
+                  owned) — otherwise that id has no mark anywhere and pins the tab's dot on. */}
+              <NewDot id={colorUp && !upgradeShown ? [e.id, colorUp] : e.id} />
             </span>
             {owned ? (
               on ? (
@@ -536,7 +547,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
           </div>
           {/* Colour upgrade — lives INSIDE its effect's card, shown once the effect is owned. Buying it
               merges the picker in; a plain effect (no colorUpgrade) never shows this. */}
-          {colorUp && owned && colorItem && colorMod && (
+          {upgradeShown && colorItem && colorMod && (
             <div className="mt-1 flex flex-col gap-2 border-t border-border pt-3">
               <div className="flex items-center justify-between gap-2">
                 <span className="flex min-w-0 items-center gap-1.5">
@@ -611,6 +622,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     if (!labels) return null;
     // Colourable seals (butterfly/eye) carry an EARNED colour upgrade; its picker renders below the
     // ladder, unlocked once the seal itself is earned AND the upgrade's own milestone is met.
+    const rungIds = rungs.map((r) => r.id);
     const colorUp = headMod?.type === 'seal' ? headMod.colorUpgrade : undefined;
     const colorItem = colorUp ? COSMETICS.find((c) => c.id === colorUp) : undefined;
     const colorMod = colorUp ? cosmeticModule(colorUp) : undefined;
@@ -623,6 +635,9 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     const colorEarnMeta = colorEarn ? EARN_META[colorEarn.metric] : null;
     const colorHave = colorEarn ? earnTotals[colorEarn.metric] : 0;
     const colorUnit = colorEarnMeta?.unit ?? 1;
+    // Same rule as the effect rows: the ladder's mark covers the upgrade whenever its own block is
+    // absent, so the two together always account for the id.
+    const upgradeShown = !!(colorUp && colorItem && colorMod && headOwned);
     const savedSealColor = equippedSealColors[head.id];
     const draftSealColor = sealColorDraft[head.id] ?? savedSealColor ?? DEFAULT_CARD_COLOR;
     const sealColorDirty = draftSealColor.toLowerCase() !== (savedSealColor ?? '').toLowerCase();
@@ -634,10 +649,20 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
         <div className="flex flex-col gap-2">
           <span className="flex min-w-0 items-center gap-1.5">
             <span className="font-medium text-text">{t(labels.name)}</span>
-            <NewDotGroup ids={rungs.map((r) => r.id)} />
+            {/* Answers for the whole ladder: the rungs are tiles with no mark of their own (four
+                dots across a 4-up grid would be clutter), and the colour upgrade's row is hidden
+                until the seal is earned. A NewDotGroup here would have nothing to dismiss it. */}
+            <NewDot
+              id={[...rungs.map((r) => r.id), ...(colorUp && !upgradeShown ? [colorUp] : [])]}
+            />
           </span>
           <p className="text-sm italic text-muted">{t(labels.desc)}</p>
-          <div className="grid grid-cols-4 gap-2">
+          {/* Columns follow the rung count (capped at 4): families are no longer all four rungs — a
+              fixed 4-up grid left a one- or two-rung family hugging the left edge. */}
+          <div
+            className="grid gap-2"
+            style={{ gridTemplateColumns: `repeat(${Math.min(rungs.length, 4)}, minmax(0, 1fr))` }}
+          >
             {rungs.map((r) => {
               const earn = r.earn;
               const earnMeta = earn ? EARN_META[earn.metric] : null;
@@ -649,10 +674,14 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
               const on = equippedSeal === r.id;
               return (
                 <div key={r.id} className="flex flex-col items-center gap-2 text-center">
-                  {/* Locked rungs stay visible but dimmed — the ladder doubles as the roadmap. */}
-                  <span
-                    aria-hidden
-                    className={`text-[44px] ${sealEffectClass(r.id)} ${owned ? '' : 'opacity-40'}`}
+                  {/* Locked rungs stay visible but dimmed — the ladder doubles as the roadmap. Goes
+                      through SealMark rather than a bare span, so a seal that ships inner markup
+                      previews exactly as it will be worn; the saved tint rides along. */}
+                  <SealMark
+                    seal={r.id}
+                    color={savedSealColor}
+                    size={44}
+                    className={owned ? '' : 'opacity-40'}
                   />
                   {/* Fixed-height slot: a button is 26px tall and a bare progress label 12px, so
                       without one the four rungs' text lands at four different heights — an actual
@@ -684,7 +713,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
           </div>
           {/* Colour upgrade — inside the seal's row, once the seal is earned. Same shape as the card
               effect picker, but the upgrade is EARNED (progress shown), not bought. */}
-          {colorUp && colorItem && colorMod && headOwned && (
+          {upgradeShown && colorItem && colorMod && (
             <div className="mt-1 flex flex-col gap-2 border-t border-border pt-3">
               <div className="flex items-center justify-between gap-2">
                 <span className="flex min-w-0 items-center gap-1.5">
@@ -714,13 +743,13 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
                   <Button
                     variant="primary"
                     size="sm"
-                    onClick={() => applySealColorFor(head.id, draftSealColor)}
+                    onClick={() => applySealColorFor(rungIds, draftSealColor)}
                     disabled={!sealColorDirty}
                   >
                     {t('shop.apply')}
                   </Button>
                   {savedSealColor && (
-                    <Button variant="ghost" size="sm" onClick={() => removeSealColorFor(head.id)}>
+                    <Button variant="ghost" size="sm" onClick={() => removeSealColorFor(rungIds)}>
                       {t('shop.resetColor')}
                     </Button>
                   )}

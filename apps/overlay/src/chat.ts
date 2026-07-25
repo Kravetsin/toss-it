@@ -15,6 +15,7 @@ import {
   mountCardEffect,
   nickRender,
   sealEffectClass,
+  sealMarkup,
   toRoman,
   type ChatFragment,
   type ChatOverlayConfig,
@@ -237,6 +238,8 @@ function renderMessage(msg: ChatOverlayMessage): void {
     bodyRow.className = 'body-row';
     const seal = document.createElement('span');
     seal.className = `seal ${sealCls}`;
+    // Constant markup from the cosmetics registry — not user input (same rule as the star glyph).
+    seal.innerHTML = sealMarkup(msg.cosmetics?.seal);
     // Colourable seals (butterfly/eye) read their tint from --seal-tint; a plain seal has no entry.
     const sealColor = msg.cosmetics?.seal
       ? msg.cosmetics.sealColors?.[msg.cosmetics.seal]
@@ -579,7 +582,7 @@ if (DEMO) {
       userId: 'u1',
       name: 'newbie_guy',
       twitchColor: '#9ab0ad',
-      cosmetics: { seal: 'seal-star-dormant' },
+      cosmetics: { seal: 'seal-nova-ember' },
       isFounder: false,
       level: 0,
       fragments: [{ type: 'text', text: 'печать без уровня — висит от точки' }],
@@ -608,7 +611,7 @@ if (DEMO) {
         nickEffect: 'nick-glow',
         cardEffect: 'card-stardust',
         frame: 'frame-storm',
-        seal: 'seal-star-awake',
+        seal: 'seal-nova',
       },
       isFounder: true,
       level: 8,
@@ -641,7 +644,7 @@ if (DEMO) {
       userId: 'u5',
       name: 'oldtimer',
       twitchColor: '#f5d76e',
-      cosmetics: { cardEffect: 'card-sakura', seal: 'seal-star-lit' },
+      cosmetics: { cardEffect: 'card-sakura', seal: 'seal-nova' },
       isFounder: false,
       level: 10,
       badges: [MODERATOR, VIP],
@@ -665,7 +668,7 @@ if (DEMO) {
       userId: 'u6',
       name: 'subfan',
       twitchColor: '#7ec8ff',
-      cosmetics: { cardEffect: 'card-snow', seal: 'seal-star-charged' },
+      cosmetics: { cardEffect: 'card-snow', seal: 'seal-nova-ember' },
       isFounder: false,
       level: 2,
       badges: [SUB],

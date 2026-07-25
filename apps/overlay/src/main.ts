@@ -11,6 +11,7 @@ import {
   applyStyleMap,
   frameEffectClass,
   sealEffectClass,
+  sealMarkup,
   giphyGifUrl,
   injectCosmeticsStyles,
   injectLevelStyles,
@@ -269,6 +270,8 @@ function decorateSender(el: HTMLElement, payload: MediaPlayPayload): void {
   if (sealCls) {
     const seal = document.createElement('span');
     seal.className = `sender-seal ${sealCls}`;
+    // Constant markup from the cosmetics registry — not user input.
+    seal.innerHTML = sealMarkup(payload.senderSeal);
     // Colourable seals (butterfly/eye) read their tint from --seal-tint; a plain seal ignores it.
     if (payload.senderSealColor) seal.style.setProperty('--seal-tint', payload.senderSealColor);
     el.appendChild(seal);

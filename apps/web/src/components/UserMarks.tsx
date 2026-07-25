@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { sealEffectClass } from '@tmw/shared';
+import { sealEffectClass, sealMarkup } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { Badge } from '@/ui';
 import { Icon, type IconName } from '@/ui/icons';
@@ -100,7 +100,17 @@ export function SealMark({
   const cls = sealEffectClass(seal);
   if (!cls) return null;
   const style = { fontSize: size, ...(color ? { '--seal-tint': color } : {}) } as CSSProperties;
-  return <span aria-hidden style={style} className={`shrink-0 ${cls} ${className}`} />;
+  // Inner markup only for the seals that ship it (see SealModule.svg) — a constant from our own
+  // registry, never user input, which is what makes injecting it here safe.
+  const markup = sealMarkup(seal);
+  return (
+    <span
+      aria-hidden
+      style={style}
+      className={`shrink-0 ${cls} ${className}`}
+      {...(markup ? { dangerouslySetInnerHTML: { __html: markup } } : {})}
+    />
+  );
 }
 
 /**

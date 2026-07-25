@@ -75,10 +75,11 @@ const MOCK_ME: MeResponse = {
     // earned, Canopy (75h) and Storm (100h) still in progress — and the eye seal (100h) + its colour
     // upgrade (250h) still locked, so the shop previews a colourable seal's LOCKED/progress state too.
     watchMinutesTotal: 3320,
-    // Past the star seal's third rung (200) but not its fourth (500), so the ladder previews all
-    // three states at once: earned+equipped, earned+equippable, and still locked.
-    submissionsTotal: 220,
-    // Lifetime earned dust — the "wealth" axis. High enough to show a mid-ladder wealth seal.
+    // Past both nova rungs (25 / 250) but short of its colour upgrade (500), so the shop previews an
+    // earned two-rung ladder with the colour still counting up.
+    submissionsTotal: 320,
+    // Lifetime earned dust — the "wealth" axis. Past the black hole's first rung (1000) but not its
+    // second (10k), so that ladder previews the LOCKED rung the nova's no longer shows.
     dustEarnedTotal: 5400,
     equipped: {
       nickColor: '#8df0cc',
@@ -92,7 +93,7 @@ const MOCK_ME: MeResponse = {
       // Saved per-seal colours — the picker inside each colourable seal's row seeds from these.
       sealColors: { 'seal-butterfly': '#5ad1ff', 'seal-eye': '#7cff4f' },
       frame: 'frame-runner',
-      seal: 'seal-star-lit',
+      seal: 'seal-nova',
       entrance: 'entrance-astral',
       entranceColor: '#ff8a3d',
     },
@@ -208,7 +209,7 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderEffect: 'nick-glow',
     senderCardEffect: 'card-stardust',
     senderFrame: 'frame-runner',
-    senderSeal: 'seal-star-dormant',
+    senderSeal: 'seal-nova-ember',
     text: 'каеф, врубай этого на стрим 🔥🔥🔥',
     createdAt: t - 1 * min,
   }),
@@ -222,7 +223,7 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderColor: '#8df0cc',
     senderEffect: 'nick-pulse',
     senderCardEffect: 'card-levitation',
-    senderSeal: 'seal-gem-clear',
+    senderSeal: 'seal-void',
     text: 'смотри какой котик получился',
     url: IMG,
     durationMs: 8000,
@@ -259,7 +260,7 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderCardEffect: 'card-rain',
     // The frame is meant to be worn WITH its card effect — rain above, tide along the bottom.
     senderFrame: 'frame-water',
-    senderSeal: 'seal-star-lit',
+    senderSeal: 'seal-nova',
     youtubeId: 'dQw4w9WgXcQ',
     text: 'трек на фон, зайдёт',
     durationMs: 20_000,
@@ -295,7 +296,7 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderColor: '#ffc2d8',
     senderCardEffect: 'card-sakura',
     senderFrame: 'frame-canopy',
-    senderSeal: 'seal-gem-crown',
+    senderSeal: 'seal-void',
     text: 'принесла тебе весны в предложку',
     createdAt: t - 22 * min,
   }),
@@ -311,7 +312,7 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderEffect: 'nick-pulse',
     senderCardEffect: 'card-lightning',
     senderFrame: 'frame-storm',
-    senderSeal: 'seal-star-awake',
+    senderSeal: 'seal-nova',
     text: 'бахнуло знатно, го смотреть',
     createdAt: t - 26 * min,
   }),
@@ -542,7 +543,7 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     nickFlow: true,
     nickEffect: 'nick-glow',
     cardEffect: 'card-lightning',
-    seal: 'seal-star-awake',
+    seal: 'seal-nova',
     sealColor: null,
     level: 8,
   },
@@ -557,7 +558,7 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     nickFlow: false,
     nickEffect: null,
     cardEffect: null,
-    seal: 'seal-star-lit',
+    seal: 'seal-nova',
     sealColor: null,
     level: 4,
   },

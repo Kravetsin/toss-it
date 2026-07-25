@@ -39,8 +39,8 @@ import { frameWater } from './effects/frame-water';
 import { frameEmbers } from './effects/frame-embers';
 import { frameCanopy } from './effects/frame-canopy';
 import { frameStorm } from './effects/frame-storm';
-import { sealStarDormant, sealStarCharged, sealStarLit, sealStarAwake } from './effects/seal-star';
-import { sealGemDull, sealGemCut, sealGemClear, sealGemCrown } from './effects/seal-gem';
+import { sealNovaEmber, sealNova, sealNovaColor } from './effects/seal-nova';
+import { sealVoidCollapsing, sealVoid, sealVoidColor } from './effects/seal-void';
 import { sealButterfly } from './effects/seal-butterfly';
 import { sealButterflyColor } from './effects/seal-butterfly-color';
 import { sealEye } from './effects/seal-eye';
@@ -178,12 +178,21 @@ const BASE_CSS = `
   pointer-events: none;
   flex: none;
 }
+/* A seal that ships inner markup (see SealModule.svg) fills the box with it. overflow stays visible
+   so a glow filter blooms past the viewBox instead of being cropped to it. */
+.seal-fx > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
 @media (prefers-reduced-motion: reduce) {
-  /* Pseudo-elements too: the animated seals (eye blink, butterfly flap) run on ::before/::after,
-     which the bare .seal-fx rule alone would not reach. */
+  /* Pseudo-elements AND inner markup: seals animate on ::before/::after (eye blink, butterfly flap)
+     and on nested SVG nodes (the black hole's orbit), none of which a bare .seal-fx rule reaches. */
   .seal-fx,
   .seal-fx::before,
-  .seal-fx::after {
+  .seal-fx::after,
+  .seal-fx * {
     animation: none;
   }
 }
@@ -226,15 +235,13 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   frameWater,
   frameStorm,
   // Seals are a separate slot from frames, so a viewer wears one of each rather than choosing.
-  // Grouped by earning axis: the spark on submissions, the gem on lifetime dust earned.
-  sealStarDormant,
-  sealStarCharged,
-  sealStarLit,
-  sealStarAwake,
-  sealGemDull,
-  sealGemCut,
-  sealGemClear,
-  sealGemCrown,
+  // Grouped by earning axis: the nova on submissions, the black hole on lifetime dust earned.
+  sealNovaEmber,
+  sealNova,
+  sealNovaColor,
+  sealVoidCollapsing,
+  sealVoid,
+  sealVoidColor,
   // Card-effect seals: one tier each (no ladder), EARNED by an activity metric, each with its own
   // earned colour upgrade — the butterfly on chat messages, the eye on watch time.
   sealButterfly,
@@ -338,6 +345,14 @@ export function sealModule(id: string | null | undefined): SealModule | undefine
  * none/unknown. Includes the shared `seal-fx` base, so a surface only has to create the element and
  * place it — sizing and the artwork both come from the stylesheet.
  */
+/**
+ * Inner markup for a seal that ships it (see SealModule.svg), or '' — most seals paint from CSS alone
+ * and need none. A CONSTANT from this registry, never user input, so surfaces may inject it directly.
+ */
+export function sealMarkup(id: string | null | undefined): string {
+  return sealModule(id)?.svg ?? '';
+}
+
 export function sealEffectClass(id: string | null | undefined): string {
   const m = sealModule(id);
   return m ? `seal-fx ${m.className}` : '';
