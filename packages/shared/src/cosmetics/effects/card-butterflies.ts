@@ -55,16 +55,36 @@ import type { CardEffectModule } from '../types';
 /** Bright fuchsia / magenta wing colours — the deep stop of each wing's gradient (pale tip is fixed). */
 const FUCHSIA = ['#ff2e9a', '#ff4fc3', '#e838d8', '#ff5cd0', '#d42bb4'];
 
-// The RIGHT wing silhouette, body edge on the LEFT (x=0), waist at mid-height. Two lobes, anatomically
-// shaped (see the refs): a TRIANGULAR forewing with a pointed apex up-and-out (the top "V"), and a
-// smaller ROUNDED hindwing below. White fill = the mask's opaque region; the gradient beneath supplies
-// the colour.
+/**
+ * The RIGHT wing silhouette, body edge on the LEFT (x=0). Modelled on Papilio ulysses. THREE numbers
+ * define it, they are INDEPENDENT, and every failed draft came from fixing one by wrecking another:
+ *
+ *  1. THE WHOLE INSECT. Measure the butterfly, not the wing. It is two wings wide and one wing box
+ *     tall, so its height÷width is WING_ASPECT ÷ 2 — here 0.95, near enough a square, which is how a
+ *     real one sits. Drafts at 1.4 gave 0.70 and read as a butterfly flattened by a book.
+ *  2. MASS — the share of the box the shape fills. Old rounded wing 48%, this 44%, and an earlier
+ *     "properly angular" draft 31%: what a sharp apex costs if you forget the BELLY. After the apex the
+ *     outer edge has to keep its distance from the body before turning in. Note mass is INDEPENDENT of
+ *     proportion — stretching y scales area and box alike — so never trade one for the other again.
+ *  3. THE ROOT. The wing's inner edge (x=5) spans y 81..112 — 31 units against a body of 58, so it sits
+ *     INSIDE the body's height. Get this wrong and the wing sprouts above the head: an earlier draft had
+ *     a root of 72 against a 60-unit body and grew straight out of the antennae. Stretching y widens the
+ *     root too, so it needs re-checking whenever the proportion changes.
+ *
+ * The costa runs nearly straight to a sharp apex. Any real bulge there and the forewing stops reading as
+ * a wing and becomes a leaf — that was the other failed draft.
+ *
+ * The hindwing carries the swallowtail's namesake tail — a thin stalk off its outer corner. It is under
+ * a pixel on the chat pill, so it is decoration for the card, never load-bearing for recognition.
+ */
 const WING_PATH =
-  'M2,50 C4,27 24,8 52,8 C68,8 82,9 88,14 C92,28 84,44 70,51 C48,58 16,58 2,56 Z M2,60 C18,61 44,66 64,80 C78,90 74,110 56,110 C40,110 14,94 2,78 Z';
-const WING = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 116'%3E%3Cpath fill='%23fff' d='${WING_PATH}'/%3E%3C/svg%3E") center/contain no-repeat`;
+  'M5,80.9 C32,57.7 66,29.4 97,8.6 C99,35.6 97,58.9 91,74.8 C80,93.1 63,101.8 48,104.2 C32,105.5 16,103 5,98.1 Z M5,103 C39,110.3 72,122.5 89,144.7 C97,158.1 91,172.9 75,176.6 C79,181.4 82,186.3 81,188.8 C79,190 74,185.1 70,179 C66,172.9 62,171.7 58,169.1 C36,163 14,138 5,112 Z';
+/** Wing box height ÷ width. Kept next to the path because the CSS below must use the same number. */
+const WING_ASPECT = 1.9;
+const WING = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 190'%3E%3Cpath fill='%23fff' d='${WING_PATH}'/%3E%3C/svg%3E") center/contain no-repeat`;
 // The LEFT wing: the same silhouette mirrored IN THE MASK (body edge ends up on the right), so the flap
 // can be a plain sign-flipped rotateY with no scaleX — see the header for why that matters.
-const WING_L = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 116'%3E%3Cg transform='translate(100 0) scale(-1 1)'%3E%3Cpath fill='%23fff' d='${WING_PATH}'/%3E%3C/g%3E%3C/svg%3E") center/contain no-repeat`;
+const WING_L = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 190'%3E%3Cg transform='translate(100 0) scale(-1 1)'%3E%3Cpath fill='%23fff' d='${WING_PATH}'/%3E%3C/g%3E%3C/svg%3E") center/contain no-repeat`;
 
 // The body: a slim abdomen + head + two clubbed antennae, dark magenta so it reads against the wings.
 const BODY =
@@ -86,8 +106,13 @@ export const cardButterflies: CardEffectModule = {
   particle: (rnd, compact, _index, color) => {
     // Size scale for depth: bigger butterflies read as nearer. Body is proportioned off the wing.
     const s = rnd(0.82, 1.22);
-    const wing = (compact ? 11 : 17) * s;
-    const bh = wing * 0.55;
+    // Cut 20% from the pre-1.9 sizes (was 11 / 17). Wing WIDTH is the base, but the insect is now 1.9
+    // wing-widths TALL, so keeping the old width would have grown its footprint by half — it looked
+    // oversized on a card even though this number never changed.
+    const wing = (compact ? 8.8 : 13.6) * s;
+    // Body length vs wing width, measured off the reference photo. It reads small on purpose: the wing
+    // stands 1.9× its own width, so anything closer to parity turns the insect back into a moth.
+    const bh = wing * 0.58;
     const bw = bh * 0.36; // 24:66 is the body SVG's aspect
     // The viewer's chosen colour is drawn EXACTLY — all butterflies that one colour, no lightness or
     // saturation clamp, so a dark/muted/greyscale pick renders as picked (the wing gradient keeps a
@@ -261,8 +286,10 @@ export const cardButterflies: CardEffectModule = {
   position: absolute;
   top: 50%;
   width: var(--w, 25px);
-  height: calc(var(--w, 25px) * 1.16);
-  margin-top: calc(var(--w, 25px) * -0.58);
+  /* Must stay WING_ASPECT: the mask is center/contain, so any other ratio letterboxes the silhouette
+     inside the box and silently shrinks the wing. */
+  height: calc(var(--w, 25px) * ${WING_ASPECT});
+  margin-top: calc(var(--w, 25px) * ${-WING_ASPECT / 2});
   /* Glow is on .p, not here — a mask on this element would clip a drop-shadow away (see .p). */
 }
 /* Right wing: hinges at its inner (left) edge, inset a hair right of centre so the body shows in the

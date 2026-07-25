@@ -41,8 +41,7 @@ import { frameCanopy } from './effects/frame-canopy';
 import { frameStorm } from './effects/frame-storm';
 import { sealNovaEmber, sealNova, sealNovaColor } from './effects/seal-nova';
 import { sealVoidCollapsing, sealVoid, sealVoidColor } from './effects/seal-void';
-import { sealButterfly } from './effects/seal-butterfly';
-import { sealButterflyColor } from './effects/seal-butterfly-color';
+import { sealMorseFaint, sealMorse, sealMorseColor } from './effects/seal-morse';
 import { sealEye } from './effects/seal-eye';
 import { sealEyeColor } from './effects/seal-eye-color';
 import { entranceGlitch } from './effects/entrance-glitch';
@@ -242,10 +241,11 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   sealVoidCollapsing,
   sealVoid,
   sealVoidColor,
-  // Card-effect seals: one tier each (no ladder), EARNED by an activity metric, each with its own
-  // earned colour upgrade — the butterfly on chat messages, the eye on watch time.
-  sealButterfly,
-  sealButterflyColor,
+  // Morse on chat messages, the eye on watch time — the remaining two activity axes. Each is EARNED
+  // and carries its own earned colour upgrade.
+  sealMorseFaint,
+  sealMorse,
+  sealMorseColor,
   sealEye,
   sealEyeColor,
   entranceGlitch,
