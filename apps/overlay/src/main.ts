@@ -29,6 +29,7 @@ import {
   type OverlayLayout,
   type OverlayPosition,
   type PlaybackDoneReason,
+  type PlaybackSlot,
 } from '@tmw/shared';
 
 // Cosmetic effect CSS is injected from the shared registry (single source across web + overlay).
@@ -114,49 +115,103 @@ const socket: OverlaySocket = DEMO
   ? demoSocketStub()
   : connectOverlay(SERVER_URL, token ?? '', 'media');
 
-let currentId: string | null = null;
-let hideTimer: number | undefined;
-let finishing = false;
-let ytPlayer: YTPlayer | null = null;
-let ytApiPromise: Promise<void> | null = null;
-let ytReportedSid: string | null = null;
-let exitTimer: number | undefined;
-// Playback controls: pause state + progress reporting for the dashboard's now-playing bar.
-let paused = false;
-let currentKind: MediaKind | null = null;
-/** The post on screen is a YouTube one — the channel's YouTube switch decides where it sits. */
-let currentIsYoutube = false;
-/** The post on screen is an uploaded audio file — always the compact player, switch or not. */
-let currentIsAudio = false;
-let mediaEl: HTMLVideoElement | HTMLAudioElement | null = null;
-// Image/gif/text have no player — we track their fixed display window ourselves so it can be frozen.
-let timedDurationMs = 0;
-let timedElapsedMs = 0;
-let timedStartTs = 0;
-let progressTimer: number | undefined;
+/**
+ * One playing position on screen. There are two — see PlaybackSlot: a song can hold the compact
+ * player while images and gifs keep arriving on the main stage. Everything a show owns lives here,
+ * because two of them run at once and a module-level variable can only describe one.
+ */
+interface ShowState {
+  /** The flex container this slot's card is anchored in. */
+  readonly el: HTMLElement;
+  currentId: string | null;
+  hideTimer: number | undefined;
+  finishing: boolean;
+  ytPlayer: YTPlayer | null;
+  ytReportedSid: string | null;
+  exitTimer: number | undefined;
+  /** Playback controls: pause state + progress reporting for the dashboard's now-playing bar. */
+  paused: boolean;
+  kind: MediaKind | null;
+  /** A YouTube post — the channel's YouTube switch decides which anchor it uses. */
+  isYoutube: boolean;
+  /** An uploaded audio file — always the compact player, switch or not. */
+  isAudio: boolean;
+  mediaEl: HTMLVideoElement | HTMLAudioElement | null;
+  /** Image/gif/text have no player — we track their display window so it can be frozen. */
+  timedDurationMs: number;
+  timedElapsedMs: number;
+  timedStartTs: number;
+  progressTimer: number | undefined;
+  /** TTS is speaking right now — ducks the other slot for the speech only. */
+  speaking: boolean;
+}
 
-socket.on('media:play', show);
-socket.on('media:skip', (submissionId) => {
-  if (submissionId === currentId) finish();
+let ytApiPromise: Promise<void> | null = null;
+
+/** The music stage is built here rather than in the HTML: both overlays share that file. */
+const musicStage = document.createElement('div');
+musicStage.id = 'stage-music';
+document.body.appendChild(musicStage);
+
+const newShow = (el: HTMLElement): ShowState => ({
+  el,
+  currentId: null,
+  hideTimer: undefined,
+  finishing: false,
+  ytPlayer: null,
+  ytReportedSid: null,
+  exitTimer: undefined,
+  paused: false,
+  kind: null,
+  isYoutube: false,
+  isAudio: false,
+  mediaEl: null,
+  timedDurationMs: 0,
+  timedElapsedMs: 0,
+  timedStartTs: 0,
+  progressTimer: undefined,
+  speaking: false,
 });
-socket.on('media:control', (action) => {
-  if (!currentId) return;
-  if (action === 'pause') pausePlayback();
-  else resumePlayback();
+
+const shows: Record<PlaybackSlot, ShowState> = {
+  media: newShow(stage),
+  music: newShow(musicStage),
+};
+/** Bundles older than parallel slots send no slot; everything they send is the media stage. */
+const showFor = (slot: PlaybackSlot | undefined): ShowState =>
+  slot === 'music' ? shows.music : shows.media;
+/** The show holding this submission, if any. */
+const showOf = (submissionId: string): ShowState | null =>
+  [shows.media, shows.music].find((sh) => sh.currentId === submissionId) ?? null;
+
+socket.on('media:play', (payload) => show(showFor(payload.slot), payload));
+socket.on('media:skip', (submissionId) => {
+  const sh = showOf(submissionId);
+  if (sh) finish(sh);
+});
+socket.on('media:control', (action, slot) => {
+  const sh = showFor(slot);
+  if (!sh.currentId) return;
+  if (action === 'pause') pausePlayback(sh);
+  else resumePlayback(sh);
 });
 socket.on('media:volume', (volume) => {
-  if (!currentId) return;
+  // One slider for both stages, by design — see the plan. Applies to whatever is playing.
   const v = Math.min(100, Math.max(0, volume));
-  // video + audio (incl. the music widget's <audio>) go through mediaEl; YouTube via its player.
-  if (mediaEl) mediaEl.volume = v / 100;
-  else if (currentKind === 'youtube') ytPlayer?.setVolume(v);
+  for (const sh of [shows.media, shows.music]) {
+    if (!sh.currentId) continue;
+    // video + audio (incl. the music widget's <audio>) go through mediaEl; YouTube via its player.
+    if (sh.mediaEl) sh.mediaEl.volume = v / 100;
+    else if (sh.kind === 'youtube') sh.ytPlayer?.setVolume(v);
+  }
 });
-socket.on('media:seek', (seconds) => {
-  if (!currentId) return;
+socket.on('media:seek', (seconds, slot) => {
+  const sh = showFor(slot);
+  if (!sh.currentId) return;
   const s = Math.max(0, seconds);
   // Only media with a real timeline; image/gif/text run on a fixed hide timer (not seekable).
-  if (mediaEl) mediaEl.currentTime = s;
-  else if (currentKind === 'youtube') ytPlayer?.seekTo(s, true);
+  if (sh.mediaEl) sh.mediaEl.currentTime = s;
+  else if (sh.kind === 'youtube') sh.ytPlayer?.seekTo(s, true);
 });
 socket.on('donation:fx', triggerDonationFx);
 // The server sends chat:config to both overlays; this one used to drop it on the floor. It takes
@@ -170,33 +225,35 @@ socket.on('music:command', handleMusicCommand);
 // Layout settings were saved. Only the post already on screen needs this — the next one carries its
 // own layout in the play payload.
 socket.on('media:layout', (layouts) => {
-  if (!currentId) return;
   // Same rule as the server's resolveLayout, re-run against the settings that just changed: the
   // YouTube switch can move the very video that is playing, and since both anchors render the same
   // card, it slides across instead of restarting.
-  const music = currentIsYoutube ? layouts.youtubeAsMusic : currentIsAudio;
-  const card = stage.querySelector<HTMLElement>('.player');
-  animateLayoutMove(card, () => applyStageLayout(music ? layouts.music : layouts.media));
+  for (const sh of [shows.media, shows.music]) {
+    if (!sh.currentId) continue;
+    const music = sh.isYoutube ? layouts.youtubeAsMusic : sh.isAudio;
+    const card = sh.el.querySelector<HTMLElement>('.player');
+    animateLayoutMove(card, () => applyStageLayout(sh, music ? layouts.music : layouts.media));
+  }
 });
 
-function show(payload: MediaPlayPayload): void {
+function show(sh: ShowState, payload: MediaPlayPayload): void {
   // Deliberately unconditional, even for the show already on screen: after a server restart the
   // overlay is told to play the current post again, and rebuilding it from scratch is what makes
   // the two sides agree. Skipping the rebuild left the card playing but the controls dead.
-  clearStage();
+  clearStage(sh);
   hideSizeHint(); // a post is arriving — never leave the setup hint sitting over media on stream
-  currentId = payload.submissionId;
-  finishing = false;
-  paused = false;
-  currentKind = payload.kind;
-  suspendMusic(true); // post on screen → fade out, pause and hide the background music
+  sh.currentId = payload.submissionId;
+  sh.finishing = false;
+  sh.paused = false;
+  sh.kind = payload.kind;
+  duckBackgroundMusic(); // a post is up → fade out, pause and hide the background playlist
 
   // Which of the channel's two anchors this post uses. The server already decided it for this
   // payload; we keep the inputs so a later settings change (including the YouTube switch) can
   // re-decide without waiting for the next post.
-  currentIsYoutube = payload.kind === 'youtube';
-  currentIsAudio = payload.kind === 'audio';
-  applyStageLayout(payload);
+  sh.isYoutube = payload.kind === 'youtube';
+  sh.isAudio = payload.kind === 'audio';
+  applyStageLayout(sh, payload);
 
   const url = resolveMediaUrl(payload.url);
   const alert = document.createElement('div');
@@ -205,28 +262,30 @@ function show(payload: MediaPlayPayload): void {
   // own pop-in running (see .alert.enter:not([data-fx]) in index.html).
   applyEntrance(alert, payload.senderEntrance, reduceMotion, payload.senderEntranceColor);
 
-  const media = createMediaElement(payload, url);
+  const media = createMediaElement(sh, payload, url);
   alert.appendChild(buildCard(payload, media));
-  stage.appendChild(alert);
+  sh.el.appendChild(alert);
 
   if (payload.sound) playChime(payload.volume);
-  scheduleSpeech(payload);
+  scheduleSpeech(sh, payload);
 
   // Hard cap: leaves screen no later than server-issued durationMs.
   // YouTube uses durationMs=0 (no cap) — finishes on the player's 'ended' event.
   if (payload.durationMs > 0) {
-    hideTimer = window.setTimeout(finish, payload.durationMs);
+    sh.hideTimer = window.setTimeout(() => finish(sh), payload.durationMs);
   }
 
   // Progress/pause plumbing. video/audio play through a media element; image/gif/text run on the
   // hide timer above, whose window we mirror here so pause can freeze it.
-  mediaEl = alert.querySelector<HTMLVideoElement | HTMLAudioElement>('video, audio');
-  if (!mediaEl && payload.durationMs > 0) {
-    timedDurationMs = payload.durationMs;
-    timedElapsedMs = 0;
-    timedStartTs = Date.now();
+  sh.mediaEl = alert.querySelector<HTMLVideoElement | HTMLAudioElement>('video, audio');
+  if (!sh.mediaEl && payload.durationMs > 0) {
+    sh.timedDurationMs = payload.durationMs;
+    sh.timedElapsedMs = 0;
+    sh.timedStartTs = Date.now();
   }
-  progressTimer = window.setInterval(emitProgress, 350);
+  sh.progressTimer = window.setInterval(() => emitProgress(sh), 350);
+  // A sounded post must not fight the song in the other slot.
+  updateSlotDucking();
 }
 
 /**
@@ -392,77 +451,88 @@ function animateLayoutMove(el: HTMLElement | null, apply: () => void): void {
 }
 
 /** Anchor the stage: position drives the flex corner, margin the inset, size the card's scale. */
-function applyStageLayout(layout: OverlayLayout): void {
+function applyStageLayout(sh: ShowState, layout: OverlayLayout): void {
   const { justify, align } = positionToFlex(layout.position);
-  stage.style.justifyContent = justify;
-  stage.style.alignItems = align;
-  stage.style.padding = `${layout.margin}vh ${layout.margin}vw`;
-  stage.style.setProperty('--overlay-size', String(layout.size));
+  sh.el.style.justifyContent = justify;
+  sh.el.style.alignItems = align;
+  sh.el.style.padding = `${layout.margin}vh ${layout.margin}vw`;
+  sh.el.style.setProperty('--overlay-size', String(layout.size));
 }
 
-/** Report the current show's position to the server (relayed to the dashboard). */
-function emitProgress(): void {
-  if (!currentId) return;
+/** Report a show's position to the server (relayed to the dashboard). */
+function emitProgress(sh: ShowState): void {
+  if (!sh.currentId) return;
   let positionMs = 0;
   let durationMs = 0;
-  if (mediaEl) {
-    positionMs = Math.round(mediaEl.currentTime * 1000);
+  if (sh.mediaEl) {
+    positionMs = Math.round(sh.mediaEl.currentTime * 1000);
     durationMs =
-      Number.isFinite(mediaEl.duration) && mediaEl.duration > 0
-        ? Math.round(mediaEl.duration * 1000)
+      Number.isFinite(sh.mediaEl.duration) && sh.mediaEl.duration > 0
+        ? Math.round(sh.mediaEl.duration * 1000)
         : 0;
-  } else if (currentKind === 'youtube' && ytPlayer) {
+  } else if (sh.kind === 'youtube' && sh.ytPlayer) {
     try {
-      positionMs = Math.round(ytPlayer.getCurrentTime() * 1000);
-      durationMs = Math.round(ytPlayer.getDuration() * 1000);
+      positionMs = Math.round(sh.ytPlayer.getCurrentTime() * 1000);
+      durationMs = Math.round(sh.ytPlayer.getDuration() * 1000);
     } catch {
       /* player not ready yet */
     }
-  } else if (timedDurationMs > 0) {
-    positionMs = timedElapsedMs + (paused ? 0 : Date.now() - timedStartTs);
-    durationMs = timedDurationMs;
+  } else if (sh.timedDurationMs > 0) {
+    positionMs = sh.timedElapsedMs + (sh.paused ? 0 : Date.now() - sh.timedStartTs);
+    durationMs = sh.timedDurationMs;
   }
-  socket.emit('playback:progress', { submissionId: currentId, positionMs, durationMs, paused });
+  socket.emit('playback:progress', {
+    submissionId: sh.currentId,
+    positionMs,
+    durationMs,
+    paused: sh.paused,
+    slot: slotNameOf(sh),
+  });
 }
 
-function pausePlayback(): void {
-  if (paused || !currentId) return;
-  paused = true;
-  if (mediaEl) mediaEl.pause();
-  else if (currentKind === 'youtube') ytPlayer?.pauseVideo();
-  else if (timedDurationMs > 0 && hideTimer !== undefined) {
-    window.clearTimeout(hideTimer);
-    hideTimer = undefined;
-    timedElapsedMs += Date.now() - timedStartTs; // bank the elapsed slice
+function pausePlayback(sh: ShowState): void {
+  if (sh.paused || !sh.currentId) return;
+  sh.paused = true;
+  if (sh.mediaEl) sh.mediaEl.pause();
+  else if (sh.kind === 'youtube') sh.ytPlayer?.pauseVideo();
+  else if (sh.timedDurationMs > 0 && sh.hideTimer !== undefined) {
+    window.clearTimeout(sh.hideTimer);
+    sh.hideTimer = undefined;
+    sh.timedElapsedMs += Date.now() - sh.timedStartTs; // bank the elapsed slice
   }
-  emitProgress();
+  emitProgress(sh);
+  updateSlotDucking(); // a paused video stops competing with the song next door
 }
 
-function resumePlayback(): void {
-  if (!paused || !currentId) return;
-  paused = false;
-  if (mediaEl) void mediaEl.play().catch(() => {});
-  else if (currentKind === 'youtube') ytPlayer?.playVideo();
-  else if (timedDurationMs > 0) {
-    timedStartTs = Date.now();
-    hideTimer = window.setTimeout(finish, Math.max(0, timedDurationMs - timedElapsedMs));
+function resumePlayback(sh: ShowState): void {
+  if (!sh.paused || !sh.currentId) return;
+  sh.paused = false;
+  if (sh.mediaEl) void sh.mediaEl.play().catch(() => {});
+  else if (sh.kind === 'youtube') sh.ytPlayer?.playVideo();
+  else if (sh.timedDurationMs > 0) {
+    sh.timedStartTs = Date.now();
+    sh.hideTimer = window.setTimeout(
+      () => finish(sh),
+      Math.max(0, sh.timedDurationMs - sh.timedElapsedMs),
+    );
   }
-  emitProgress();
+  emitProgress(sh);
+  updateSlotDucking();
 }
 
 /** Stop and reset the progress/pause plumbing (on finish or a new show). */
-function stopProgress(): void {
-  if (progressTimer !== undefined) {
-    window.clearInterval(progressTimer);
-    progressTimer = undefined;
+function stopProgress(sh: ShowState): void {
+  if (sh.progressTimer !== undefined) {
+    window.clearInterval(sh.progressTimer);
+    sh.progressTimer = undefined;
   }
-  paused = false;
-  mediaEl = null;
-  currentKind = null;
-  timedDurationMs = 0;
+  sh.paused = false;
+  sh.mediaEl = null;
+  sh.kind = null;
+  sh.timedDurationMs = 0;
 }
 
-function createMediaElement(payload: MediaPlayPayload, url: string): HTMLElement {
+function createMediaElement(sh: ShowState, payload: MediaPlayPayload, url: string): HTMLElement {
   const volume = Math.min(100, Math.max(0, payload.volume ?? 100)) / 100;
 
   if (payload.kind === 'text') {
@@ -492,7 +562,7 @@ function createMediaElement(payload: MediaPlayPayload, url: string): HTMLElement
     video.src = url;
     video.autoplay = true;
     video.volume = volume;
-    video.addEventListener('ended', () => finish());
+    video.addEventListener('ended', () => finish(sh));
     // OBS allows autoplay with sound; browsers may block it — retry muted.
     video.play().catch(() => {
       video.muted = true;
@@ -502,15 +572,20 @@ function createMediaElement(payload: MediaPlayPayload, url: string): HTMLElement
   }
 
   if (payload.kind === 'youtube') {
-    return createYoutubePlayer(payload);
+    return createYoutubePlayer(sh, payload);
   }
 
   // Audio has nothing to show — render a player with progress + time.
-  return createMusicWidget(payload, url, volume);
+  return createMusicWidget(sh, payload, url, volume);
 }
 
 /** Music widget: filling progress bar + mm:ss time. */
-function createMusicWidget(payload: MediaPlayPayload, url: string, volume: number): HTMLElement {
+function createMusicWidget(
+  sh: ShowState,
+  payload: MediaPlayPayload,
+  url: string,
+  volume: number,
+): HTMLElement {
   const widget = document.createElement('div');
   widget.className = 'music';
 
@@ -533,7 +608,7 @@ function createMusicWidget(payload: MediaPlayPayload, url: string, volume: numbe
   audio.src = url;
   audio.autoplay = true;
   audio.volume = volume;
-  audio.addEventListener('ended', () => finish());
+  audio.addEventListener('ended', () => finish(sh));
 
   const totalSec = () =>
     Number.isFinite(audio.duration) && audio.duration > 0
@@ -554,7 +629,7 @@ function createMusicWidget(payload: MediaPlayPayload, url: string, volume: numbe
 }
 
 /** YouTube embedded IFrame player. Plays to the end; duration reported to server. */
-function createYoutubePlayer(payload: MediaPlayPayload): HTMLElement {
+function createYoutubePlayer(sh: ShowState, payload: MediaPlayPayload): HTMLElement {
   const container = document.createElement('div');
   container.className = 'youtube';
   // Every YouTube clip (song OR video) now lives inside the `.player` card: fill its 16:9 ratio box
@@ -574,8 +649,8 @@ function createYoutubePlayer(payload: MediaPlayPayload): HTMLElement {
   void loadYouTubeApi().then(() => {
     // The show may have changed/ended while the YT API loaded — avoid an orphaned
     // player that keeps playing audio after destroyYoutube().
-    if (currentId !== sid || finishing || !window.YT) return;
-    ytPlayer = new window.YT.Player(mount, {
+    if (sh.currentId !== sid || sh.finishing || !window.YT) return;
+    sh.ytPlayer = new window.YT.Player(mount, {
       videoId,
       width: '100%',
       height: '100%',
@@ -590,29 +665,29 @@ function createYoutubePlayer(payload: MediaPlayPayload): HTMLElement {
       },
       events: {
         onReady: (e) => {
-          if (currentId !== sid || finishing) return;
+          if (sh.currentId !== sid || sh.finishing) return;
           e.target.setVolume(Math.min(100, Math.max(0, payload.volume)));
           e.target.playVideo();
           disableCaptions(e.target);
           const f = e.target.getIframe();
           f.style.width = '100%';
           f.style.height = '100%';
-          reportYoutubeDuration(sid, e.target);
+          reportYoutubeDuration(sh, sid, e.target);
         },
         onStateChange: (e) => {
           // Only react to the current show: an old player may emit a late ENDED
           // after we've switched to the next clip.
-          if (currentId !== sid || !window.YT) return;
-          if (e.data === window.YT.PlayerState.ENDED) finish();
+          if (sh.currentId !== sid || !window.YT) return;
+          if (e.data === window.YT.PlayerState.ENDED) finish(sh);
           else if (e.data === window.YT.PlayerState.PLAYING) {
             disableCaptions(e.target); // captions can re-arm after buffering/ads
-            reportYoutubeDuration(sid, e.target);
+            reportYoutubeDuration(sh, sid, e.target);
           }
         },
         onError: () => {
           // Video won't play (age/region restriction, removed, etc.) — finish now
           // instead of holding an empty frame until the watchdog.
-          if (currentId === sid) finish('error');
+          if (sh.currentId === sid) finish(sh, 'error');
         },
       },
     });
@@ -634,11 +709,11 @@ function disableCaptions(player: YTPlayer): void {
 }
 
 /** Report the clip's real duration to the server, once per show (watchdog + now-playing panel). */
-function reportYoutubeDuration(submissionId: string, player: YTPlayer): void {
-  if (ytReportedSid === submissionId) return;
+function reportYoutubeDuration(sh: ShowState, submissionId: string, player: YTPlayer): void {
+  if (sh.ytReportedSid === submissionId) return;
   const ms = Math.round(player.getDuration() * 1000);
   if (ms > 0) {
-    ytReportedSid = submissionId;
+    sh.ytReportedSid = submissionId;
     socket.emit('playback:duration', submissionId, ms);
   }
 }
@@ -1147,7 +1222,7 @@ function playChime(volume: number): void {
  * Speak name and/or message sequentially (so they don't overlap).
  * Web Speech API has no voices in OBS — play mp3 from the TTS proxy instead.
  */
-function scheduleSpeech(payload: MediaPlayPayload): void {
+function scheduleSpeech(sh: ShowState, payload: MediaPlayPayload): void {
   const parts: ('name' | 'message')[] = [];
   if (payload.tts) parts.push('name');
   if (payload.ttsText) parts.push('message');
@@ -1156,9 +1231,18 @@ function scheduleSpeech(payload: MediaPlayPayload): void {
   let i = 0;
   const next = () => {
     const part = parts[i++];
-    if (!part) return;
+    if (!part) {
+      // Speech over — the song in the other slot can come back up.
+      sh.speaking = false;
+      updateSlotDucking();
+      return;
+    }
     speak(payload.submissionId, part, payload.volume, next);
   };
+  // Ducked for the speech only, not for the whole show: a two-second name must not mute a song for
+  // the eight seconds an image is up.
+  sh.speaking = true;
+  updateSlotDucking();
   // Small delay so speech doesn't overlap the chime.
   window.setTimeout(next, 280);
 }
@@ -1180,15 +1264,15 @@ function speak(
   }
 }
 
-/** Stop and destroy the YouTube player so audio cuts immediately on finish/skip. */
-function destroyYoutube(): void {
-  if (ytPlayer) {
+/** Stop and destroy a slot's YouTube player so audio cuts immediately on finish/skip. */
+function destroyYoutube(sh: ShowState): void {
+  if (sh.ytPlayer) {
     try {
-      ytPlayer.destroy();
+      sh.ytPlayer.destroy();
     } catch {
       /* player may not have been created yet */
     }
-    ytPlayer = null;
+    sh.ytPlayer = null;
   }
 }
 
@@ -1197,44 +1281,86 @@ function destroyYoutube(): void {
  * the same thing: a clip the player refused to play (region lock, age gate, embedding off) never
  * aired, and a request paid for with channel points must get those points back.
  */
-function finish(reason: PlaybackDoneReason = 'ended'): void {
-  if (finishing) return;
-  finishing = true;
-  stopProgress();
-  destroyYoutube();
-  const id = currentId;
-  if (hideTimer !== undefined) {
-    window.clearTimeout(hideTimer);
-    hideTimer = undefined;
+function finish(sh: ShowState, reason: PlaybackDoneReason = 'ended'): void {
+  if (sh.finishing) return;
+  sh.finishing = true;
+  stopProgress(sh);
+  destroyYoutube(sh);
+  const id = sh.currentId;
+  if (sh.hideTimer !== undefined) {
+    window.clearTimeout(sh.hideTimer);
+    sh.hideTimer = undefined;
   }
   // Exit animation, then cleanup and signal the server it can send the next one.
-  const alert = stage.querySelector('.alert');
+  const alert = sh.el.querySelector('.alert');
   alert?.classList.remove('enter');
   alert?.classList.add('exit');
-  exitTimer = window.setTimeout(() => {
-    exitTimer = undefined;
-    stage.replaceChildren();
-    currentId = null;
-    suspendMusic(false); // screen idle → reveal and fade the background music back up
+  sh.exitTimer = window.setTimeout(() => {
+    sh.exitTimer = undefined;
+    sh.el.replaceChildren();
+    sh.currentId = null;
+    sh.speaking = false;
+    // Both stages idle → reveal and fade the background playlist back up.
+    if (!shows.media.currentId && !shows.music.currentId) suspendMusic(false);
+    updateSlotDucking();
     if (id) socket.emit('playback:done', id, reason);
   }, 300);
 }
 
-function clearStage(): void {
-  stopProgress();
-  if (hideTimer !== undefined) {
-    window.clearTimeout(hideTimer);
-    hideTimer = undefined;
+function clearStage(sh: ShowState): void {
+  stopProgress(sh);
+  if (sh.hideTimer !== undefined) {
+    window.clearTimeout(sh.hideTimer);
+    sh.hideTimer = undefined;
   }
   // Cancel a pending exit timer: otherwise a media:play within 300ms of finish()
   // would wipe the already-shown next clip.
-  if (exitTimer !== undefined) {
-    window.clearTimeout(exitTimer);
-    exitTimer = undefined;
+  if (sh.exitTimer !== undefined) {
+    window.clearTimeout(sh.exitTimer);
+    sh.exitTimer = undefined;
   }
-  destroyYoutube();
-  stage.replaceChildren();
+  destroyYoutube(sh);
+  sh.el.replaceChildren();
 }
+
+/**
+ * The one rule that keeps two slots from talking over each other: a post with sound of its own —
+ * a video, an audio file, or one currently speaking its TTS — ducks the song playing next door.
+ * A silent image or gif leaves it alone, which is the entire point of parallel slots.
+ */
+function updateSlotDucking(): void {
+  const sh = shows.media;
+  const sounded =
+    !!sh.currentId &&
+    !sh.paused &&
+    (sh.speaking || sh.kind === 'video' || sh.kind === 'audio' || sh.kind === 'youtube');
+  duckMusicSlot(sounded);
+}
+
+/** Fade the music slot's own player down while something louder is on the main stage. */
+function duckMusicSlot(duck: boolean): void {
+  const sh = shows.music;
+  if (!sh.currentId) return;
+  const player = sh.ytPlayer;
+  if (player) {
+    try {
+      if (duck) player.pauseVideo();
+      else player.playVideo();
+    } catch {
+      /* player not ready yet */
+    }
+  }
+  if (sh.mediaEl) {
+    if (duck) sh.mediaEl.pause();
+    else void sh.mediaEl.play().catch(() => {});
+  }
+}
+
+/** Which slot a show is — for the progress packets the dashboard splits by panel. */
+const slotNameOf = (sh: ShowState): PlaybackSlot => (sh === shows.music ? 'music' : 'media');
+
+/** A post is up on either stage → the background playlist gets out of the way. */
+const duckBackgroundMusic = (): void => suspendMusic(true);
 
 // Donation FX: meteor burst on a full-screen canvas over the media. Canvas is
 // fixed/inset:0 (outside #stage flex), pointer-events:none, self-removes when done.
@@ -1357,7 +1483,7 @@ function hideSizeHint(): void {
 }
 
 function showSizeHint(): void {
-  if (currentId) return; // never over a post on stream
+  if (shows.media.currentId || shows.music.currentId) return; // never over a post on stream
   hideSizeHint();
   const el = document.createElement('div');
   el.className = 'source-hint';
@@ -1600,7 +1726,14 @@ function mountDemoPanel(): void {
       ['youtube', 'YouTube'],
       ['audio', 'Музыка'],
     ] as [MediaKind, string][]
-  ).forEach(([k, label]) => mediaRow.appendChild(btn(label, () => show(demoPayload(k, st)))));
+  ).forEach(([k, label]) =>
+    mediaRow.appendChild(
+      btn(label, () => {
+        const payload = demoPayload(k, st);
+        show(showFor(payload.slot), payload);
+      }),
+    ),
+  );
   panel.appendChild(mediaRow);
 
   section('позиция');
@@ -1730,7 +1863,16 @@ function mountDemoPanel(): void {
     ),
   );
 
-  panel.appendChild(btn('Убрать с экрана', () => finish(), 'clear'));
+  panel.appendChild(
+    btn(
+      'Убрать с экрана',
+      () => {
+        finish(shows.media);
+        finish(shows.music);
+      },
+      'clear',
+    ),
+  );
 
   document.body.appendChild(panel);
 }

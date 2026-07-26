@@ -1,9 +1,22 @@
+/* Two stages, one per playback slot: a song holds #stage-music while images and gifs come and go on
+   #stage. Stacking, bottom-up: background player (5), music slot, media slot, donation FX (50).
+   Anchors are allowed to coincide — the streamer decides where each sits — so the music card simply
+   ends up under the media one rather than being pushed aside. */
 #stage {
   position: fixed;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 10;
+}
+#stage-music {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 8;
 }
 
 .alert {
