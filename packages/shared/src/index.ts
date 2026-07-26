@@ -417,8 +417,15 @@ export interface ServerToViewerEvents {
   'submission:status': (event: SubmissionStatusEvent) => void;
 }
 
+/**
+ * How a show ended. 'error' = the player refused it (region lock, age gate, embedding disabled) —
+ * it was never really on screen, which is what decides whether a paid request gets refunded.
+ * Optional on the wire: overlay bundles older than this send nothing and mean 'ended'.
+ */
+export type PlaybackDoneReason = 'ended' | 'error';
+
 export interface OverlayToServerEvents {
-  'playback:done': (submissionId: string) => void;
+  'playback:done': (submissionId: string, reason?: PlaybackDoneReason) => void;
   /** Overlay learned real clip duration (YouTube: only during playback). */
   'playback:duration': (submissionId: string, durationMs: number) => void;
   /** Live position of the current show, throttled; relayed to the dashboard's progress bar. */

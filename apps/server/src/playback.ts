@@ -18,6 +18,8 @@ import { db } from './db/index';
 import { channelModerators, channels, submissions, users, type SubmissionRow } from './db/schema';
 import { config } from './config';
 import { levelForSender } from './level';
+// Type-only: payout.ts imports roomOf from here, and a value import would close the cycle.
+import type { Payouts } from './media/payout';
 import { speakableText } from './tts';
 import { getUserFromCookieHeader } from './auth';
 
@@ -233,8 +235,19 @@ const PROGRESS_ALIVE_MS = 5_000;
 /** A submission's live spot in the play order — see PlaybackManager.queueState. */
 export type QueueState = { playing: true } | { playing: false; position: number };
 
+/**
+ * How much of a YouTube request must actually have played for it to count as aired. A clip the
+ * player accepted and then dropped (some region locks end the video instead of erroring) reports a
+ * position of about zero, and a request nobody saw must not take the viewer's points.
+ */
+const AIRED_MIN_MS = 10_000;
+/** Same, for a clip whose length we never learned — nothing to take a fraction of. */
+const AIRED_MIN_UNKNOWN_MS = 5_000;
+
 export class PlaybackManager {
   private states = new Map<string, ChannelState>();
+  /** Set after construction (see setPayouts): dust and channel-point refunds ride on playback. */
+  private payouts: Payouts | null = null;
 
   constructor(
     private io: RealtimeServer,
@@ -242,6 +255,11 @@ export class PlaybackManager {
     // recovery/adopt/advance paths log their reasoning; optional to keep tests/sims silent.
     private log?: FastifyBaseLogger,
   ) {}
+
+  /** Wired in index.ts once the channel-points module exists (it is what refunds points). */
+  setPayouts(payouts: Payouts): void {
+    this.payouts = payouts;
+  }
 
   /** Returns queue position (1 = next). */
   enqueue(sub: SubmissionRow): number {
@@ -314,6 +332,8 @@ export class PlaybackManager {
       .update(submissions)
       .set({ status: 'rejected', updatedAt: new Date() })
       .where(eq(submissions.id, submissionId));
+    // Dropped before it ever aired — nobody earns, and points spent on it go back.
+    await this.payouts?.settle(submissionId, 'failed');
     emitSubmissionStatus(this.io, submissionId, 'rejected');
     void this.emitQueue(channelId);
     return true;
@@ -328,7 +348,10 @@ export class PlaybackManager {
       .update(submissions)
       .set({ status: 'rejected', updatedAt: new Date() })
       .where(inArray(submissions.id, ids));
-    for (const id of ids) emitSubmissionStatus(this.io, id, 'rejected');
+    for (const id of ids) {
+      await this.payouts?.settle(id, 'failed');
+      emitSubmissionStatus(this.io, id, 'rejected');
+    }
     void this.emitQueue(channelId);
     return ids.length;
   }
@@ -651,7 +674,8 @@ export class PlaybackManager {
       return;
     }
 
-    this.log?.info({ channelId, submissionId, cause }, 'playback: show ended');
+    const aired = this.aired(st.current, st.progress, cause);
+    this.log?.info({ channelId, submissionId, cause, aired }, 'playback: show ended');
     if (st.watchdog) clearTimeout(st.watchdog);
     st.watchdog = null;
     if (st.deliveryProbe) clearTimeout(st.deliveryProbe);
@@ -660,12 +684,28 @@ export class PlaybackManager {
     st.progress = null;
 
     await this.markPlayed(submissionId);
+    // Dust and channel points ride on this verdict — see Payouts.settle.
+    await this.payouts?.settle(submissionId, aired ? 'aired' : 'failed');
 
     // Clear straggler overlay copies (multiple open tabs etc.).
     this.io.to(roomOf(channelId)).emit('media:skip', submissionId);
     this.io.to(dashboardRoomOf(channelId)).emit('playback:ended', submissionId);
     emitSubmissionStatus(this.io, submissionId, 'played');
     void this.tryNext(channelId);
+  }
+
+  /**
+   * Did this show really happen? Only YouTube can lie about it: the player accepts the video, the
+   * frame stays black (region lock, age gate) and it ends at once — indistinguishable from a normal
+   * finish except by how far the position got. Everything else we render ourselves, so it aired.
+   */
+  private aired(sub: SubmissionRow, progress: ChannelState['progress'], cause: string): boolean {
+    if (cause === 'overlay-error') return false;
+    if (sub.kind !== 'youtube') return true;
+    const positionMs = progress?.submissionId === sub.id ? progress.positionMs : 0;
+    const need =
+      sub.durationMs > 0 ? Math.min(AIRED_MIN_MS, sub.durationMs / 2) : AIRED_MIN_UNKNOWN_MS;
+    return positionMs >= need;
   }
 
   /** Overlay reported real duration of current clip (YouTube). Reconfigure watchdog. */
@@ -1017,8 +1057,14 @@ export function setupRealtime(io: RealtimeServer, app: FastifyInstance): Playbac
           });
           // The media overlay reads this on connect; the chat overlay ignores it.
           socket.emit('music:config', musicConfigFrom(channel));
-          socket.on('playback:done', (submissionId) => {
-            if (typeof submissionId === 'string') void playback.onDone(channel.id, submissionId);
+          socket.on('playback:done', (submissionId, reason) => {
+            if (typeof submissionId !== 'string') return;
+            // 'error' = the player refused the clip; it never aired, whatever the queue thinks.
+            void playback.onDone(
+              channel.id,
+              submissionId,
+              reason === 'error' ? 'overlay-error' : 'overlay-done',
+            );
           });
           socket.on('playback:duration', (submissionId, durationMs) => {
             if (typeof submissionId === 'string' && typeof durationMs === 'number') {

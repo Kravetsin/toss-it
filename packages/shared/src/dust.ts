@@ -38,6 +38,16 @@ export const CHANNEL_POINTS = {
   dustFor(cost: number): number {
     return Math.max(1, Math.floor(cost / CHANNEL_POINTS.pointsPerDust));
   },
+  /**
+   * Dust for a YouTube request bought with points — the same exchange rate, capped at what a web
+   * send pays. A streamer can price their own reward at 1 point (we only bound it at creation), and
+   * a flat payout there would be a dust printer for both sides. Scaling instead of thresholding
+   * keeps it continuous: at this rate the cap is reached at 100 points, and below ~2 it pays
+   * nothing, which is the honest answer for a request that cost nothing.
+   */
+  dustForRequest(cost: number): number {
+    return Math.min(DUST_POINTS.send, Math.floor(cost / CHANNEL_POINTS.pointsPerDust));
+  },
   /** Clamp an arbitrary requested cost into the allowed range (NaN → default). */
   clampCost(cost: number): number {
     if (!Number.isFinite(cost)) return CHANNEL_POINTS.defaultCost;

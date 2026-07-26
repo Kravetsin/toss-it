@@ -513,7 +513,7 @@ export const en: Dict = {
   'dash.channelPointsConnect': 'Connect channel points',
   'dash.channelPointsConnectedAs': 'Connected as {name}',
   'dash.channelPointsDisconnect': 'Disconnect',
-  'dash.channelPointsYoutubeCost': 'Request cost: {cost} points',
+  'dash.channelPointsYoutubeCost': 'Request cost: {cost} points → {dust} dust once it airs',
   'dash.channelPointsRewardCreate': 'Create reward',
   'dash.channelPointsRewardRemove': 'Remove',
   'dash.channelPointsAuthNote':
@@ -522,7 +522,7 @@ export const en: Dict = {
     'Requested videos play on the media overlay — it must be added to OBS.',
   'dash.channelPointsOverlaySetup': 'Set up overlay',
   'dash.channelPointsYoutubeNote':
-    'Viewers spend points to drop a YouTube link into your inbox (+50 ⭐, no login needed).',
+    'Viewers spend points to drop a YouTube link into your inbox — no login needed. Stardust is credited only once the video plays; if it never does, their points come back.',
   'dash.accepting': 'Accepting',
   'dash.acceptingOff': 'Submissions paused',
   'dash.sliderVideo': 'Video: up to {n}s',
@@ -1221,7 +1221,7 @@ export const ru: Dict = {
   'dash.channelPointsConnect': 'Подключить баллы канала',
   'dash.channelPointsConnectedAs': 'Подключено как {name}',
   'dash.channelPointsDisconnect': 'Отключить',
-  'dash.channelPointsYoutubeCost': 'Стоимость заказа: {cost} баллов',
+  'dash.channelPointsYoutubeCost': 'Стоимость заказа: {cost} баллов → {dust} пыли после показа',
   'dash.channelPointsRewardCreate': 'Создать награду',
   'dash.channelPointsRewardRemove': 'Удалить',
   'dash.channelPointsAuthNote':
@@ -1230,7 +1230,7 @@ export const ru: Dict = {
     'Заказанное видео играет на медиа-оверлее — его нужно добавить в OBS.',
   'dash.channelPointsOverlaySetup': 'Настроить оверлей',
   'dash.channelPointsYoutubeNote':
-    'Зрители тратят баллы, чтобы закинуть YouTube-ссылку в предложку (+50 ⭐, без логина).',
+    'Зрители тратят баллы, чтобы закинуть YouTube-ссылку в предложку, без логина. Пыль начисляем, только когда видео сыграет; не сыграло — баллы возвращаются.',
   'dash.accepting': 'Приём включён',
   'dash.acceptingOff': 'Приём остановлен',
   'dash.sliderVideo': 'Видео: до {n} с',
@@ -1932,7 +1932,7 @@ export const uk: Dict = {
   'dash.channelPointsConnect': 'Підключити бали каналу',
   'dash.channelPointsConnectedAs': 'Підключено як {name}',
   'dash.channelPointsDisconnect': 'Відключити',
-  'dash.channelPointsYoutubeCost': 'Вартість замовлення: {cost} балів',
+  'dash.channelPointsYoutubeCost': 'Вартість замовлення: {cost} балів → {dust} пилу після показу',
   'dash.channelPointsRewardCreate': 'Створити нагороду',
   'dash.channelPointsRewardRemove': 'Видалити',
   'dash.channelPointsAuthNote':
@@ -1941,7 +1941,7 @@ export const uk: Dict = {
     'Замовлене відео грає на медіа-оверлеї — його потрібно додати в OBS.',
   'dash.channelPointsOverlaySetup': 'Налаштувати оверлей',
   'dash.channelPointsYoutubeNote':
-    'Глядачі витрачають бали, щоб закинути YouTube-посилання в предложку (+50 ⭐, без логіну).',
+    'Глядачі витрачають бали, щоб закинути YouTube-посилання в предложку, без логіну. Пил нараховуємо, лише коли відео зіграє; не зіграло — бали повертаються.',
   'dash.accepting': 'Прийом увімкнено',
   'dash.acceptingOff': 'Прийом зупинено',
   'dash.sliderVideo': 'Відео: до {n} с',

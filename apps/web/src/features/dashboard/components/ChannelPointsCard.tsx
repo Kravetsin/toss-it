@@ -109,6 +109,9 @@ export function ChannelPointsCard() {
 
   const loading = status === null;
   const stardustDust = CHANNEL_POINTS.dustFor(stardustCost);
+  // A request pays at the same rate but capped at a web send's worth, and only if it reaches the
+  // screen — so the slider shows what the viewer will actually get, not the reward's face value.
+  const ytDust = CHANNEL_POINTS.dustForRequest(ytCost);
 
   return (
     <Card className="flex flex-col gap-3">
@@ -177,7 +180,7 @@ export function ChannelPointsCard() {
           <>
             <Slider
               icon="youtube"
-              label={t('dash.channelPointsYoutubeCost', { cost: ytCost })}
+              label={t('dash.channelPointsYoutubeCost', { cost: ytCost, dust: ytDust })}
               min={CHANNEL_POINTS.minCost}
               max={CHANNEL_POINTS.maxCost}
               step={CHANNEL_POINTS.costStep}

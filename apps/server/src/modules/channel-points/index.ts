@@ -2,6 +2,7 @@ import type { FastifyBaseLogger } from 'fastify';
 import { CHANNEL_POINTS, DUST_POINTS } from '@tmw/shared';
 import { roomOf, type PlaybackManager, type RealtimeServer } from '../../playback';
 import { resolvePlayableYoutube, submitResolvedYoutube } from '../../media/submit';
+import { isRedemptionKnown } from '../../media/payout';
 import { awardDust } from '../twitch-chat/accrual';
 import { ChannelPointsEventSub, type RedemptionEvent } from './eventsub';
 import {
@@ -57,19 +58,23 @@ function rewardText(lang: string | undefined): { title: string; prompt: string }
   return REWARD_TEXT[lang as keyof typeof REWARD_TEXT] ?? REWARD_TEXT.ru;
 }
 
-/** YouTube-request reward text. The reward requires viewer input (they paste the link). */
+/**
+ * YouTube-request reward text. The reward requires viewer input (they paste the link). The prompt
+ * promises the dust only on air, because that is now literally when it is paid — and says the
+ * points come back otherwise, which is the part a viewer needs to trust the reward.
+ */
 const YOUTUBE_TEXT = {
   ru: {
     title: 'Заказать видео с YouTube (Tossit)',
-    prompt: `Вставь ссылку на YouTube — видео сыграет на стриме. +${DUST_POINTS.send} ⭐ звёздной пыли Tossit (залогинься на toss-it.org, чтобы забрать).`,
+    prompt: `Вставь ссылку на YouTube — видео сыграет на стриме. Пыль Tossit начислим, когда сыграет: каждые ${N} балла = 1 ⭐, максимум ${DUST_POINTS.send} ⭐. Не сыграло (регион, возраст, отказ модератора) — баллы вернутся.`,
   },
   uk: {
     title: 'Замовити відео з YouTube (Tossit)',
-    prompt: `Встав посилання на YouTube — відео зіграє на стрімі. +${DUST_POINTS.send} ⭐ зоряного пилу Tossit (залогінься на toss-it.org, щоб забрати).`,
+    prompt: `Встав посилання на YouTube — відео зіграє на стрімі. Пил Tossit нарахуємо, коли зіграє: кожні ${N} бали = 1 ⭐, максимум ${DUST_POINTS.send} ⭐. Не зіграло (регіон, вік, відмова модератора) — бали повернуться.`,
   },
   en: {
     title: 'Request a YouTube video (Tossit)',
-    prompt: `Paste a YouTube link — it plays on stream. +${DUST_POINTS.send} ⭐ Tossit stardust (log in at toss-it.org to claim).`,
+    prompt: `Paste a YouTube link — it plays on stream. Tossit stardust is credited once it does: every ${N} points = 1 ⭐, up to ${DUST_POINTS.send} ⭐. If it never plays (region, age gate, moderator), your points come back.`,
   },
 } as const;
 
@@ -117,6 +122,16 @@ export interface ChannelPointsModule {
     hasStardust: boolean;
     hasYoutube: boolean;
   }>;
+  /**
+   * Report what became of a YouTube request bought with points: aired → FULFILLED (points taken),
+   * anything else → CANCELED (points refunded). Called by the payout layer, which owns the verdict.
+   */
+  settleRedemption(
+    channelId: string,
+    rewardId: string,
+    redemptionId: string,
+    outcome: 'aired' | 'failed',
+  ): Promise<void>;
   debugState(): Promise<{
     running: boolean;
     channels: string[];
@@ -225,7 +240,13 @@ export function createChannelPointsModule(deps: {
 
   /**
    * YouTube-request reward: the viewer's user_input is a link → into the submission pipeline
-   * (moderation + overlay playback), with the normal send-dust reward. Unplayable links are refunded.
+   * (moderation + overlay playback).
+   *
+   * Deliberately NOT fulfill-first, unlike stardust. Buying dust is done the moment it is bought,
+   * but a video request is a promise about the stream: the link may be region-locked for the
+   * streamer, the moderator may drop it, it may sit in the queue until it expires. FULFILLED is
+   * terminal on Twitch, so claiming it here would make those points unrefundable. The redemption
+   * stays pending and is settled by whatever actually happens to the submission (see payout.ts).
    */
   async function processYoutube(
     reward: RewardRecord,
@@ -244,19 +265,9 @@ export function createChannelPointsModule(deps: {
       );
       return;
     }
-    // Fulfill-first (terminal) before submitting/crediting — same refund-loop safety as stardust.
-    const fres = await authorized(reward.channelId, (token) =>
-      fulfillRedemption(token, conn.broadcasterId, reward.rewardId, ev.redemptionId),
-    );
-    if (!fres || !fres.ok) {
-      log.warn(
-        { channelId: reward.channelId, status: fres?.status },
-        'channel-points: youtube fulfill failed',
-      );
-      return;
-    }
-    // Music/video, auto-approve, submission routing and send-dust are shared with the !play chat
-    // command (see media/submit.ts) so a link is treated identically however it arrived.
+    // Music/video, auto-approve and submission routing are shared with the !play chat command (see
+    // media/submit.ts) so a link is treated identically however it arrived. The dust is owed from
+    // here and paid on air, scaled by what the viewer actually spent.
     const { autoApproved } = await submitResolvedYoutube(
       { playback, io },
       {
@@ -265,12 +276,46 @@ export function createChannelPointsModule(deps: {
         resolved,
         senderTwitchId: ev.redeemerId,
         senderName: ev.redeemerName,
+        redemption: {
+          rewardId: reward.rewardId,
+          redemptionId: ev.redemptionId,
+          cost: ev.cost,
+        },
       },
     );
     log.info(
       { channelId: reward.channelId, videoId: resolved.parsed.videoId, autoApproved },
-      'channel-points: youtube submitted',
+      'channel-points: youtube submitted, redemption pending until it airs',
     );
+  }
+
+  /**
+   * The submission's fate, told to Twitch: aired → take the points, anything else → give them back.
+   * Never throws — a settle that fails leaves the redemption pending, which the streamer can still
+   * resolve by hand in their own queue, and that is a better failure than losing the points.
+   */
+  async function settleRedemption(
+    channelId: string,
+    rewardId: string,
+    redemptionId: string,
+    outcome: 'aired' | 'failed',
+  ): Promise<void> {
+    const conn = await getConnection(channelId);
+    if (!conn) return;
+    const res = await authorized(channelId, (token) =>
+      outcome === 'aired'
+        ? fulfillRedemption(token, conn.broadcasterId, rewardId, redemptionId)
+        : cancelRedemption(token, conn.broadcasterId, rewardId, redemptionId),
+    );
+    // 404/400 here usually means the streamer already resolved it by hand in the Twitch queue.
+    if (!res || !res.ok) {
+      log.warn(
+        { channelId, redemptionId, outcome, status: res?.status },
+        'channel-points: could not settle redemption',
+      );
+      return;
+    }
+    log.info({ channelId, redemptionId, outcome }, 'channel-points: redemption settled');
   }
 
   async function onRedemption(ev: RedemptionEvent): Promise<void> {
@@ -300,12 +345,18 @@ export function createChannelPointsModule(deps: {
     }
   }
 
-  /** Drain the UNFULFILLED backlog for every stardust reward on a channel (missed while offline). */
+  /**
+   * Drain the UNFULFILLED backlog of every reward on a channel. EventSub does not replay what it
+   * missed, so anything redeemed while we were down would sit in the streamer's queue forever.
+   *
+   * YouTube requests are now deliberately left UNFULFILLED while they wait their turn, so the
+   * backlog contains two different things: requests we already took (skipped — a payout row exists
+   * for them) and requests we never saw (submitted now, as if they had just arrived).
+   */
   async function sweepUnfulfilled(channelId: string): Promise<void> {
     const conn = await getConnection(channelId);
     if (!conn) return;
     for (const reward of await getRewardsByChannel(channelId)) {
-      if (reward.kind !== 'stardust') continue; // youtube backlog handled by its own flow in Phase 2
       let after: string | undefined;
       let total = 0;
       do {
@@ -319,20 +370,24 @@ export function createChannelPointsModule(deps: {
             user_id: string;
             user_name?: string;
             user_login?: string;
+            user_input?: string;
             reward?: { cost?: number };
           }[];
           pagination?: { cursor?: string };
         };
         for (const r of body.data ?? []) {
-          await processStardust(reward, conn, {
+          if (reward.kind === 'youtube' && (await isRedemptionKnown(r.id))) continue;
+          const ev = {
             broadcasterId: conn.broadcasterId,
             redemptionId: r.id,
             rewardId: reward.rewardId,
             redeemerId: r.user_id,
             redeemerName: r.user_name ?? r.user_login ?? r.user_id,
             cost: typeof r.reward?.cost === 'number' ? r.reward.cost : 0,
-            userInput: '',
-          });
+            userInput: r.user_input ?? '',
+          };
+          if (reward.kind === 'stardust') await processStardust(reward, conn, ev);
+          else if (reward.kind === 'youtube') await processYoutube(reward, conn, ev);
           total += 1;
         }
         after = body.pagination?.cursor;
@@ -560,6 +615,7 @@ export function createChannelPointsModule(deps: {
         hasYoutube: rewards.some((r) => r.kind === 'youtube'),
       };
     },
+    settleRedemption,
     async debugState() {
       const rewards = (await getAllRewards()).map((r) => ({
         rewardId: r.rewardId,

@@ -1,5 +1,12 @@
 import { eq, sql } from 'drizzle-orm';
-import { sqliteTable, text, integer, index, primaryKey } from 'drizzle-orm/sqlite-core';
+import {
+  sqliteTable,
+  text,
+  integer,
+  index,
+  primaryKey,
+  uniqueIndex,
+} from 'drizzle-orm/sqlite-core';
 import type {
   BotLocale,
   ChannelLink,
@@ -463,7 +470,47 @@ export const submissions = sqliteTable(
  */
 export const excludeSelfSends = eq(submissions.isSelfSend, false);
 
+/**
+ * A YouTube request that is paid for only if it actually airs — the dust for both sides, and (when
+ * it came from a channel-points reward) the redemption still waiting for its verdict on Twitch.
+ *
+ * Paying on submit was the old way, and it could not be undone: FULFILLED is terminal on Twitch, so
+ * a video that turned out to be region-locked took the viewer's points with it. A row lives here
+ * from submission until the submission reaches a terminal status, then is settled and deleted.
+ */
+export const submissionPayouts = sqliteTable(
+  'submission_payouts',
+  {
+    submissionId: text('submission_id').primaryKey(),
+    channelId: text('channel_id').notNull(),
+    /** Viewer's twitch id: dust accrues here even before they ever log into Tossit. */
+    senderPlatformUserId: text('sender_platform_user_id').notNull(),
+    /** Channel owner's twitch id — the mirrored half of the dust. */
+    broadcasterId: text('broadcaster_id').notNull(),
+    /** Dust for EACH side once it airs. From the reward's point cost, or the flat !play rate. */
+    dust: integer('dust').notNull(),
+    /** The redemption to settle; null for a !play request, which costs no points. */
+    rewardId: text('reward_id'),
+    redemptionId: text('redemption_id'),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    /**
+     * When the verdict was applied; null = still owed. Kept instead of deleting the row, because
+     * the offline sweep recognises already-handled requests by it — and a settle whose Twitch call
+     * failed leaves the redemption pending, which must not come back as a fresh request.
+     */
+    settledAt: integer('settled_at', { mode: 'timestamp_ms' }),
+  },
+  (t) => [
+    // The offline sweep re-reads Twitch's unfulfilled backlog and must recognise what it already
+    // submitted, or a reconnect would replay every pending request as a new one.
+    uniqueIndex('idx_payouts_redemption')
+      .on(t.redemptionId)
+      .where(sql`redemption_id IS NOT NULL`),
+  ],
+);
+
 export type UserRow = typeof users.$inferSelect;
+export type SubmissionPayoutRow = typeof submissionPayouts.$inferSelect;
 export type UserCosmeticRow = typeof userCosmetics.$inferSelect;
 export type ChannelRow = typeof channels.$inferSelect;
 export type SubmissionRow = typeof submissions.$inferSelect;

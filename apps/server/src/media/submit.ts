@@ -1,16 +1,20 @@
 import crypto from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
-import { DUST_POINTS } from '@tmw/shared';
+import { CHANNEL_POINTS, DUST_POINTS } from '@tmw/shared';
 import { db } from '../db/index';
-import { channels, linkedIdentities, submissions, type SubmissionRow } from '../db/schema';
+import {
+  channels,
+  linkedIdentities,
+  submissionPayouts,
+  submissions,
+  type SubmissionRow,
+} from '../db/schema';
 import {
   dashboardRoomOf,
-  roomOf,
   toLiveSummary,
   type PlaybackManager,
   type RealtimeServer,
 } from '../playback';
-import { awardDust } from '../modules/twitch-chat/accrual';
 import {
   fetchVideoInfo,
   parseYoutube,
@@ -113,8 +117,10 @@ export async function submitResolvedYoutube(
     resolved: ResolvedYoutube;
     senderTwitchId: string;
     senderName: string;
+    /** Present when points were spent: the redemption to settle once the request's fate is known. */
+    redemption?: { rewardId: string; redemptionId: string; cost: number };
   },
-): Promise<{ autoApproved: boolean }> {
+): Promise<{ autoApproved: boolean; submissionId: string }> {
   const { parsed, meta } = input.resolved;
   const isSelfSend = input.senderTwitchId === input.broadcasterId;
   const channel = await db.select().from(channels).where(eq(channels.id, input.channelId)).get();
@@ -141,7 +147,7 @@ export async function submitResolvedYoutube(
       ),
     )
     .get();
-  await createYoutubeSubmission(deps, {
+  const row = await createYoutubeSubmission(deps, {
     channelId: input.channelId,
     senderUserId: link?.userId ?? null,
     senderName: input.senderName,
@@ -156,14 +162,22 @@ export async function submitResolvedYoutube(
     autoApproved,
     isSelfSend,
   });
-  // Send dust (mirrored to the owner) unless the broadcaster requested their own video.
+  // Dust is owed, not paid: a link that never reaches the screen (region-locked, rejected, left in
+  // the queue till it expired) pays nobody, and a redemption behind it gets its points back. See
+  // settleSubmission. Self-sends earn nothing at all, so they get no row.
   if (!isSelfSend) {
-    await awardDust(input.senderTwitchId, DUST_POINTS.send);
-    await awardDust(input.broadcasterId, DUST_POINTS.send);
-    deps.io.to(roomOf(input.channelId)).emit('chat:redemption', {
-      name: input.senderName,
-      dust: DUST_POINTS.send,
+    await db.insert(submissionPayouts).values({
+      submissionId: row.id,
+      channelId: input.channelId,
+      senderPlatformUserId: input.senderTwitchId,
+      broadcasterId: input.broadcasterId,
+      dust: input.redemption
+        ? CHANNEL_POINTS.dustForRequest(input.redemption.cost)
+        : DUST_POINTS.send,
+      rewardId: input.redemption?.rewardId ?? null,
+      redemptionId: input.redemption?.redemptionId ?? null,
+      createdAt: new Date(),
     });
   }
-  return { autoApproved };
+  return { autoApproved, submissionId: row.id };
 }

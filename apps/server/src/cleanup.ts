@@ -3,6 +3,7 @@ import type { FastifyBaseLogger } from 'fastify';
 import { db } from './db/index';
 import { submissions } from './db/schema';
 import { config } from './config';
+import type { Payouts } from './media/payout';
 import type { Storage } from './storage';
 
 /**
@@ -16,9 +17,12 @@ export function startCleanup(
   storage: Storage,
   log: FastifyBaseLogger,
   liveChannelIds: () => string[],
+  payouts: Payouts,
 ): NodeJS.Timeout {
   const timer = setInterval(() => {
-    sweep(storage, log, liveChannelIds()).catch((err) => log.error(err, 'cleanup sweep failed'));
+    sweep(storage, log, liveChannelIds(), payouts).catch((err) =>
+      log.error(err, 'cleanup sweep failed'),
+    );
   }, config.cleanup.intervalMs);
   timer.unref();
   return timer;
@@ -28,6 +32,7 @@ async function sweep(
   storage: Storage,
   log: FastifyBaseLogger,
   liveChannelIds: string[],
+  payouts: Payouts,
 ): Promise<void> {
   const now = Date.now();
 
@@ -64,6 +69,8 @@ async function sweep(
       },
       'cleanup: queued submissions expired past TTL — these left their channel queue',
     );
+    // Waited its whole TTL and never aired: nobody earns dust, and points spent on it go back.
+    for (const d of doomed) await payouts.settle(d.id, 'failed');
   }
 
   // Terminal statuses past retention: delete file, keep row as history.

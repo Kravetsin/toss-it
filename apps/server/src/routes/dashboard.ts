@@ -57,6 +57,7 @@ import {
   validateYoutube,
 } from '../media/youtube';
 import type { TwitchChatModule } from '../modules/twitch-chat/index';
+import type { Payouts } from '../media/payout';
 import { decryptSecret, encryptSecret } from '../crypto';
 import { levelForSender, levelsForSenders } from '../level';
 import {
@@ -75,6 +76,7 @@ export interface DashboardRoutesDeps {
   playback: PlaybackManager;
   io: RealtimeServer;
   twitchChat: TwitchChatModule;
+  payouts: Payouts;
 }
 
 /** Public Donatello callback URL for a channel (where the provider POSTs donations). */
@@ -233,7 +235,7 @@ function toSettings(
 }
 
 export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRoutesDeps): void {
-  const { playback, io } = deps;
+  const { playback, io, payouts } = deps;
 
   /** Chat-dust indicator: /mod state on Twitch is the only source of truth, no toggle. */
   const chatBotInfo = async (
@@ -1260,6 +1262,8 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         .update(submissions)
         .set({ status: 'rejected', updatedAt: new Date() })
         .where(eq(submissions.id, sub.id));
+      // Rejected before it ever aired: no dust for either side, and channel points go back.
+      await payouts.settle(sub.id, 'failed');
       io.to(dashboardRoomOf(channel.id)).emit('moderation:resolved', sub.id);
       emitSubmissionStatus(io, sub.id, 'rejected');
 

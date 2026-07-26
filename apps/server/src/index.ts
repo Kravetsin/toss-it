@@ -104,12 +104,23 @@ const { createChannelPointsModule } = await import('./modules/channel-points/ind
 const channelPoints = createChannelPointsModule({ io, playback, log: app.log });
 channelPoints.start();
 
-registerRoutes(app, { playback, storage, tmpDir, io, twitchChat, channelPoints });
+// Dust and channel-point refunds are decided by what a request actually did on screen, so payouts
+// sit between playback (which knows) and channel-points (which can refund) — hence the late wiring.
+const { createPayouts } = await import('./media/payout');
+const payouts = createPayouts({
+  io,
+  log: app.log,
+  settleRedemption: (channelId, rewardId, redemptionId, outcome) =>
+    channelPoints.settleRedemption(channelId, rewardId, redemptionId, outcome),
+});
+playback.setPayouts(payouts);
+
+registerRoutes(app, { playback, storage, tmpDir, io, twitchChat, channelPoints, payouts });
 
 const { ttsAvailable, ttsBinPath } = await import('./tts');
 app.log.info(`TTS: piper ${ttsAvailable() ? 'available' : 'MISSING'} at ${ttsBinPath}`);
 // Channels with a connected overlay are on air; their queues are exempt from the TTL sweep.
-startCleanup(storage, app.log, () => [...playback.liveChannels().keys()]);
+startCleanup(storage, app.log, () => [...playback.liveChannels().keys()], payouts);
 startBackups(serverRoot, app.log);
 
 if (config.allowFakeAuth) {

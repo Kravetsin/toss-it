@@ -27,6 +27,7 @@ import {
   type MusicCommand,
   type MusicConfig,
   type OverlayPosition,
+  type PlaybackDoneReason,
 } from '@tmw/shared';
 
 // Cosmetic effect CSS is injected from the shared registry (single source across web + overlay).
@@ -439,7 +440,7 @@ function createMediaElement(payload: MediaPlayPayload, url: string): HTMLElement
     video.src = url;
     video.autoplay = true;
     video.volume = volume;
-    video.addEventListener('ended', finish);
+    video.addEventListener('ended', () => finish());
     // OBS allows autoplay with sound; browsers may block it — retry muted.
     video.play().catch(() => {
       video.muted = true;
@@ -480,7 +481,7 @@ function createMusicWidget(payload: MediaPlayPayload, url: string, volume: numbe
   audio.src = url;
   audio.autoplay = true;
   audio.volume = volume;
-  audio.addEventListener('ended', finish);
+  audio.addEventListener('ended', () => finish());
 
   const totalSec = () =>
     Number.isFinite(audio.duration) && audio.duration > 0
@@ -559,7 +560,7 @@ function createYoutubePlayer(payload: MediaPlayPayload): HTMLElement {
         onError: () => {
           // Video won't play (age/region restriction, removed, etc.) — finish now
           // instead of holding an empty frame until the watchdog.
-          if (currentId === sid) finish();
+          if (currentId === sid) finish('error');
         },
       },
     });
@@ -1136,7 +1137,12 @@ function destroyYoutube(): void {
   }
 }
 
-function finish(): void {
+/**
+ * Take the current show off screen. `reason` travels to the server because the two cases are not
+ * the same thing: a clip the player refused to play (region lock, age gate, embedding off) never
+ * aired, and a request paid for with channel points must get those points back.
+ */
+function finish(reason: PlaybackDoneReason = 'ended'): void {
   if (finishing) return;
   finishing = true;
   stopProgress();
@@ -1155,7 +1161,7 @@ function finish(): void {
     stage.replaceChildren();
     currentId = null;
     suspendMusic(false); // screen idle → reveal and fade the background music back up
-    if (id) socket.emit('playback:done', id);
+    if (id) socket.emit('playback:done', id, reason);
   }, 300);
 }
 
