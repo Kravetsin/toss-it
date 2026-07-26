@@ -644,7 +644,7 @@ if (DEMO) {
       userId: 'u5',
       name: 'oldtimer',
       twitchColor: '#f5d76e',
-      cosmetics: { cardEffect: 'card-sakura', seal: 'seal-nova' },
+      cosmetics: { cardEffect: 'card-sakura', seal: 'seal-swarm' },
       isFounder: false,
       level: 10,
       badges: [MODERATOR, VIP],

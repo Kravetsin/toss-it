@@ -1429,6 +1429,13 @@ interface DemoState {
   seal: string;
 }
 
+/** Tint shown for each colourable seal in the demo, so the colour upgrade is visible with no picker. */
+const SEAL_DEMO_COLORS: Record<string, string | undefined> = {
+  'seal-core': '#5ad1ff',
+  'seal-hourglass': '#7cff4f',
+  'seal-swarm': '#c9b6ff',
+};
+
 function demoPayload(kind: MediaKind, st: DemoState): MediaPlayPayload {
   const base: MediaPlayPayload = {
     submissionId: `demo-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
@@ -1448,13 +1455,9 @@ function demoPayload(kind: MediaKind, st: DemoState): MediaPlayPayload {
     senderEffect: st.sender && st.nickGlow ? 'nick-glow' : undefined,
     senderCardEffect: st.cardEffect !== 'none' ? st.cardEffect : undefined,
     senderSeal: st.sender && st.seal !== 'none' ? st.seal : undefined,
-    // Demo the seal colour upgrade on the colourable seals, without a picker.
-    senderSealColor:
-      st.sender && st.seal === 'seal-core'
-        ? '#5ad1ff'
-        : st.sender && st.seal === 'seal-hourglass'
-          ? '#7cff4f'
-          : undefined,
+    // Demo the seal colour upgrade on the colourable seals, without a picker. A table rather than a
+    // ternary chain, so the next colourable seal is one line.
+    senderSealColor: st.sender ? SEAL_DEMO_COLORS[st.seal] : undefined,
     // Demo a non-default butterfly colour so the card-colour upgrade shows on the stage without a picker.
     senderCardEffectColor: st.cardEffect === 'card-butterflies' ? '#5ad1ff' : undefined,
     senderEntrance: st.entrance !== 'none' ? st.entrance : undefined,

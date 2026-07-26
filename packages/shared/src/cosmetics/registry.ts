@@ -43,6 +43,7 @@ import { sealNovaEmber, sealNova, sealNovaColor } from './effects/seal-nova';
 import { sealVoidCollapsing, sealVoid, sealVoidColor } from './effects/seal-void';
 import { sealCoreCold, sealCore, sealCoreColor } from './effects/seal-core';
 import { sealHourglassGlass, sealHourglass, sealHourglassColor } from './effects/seal-hourglass';
+import { sealSwarmHandful, sealSwarm, sealSwarmColor } from './effects/seal-swarm';
 import { entranceGlitch } from './effects/entrance-glitch';
 import { entranceAstral } from './effects/entrance-astral';
 import { entrancePortal } from './effects/entrance-portal';
@@ -234,10 +235,14 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   frameWater,
   frameStorm,
   // Seals are a separate slot from frames, so a viewer wears one of each rather than choosing.
-  // Grouped by earning axis: the nova on submissions, the black hole on lifetime dust earned.
+  // Grouped by earning axis: the nova on submissions, then the two halves of the wallet — the swarm
+  // on dust EARNED (what you still hold) and the black hole on dust SPENT (what is gone for good).
   sealNovaEmber,
   sealNova,
   sealNovaColor,
+  sealSwarmHandful,
+  sealSwarm,
+  sealSwarmColor,
   sealVoidCollapsing,
   sealVoid,
   sealVoidColor,
