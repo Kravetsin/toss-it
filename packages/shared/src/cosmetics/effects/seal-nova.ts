@@ -2,42 +2,152 @@ import type { SealModule } from '../types';
 
 /**
  * The Supernova: the SUBMISSIONS seal — the site's own spark is what a submission is worth, so the
- * sender's mark is that spark going off. Replaces the old ringed star, which failed for a reason worth
- * keeping written down: it was a figure stamped INSIDE a disc, and an emblem in a frame reads as a UI
- * icon no matter how it is shaded or spun. The butterfly and the eye work because they are the object
- * itself. So is this — there is no surround, the seal IS the star.
+ * sender's mark is that spark, and what circles it is what it threw off.
  *
- * Two rungs only (see the ladder note): the colour upgrade carries the rest of the progression, the
- * same trick the butterfly and the eye use. Fewer states to design, and the top one is customised
- * rather than merely brighter.
- *  - EMBER — the star before it goes: the same spark, dimmed and desaturated, no shockwave. Cold.
- *  - NOVA  — it detonates: hot white core, and shockwave rings racing outward on repeat, glowing.
+ * The shockwave is GONE. It was a drawn circle, the only piece of pure geometry in the set, and
+ * nothing could interact with it: whatever phase the star's light was given, the ring either flashed
+ * over a wave that had not travelled or peaked over one that had already dissolved. Orbiting matter
+ * has the life the ring never had — the same reason the core, the black hole, the hourglass and the
+ * swarm are all built out of moving marks.
  *
- * The silhouette is a spark with UNEVEN rays — the vertical pair runs the full height, the horizontal
- * pair stops well short. That asymmetry is what stops it reading as a symmetric little cross (the old
- * star's problem) and it survives 14px, since the long axis stays legible when detail is gone.
+ * ONE plane, not two. A crossed pair was tried first and failed for a reason worth keeping written
+ * down: two orbits of the same width and depth differ only by their tilt, and sparse marks give the
+ * eye nothing to trace, so the pair reads as one cloud rather than as two rings. Making each ring
+ * dense enough to be traceable is the fix, and it is unaffordable — this seal lives at 15px in the
+ * chat gutter, where two dozen marks turn to mush.
  *
- * Layers, and why they are split this way: the element is an UNMASKED container so its glow is free to
- * bloom (a `mask` is applied after `filter`, so a drop-shadow on a masked element gets clipped away to
- * that mask — see card-butterflies, which learned this the hard way). `::before` is the spark: a
- * radial-gradient painted through the spark mask, so the hot white core and the tinted body are one
- * layer and both follow `--seal-tint`. `::after` is the shockwave.
+ * REAL ORBITAL DEPTH, which SVG cannot do directly: paint order is document order, so one node cannot
+ * move behind the star mid-lap. So the ring is drawn TWICE — one copy before the star, one after —
+ * and each copy is visible for exactly the half of the lap where it belongs. The handoff happens at
+ * the ellipse's left and right vertices, where both copies sit at the same point, so it is invisible.
+ * This is the hourglass's ring and the black hole's orbit; the shared keyframes are what make it cheap
+ * to give the far half a smaller scale and a lower opacity, which is the cue that sells the tilt.
+ *
+ * The star is inner markup rather than a masked pseudo-element now, because layer order IS the depth
+ * here and a pseudo-element cannot be sandwiched between two halves of a ring. Its shading is a
+ * radial gradient whose stops are coloured from CSS, so `--seal-tint` still repaints the whole thing.
+ *
+ * Two rungs plus an earned colour upgrade. The tier is the ring's DENSITY — 6 marks against 12 — the
+ * core's ladder rule, and the one thing an orbit can honestly say "more" with.
  */
 
-// The spark, as a MASK (white = painted): vertical rays span the full box, horizontal ones stop at
-// 3.4/20.6. Drawn as a mask rather than a filled image so the colour comes from CSS and `--seal-tint`
-// can repaint the whole thing (a baked fill inside a data-URI cannot be themed).
+const CX = 12;
+const CY = 12;
+
+/** The spark: UNEVEN rays — the vertical pair spans the full height, the horizontal pair stops at
+ *  3.4/20.6. The asymmetry is what stops it reading as a symmetric little cross, and it is what
+ *  survives 14px, where the long axis is the last thing left. */
 const SPARK =
-  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M12 0 C12 8.4 9.8 11.2 3.4 12 C9.8 12.8 12 15.6 12 24 C12 15.6 14.2 12.8 20.6 12 C14.2 11.2 12 8.4 12 0 Z'/%3E%3C/svg%3E\") center/contain no-repeat";
+  'M12 0 C12 8.4 9.8 11.2 3.4 12 C9.8 12.8 12 15.6 12 24 C12 15.6 14.2 12.8 20.6 12 C14.2 11.2 12 8.4 12 0 Z';
 
-/** One detonation: the star's pulse and the shockwave share THIS period, and the wave leaves at 0%,
- *  the star's brightest instant. The glow deliberately takes no part — it is constant (see below),
- *  because a second pulsing thing always ended up looking like it ran on its own clock. */
+/** The star's own beat: brightest at 0%, then it dims — it spends itself. The pulse is in LIGHT, not
+ *  in size: the ray tips sit on the edge of the box, so resizing the spark moved four points at once
+ *  and read as a twitch at 15px. The cold rung runs the same pulse, slower. */
 const PULSE = 2.8;
+const PULSE_COLD = 5.2;
 
-/** Shared shell for both rungs; only the state (cold vs detonating) differs. */
+/** The orbit. Wide and shallow — seen from slightly above, then tilted per plane in the markup. */
+const RX = 9.9;
+const RY = 3.1;
+/** Orbit samples. At 15° the chord sits under 1% off the true ellipse — the figure the black hole and
+ *  the hourglass both settled on. */
+const STEPS = 24;
+/** The plane's tilt. Steeper than the hourglass's -18°, which is most of what stops the two rings
+ *  reading as the same relic on a different seal. */
+const TILT = -34;
+/** One lap. Marks share it and are spread around the ring by negative delays. */
+const LAP = 8.4;
+/** The FULL ring. The lower rung renders every other mark of this same list, so a mark keeps its class
+ *  — and therefore its phase and its resting position — across both rungs. ROUND dots, not the
+ *  hourglass's radial shards: a sliver aimed at the centre fights the spark's own rays. */
+const MARKS = 12;
+/** Every third mark is bigger and white — the hotspot convention of the set, and an even ring of
+ *  identical dots reads as a loading spinner. Thirds against halves is also what keeps the lower rung
+ *  from inheriting an all-big or all-small ring. */
+const DOT = { big: 0.72, small: 0.5 };
+
+/** Where a mark sits on its plane at a point of the lap, and how near it is (0 far, 1 near). */
+function at(p: number) {
+  const th = p * Math.PI * 2;
+  return {
+    x: CX + RX * Math.cos(th),
+    y: CY + RY * Math.sin(th),
+    near: Math.sin(th) > 0,
+    depth: (Math.sin(th) + 1) / 2,
+  };
+}
+
+const scaleAt = (depth: number) => 0.66 + depth * 0.62;
+const opacityAt = (depth: number) => 0.4 + depth * 0.6;
+
+/** One copy of a plane's lap: the far half is drawn at opacity 0 so the other copy carries it. */
+function orbitFrames(name: string, front: boolean): string {
+  let out = `@keyframes ${name} {\n`;
+  for (let i = 0; i <= STEPS; i++) {
+    const p = i / STEPS;
+    const { x, y, near, depth } = at(p);
+    const opacity = near === front ? opacityAt(depth).toFixed(2) : '0';
+    out +=
+      `  ${(p * 100).toFixed(2)}% { transform: translate(${x.toFixed(2)}px, ${y.toFixed(2)}px) ` +
+      `scale(${scaleAt(depth).toFixed(2)}); opacity: ${opacity}; }\n`;
+  }
+  return `${out}}\n`;
+}
+
+const ORBIT_CSS = `${orbitFrames('seal-nova-front', true)}${orbitFrames('seal-nova-back', false)}`;
+
+/**
+ * Marks carry no cx/cy — the keyframes place them — so with the animation off they would all pile
+ * onto the 0% point and the orbit would collapse to a dot. Each mark gets a resting spot for its own
+ * phase instead, and only the copy on the right side of the lap is shown, which paints the same two
+ * rings standing still.
+ */
+const STILL_CSS = `@media (prefers-reduced-motion: reduce) {
+${Array.from({ length: MARKS }, (_, i) => {
+  const { x, y, near, depth } = at(i / MARKS);
+  return (
+    `  .seal-fx .nv-p${i} {\n` +
+    `    transform: translate(${x.toFixed(2)}px, ${y.toFixed(2)}px) scale(${scaleAt(depth).toFixed(2)});\n` +
+    `    opacity: 0;\n  }\n` +
+    `  .seal-fx .nv-${near ? 'f' : 'b'}.nv-p${i} {\n    opacity: ${opacityAt(depth).toFixed(2)};\n  }`
+  );
+}).join('\n')}
+}`;
+
+/** Half of the ring. Each mark's delay is its place around the lap, so the two copies of the same mark
+ *  stay welded and the marks stay evenly spread whichever rung renders them. */
+const ring = (side: 'f' | 'b', dense: boolean) =>
+  `<g transform="rotate(${TILT} ${CX} ${CY})">` +
+  Array.from({ length: MARKS }, (_, i) => i)
+    .filter((i) => dense || i % 2 === 0)
+    .map((i) => {
+      const big = i % 3 === 0;
+      const delay = (-(i / MARKS) * LAP).toFixed(2);
+      return (
+        `<circle class="nv-m nv-${side} nv-p${i}${big ? ' nv-w' : ''}" ` +
+        `r="${big ? DOT.big : DOT.small}" style="animation-delay:${delay}s"/>`
+      );
+    })
+    .join('') +
+  `</g>`;
+
+/** Layer order IS the depth: far half, star, near half over the lot. The gradient id is per-rung
+ *  because the shop shows the whole ladder at once and a duplicate id would resolve to the first. */
+const svgFor = (dense: boolean, gid: string) =>
+  `<svg viewBox="0 0 24 24" aria-hidden="true">` +
+  `<defs><radialGradient id="${gid}" gradientUnits="userSpaceOnUse" cx="${CX}" cy="${CY}" r="13">` +
+  `<stop class="nv-hot" offset="0"/><stop class="nv-hot" offset="0.05"/>` +
+  `<stop class="nv-cool" offset="0.34"/><stop class="nv-cool" offset="1"/>` +
+  `</radialGradient></defs>` +
+  ring('b', dense) +
+  `<path class="nv-star" d="${SPARK}" fill="url(#${gid})"/>` +
+  ring('f', dense) +
+  `</svg>`;
+
+/** Shared shell for both rungs; only the number of planes and the pace differ. */
 function nova(rung: { id: string; count: number; className: string; lit: boolean }): SealModule {
   const c = rung.className;
+  const gid = `seal-nova-g-${rung.lit ? 'hot' : 'cold'}`;
   return {
     id: rung.id,
     type: 'seal',
@@ -48,43 +158,24 @@ function nova(rung: { id: string; count: number; className: string; lit: boolean
     ladder: 'seal-nova',
     className: c,
     labels: { name: 'shop.sealNova', desc: 'shop.sealNovaDesc' },
+    svg: svgFor(rung.lit, gid),
     css: `
-.${c} {
-  position: relative;
-  ${
-    rung.lit
-      ? // A STEADY glow. Every phase tried for a pulsing one fought the shockwave for the eye —
-        // whatever the timing, one of the two always looked like it was on its own clock. A constant
-        // bloom just states "this star is lit" and leaves the motion to the ring.
-        `filter: drop-shadow(0 0 0.1em var(--seal-tint, #8df0cc))
-    drop-shadow(0 0 0.24em var(--seal-tint, #8df0cc));`
-      : // Cold rung: whatever colour the viewer picked, dimmed and drained — a star that has not gone
-        // off yet. Tier stays legible even when the seal is recoloured.
-        `filter: brightness(0.62) saturate(0.72);`
-  }
+/* Geometry shared by both rungs, scoped under .seal-fx so these short class names cannot collide with
+   anything outside a seal. Emitted by each rung; the duplicate in the concatenated sheet is inert. */
+.seal-fx .nv-star {
+  transform-box: view-box;
+  transform-origin: ${CX}px ${CY}px;
+  animation: seal-nova-pulse ${PULSE}s ease-in-out infinite;
 }
-/* The spark. The gradient IS the shading — a hot white core bleeding into the tint — so the body is
-   never the flat single fill that made the old star look like cut paper. */
-.${c}::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(
-    circle at 50% 50%,
-    #ffffff 0 5%,
-    var(--seal-tint, #8df0cc) 34%,
-    var(--seal-tint, #8df0cc) 100%
-  );
-  -webkit-mask: ${SPARK};
-  mask: ${SPARK};
-  animation: seal-nova-pulse ${rung.lit ? `${PULSE}s` : '5.2s'} ease-in-out infinite;
+/* The gradient IS the shading — a hot white core bleeding into the tint — so the star is never the
+   flat single fill that made the old ringed star look like cut paper. Stops are coloured from CSS
+   rather than baked into the markup, which is what keeps --seal-tint able to repaint it. */
+.seal-fx .nv-hot {
+  stop-color: #ffffff;
 }
-/* The star pulses in LIGHT, not in size. Resizing the spark was the wrong axis: its ray tips sit on
-   the very edge of the box, so every swell moved four points at once and read as a twitch at 15px —
-   no easing fixed that, because the easing was never the problem. Brightest at 0%, when the wave is
-   released, then it dims while the wave travels: the star spends itself. The 2% of scale left in is
-   there only so the pulse is not purely tonal, which goes flat on a dark backdrop.
-   Both rungs run this same pulse — the ember just runs it slower, under its own dimming filter. */
+.seal-fx .nv-cool {
+  stop-color: var(--seal-tint, #8df0cc);
+}
 @keyframes seal-nova-pulse {
   0%, 100% {
     filter: brightness(1.38);
@@ -95,59 +186,37 @@ function nova(rung: { id: string; count: number; className: string; lit: boolean
     transform: scale(1);
   }
 }
+.seal-fx .nv-m {
+  fill: var(--seal-tint, #8df0cc);
+  transform-box: view-box;
+  animation: seal-nova-back ${LAP}s linear infinite;
+}
+.seal-fx .nv-f {
+  animation-name: seal-nova-front;
+}
+/* White marks stay white whatever the tint. Declared AFTER .nv-m: same specificity, so the later rule
+   is what keeps them white. */
+.seal-fx .nv-w {
+  fill: #ffffff;
+}
+${ORBIT_CSS}${STILL_CSS}
 ${
   rung.lit
-    ? `/* The shockwave: a ring racing out from the core, on repeat. opacity 0 is the RESTING state, so
-   reduced-motion (which kills the animation) leaves no stray ring parked around the spark. */
-.${c}::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  border: 0.075em solid var(--seal-tint, #8df0cc);
-  opacity: 0;
-  pointer-events: none;
-  /* Travel and strength are SPLIT into two animations on the same period. A single keyframe set would
-     force one easing on both, and that is what made the wave look switched off: it still had opacity
-     when it ran out of keyframes. Now the front expands linearly — a wavefront does not brake — and
-     the fade is what ends it, partway out, the way a sound wave spends itself. */
-  animation:
-    seal-nova-ring ${PULSE}s linear infinite,
-    seal-nova-ring-fade ${PULSE}s linear infinite;
+    ? `/* A STEADY glow. Every phase tried for a pulsing one fought the rest of the seal for the eye —
+   whatever the timing, one of the two always looked like it ran on its own clock. */
+.${c} {
+  filter: drop-shadow(0 0 0.1em var(--seal-tint, #8df0cc))
+    drop-shadow(0 0 0.24em var(--seal-tint, #8df0cc));
+}`
+    : // Cold rung: a thinner ring, a slower pulse, and whatever colour the viewer picked dimmed and drained
+      // — a star that has not gone off yet. Doubled selector beats the shared block, which the lit rung
+      // emits again AFTER these rules; at equal specificity its duration would win.
+      `.${c} {
+  filter: brightness(0.62) saturate(0.72);
 }
-/* Travel only, and it runs past where the wave becomes invisible: nothing must be moving at the
-   instant it disappears, or the eye reads a stop rather than a wave going quiet. */
-@keyframes seal-nova-ring {
-  0% {
-    transform: scale(0.16);
-  }
-  100% {
-    transform: scale(1.3);
-  }
-}
-/* Strength only. Hand-shaped decay — steep at first, then a long faint tail that reaches zero around
-   three quarters out, well before the front runs out of room. Interpolation stays linear so the curve
-   is exactly these stops and nothing else. */
-@keyframes seal-nova-ring-fade {
-  0% {
-    opacity: 0.9;
-  }
-  30% {
-    opacity: 0.6;
-  }
-  55% {
-    opacity: 0.32;
-  }
-  72% {
-    opacity: 0.11;
-  }
-  84%,
-  100% {
-    opacity: 0;
-  }
-}
-`
-    : ''
+.seal-fx.${c} .nv-star {
+  animation-duration: ${PULSE_COLD}s;
+}`
 }
 `,
   };
