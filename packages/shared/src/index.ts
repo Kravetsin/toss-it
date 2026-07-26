@@ -592,6 +592,7 @@ export interface UploadResponse {
 export * from './cosmetics';
 export * from './dust';
 export * from './level';
+export * from './realtime';
 export * from './theme';
 
 /** Validate a #rrggbb hex color (exactly 6 hex digits, no alpha). */

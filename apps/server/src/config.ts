@@ -118,6 +118,25 @@ export const config = {
   /** Slack on watchdog timer: if overlay sends no done within durationMs + this, treat show as finished. */
   watchdogGraceMs: 10_000,
 
+  /**
+   * Socket.io tuning for streamers on flaky links (most of ours are). Defaults (25s/20s) leave a
+   * half-open OBS source counted as connected for up to 45s — long enough for the queue to burn
+   * posts into a dead overlay.
+   */
+  realtime: {
+    /** Heartbeat cadence and how long a missed beat is tolerated → a dead socket is seen in ~20s. */
+    pingIntervalMs: Number(process.env.SOCKET_PING_INTERVAL_MS ?? 10_000),
+    pingTimeoutMs: Number(process.env.SOCKET_PING_TIMEOUT_MS ?? 10_000),
+    /** Connection state recovery window: a return within this replays the events missed offline. */
+    recoveryWindowMs: Number(process.env.SOCKET_RECOVERY_WINDOW_MS ?? 120_000),
+    /** A started show the overlay never confirmed (no progress tick) within this is undelivered. */
+    deliveryProbeMs: 8_000,
+    /** Wait before re-offering an undelivered post — the overlay may still be reconnecting. */
+    deliveryRetryMs: 15_000,
+    /** Consecutive undelivered posts before we stop retrying and wait for a fresh overlay connect. */
+    maxUndelivered: 3,
+  },
+
   /** Admin Telegram notifications (new users, etc.). Empty = notifications off. */
   telegram: {
     botToken: process.env.TELEGRAM_BOT_TOKEN ?? '',

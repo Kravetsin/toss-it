@@ -49,7 +49,7 @@ const createRes = await fetch(`${SERVER}/api/channels`, {
   headers: { cookie: streamerCookie },
 });
 assert(createRes.status === 201, `создание канала: ожидал 201, получил ${createRes.status}`);
-const { overlayToken } = (await createRes.json()) as ChannelSelf;
+const { id: channelId, overlayToken } = (await createRes.json()) as ChannelSelf;
 console.log('1. стример залогинен, канал создан');
 
 const plays: MediaPlayPayload[] = [];
@@ -61,10 +61,24 @@ const playbackStarted: SubmissionSummary[] = [];
 const playbackEnded: string[] = [];
 
 const overlaySocket = io(SERVER, { query: { role: 'overlay', token: overlayToken } });
-overlaySocket.on('media:play', (p: MediaPlayPayload) => plays.push(p));
+overlaySocket.on('media:play', (p: MediaPlayPayload) => {
+  plays.push(p);
+  // A real overlay ticks progress from the moment it renders; without that the server treats the
+  // post as never delivered and puts it back in the queue (PlaybackManager.onDeliveryUnconfirmed).
+  overlaySocket.emit('playback:progress', {
+    submissionId: p.submissionId,
+    positionMs: 0,
+    durationMs: p.durationMs,
+    paused: false,
+  });
+});
 overlaySocket.on('media:skip', (id: string) => skips.push(id));
 
-const dashSocket = io(SERVER, { query: { role: 'dashboard', token: overlayToken } });
+// The dashboard role authenticates by session cookie + channelId (moderators have no overlay token).
+const dashSocket = io(SERVER, {
+  query: { role: 'dashboard', channelId },
+  extraHeaders: { cookie: streamerCookie },
+});
 dashSocket.on('moderation:new', (s: SubmissionSummary) => moderationNew.push(s));
 dashSocket.on('moderation:resolved', (id: string) => moderationResolved.push(id));
 dashSocket.on('playback:started', (s: SubmissionSummary) => playbackStarted.push(s));

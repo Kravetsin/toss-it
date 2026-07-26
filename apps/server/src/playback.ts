@@ -204,6 +204,10 @@ interface ChannelState {
   paused: boolean;
   /** Last playback:progress from the overlay for `current` — proof it is genuinely still playing. */
   progress: { at: number; positionMs: number; submissionId: string } | null;
+  /** Armed when a show starts; disarmed by the overlay's first tick. See onDeliveryUnconfirmed. */
+  deliveryProbe: NodeJS.Timeout | null;
+  /** Consecutive shows the overlay never confirmed — bounds retrying into a black hole. */
+  undelivered: number;
 }
 
 /**
@@ -474,14 +478,29 @@ export class PlaybackManager {
    * reported on screen. It worked only sometimes, and the half-adopted state left the two sides
    * disagreeing (the streamer's pause button stopped working). A restart is worse but always the
    * same, which is what a streamer can actually be told to expect after a deploy.
+   *
+   * `recovered` is the one exception, and it is not guesswork: socket.io vouches that this is the
+   * same client back inside the recovery window with every missed event replayed to it, so the clip
+   * on screen never stopped. On a link that blinks every minute, restarting there would mean a clip
+   * that starts over forever and never finishes.
    */
   async onOverlayConnected(
     channelId: string,
     replayTo: (payload: MediaPlayPayload) => void,
+    recovered = false,
   ): Promise<void> {
     const st = this.state(channelId);
+    // A fresh overlay is a fresh chance for posts an earlier one failed to take (see the probe).
+    st.undelivered = 0;
     if (!st.current) {
       void this.tryNext(channelId);
+      return;
+    }
+    if (recovered) {
+      this.log?.info(
+        { channelId, submissionId: st.current.id },
+        'playback: overlay recovered mid-show — keeping it on screen',
+      );
       return;
     }
     const sub = st.current;
@@ -504,6 +523,11 @@ export class PlaybackManager {
       () => void this.onDone(channelId, sub.id, 'watchdog-replay'),
       sub.durationMs > 0 ? sub.durationMs + config.watchdogGraceMs : config.youtube.loadGraceMs,
     );
+    if (st.deliveryProbe) clearTimeout(st.deliveryProbe);
+    st.deliveryProbe = setTimeout(
+      () => void this.onDeliveryUnconfirmed(channelId, sub.id),
+      config.realtime.deliveryProbeMs,
+    );
     replayTo(await this.buildPayload(sub));
   }
 
@@ -515,13 +539,68 @@ export class PlaybackManager {
    */
   onOverlayDisconnected(channelId: string): void {
     const st = this.state(channelId);
+    if (!st.current || this.overlayCount(channelId) > 0) return;
+    // Still armed = the overlay never ticked for this show, so it was never on screen. Letting the
+    // watchdog run its length out would file it as aired; requeue it for the next overlay instead.
+    if (st.deliveryProbe) {
+      clearTimeout(st.deliveryProbe);
+      void this.onDeliveryUnconfirmed(channelId, st.current.id);
+      return;
+    }
     // Only the paused/watchdog-less strand needs rescuing; a playing show already has a watchdog
-    // that will fire. Skip if another overlay is still connected — it drives completion.
-    if (!st.current || st.watchdog || this.overlayCount(channelId) > 0) return;
+    // that will fire.
+    if (st.watchdog) return;
     const sub = st.current;
     const ms =
       sub.durationMs > 0 ? sub.durationMs + config.watchdogGraceMs : config.youtube.loadGraceMs;
     st.watchdog = setTimeout(() => void this.onDone(channelId, sub.id, 'watchdog-orphaned'), ms);
+  }
+
+  /**
+   * Any tick for the current show — paused ones included — proves the overlay really got it and is
+   * on screen. That is what disarms the delivery probe; noteProgress is about position, this is
+   * about existence.
+   */
+  confirmDelivery(channelId: string, submissionId: string): void {
+    const st = this.state(channelId);
+    if (st.current?.id !== submissionId || !st.deliveryProbe) return;
+    clearTimeout(st.deliveryProbe);
+    st.deliveryProbe = null;
+    st.undelivered = 0;
+  }
+
+  /**
+   * The overlay never acknowledged a show we started. It is not on screen and never was, so it must
+   * go back to the queue rather than run its clock out and be marked aired — a post burnt into a
+   * dead overlay is the one failure a viewer can neither see nor retry.
+   */
+  private async onDeliveryUnconfirmed(channelId: string, submissionId: string): Promise<void> {
+    const st = this.state(channelId);
+    if (st.current?.id !== submissionId) return;
+    const sub = st.current;
+    st.undelivered += 1;
+    this.log?.warn(
+      { channelId, submissionId, undelivered: st.undelivered },
+      'playback: overlay never confirmed the show — returning it to the queue',
+    );
+    st.deliveryProbe = null;
+    if (st.watchdog) clearTimeout(st.watchdog);
+    st.watchdog = null;
+    st.current = null;
+    st.progress = null;
+    st.paused = false;
+    // Clear the start stamp too: it is what startup recovery reads as "was mid-show".
+    sub.startedAt = null;
+    await db.update(submissions).set({ startedAt: null }).where(eq(submissions.id, submissionId));
+    st.queue.unshift(sub);
+    this.io.to(dashboardRoomOf(channelId)).emit('playback:ended', submissionId);
+    emitSubmissionStatus(this.io, submissionId, 'approved');
+    void this.emitQueue(channelId);
+    // Retrying at once would just feed the same dead socket. Past a few tries, stop and wait for an
+    // overlay to connect — that path retries on its own (onOverlayConnected).
+    if (st.undelivered < config.realtime.maxUndelivered) {
+      setTimeout(() => void this.tryNext(channelId), config.realtime.deliveryRetryMs);
+    }
   }
 
   /**
@@ -565,6 +644,8 @@ export class PlaybackManager {
     this.log?.info({ channelId, submissionId, cause }, 'playback: show ended');
     if (st.watchdog) clearTimeout(st.watchdog);
     st.watchdog = null;
+    if (st.deliveryProbe) clearTimeout(st.deliveryProbe);
+    st.deliveryProbe = null;
     st.current = null;
     st.progress = null;
 
@@ -661,6 +742,12 @@ export class PlaybackManager {
         () => void this.onDone(channelId, fresh.id, 'watchdog-start'),
         watchdogMs,
       );
+      // A socket we still count as connected can be a dead OBS source (half-open TCP survives the
+      // link dropping). Until the overlay ticks back, this post is not on screen — see the probe.
+      st.deliveryProbe = setTimeout(
+        () => void this.onDeliveryUnconfirmed(channelId, fresh.id),
+        config.realtime.deliveryProbeMs,
+      );
       return;
     }
   }
@@ -744,7 +831,15 @@ export class PlaybackManager {
   private state(channelId: string): ChannelState {
     let st = this.states.get(channelId);
     if (!st) {
-      st = { queue: [], current: null, watchdog: null, paused: false, progress: null };
+      st = {
+        queue: [],
+        current: null,
+        watchdog: null,
+        paused: false,
+        progress: null,
+        deliveryProbe: null,
+        undelivered: 0,
+      };
       this.states.set(channelId, st);
     }
     return st;
@@ -901,6 +996,8 @@ export function setupRealtime(io: RealtimeServer, app: FastifyInstance): Playbac
           // record it: it is the watchdog's only proof the overlay is alive and still playing.
           socket.on('playback:progress', (p) => {
             if (p && typeof p.submissionId === 'string') {
+              // Even a paused tick proves the post reached a live overlay.
+              playback.confirmDelivery(channel.id, p.submissionId);
               if (typeof p.positionMs === 'number' && !p.paused) {
                 playback.noteProgress(channel.id, p.submissionId, p.positionMs);
               }
@@ -913,9 +1010,14 @@ export function setupRealtime(io: RealtimeServer, app: FastifyInstance): Playbac
           });
           // Last overlay gone → rescue a paused show from stranding as `current` forever.
           socket.on('disconnect', () => playback.onOverlayDisconnected(channel.id));
-          app.log.info({ channelId: channel.id }, 'overlay socket connected');
-          void playback.onOverlayConnected(channel.id, (payload) =>
-            socket.emit('media:play', payload),
+          app.log.info(
+            { channelId: channel.id, recovered: socket.recovered },
+            'overlay socket connected',
+          );
+          void playback.onOverlayConnected(
+            channel.id,
+            (payload) => socket.emit('media:play', payload),
+            socket.recovered,
           );
           return;
         }

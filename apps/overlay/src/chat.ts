@@ -3,7 +3,7 @@ import '@fontsource/jetbrains-mono';
 // different languages, and chat.html was 293 lines of CSS wrapped around 12 of markup.
 import './overlay-base.css';
 import './chat.css';
-import { io, type Socket } from 'socket.io-client';
+import { connectOverlay } from './socket';
 import {
   LEVEL_GLOW_FROM,
   applyEntrance,
@@ -21,8 +21,6 @@ import {
   type ChatOverlayConfig,
   type ChatOverlayMessage,
   type ChatSystemEvent,
-  type OverlayToServerEvents,
-  type ServerToOverlayEvents,
 } from '@tmw/shared';
 
 // Cosmetic effect CSS is injected from the shared registry (single source across web + overlay).
@@ -983,10 +981,7 @@ if (DEMO) {
     window.setInterval(sys, 8300); // periodic !balance answer
   }
 } else {
-  const socket: Socket<ServerToOverlayEvents, OverlayToServerEvents> = io(SERVER_URL, {
-    query: { role: 'overlay', token: token ?? '' },
-  });
-  socket.on('connect', () => console.log('[chat-overlay] connected'));
+  const socket = connectOverlay(SERVER_URL, token ?? '');
   socket.on('chat:config', applyConfig);
   socket.on('chat:message', renderMessage);
   socket.on('chat:redemption', renderRedemption);

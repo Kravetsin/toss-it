@@ -73,8 +73,17 @@ if (config.serveStatic) {
 }
 
 // In dev the overlay is on another origin (vite :5174), so WebSocket needs CORS.
+// Timings are tightened for flaky links, and state recovery lets an overlay that blinked out come
+// back to the events it missed instead of a blank slate — see config.realtime.
 const io: import('./playback').RealtimeServer = new Server(app.server, {
   cors: { origin: true },
+  pingInterval: config.realtime.pingIntervalMs,
+  pingTimeout: config.realtime.pingTimeoutMs,
+  connectionStateRecovery: {
+    maxDisconnectionDuration: config.realtime.recoveryWindowMs,
+    // We authenticate inside the connection handler, not in middleware, so nothing is skipped.
+    skipMiddlewares: true,
+  },
 });
 const playback = setupRealtime(io, app);
 await playback.recoverFromDb();

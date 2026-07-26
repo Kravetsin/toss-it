@@ -2,7 +2,7 @@ import '@fontsource/jetbrains-mono';
 // The stage's looks, next to the code that builds it (see the note in chat.ts).
 import './overlay-base.css';
 import './alert.css';
-import { io, type Socket } from 'socket.io-client';
+import { connectOverlay, type OverlaySocket } from './socket';
 import {
   COSMETICS,
   LEVEL_GLOW_FROM,
@@ -27,8 +27,6 @@ import {
   type MusicCommand,
   type MusicConfig,
   type OverlayPosition,
-  type OverlayToServerEvents,
-  type ServerToOverlayEvents,
 } from '@tmw/shared';
 
 // Cosmetic effect CSS is injected from the shared registry (single source across web + overlay).
@@ -110,9 +108,7 @@ if (!DEMO && !token) {
   throw new Error('overlay token missing');
 }
 
-const socket: Socket<ServerToOverlayEvents, OverlayToServerEvents> = DEMO
-  ? demoSocketStub()
-  : io(SERVER_URL, { query: { role: 'overlay', token: token ?? '' } });
+const socket: OverlaySocket = DEMO ? demoSocketStub() : connectOverlay(SERVER_URL, token ?? '');
 
 let currentId: string | null = null;
 let hideTimer: number | undefined;
@@ -131,7 +127,6 @@ let timedElapsedMs = 0;
 let timedStartTs = 0;
 let progressTimer: number | undefined;
 
-socket.on('connect', () => console.log('[overlay] connected'));
 socket.on('media:play', show);
 socket.on('media:skip', (submissionId) => {
   if (submissionId === currentId) finish();
@@ -1354,7 +1349,7 @@ function resolveMediaUrl(u: string): string {
 }
 
 /** Socket stub for demo (no server): on/emit/close are no-ops. */
-function demoSocketStub(): Socket<ServerToOverlayEvents, OverlayToServerEvents> {
+function demoSocketStub(): OverlaySocket {
   const noop = function (this: unknown) {
     return this;
   };
@@ -1365,7 +1360,7 @@ function demoSocketStub(): Socket<ServerToOverlayEvents, OverlayToServerEvents> 
     connect: noop,
     disconnect: noop,
     close: () => {},
-  } as unknown as Socket<ServerToOverlayEvents, OverlayToServerEvents>;
+  } as unknown as OverlaySocket;
 }
 
 const SAMPLE_IMG = `data:image/svg+xml,${encodeURIComponent(
