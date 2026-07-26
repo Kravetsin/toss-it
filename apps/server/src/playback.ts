@@ -706,7 +706,10 @@ export class PlaybackManager {
     // Retrying at once would just feed the same dead socket. Past a few tries, stop and wait for an
     // overlay to connect — that path retries on its own (onOverlayConnected).
     if (sl.undelivered < config.realtime.maxUndelivered) {
-      setTimeout(() => void this.tryNext(channelId, slot), config.realtime.deliveryRetryMs);
+      setTimeout(
+        () => void this.tryNext(channelId, slot).catch(() => {}),
+        config.realtime.deliveryRetryMs,
+      );
     }
   }
 
@@ -1208,11 +1211,13 @@ export function setupRealtime(io: RealtimeServer, app: FastifyInstance): Playbac
           socket.on('playback:done', (submissionId, reason) => {
             if (typeof submissionId !== 'string') return;
             // 'error' = the player refused the clip; it never aired, whatever the queue thinks.
-            void playback.onDone(
-              channel.id,
-              submissionId,
-              reason === 'error' ? 'overlay-error' : 'overlay-done',
-            );
+            void playback
+              .onDone(
+                channel.id,
+                submissionId,
+                reason === 'error' ? 'overlay-error' : 'overlay-done',
+              )
+              .catch((err) => app.log.error({ err, submissionId }, 'playback done failed'));
           });
           socket.on('playback:duration', (submissionId, durationMs) => {
             if (typeof submissionId === 'string' && typeof durationMs === 'number') {
@@ -1246,11 +1251,17 @@ export function setupRealtime(io: RealtimeServer, app: FastifyInstance): Playbac
             'overlay socket connected',
           );
           playback.emitPresence(channel.id);
-          void playback.onOverlayConnected(
-            channel.id,
-            (payload) => socket.emit('media:play', payload),
-            socket.recovered,
-          );
+          // Caught deliberately: an unhandled rejection here takes the whole process down, and a
+          // crashed server disconnects every overlay on it — the opposite of what this path is for.
+          void playback
+            .onOverlayConnected(
+              channel.id,
+              (payload) => socket.emit('media:play', payload),
+              socket.recovered,
+            )
+            .catch((err) =>
+              app.log.error({ err, channelId: channel.id }, 'overlay connect failed'),
+            );
           return;
         }
 

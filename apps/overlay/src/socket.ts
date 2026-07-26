@@ -22,6 +22,9 @@ const DOT_AFTER_MS = 10_000;
 /** How long the "we're back" blink stays up. */
 const DOT_BACK_MS = 3_000;
 
+/** Gap between reload probes once we are past the offline threshold. */
+const RELOAD_PROBE_MS = 30_000;
+
 /**
  * Where this overlay talks to. Normally wherever it was served from, but ?server= points it
  * elsewhere: if a streamer's ISP blocks our domain the page cannot load at all, and the only way
@@ -49,6 +52,8 @@ export function connectOverlay(serverUrl: string, token: string, kind: OverlayKi
   });
 
   let lastPacketAt = Date.now();
+  /** Last time we asked the server whether a reload would land anywhere (see the tick below). */
+  let lastReloadProbeAt = 0;
   let offlineSince: number | null = null;
   const seen = (): void => {
     lastPacketAt = Date.now();
@@ -86,9 +91,20 @@ export function connectOverlay(serverUrl: string, token: string, kind: OverlayKi
     }
     offlineSince ??= now;
     if (now - offlineSince > DOT_AFTER_MS) dot('down');
-    if (now - offlineSince > SOCKET_RELOAD_AFTER_MS) {
-      console.warn(`[overlay:${kind}] offline too long — reloading`);
-      window.location.reload();
+    if (now - offlineSince > SOCKET_RELOAD_AFTER_MS && now - lastReloadProbeAt > RELOAD_PROBE_MS) {
+      lastReloadProbeAt = now;
+      // Never reload blind. This page came from the server, so reloading while the server is down
+      // swaps a page that keeps retrying for a browser error page that never retries anything —
+      // the overlay would stay dead until someone refreshed the source by hand. Ask first.
+      void fetch(`${serverUrl}/api/ping`, { cache: 'no-store' })
+        .then((res) => {
+          if (!res.ok) return;
+          console.warn(`[overlay:${kind}] offline too long but the server answers — reloading`);
+          window.location.reload();
+        })
+        .catch(() => {
+          // Server still unreachable: stay on the page and let socket.io keep trying.
+        });
     }
   }, TICK_MS);
 
