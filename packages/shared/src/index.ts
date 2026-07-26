@@ -627,11 +627,6 @@ export interface ChannelSettings {
   theme: ChannelTheme;
 }
 
-export interface HistoryEntry extends SubmissionSummary {
-  status: SubmissionStatus;
-  isFounder: boolean;
-}
-
 export interface ListedUser {
   userId: string;
   login: string;

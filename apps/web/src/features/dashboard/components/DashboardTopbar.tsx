@@ -6,7 +6,7 @@ import { IconButton } from '@/ui';
 import { ChannelSwitcher } from './ChannelSwitcher';
 import { OverlayStatus } from './OverlayStatus';
 
-// Sticky topbar: title + channel switcher (left), accepting toggle + history (right).
+// Sticky topbar: title + channel switcher (left), accepting toggle + settings (right).
 // accepting toggle is owner-only, hidden if null. Notification/sound controls live in the app-shell bell.
 export function DashboardTopbar({
   list,
@@ -15,7 +15,6 @@ export function DashboardTopbar({
   onSelect,
   accepting,
   onToggleAccepting,
-  onOpenHistory,
   isOwner,
   presence,
   serverConnected,
@@ -28,7 +27,6 @@ export function DashboardTopbar({
   // null = toggle hidden (owner-only or settings not loaded)
   accepting: boolean | null;
   onToggleAccepting: (v: boolean) => void;
-  onOpenHistory: () => void;
   /** Settings are owner-only, so the gear link hides for moderators. */
   isOwner: boolean;
   presence: OverlayPresence;
@@ -70,12 +68,6 @@ export function DashboardTopbar({
             {accepting ? t('dash.accepting') : t('dash.acceptingOff')}
           </label>
         )}
-        <IconButton
-          name="history"
-          label={t('dash.history')}
-          variant="ghost"
-          onClick={onOpenHistory}
-        />
         {isOwner && (
           <IconButton
             name="settings"

@@ -1,4 +1,4 @@
-import type { HistoryEntry, MediaKind } from '@tmw/shared';
+import type { MediaKind } from '@tmw/shared';
 import { formatDuration, type TFn } from '@/i18n';
 import type { IconName } from '@/ui/icons';
 
@@ -9,14 +9,6 @@ export const KIND_ICON: Record<MediaKind, IconName> = {
   text: 'send',
   youtube: 'play',
   gif: 'image',
-};
-
-export const STATUS_ICON: Record<HistoryEntry['status'], { icon: IconName; cls: string }> = {
-  pending: { icon: 'clock', cls: 'text-warn' },
-  approved: { icon: 'check', cls: 'text-ok' },
-  played: { icon: 'play', cls: 'text-ok' },
-  rejected: { icon: 'close', cls: 'text-danger' },
-  expired: { icon: 'clock', cls: 'text-muted' },
 };
 
 export function formatTrackDuration(kind: MediaKind, durationMs: number, t: TFn): string {

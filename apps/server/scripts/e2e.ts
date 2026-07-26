@@ -371,15 +371,6 @@ overlaySocket.emit('playback:done', closedOwner.body.id);
 console.log('15. стоп-кран: зрителям 403, владельцу можно');
 
 await waitFor(() => playbackEnded.includes(closedOwner.body.id), 'последний показ завершён');
-const history = (await (await dashFetch('/api/dashboard/history')).json()) as {
-  id: string;
-  status: string;
-}[];
-assert(
-  history.some((h) => h.id === first.body.id && h.status === 'played'),
-  'история не содержит проигранную отправку',
-);
-console.log('16. история отдаёт проигранные отправки');
 
 const gif = await upload(streamerCookie, 'scripts/fixtures/anim.gif', 'image/gif', 'anim.gif');
 assert(gif.status === 201, `гифка: ожидал 201, получил ${gif.status}`);
@@ -391,7 +382,7 @@ assert(
   `gif должен перекодироваться в webp, получил ${gifMedia.headers.get('content-type')}`,
 );
 overlaySocket.emit('playback:done', gif.body.id);
-console.log('17. гифка перекодируется в webp и играет');
+console.log('16. гифка перекодируется в webp и играет');
 
 // Stop-switch test above left accepting=false; re-enable intake.
 await dashFetch('/api/dashboard/settings', {
@@ -419,7 +410,7 @@ await waitFor(() => statusEvents.includes('playing'), 'статус playing у �
 overlaySocket.emit('playback:done', watched.body.id);
 await waitFor(() => statusEvents.includes('played'), 'статус played у зрителя');
 viewerSocket.close();
-console.log('18. зритель видит живой статус: pending → approved → playing → played');
+console.log('17. зритель видит живой статус: pending → approved → playing → played');
 
 const board = (await (await fetch(`${SERVER}/api/c/${STREAMER}/leaderboard`)).json()) as {
   userId: string;
@@ -434,7 +425,7 @@ assert(
   board.every((e, i) => i === 0 || board[i - 1]!.count >= e.count),
   'лидерборд должен быть отсортирован по убыванию',
 );
-console.log('19. лидерборд отдаёт топ отправителей, отсортирован по убыванию');
+console.log('18. лидерборд отдаёт топ отправителей, отсортирован по убыванию');
 
 const viewerId = `fake:${VIEWER}`; // viewer was whitelisted in test 6
 const banRes = await fetch(`${SERVER}/api/dashboard/bans/${encodeURIComponent(viewerId)}`, {
@@ -463,7 +454,7 @@ assert(
   `после бана аплоад маскируется под успех, получил ${afterBan.status}`,
 );
 assert(afterBan.body.durationMs === 0, 'после бана — молчаливый отказ (файл не обрабатывается)');
-console.log('20. прямой бан убрал из белого списка и включил молчаливый отказ');
+console.log('19. прямой бан убрал из белого списка и включил молчаливый отказ');
 
 let limited = false;
 for (let i = 0; i < 300 && !limited; i++) {
@@ -471,7 +462,7 @@ for (let i = 0; i < 300 && !limited; i++) {
   if (r.status === 429) limited = true;
 }
 assert(limited, 'rate limit не сработал за 300 запросов подряд');
-console.log('21. глобальный rate limit отвечает 429 при спаме');
+console.log('20. глобальный rate limit отвечает 429 при спаме');
 
 console.log('PASS: все проверки прошли');
 // No process.exit: on Windows it crashes libuv while sockets are live.
