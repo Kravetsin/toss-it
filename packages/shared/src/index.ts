@@ -158,13 +158,18 @@ export interface OverlayLayout {
 }
 
 /**
- * Both anchors at once. Which one a post uses is its own business (audio and YouTube Music go to
- * the music anchor, everything else to the media one), so a live layout change ships both and lets
- * the overlay pick for whatever is currently on screen.
+ * Both anchors at once, plus the switch that routes YouTube between them. A live layout change
+ * ships all three because only the overlay knows what is on screen — audio always takes the music
+ * anchor, YouTube follows the switch, everything else takes the media one.
  */
 export interface OverlayLayouts {
   media: OverlayLayout;
   music: OverlayLayout;
+  /**
+   * The channel's YouTube switch, so a post already on screen can change anchors when it flips —
+   * the overlay knows what is playing, the server only knows what the settings now say.
+   */
+  youtubeAsMusic: boolean;
 }
 
 /** Live status for viewer indicator ('playing' is transient, not persisted). */
@@ -572,6 +577,12 @@ export interface ChannelSettings {
   overlaySize: number;
   /** Edge margin, % of viewport (0-25) — for edge-anchored positions. */
   overlayMargin: number;
+  /**
+   * true = every YouTube post lands in the compact music player, false = the full-size media
+   * anchor. Overrides what we guessed the link was: metadata cannot be trusted to tell a music
+   * video from a video, and a streamer saying "YouTube goes small" means all of it.
+   */
+  youtubeAsMusic: boolean;
   /** true = music player has its own layout (music* fields), else inherits overlay*. */
   musicSeparate: boolean;
   musicPosition: OverlayPosition;

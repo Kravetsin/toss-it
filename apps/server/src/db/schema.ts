@@ -133,6 +133,12 @@ export const channels = sqliteTable('channels', {
   overlayPosition: text('overlay_position').$type<OverlayPosition>().notNull().default('center'),
   overlaySize: integer('overlay_size').notNull().default(80),
   overlayMargin: integer('overlay_margin').notNull().default(0),
+  /**
+   * Where EVERY YouTube post lands: the compact music player (true) or the full-size media anchor.
+   * Default true because most requests are songs, and metadata cannot tell a music video from a
+   * video reliably — the streamer's own switch beats any classifier, so it overrides the guess.
+   */
+  youtubeAsMusic: integer('youtube_as_music', { mode: 'boolean' }).notNull().default(true),
   // Separate layout for the music player when musicSeparate; otherwise inherits overlay*.
   musicSeparate: integer('music_separate', { mode: 'boolean' }).notNull().default(false),
   musicPosition: text('music_position').$type<OverlayPosition>().notNull().default('center'),

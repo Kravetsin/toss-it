@@ -21,6 +21,7 @@ export function MediaLayoutSettings({
   const [position, setPosition] = useState<OverlayPosition>(settings.overlayPosition);
   const [mediaSize, setMediaSize] = useState(settings.overlaySize);
   const [margin, setMargin] = useState(settings.overlayMargin);
+  const [ytAsMusic, setYtAsMusic] = useState(settings.youtubeAsMusic);
   return (
     <div className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
@@ -53,9 +54,22 @@ export function MediaLayoutSettings({
           onChange={setMargin}
         />
       </div>
+      {/* Lives here, next to the big player, because it answers "what even lands in this one". */}
+      <Switch
+        icon="youtube"
+        label={t('dash.youtubeAsMusic')}
+        description={t('settings.youtubeAsMusicNote')}
+        checked={ytAsMusic}
+        onChange={setYtAsMusic}
+      />
       <SaveRow
         onClick={() =>
-          onSave({ overlayPosition: position, overlaySize: mediaSize, overlayMargin: margin })
+          onSave({
+            overlayPosition: position,
+            overlaySize: mediaSize,
+            overlayMargin: margin,
+            youtubeAsMusic: ytAsMusic,
+          })
         }
       />
     </div>

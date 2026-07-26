@@ -219,6 +219,7 @@ function toSettings(
     overlayPosition: ch.overlayPosition,
     overlaySize: ch.overlaySize,
     overlayMargin: ch.overlayMargin,
+    youtubeAsMusic: ch.youtubeAsMusic,
     musicSeparate: ch.musicSeparate,
     musicPosition: ch.musicPosition,
     musicSize: ch.musicSize,
@@ -707,6 +708,8 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
           typeof b.overlayMargin === 'number'
             ? clamp(Math.round(b.overlayMargin), 0, 25)
             : channel.overlayMargin,
+        youtubeAsMusic:
+          typeof b.youtubeAsMusic === 'boolean' ? b.youtubeAsMusic : channel.youtubeAsMusic,
         musicSeparate:
           typeof b.musicSeparate === 'boolean' ? b.musicSeparate : channel.musicSeparate,
         musicPosition: OVERLAY_POSITIONS.includes(b.musicPosition as never)

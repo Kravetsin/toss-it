@@ -379,6 +379,13 @@
       "when": 1785087137758,
       "tag": "0053_smart_quasar",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "6",
+      "when": 1785090822821,
+      "tag": "0054_flat_iron_fist",
+      "breakpoints": true
     }
   ]
 }

@@ -848,6 +848,7 @@ export class PlaybackManager {
         overlayPosition: channels.overlayPosition,
         overlaySize: channels.overlaySize,
         overlayMargin: channels.overlayMargin,
+        youtubeAsMusic: channels.youtubeAsMusic,
         musicSeparate: channels.musicSeparate,
         musicPosition: channels.musicPosition,
         musicSize: channels.musicSize,
@@ -922,6 +923,7 @@ function resolveLayout(
         overlayPosition: MediaPlayPayload['position'];
         overlaySize: number;
         overlayMargin: number;
+        youtubeAsMusic: boolean;
         musicSeparate: boolean;
         musicPosition: MediaPlayPayload['position'];
         musicSize: number;
@@ -932,7 +934,12 @@ function resolveLayout(
   isMusic = false,
 ): Pick<MediaPlayPayload, 'position' | 'size' | 'margin'> {
   if (!channel) return { position: 'center', size: 80, margin: 0 };
-  const isMusicKind = kind === 'audio' || isMusic; // YouTube Music counts alongside audio files.
+  // Uploaded audio has no picture, so it is always the compact player. Everything from YouTube
+  // follows the channel's switch — deliberately overriding what we guessed the link was. Metadata
+  // calls plenty of music videos "Entertainment" and plenty of talks "Music"; a streamer who says
+  // "YouTube goes to the small player" means all of it, and predictable beats clever here. (The
+  // guess still matters elsewhere — auto-approve treats songs and videos differently.)
+  const isMusicKind = kind === 'audio' || (kind === 'youtube' ? channel.youtubeAsMusic : isMusic);
   if (!isMusicKind) {
     return {
       position: channel.overlayPosition,
@@ -957,6 +964,7 @@ export function overlayLayoutsOf(channel: Parameters<typeof resolveLayout>[1]): 
   return {
     media: resolveLayout('image', channel),
     music: resolveLayout('audio', channel),
+    youtubeAsMusic: channel?.youtubeAsMusic ?? true,
   };
 }
 

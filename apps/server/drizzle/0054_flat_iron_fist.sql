@@ -1,0 +1,1 @@
+ALTER TABLE `channels` ADD `youtube_as_music` integer DEFAULT true NOT NULL;

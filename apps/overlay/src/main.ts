@@ -124,8 +124,10 @@ let exitTimer: number | undefined;
 // Playback controls: pause state + progress reporting for the dashboard's now-playing bar.
 let paused = false;
 let currentKind: MediaKind | null = null;
-/** Whether the post on screen is anchored by the channel's music layout rather than its media one. */
-let currentIsMusicLayout = false;
+/** The post on screen is a YouTube one — the channel's YouTube switch decides where it sits. */
+let currentIsYoutube = false;
+/** The post on screen is an uploaded audio file — always the compact player, switch or not. */
+let currentIsAudio = false;
 let mediaEl: HTMLVideoElement | HTMLAudioElement | null = null;
 // Image/gif/text have no player — we track their fixed display window ourselves so it can be frozen.
 let timedDurationMs = 0;
@@ -169,10 +171,12 @@ socket.on('music:command', handleMusicCommand);
 // own layout in the play payload.
 socket.on('media:layout', (layouts) => {
   if (!currentId) return;
+  // Same rule as the server's resolveLayout, re-run against the settings that just changed: the
+  // YouTube switch can move the very video that is playing, and since both anchors render the same
+  // card, it slides across instead of restarting.
+  const music = currentIsYoutube ? layouts.youtubeAsMusic : currentIsAudio;
   const card = stage.querySelector<HTMLElement>('.player');
-  animateLayoutMove(card, () =>
-    applyStageLayout(currentIsMusicLayout ? layouts.music : layouts.media),
-  );
+  animateLayoutMove(card, () => applyStageLayout(music ? layouts.music : layouts.media));
 });
 
 function show(payload: MediaPlayPayload): void {
@@ -187,9 +191,11 @@ function show(payload: MediaPlayPayload): void {
   currentKind = payload.kind;
   suspendMusic(true); // post on screen → fade out, pause and hide the background music
 
-  // Which of the channel's two anchors this post uses — the same rule the server applies when it
-  // builds the payload. Remembered so a later settings change can re-apply the right one.
-  currentIsMusicLayout = payload.kind === 'audio' || !!payload.youtubeMusic;
+  // Which of the channel's two anchors this post uses. The server already decided it for this
+  // payload; we keep the inputs so a later settings change (including the YouTube switch) can
+  // re-decide without waiting for the next post.
+  currentIsYoutube = payload.kind === 'youtube';
+  currentIsAudio = payload.kind === 'audio';
   applyStageLayout(payload);
 
   const url = resolveMediaUrl(payload.url);
