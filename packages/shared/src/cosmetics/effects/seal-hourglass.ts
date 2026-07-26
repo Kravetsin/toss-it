@@ -46,6 +46,9 @@ const ORBIT = 8;
 /** Marks on the ring. Every third is BIG and white — an even ring of identical dots reads as a
  *  loading spinner, which is the same reason the core's marks are uneven. */
 const MARKS = 12;
+/** Mark half-sizes: SHARDS pointing at the glass, not dots. Round dots of a legible diameter turn the
+ *  ring into a chain of blobs, and at 14px a dot is a smudge — a radial sliver keeps a direction. */
+const SHARD = { big: { rx: 0.5, ry: 1.45 }, small: { rx: 0.36, ry: 1 } };
 
 /** Grain sizes, in viewBox units. Every other one is white — the hotspot convention of the set. */
 const GRAINS = [0.42, 0.32, 0.38, 0.3, 0.36];
@@ -80,6 +83,10 @@ const GLASS =
  */
 function orbitFrames(name: string, front: boolean): string {
   let out = `@keyframes ${name} {\n`;
+  // Running total of the shard's heading, UNWRAPPED. atan2 flips between +180 and -180 once a lap, and
+  // an interpolated jump like that spins the shard a full turn in one step; adding whole turns keeps
+  // the sequence monotonic, and one lap lands exactly 360 on from the start, so the loop is seamless.
+  let heading = 0;
   for (let i = 0; i <= STEPS; i++) {
     const p = i / STEPS;
     const th = p * Math.PI * 2;
@@ -91,9 +98,14 @@ function orbitFrames(name: string, front: boolean): string {
     const depth = (Math.sin(th) + 1) / 2;
     const scale = (0.66 + depth * 0.62).toFixed(2);
     const opacity = near === front ? (0.4 + depth * 0.6).toFixed(2) : '0';
+    // Point the shard's long axis (vertical when unrotated) at the centre of the glass. Taken from the
+    // PROJECTED position, so it follows the squashed ellipse rather than a circle's radii.
+    const aim = (Math.atan2(CY - y, CX - x) * 180) / Math.PI - 90;
+    if (i > 0) heading += ((((aim - heading) % 360) + 540) % 360) - 180;
+    else heading = aim;
     out += `  ${(p * 100).toFixed(2)}% { transform: translate(${x.toFixed(2)}px, ${y.toFixed(
       2,
-    )}px) scale(${scale}); opacity: ${opacity}; }\n`;
+    )}px) rotate(${heading.toFixed(1)}deg) scale(${scale}); opacity: ${opacity}; }\n`;
   }
   return `${out}}\n`;
 }
@@ -104,17 +116,18 @@ const ORBIT_CSS = `${orbitFrames('seal-hourglass-front', true)}${orbitFrames(
 )}`;
 
 /**
- * Half of the ring. Marks carry no cx/cy — the keyframes translate them into place — and each one's
- * delay is its position around the orbit, so the pair of copies of the same mark stays welded.
+ * Half of the ring. Shards carry no cx/cy and no rotation of their own — position AND heading come
+ * from the keyframes — and each one's delay is its place around the orbit, so the pair of copies of
+ * the same shard stays welded.
  */
 const ring = (side: 'front' | 'back') =>
   `<g transform="rotate(-18 ${CX} ${CY})">` +
   Array.from({ length: MARKS }, (_, i) => {
-    const big = i % 3 === 0;
+    const s = i % 3 === 0 ? SHARD.big : SHARD.small;
     const delay = (-(i / MARKS) * ORBIT).toFixed(2);
     return (
-      `<circle class="hg-m${side === 'front' ? ' hg-f' : ''}${big ? ' hg-w' : ''}" ` +
-      `r="${big ? 0.62 : 0.42}" style="animation-delay:${delay}s"/>`
+      `<ellipse class="hg-m${side === 'front' ? ' hg-f' : ''}${i % 3 === 0 ? ' hg-w' : ''}" ` +
+      `rx="${s.rx}" ry="${s.ry}" style="animation-delay:${delay}s"/>`
     );
   }).join('') +
   `</g>`;
