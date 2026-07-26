@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
-import { CHANNEL_POINTS, DUST_POINTS } from '@tmw/shared';
+import { CHANNEL_POINTS } from '@tmw/shared';
 import { db } from '../db/index';
 import {
   channels,
@@ -171,9 +171,10 @@ export async function submitResolvedYoutube(
       channelId: input.channelId,
       senderPlatformUserId: input.senderTwitchId,
       broadcasterId: input.broadcasterId,
-      dust: input.redemption
-        ? CHANNEL_POINTS.dustForRequest(input.redemption.cost)
-        : DUST_POINTS.send,
+      // !play costs no points, so it lands on the floor of both rates: a plain send's worth, which
+      // is exactly the web mirror it is meant to be.
+      dust: CHANNEL_POINTS.dustForRequest(input.redemption?.cost ?? 0),
+      mirrorDust: CHANNEL_POINTS.dustForRequest(input.redemption?.cost ?? 0, 'owner'),
       rewardId: input.redemption?.rewardId ?? null,
       redemptionId: input.redemption?.redemptionId ?? null,
       createdAt: new Date(),

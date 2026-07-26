@@ -7,6 +7,10 @@
  * sends, which need the streamer's pick). So dust makes the core action worth doing, while XP stays
  * an unfarmable medal.
  *
+ * One exception, and it is not an accident: a YouTube request (channel-points reward or !play) pays
+ * only once it airs. There the attempt costs the viewer real channel points that we refund when it
+ * doesn't play — paying for the attempt too would turn an unplayable link into free dust.
+ *
  * Ordering invariant: lurker < chatter < sender. A send must stay clearly worth more than idling
  * for the same stretch, or the product's central action becomes the least rewarding one.
  */
@@ -39,14 +43,34 @@ export const CHANNEL_POINTS = {
     return Math.max(1, Math.floor(cost / CHANNEL_POINTS.pointsPerDust));
   },
   /**
-   * Dust for a YouTube request bought with points — the same exchange rate, capped at what a web
-   * send pays. A streamer can price their own reward at 1 point (we only bound it at creation), and
-   * a flat payout there would be a dust printer for both sides. Scaling instead of thresholding
-   * keeps it continuous: at this rate the cap is reached at 100 points, and below ~2 it pays
-   * nothing, which is the honest answer for a request that cost nothing.
+   * Channel points per 1 dust for the STREAMER's mirrored half of a request. Deliberately stingier
+   * than the viewer's rate: the viewer spends points they had to sit through a stream to earn,
+   * while the streamer spends nothing and collects on every request the channel receives. They also
+   * set the price themselves, so a shared rate would let them pick their own payout.
    */
-  dustForRequest(cost: number): number {
-    return Math.min(DUST_POINTS.send, Math.floor(cost / CHANNEL_POINTS.pointsPerDust));
+  ownerPointsPerDust: 10,
+  /**
+   * Dust for a YouTube request, by who is being paid. Same idea for both: the exchange rate, but
+   * never less than a plain send is worth — a request through the reward must not pay less than the
+   * free `!play` for the same video, which is exactly what a bare rate would do at low prices.
+   *
+   * Uncapped on purpose. Twitch pays roughly 2 points per minute watched, so at 2:1 a redemption
+   * converts a viewer's watch time one-for-one into `watchMinute` dust — no inflation against the
+   * rest of the economy. A cap would instead punish saving up: 5000 points is ~40 hours, and paying
+   * a flat 50 for it made one big request far worse value than fifty small ones, which is the spam
+   * we least want. What actually bounds this is airtime — a request pays only once it plays.
+   */
+  dustForRequest(cost: number, side: 'viewer' | 'owner' = 'viewer'): number {
+    if (side === 'owner') return Math.max(DUST_POINTS.send, CHANNEL_POINTS.ownerDustFor(cost));
+    return Math.max(DUST_POINTS.send, Math.floor(cost / CHANNEL_POINTS.pointsPerDust));
+  },
+  /**
+   * The streamer's cut of a redemption, at their own rate. No floor here, unlike a request: a
+   * request is inbox work that a plain send would already pay 50 for, while this is a straight
+   * exchange with nothing arriving — the cut is all there is to it.
+   */
+  ownerDustFor(cost: number): number {
+    return Math.floor(cost / CHANNEL_POINTS.ownerPointsPerDust);
   },
   /** Clamp an arbitrary requested cost into the allowed range (NaN → default). */
   clampCost(cost: number): number {

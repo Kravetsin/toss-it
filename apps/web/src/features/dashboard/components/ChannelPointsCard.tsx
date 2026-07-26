@@ -109,9 +109,11 @@ export function ChannelPointsCard() {
 
   const loading = status === null;
   const stardustDust = CHANNEL_POINTS.dustFor(stardustCost);
-  // A request pays at the same rate but capped at a web send's worth, and only if it reaches the
-  // screen — so the slider shows what the viewer will actually get, not the reward's face value.
+  const stardustOwner = CHANNEL_POINTS.ownerDustFor(stardustCost);
+  // The two halves of a request are priced apart (the viewer spent the points, the streamer didn't),
+  // so the slider shows both — otherwise the streamer's own share is a surprise.
   const ytDust = CHANNEL_POINTS.dustForRequest(ytCost);
+  const ytMirror = CHANNEL_POINTS.dustForRequest(ytCost, 'owner');
 
   return (
     <Card className="flex flex-col gap-3">
@@ -149,13 +151,14 @@ export function ChannelPointsCard() {
           <>
             <Slider
               icon="star"
-              label={t('dash.channelPointsCost', { cost: stardustCost, dust: stardustDust })}
+              label={t('dash.channelPointsCost', { cost: stardustCost })}
               min={CHANNEL_POINTS.minCost}
               max={CHANNEL_POINTS.maxCost}
               step={CHANNEL_POINTS.costStep}
               value={stardustCost}
               onChange={setStardustCost}
             />
+            <PayoutBox viewer={stardustDust} owner={stardustOwner} t={t} />
             <Button
               variant="primary"
               disabled={busy || loading}
@@ -180,13 +183,14 @@ export function ChannelPointsCard() {
           <>
             <Slider
               icon="youtube"
-              label={t('dash.channelPointsYoutubeCost', { cost: ytCost, dust: ytDust })}
+              label={t('dash.channelPointsYoutubeCost', { cost: ytCost })}
               min={CHANNEL_POINTS.minCost}
               max={CHANNEL_POINTS.maxCost}
               step={CHANNEL_POINTS.costStep}
               value={ytCost}
               onChange={setYtCost}
             />
+            <PayoutBox viewer={ytDust} owner={ytMirror} t={t} />
             <Button
               variant="primary"
               disabled={busy || loading}
@@ -240,6 +244,32 @@ function RewardTile({
           {children && <div className="mt-3 flex flex-col gap-2">{children}</div>}
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * What the current slider position pays out, as a fixed two-column plate. The numbers used to ride
+ * inside the slider's own label, where every drag reflowed the line and the text jumped; here the
+ * layout is fixed and only the digits change (tabular figures, so even those hold their width).
+ */
+function PayoutBox({ viewer, owner, t }: { viewer: number; owner: number; t: TFn }) {
+  return (
+    <div className="grid grid-cols-2 gap-px overflow-hidden rounded-[var(--radius-sm)] border border-border bg-border">
+      <PayoutCell label={t('dash.payoutViewer')} dust={viewer} />
+      <PayoutCell label={t('dash.payoutOwner')} dust={owner} />
+    </div>
+  );
+}
+
+function PayoutCell({ label, dust }: { label: string; dust: number }) {
+  return (
+    <div className="flex flex-col gap-0.5 bg-surface-2/60 px-3 py-2">
+      <span className="label-mono text-[11px] text-faint">{label}</span>
+      <span className="flex items-center gap-1.5 text-sm text-text tabular-nums">
+        <DustMark size={12} className="shrink-0 text-accent" />
+        {dust}
+      </span>
     </div>
   );
 }

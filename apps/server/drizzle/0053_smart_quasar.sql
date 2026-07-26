@@ -1,0 +1,1 @@
+ALTER TABLE `submission_payouts` ADD `mirror_dust` integer DEFAULT 0 NOT NULL;

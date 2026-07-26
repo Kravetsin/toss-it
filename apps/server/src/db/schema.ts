@@ -487,8 +487,10 @@ export const submissionPayouts = sqliteTable(
     senderPlatformUserId: text('sender_platform_user_id').notNull(),
     /** Channel owner's twitch id — the mirrored half of the dust. */
     broadcasterId: text('broadcaster_id').notNull(),
-    /** Dust for EACH side once it airs. From the reward's point cost, or the flat !play rate. */
+    /** Dust for the sender once it airs — from the reward's point cost, or the flat !play rate. */
     dust: integer('dust').notNull(),
+    /** The streamer's mirrored half, on its own stingier rate (see CHANNEL_POINTS.dustForRequest). */
+    mirrorDust: integer('mirror_dust').notNull().default(0),
     /** The redemption to settle; null for a !play request, which costs no points. */
     rewardId: text('reward_id'),
     redemptionId: text('redemption_id'),

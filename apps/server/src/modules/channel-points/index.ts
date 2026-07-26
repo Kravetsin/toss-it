@@ -66,15 +66,15 @@ function rewardText(lang: string | undefined): { title: string; prompt: string }
 const YOUTUBE_TEXT = {
   ru: {
     title: 'Заказать видео с YouTube (Tossit)',
-    prompt: `Вставь ссылку на YouTube — видео сыграет на стриме. Пыль Tossit начислим, когда сыграет: каждые ${N} балла = 1 ⭐, максимум ${DUST_POINTS.send} ⭐. Не сыграло (регион, возраст, отказ модератора) — баллы вернутся.`,
+    prompt: `Вставь ссылку на YouTube — видео сыграет на стриме. Пыль Tossit начислим, когда сыграет: каждые ${N} балла = 1 ⭐, минимум ${DUST_POINTS.send} ⭐. Не сыграло (регион, возраст, отказ модератора) — баллы вернутся.`,
   },
   uk: {
     title: 'Замовити відео з YouTube (Tossit)',
-    prompt: `Встав посилання на YouTube — відео зіграє на стрімі. Пил Tossit нарахуємо, коли зіграє: кожні ${N} бали = 1 ⭐, максимум ${DUST_POINTS.send} ⭐. Не зіграло (регіон, вік, відмова модератора) — бали повернуться.`,
+    prompt: `Встав посилання на YouTube — відео зіграє на стрімі. Пил Tossit нарахуємо, коли зіграє: кожні ${N} бали = 1 ⭐, мінімум ${DUST_POINTS.send} ⭐. Не зіграло (регіон, вік, відмова модератора) — бали повернуться.`,
   },
   en: {
     title: 'Request a YouTube video (Tossit)',
-    prompt: `Paste a YouTube link — it plays on stream. Tossit stardust is credited once it does: every ${N} points = 1 ⭐, up to ${DUST_POINTS.send} ⭐. If it never plays (region, age gate, moderator), your points come back.`,
+    prompt: `Paste a YouTube link — it plays on stream. Tossit stardust is credited once it does: every ${N} points = 1 ⭐, at least ${DUST_POINTS.send} ⭐. If it never plays (region, age gate, moderator), your points come back.`,
   },
 } as const;
 
@@ -223,8 +223,12 @@ export function createChannelPointsModule(deps: {
       );
     } else {
       await awardDust(ev.redeemerId, dust);
+      // The streamer's cut, at their own stingier rate — the same rule as a request's mirrored half,
+      // so every reward we own pays them the same way. Skipped for a self-redeem (points were free).
+      const ownerDust = CHANNEL_POINTS.ownerDustFor(ev.cost);
+      if (ownerDust > 0) await awardDust(conn.broadcasterId, ownerDust);
       log.info(
-        { channelId: reward.channelId, redeemerId: ev.redeemerId, cost: ev.cost, dust },
+        { channelId: reward.channelId, redeemerId: ev.redeemerId, cost: ev.cost, dust, ownerDust },
         'channel-points: credited dust',
       );
       io.to(roomOf(reward.channelId)).emit('chat:redemption', { name: ev.redeemerName, dust });

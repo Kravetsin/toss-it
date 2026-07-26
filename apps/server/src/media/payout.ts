@@ -83,10 +83,11 @@ export function createPayouts(deps: PayoutDeps): Payouts {
         );
         return;
       }
-      // Mirrored, same as a web send: the viewer earns it and the streamer's own pile tracks real
-      // inbox use. Paid to twitch ids, so a viewer with no Tossit account still accrues.
+      // Mirrored like a web send, but the two halves are priced apart: the viewer is paid for the
+      // points they spent, the streamer for having received the request. Paid to twitch ids, so a
+      // viewer with no Tossit account still accrues.
       await awardDust(row.senderPlatformUserId, row.dust);
-      await awardDust(row.broadcasterId, row.dust);
+      if (row.mirrorDust > 0) await awardDust(row.broadcasterId, row.mirrorDust);
       const sub = await db
         .select({ senderName: submissions.senderName })
         .from(submissions)
@@ -97,7 +98,7 @@ export function createPayouts(deps: PayoutDeps): Payouts {
         dust: row.dust,
       });
       deps.log.info(
-        { submissionId, channelId: row.channelId, dust: row.dust },
+        { submissionId, channelId: row.channelId, dust: row.dust, mirrorDust: row.mirrorDust },
         'payout: request aired, dust credited',
       );
     },
