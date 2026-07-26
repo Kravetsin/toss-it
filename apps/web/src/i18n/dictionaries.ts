@@ -464,6 +464,12 @@ export const en: Dict = {
   'dash.overlayDown': 'Overlay offline',
   'dash.overlayChatToo': '+ chat',
   'dash.overlayNoServer': 'No connection to the server',
+  'dash.overlaySourceMedia': 'Media overlay',
+  'dash.overlaySourceChat': 'Chat overlay',
+  'dash.overlaySourceOn': 'connected',
+  'dash.overlaySourceOff': 'not connected',
+  'dash.overlayNoServerHint':
+    'This page lost the server, so the overlay state is unknown right now. It reconnects on its own.',
   'dash.overlayReload': 'Reload overlay',
   'dash.overlayReloadHint':
     'Cures an overlay that is connected but frozen — the same as refreshing the browser source in OBS.',
@@ -1167,6 +1173,12 @@ export const ru: Dict = {
   'dash.overlayDown': 'Оверлей отключён',
   'dash.overlayChatToo': '+ чат',
   'dash.overlayNoServer': 'Нет связи с сервером',
+  'dash.overlaySourceMedia': 'Оверлей заявок',
+  'dash.overlaySourceChat': 'Оверлей чата',
+  'dash.overlaySourceOn': 'на связи',
+  'dash.overlaySourceOff': 'не подключён',
+  'dash.overlayNoServerHint':
+    'Эта страница потеряла связь с сервером, так что состояние оверлея сейчас неизвестно. Переподключится сама.',
   'dash.overlayReload': 'Перезагрузить оверлей',
   'dash.overlayReloadHint':
     'Лечит оверлей, который подключён, но завис, — то же самое, что «Обновить» на источнике в OBS.',
@@ -1871,6 +1883,12 @@ export const uk: Dict = {
   'dash.overlayDown': 'Оверлей відключений',
   'dash.overlayChatToo': '+ чат',
   'dash.overlayNoServer': 'Немає зв’язку із сервером',
+  'dash.overlaySourceMedia': 'Оверлей заявок',
+  'dash.overlaySourceChat': 'Оверлей чату',
+  'dash.overlaySourceOn': 'на зв’язку',
+  'dash.overlaySourceOff': 'не підключений',
+  'dash.overlayNoServerHint':
+    'Ця сторінка втратила зв’язок із сервером, тож стан оверлея зараз невідомий. Перепідключиться сама.',
   'dash.overlayReload': 'Перезавантажити оверлей',
   'dash.overlayReloadHint':
     'Лікує оверлей, який підключений, але завис, — те саме, що «Оновити» на джерелі в OBS.',
