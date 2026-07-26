@@ -30,6 +30,11 @@ import type { SealModule } from '../types';
 const SPARK =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M12 0 C12 8.4 9.8 11.2 3.4 12 C9.8 12.8 12 15.6 12 24 C12 15.6 14.2 12.8 20.6 12 C14.2 11.2 12 8.4 12 0 Z'/%3E%3C/svg%3E\") center/contain no-repeat";
 
+/** One detonation: the star's pulse and the shockwave share THIS period, and the wave leaves at 0%,
+ *  the star's brightest instant. The glow deliberately takes no part — it is constant (see below),
+ *  because a second pulsing thing always ended up looking like it ran on its own clock. */
+const PULSE = 2.8;
+
 /** Shared shell for both rungs; only the state (cold vs detonating) differs. */
 function nova(rung: { id: string; count: number; className: string; lit: boolean }): SealModule {
   const c = rung.className;
@@ -48,7 +53,11 @@ function nova(rung: { id: string; count: number; className: string; lit: boolean
   position: relative;
   ${
     rung.lit
-      ? `animation: seal-nova-glow 3.4s ease-in-out infinite;`
+      ? // A STEADY glow. Every phase tried for a pulsing one fought the shockwave for the eye —
+        // whatever the timing, one of the two always looked like it was on its own clock. A constant
+        // bloom just states "this star is lit" and leaves the motion to the ring.
+        `filter: drop-shadow(0 0 0.1em var(--seal-tint, #8df0cc))
+    drop-shadow(0 0 0.24em var(--seal-tint, #8df0cc));`
       : // Cold rung: whatever colour the viewer picked, dimmed and drained — a star that has not gone
         // off yet. Tier stays legible even when the seal is recoloured.
         `filter: brightness(0.62) saturate(0.72);`
@@ -68,16 +77,22 @@ function nova(rung: { id: string; count: number; className: string; lit: boolean
   );
   -webkit-mask: ${SPARK};
   mask: ${SPARK};
-  animation: seal-nova-core ${rung.lit ? '3.4s' : '5.2s'} ease-in-out infinite;
+  animation: seal-nova-pulse ${rung.lit ? `${PULSE}s` : '5.2s'} ease-in-out infinite;
 }
-/* Core breath. Shared keyframe across the rungs (identical, so the duplicate in the concatenated
-   sheet is harmless); only the duration differs — the cold rung breathes slower. */
-@keyframes seal-nova-core {
+/* The star pulses in LIGHT, not in size. Resizing the spark was the wrong axis: its ray tips sit on
+   the very edge of the box, so every swell moved four points at once and read as a twitch at 15px —
+   no easing fixed that, because the easing was never the problem. Brightest at 0%, when the wave is
+   released, then it dims while the wave travels: the star spends itself. The 2% of scale left in is
+   there only so the pulse is not purely tonal, which goes flat on a dark backdrop.
+   Both rungs run this same pulse — the ember just runs it slower, under its own dimming filter. */
+@keyframes seal-nova-pulse {
   0%, 100% {
-    transform: scale(0.96);
+    filter: brightness(1.38);
+    transform: scale(1.02);
   }
-  50% {
-    transform: scale(1.05);
+  52% {
+    filter: brightness(0.94);
+    transform: scale(1);
   }
 }
 ${
@@ -92,32 +107,46 @@ ${
   border: 0.075em solid var(--seal-tint, #8df0cc);
   opacity: 0;
   pointer-events: none;
-  /* Shorter than the glow's period on purpose: the two drift apart instead of pulsing in lockstep,
-     which is what keeps a repeating loop from reading as a metronome. */
-  animation: seal-nova-ring 2.6s ease-out infinite;
+  /* Travel and strength are SPLIT into two animations on the same period. A single keyframe set would
+     force one easing on both, and that is what made the wave look switched off: it still had opacity
+     when it ran out of keyframes. Now the front expands linearly — a wavefront does not brake — and
+     the fade is what ends it, partway out, the way a sound wave spends itself. */
+  animation:
+    seal-nova-ring ${PULSE}s linear infinite,
+    seal-nova-ring-fade ${PULSE}s linear infinite;
 }
+/* Travel only, and it runs past where the wave becomes invisible: nothing must be moving at the
+   instant it disappears, or the eye reads a stop rather than a wave going quiet. */
 @keyframes seal-nova-ring {
   0% {
-    transform: scale(0.18);
-    opacity: 0.9;
-  }
-  70% {
-    opacity: 0.32;
+    transform: scale(0.16);
   }
   100% {
-    transform: scale(1.12);
+    transform: scale(1.3);
+  }
+}
+/* Strength only. Hand-shaped decay — steep at first, then a long faint tail that reaches zero around
+   three quarters out, well before the front runs out of room. Interpolation stays linear so the curve
+   is exactly these stops and nothing else. */
+@keyframes seal-nova-ring-fade {
+  0% {
+    opacity: 0.9;
+  }
+  30% {
+    opacity: 0.6;
+  }
+  55% {
+    opacity: 0.32;
+  }
+  72% {
+    opacity: 0.11;
+  }
+  84%,
+  100% {
     opacity: 0;
   }
 }
-@keyframes seal-nova-glow {
-  0%, 100% {
-    filter: drop-shadow(0 0 0.05em var(--seal-tint, #8df0cc));
-  }
-  50% {
-    filter: drop-shadow(0 0 0.16em var(--seal-tint, #8df0cc))
-      drop-shadow(0 0 0.3em var(--seal-tint, #8df0cc));
-  }
-}`
+`
     : ''
 }
 `,

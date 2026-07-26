@@ -22,18 +22,24 @@ import type { SealModule } from '../types';
 
 const CX = 12;
 const CY = 12;
-/** Sphere radius. Leaves room for a mote at full near-side scale to sit inside the box. */
-const R = 8.4;
+/** Sphere radius. Sized so the painted ball matches the rest of the set — the core's ring reaches
+ *  11.2 from centre, the black hole's orbit 10.4 — rather than sitting a couple of pixels smaller. */
+const R = 10;
 /** One full turn of the sphere. */
 const SPIN = 9;
 const SPIN_COLD = 15;
+/** The swell and the glow are ONE event, so they share a period and both peak at 50%: the ball
+ *  brightens because it is expanding, instead of two loops drifting past each other. */
+const BREATH = 3.6;
 /** Samples per band orbit. The path is a plain sine, so 15° steps are already past visible. */
 const STEPS = 24;
-/** Latitudes, in degrees. Poles are left empty on purpose — a mote parked at the axis barely moves
- *  and reads as a stuck pixel. */
-const BANDS = [-52, -27, 0, 27, 52];
+/** Latitudes, in degrees. Reach far enough up and down that the ball is as TALL as it is wide —
+ *  stopping near the equator painted an oblate blob with dead space above and below. The poles
+ *  themselves stay empty on purpose: a mote parked at the axis barely moves and reads as a stuck
+ *  pixel, whereas one at 66° still swings a third of the radius. */
+const BANDS = [-66, -34, 0, 34, 66];
 /** Motes per band, densest at the equator, which is also where the sphere is widest. */
-const COUNT = [3, 4, 5, 4, 3];
+const COUNT = [3, 5, 6, 5, 3];
 /** Rotates each band's starting phase so the bands don't line up into a visible seam. */
 const BAND_SKEW = 0.13;
 
@@ -59,7 +65,7 @@ for (let band = 0; band < BANDS.length; band++) {
       band,
       frac: (j / n + band * BAND_SKEW) % 1,
       // The equator runs slightly bigger: it is the nearest part of the sphere at the widest point.
-      r: band === 2 ? 0.68 : 0.55,
+      r: band === 2 ? 0.8 : 0.66,
       white: i % 4 === 0,
       litOnly: band === 0 || band === 4 || j === n - 1,
       cls: `sw-p${i}`,
@@ -78,8 +84,10 @@ function at(band: number, frac: number) {
   };
 }
 
-const scaleAt = (depth: number) => 0.5 + depth * 0.72;
-const opacityAt = (depth: number) => 0.25 + depth * 0.75;
+const scaleAt = (depth: number) => 0.55 + depth * 0.68;
+/** The far half is what set the seal's overall brightness, and at 0.25 it was barely there: the ball
+ *  read as a handful of near-side specks. The floor carries the depth cue just as well. */
+const opacityAt = (depth: number) => 0.4 + depth * 0.6;
 
 /** One band's orbit: x swings by the band's radius, y is fixed, depth does the rest. */
 function bandFrames(band: number): string {
@@ -120,8 +128,8 @@ ${MOTES.map((m) => {
  *  mote reads as floating in front of the mass rather than being lost inside it. */
 const svgFor = (lit: boolean) =>
   `<svg viewBox="0 0 24 24" aria-hidden="true">` +
-  `<circle class="sw-haze" cx="${CX}" cy="${CY}" r="6.2"/>` +
-  `<circle class="sw-haze sw-dense" cx="${CX}" cy="${CY}" r="3.4"/>` +
+  `<circle class="sw-haze" cx="${CX}" cy="${CY}" r="7"/>` +
+  `<circle class="sw-haze sw-dense" cx="${CX}" cy="${CY}" r="3.9"/>` +
   MOTES.filter((m) => lit || !m.litOnly)
     .map(
       (m) =>
@@ -163,51 +171,50 @@ ${BAND_NAMES}
    and without this the seal thins out into nothing in the chat gutter. */
 .seal-fx .sw-haze {
   fill: var(--seal-tint, #8df0cc);
-  opacity: 0.14;
+  opacity: 0.22;
   transform-box: view-box;
   transform-origin: ${CX}px ${CY}px;
-  animation: seal-swarm-haze 5.2s ease-in-out infinite;
+  animation: seal-swarm-haze ${BREATH}s ease-in-out infinite;
 }
 .seal-fx .sw-dense {
-  opacity: 0.2;
-  animation-duration: 3.6s;
+  opacity: 0.32;
 }
 @keyframes seal-swarm-haze {
   0%, 100% {
     transform: scale(0.94);
-    opacity: 0.1;
+    opacity: 0.18;
   }
   50% {
     transform: scale(1.07);
-    opacity: 0.24;
+    opacity: 0.36;
   }
 }
 ${BAND_CSS}${STILL_CSS}
 ${
   rung.lit
     ? `.${c} {
-  animation: seal-swarm-glow 3.4s ease-in-out infinite;
+  animation: seal-swarm-glow ${BREATH}s ease-in-out infinite;
 }
 @keyframes seal-swarm-glow {
   0%, 100% {
-    filter: drop-shadow(0 0 0.05em var(--seal-tint, #8df0cc));
+    filter: drop-shadow(0 0 0.09em var(--seal-tint, #8df0cc));
   }
   50% {
-    filter: drop-shadow(0 0 0.15em var(--seal-tint, #8df0cc))
-      drop-shadow(0 0 0.3em var(--seal-tint, #8df0cc));
+    filter: drop-shadow(0 0 0.22em var(--seal-tint, #8df0cc))
+      drop-shadow(0 0 0.42em var(--seal-tint, #8df0cc));
   }
 }`
     : // Cold rung: a thinner cloud turning slower. Dimmed and drained whatever colour was picked, so
       // the tier survives recolouring. Doubled selectors beat the shared block, which the lit rung
       // emits again AFTER these rules — at equal specificity its duration would win.
       `.${c} {
-  filter: brightness(0.62) saturate(0.72);
+  filter: brightness(0.55) saturate(0.7);
 }
 .seal-fx.${c} .sw-m {
   animation-duration: ${SPIN_COLD}s;
 }
 .seal-fx.${c} .sw-haze {
-  opacity: 0.1;
+  opacity: 0.13;
 }`
 }
 `,
