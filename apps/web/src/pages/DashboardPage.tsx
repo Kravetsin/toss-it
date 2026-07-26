@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { ChannelSettings } from '@tmw/shared';
 import {
+  reloadOverlay,
   removeBan,
   removeFromWhitelist,
   saveSettings,
@@ -145,6 +146,12 @@ export function DashboardPage() {
         }
         onOpenHistory={() => setHistoryOpen(true)}
         isOwner={isOwner}
+        presence={data.presence}
+        serverConnected={data.serverConnected}
+        onReloadOverlay={() =>
+          channelId &&
+          void act(() => reloadOverlay(channelId), { success: t('toast.overlayReloaded') })
+        }
       />
 
       {/* Mobile: single-column (NowPlaying → queue → members). Desktop (lg+): two-column grid.

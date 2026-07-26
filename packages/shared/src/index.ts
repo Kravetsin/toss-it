@@ -367,8 +367,22 @@ export interface MusicState {
   durationSec?: number;
 }
 
+/**
+ * Which OBS source a socket belongs to. The two overlays are separate browser sources and fail
+ * separately — a streamer whose media overlay is dead needs to be told exactly that.
+ */
+export type OverlayKind = 'media' | 'chat';
+
+/** Overlays connected to a channel right now, by source. */
+export interface OverlayPresence {
+  media: number;
+  chat: number;
+}
+
 export interface ServerToOverlayEvents {
   'media:play': (payload: MediaPlayPayload) => void;
+  /** Dashboard asked this source to reload — the cure for an overlay that is stuck, not offline. */
+  'overlay:reload': () => void;
   'media:skip': (submissionId: string) => void;
   /** Pause/resume the current show (dashboard → overlay). Skip is media:skip. */
   'media:control': (action: 'pause' | 'resume') => void;
@@ -472,6 +486,8 @@ export interface ServerToDashboardEvents {
   'playback:progress': (p: PlaybackProgress) => void;
   /** Live background-music player state (relayed from the overlay). */
   'music:state': (state: MusicState) => void;
+  /** Overlays connected right now — sent on dashboard connect and on every overlay come/go. */
+  'overlay:presence': (presence: OverlayPresence) => void;
 }
 
 export interface ChannelSettings {

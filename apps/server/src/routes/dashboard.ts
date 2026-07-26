@@ -366,6 +366,23 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
     },
   );
 
+  /**
+   * Reload the channel's overlay sources. For the overlay that is connected but wedged (a stale
+   * bundle, a browser source that stopped rendering) — the streamer's alternative is walking over
+   * to OBS and refreshing by hand. Returns how many sources were told, so the UI can say nothing
+   * happened when none are connected.
+   */
+  app.post<{ Params: { channelId: string } }>(
+    '/api/dashboard/:channelId/overlay/reload',
+    async (req, reply) => {
+      const channel = await requireChannelAccess(req, reply, req.params.channelId);
+      if (!channel) return;
+      const presence = playback.presence(channel.id);
+      io.to(roomOf(channel.id)).emit('overlay:reload');
+      return { reloaded: presence.media + presence.chat };
+    },
+  );
+
   /** Pause / resume the current show (freezes the image timer / pauses the player). */
   app.post<{ Params: { channelId: string }; Body: { action?: 'pause' | 'resume' } | null }>(
     '/api/dashboard/:channelId/playback',

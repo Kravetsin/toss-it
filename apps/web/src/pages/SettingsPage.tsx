@@ -134,7 +134,7 @@ export function SettingsPage() {
             />
           )}
           <SettingsToggles settings={settings} onSave={onSave} />
-          {current && <OverlayTestCard login={current.login} />}
+          {current && <OverlayTestCard login={current.login} channelId={channelId} />}
           <Accordion title={t('settings.mediaLayout')} icon="image">
             <MediaLayoutSettings settings={settings} onSave={onSave} />
           </Accordion>

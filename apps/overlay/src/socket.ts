@@ -3,6 +3,7 @@ import {
   SOCKET_OPTIONS,
   SOCKET_RELOAD_AFTER_MS,
   SOCKET_STALL_MS,
+  type OverlayKind,
   type OverlayToServerEvents,
   type ServerToOverlayEvents,
 } from '@tmw/shared';
@@ -13,6 +14,26 @@ export type OverlaySocket = Socket<ServerToOverlayEvents, OverlayToServerEvents>
 const TICK_MS = 5_000;
 
 /**
+ * Grace before the dot appears. Short drops are constant on the links our streamers have, and the
+ * page recovers from them by itself — flagging those would train everyone to ignore the dot.
+ */
+const DOT_AFTER_MS = 10_000;
+
+/** How long the "we're back" blink stays up. */
+const DOT_BACK_MS = 3_000;
+
+/**
+ * Where this overlay talks to. Normally wherever it was served from, but ?server= points it
+ * elsewhere: if a streamer's ISP blocks our domain the page cannot load at all, and the only way
+ * out is loading the overlay from a reachable mirror. Media URLs follow the same base.
+ */
+export function overlayServerUrl(): string {
+  const override = new URLSearchParams(window.location.search).get('server');
+  if (override && /^https?:\/\//i.test(override)) return override.replace(/\/$/, '');
+  return import.meta.env.DEV ? 'http://127.0.0.1:3000' : window.location.origin;
+}
+
+/**
  * The overlay's connection to the server, with the recovery an OBS browser source cannot ask for
  * itself: nobody is watching this page, so anything it fails to fix stays broken until the streamer
  * happens to notice a dead overlay mid-stream.
@@ -21,10 +42,10 @@ const TICK_MS = 5_000;
  * without closing (see SOCKET_STALL_MS), and finally a page reload for the states no socket can
  * recover from — a wedged browser source, a stale DNS answer.
  */
-export function connectOverlay(serverUrl: string, token: string): OverlaySocket {
+export function connectOverlay(serverUrl: string, token: string, kind: OverlayKind): OverlaySocket {
   const socket: OverlaySocket = io(serverUrl, {
     ...SOCKET_OPTIONS,
-    query: { role: 'overlay', token },
+    query: { role: 'overlay', token, kind },
   });
 
   let lastPacketAt = Date.now();
@@ -32,16 +53,20 @@ export function connectOverlay(serverUrl: string, token: string): OverlaySocket 
   const seen = (): void => {
     lastPacketAt = Date.now();
   };
+  const dot = mountConnectionDot();
 
   socket.on('connect', () => {
+    if (offlineSince !== null && Date.now() - offlineSince > DOT_AFTER_MS) dot('back');
     offlineSince = null;
     seen();
-    console.log('[overlay] connected', socket.recovered ? '(recovered)' : '');
+    console.log(`[overlay:${kind}] connected`, socket.recovered ? '(recovered)' : '');
   });
   socket.on('disconnect', (reason) => {
     offlineSince ??= Date.now();
-    console.log('[overlay] disconnected:', reason);
+    console.log(`[overlay:${kind}] disconnected:`, reason);
   });
+  // Both sources answer this: it is the dashboard's remote "refresh browser source".
+  socket.on('overlay:reload', () => window.location.reload());
   socket.onAny(seen);
   // The server's heartbeat, not an app event: on an idle channel it is the only proof of life.
   socket.io.on('ping', seen);
@@ -52,7 +77,7 @@ export function connectOverlay(serverUrl: string, token: string): OverlaySocket 
       // Nothing at all from the server, yet we still believe we are connected — a half-open socket
       // (DPI reset, NAT timeout). Only a re-dial finds out; waiting on it never ends.
       if (now - lastPacketAt > SOCKET_STALL_MS) {
-        console.warn('[overlay] connection stalled — reconnecting');
+        console.warn(`[overlay:${kind}] connection stalled — reconnecting`);
         offlineSince = now;
         socket.disconnect();
         socket.connect();
@@ -60,8 +85,9 @@ export function connectOverlay(serverUrl: string, token: string): OverlaySocket 
       return;
     }
     offlineSince ??= now;
+    if (now - offlineSince > DOT_AFTER_MS) dot('down');
     if (now - offlineSince > SOCKET_RELOAD_AFTER_MS) {
-      console.warn('[overlay] offline too long — reloading');
+      console.warn(`[overlay:${kind}] offline too long — reloading`);
       window.location.reload();
     }
   }, TICK_MS);
@@ -75,4 +101,28 @@ export function connectOverlay(serverUrl: string, token: string): OverlaySocket 
   });
 
   return socket;
+}
+
+/**
+ * The on-stream half of the outage signal (see .conn-dot). Viewers see it too, which is why it is a
+ * dot and not a message — and why ?dot=off exists for a streamer who would rather have nothing on
+ * screen and watch the dashboard instead.
+ */
+function mountConnectionDot(): (state: 'down' | 'back') => void {
+  if (new URLSearchParams(window.location.search).get('dot') === 'off') return () => {};
+  const el = document.createElement('div');
+  el.className = 'conn-dot';
+  document.body.appendChild(el);
+  let backTimer: number | undefined;
+  return (state) => {
+    window.clearTimeout(backTimer);
+    if (state === 'down') {
+      el.classList.add('is-down');
+      el.classList.remove('is-back');
+      return;
+    }
+    el.classList.remove('is-down');
+    el.classList.add('is-back');
+    backTimer = window.setTimeout(() => el.classList.remove('is-back'), DOT_BACK_MS);
+  };
 }

@@ -212,6 +212,13 @@ export function skipCurrent(channelId: string): Promise<{ skipped: boolean }> {
   );
 }
 
+/** Tell every connected overlay source of this channel to reload itself. */
+export function reloadOverlay(channelId: string): Promise<{ reloaded: number }> {
+  return fetch(`${dash(channelId)}/overlay/reload`, { method: 'POST' }).then((r) =>
+    json<{ reloaded: number }>(r),
+  );
+}
+
 /** Channel owner: test donation triggers effect burst on overlay (effect preview). */
 export function sendTestDonation(channelId: string, amount = 50): Promise<unknown> {
   return fetch(`${dash(channelId)}/test-donation`, {

@@ -460,6 +460,16 @@ export const en: Dict = {
   'dash.testSend': 'Test submission',
   'dash.testSendHint':
     'Same form your viewers see — text, GIF, file, voice. Sent as you, without limits or cooldown.',
+  'dash.overlayLive': 'Overlay online',
+  'dash.overlayDown': 'Overlay offline',
+  'dash.overlayChatToo': '+ chat',
+  'dash.overlayNoServer': 'No connection to the server',
+  'dash.overlayReload': 'Reload overlay',
+  'dash.overlayReloadHint':
+    'Cures an overlay that is connected but frozen — the same as refreshing the browser source in OBS.',
+  'dash.overlayDownHint':
+    'The source in OBS is not reachable. It reconnects on its own; if it does not, refresh the browser source, and if the site itself is blocked at your ISP — a VPN.',
+  'toast.overlayReloaded': 'Reload sent',
   'dash.overlayTest': 'Overlay test',
   'dash.overlayTestNote':
     'Sends a prepared post to your overlay through the normal path — your real settings, voice and queue. Test posts stay out of history and stats.',
@@ -1153,6 +1163,16 @@ export const ru: Dict = {
   'dash.testSend': 'Тестовая отправка',
   'dash.testSendHint':
     'Та же форма, что видят зрители: текст, гифка, файл, голос. Уходит от твоего имени, без лимитов и кулдауна.',
+  'dash.overlayLive': 'Оверлей на связи',
+  'dash.overlayDown': 'Оверлей отключён',
+  'dash.overlayChatToo': '+ чат',
+  'dash.overlayNoServer': 'Нет связи с сервером',
+  'dash.overlayReload': 'Перезагрузить оверлей',
+  'dash.overlayReloadHint':
+    'Лечит оверлей, который подключён, но завис, — то же самое, что «Обновить» на источнике в OBS.',
+  'dash.overlayDownHint':
+    'Источник в OBS не отвечает. Он переподключается сам; если нет — обнови источник в OBS, а если сайт режет провайдер — включи VPN.',
+  'toast.overlayReloaded': 'Команда на перезагрузку отправлена',
   'dash.overlayTest': 'Тест оверлея',
   'dash.overlayTestNote':
     'Отправляет заготовленный пост в твой оверлей обычным путём — с твоими настройками, голосом и очередью. В историю и статистику тесты не попадают.',
@@ -1847,6 +1867,16 @@ export const uk: Dict = {
   'dash.testSend': 'Тестова відправка',
   'dash.testSendHint':
     'Та сама форма, що бачать глядачі: текст, гіфка, файл, голос. Надсилається від твого імені, без лімітів і кулдауну.',
+  'dash.overlayLive': 'Оверлей на зв’язку',
+  'dash.overlayDown': 'Оверлей відключений',
+  'dash.overlayChatToo': '+ чат',
+  'dash.overlayNoServer': 'Немає зв’язку із сервером',
+  'dash.overlayReload': 'Перезавантажити оверлей',
+  'dash.overlayReloadHint':
+    'Лікує оверлей, який підключений, але завис, — те саме, що «Оновити» на джерелі в OBS.',
+  'dash.overlayDownHint':
+    'Джерело в OBS не відповідає. Воно перепідключається саме; якщо ні — онови джерело в OBS, а якщо сайт ріже провайдер — увімкни VPN.',
+  'toast.overlayReloaded': 'Команду на перезавантаження надіслано',
   'dash.overlayTest': 'Тест оверлея',
   'dash.overlayTestNote':
     'Надсилає заготовлений пост у твій оверлей звичайним шляхом — з твоїми налаштуваннями, голосом і чергою. В історію та статистику тести не потрапляють.',

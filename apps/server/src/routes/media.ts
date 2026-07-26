@@ -95,7 +95,7 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
 
       // An owner sending to themselves is always testing something. With no overlay connected
       // there is nothing to test: the post would sit in the queue and ambush the next stream.
-      if (isOwner && playback.overlayCount(channel.id) === 0) {
+      if (isOwner && playback.presence(channel.id).media === 0) {
         return reply
           .code(409)
           .send({ error: 'Оверлей не подключён — добавь Browser Source в OBS и открой его' });

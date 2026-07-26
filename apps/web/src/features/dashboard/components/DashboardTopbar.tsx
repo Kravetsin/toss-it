@@ -1,9 +1,10 @@
 import { useNavigate } from 'react-router-dom';
-import type { AccessibleChannel } from '@tmw/shared';
+import type { AccessibleChannel, OverlayPresence } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
 import { IconButton } from '@/ui';
 import { ChannelSwitcher } from './ChannelSwitcher';
+import { OverlayStatus } from './OverlayStatus';
 
 // Sticky topbar: title + channel switcher (left), accepting toggle + history (right).
 // accepting toggle is owner-only, hidden if null. Notification/sound controls live in the app-shell bell.
@@ -16,6 +17,9 @@ export function DashboardTopbar({
   onToggleAccepting,
   onOpenHistory,
   isOwner,
+  presence,
+  serverConnected,
+  onReloadOverlay,
 }: {
   list: AccessibleChannel[];
   current: AccessibleChannel;
@@ -27,6 +31,10 @@ export function DashboardTopbar({
   onOpenHistory: () => void;
   /** Settings are owner-only, so the gear link hides for moderators. */
   isOwner: boolean;
+  presence: OverlayPresence;
+  /** Our own link to the server — false means the presence above is unknown, not "offline". */
+  serverConnected: boolean;
+  onReloadOverlay: () => void;
 }) {
   const { t } = useI18n();
   const navigate = useNavigate();
@@ -40,6 +48,11 @@ export function DashboardTopbar({
         <ChannelSwitcher list={list} current={current} channelId={channelId} onSelect={onSelect} />
       </div>
       <div className="flex items-center gap-2">
+        <OverlayStatus
+          presence={presence}
+          serverConnected={serverConnected}
+          onReload={onReloadOverlay}
+        />
         {accepting != null && (
           <label
             className={`flex w-max cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 label-mono ${

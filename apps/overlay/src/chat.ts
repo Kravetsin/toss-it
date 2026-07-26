@@ -3,7 +3,7 @@ import '@fontsource/jetbrains-mono';
 // different languages, and chat.html was 293 lines of CSS wrapped around 12 of markup.
 import './overlay-base.css';
 import './chat.css';
-import { connectOverlay } from './socket';
+import { connectOverlay, overlayServerUrl } from './socket';
 import {
   LEVEL_GLOW_FROM,
   applyEntrance,
@@ -61,7 +61,7 @@ const RISE_MS = 460;
 const RISE_EASE = 'cubic-bezier(0.4, 0, 0.2, 1)';
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-const SERVER_URL = import.meta.env.DEV ? 'http://127.0.0.1:3000' : window.location.origin;
+const SERVER_URL = overlayServerUrl();
 const chat = document.getElementById('chat')!;
 const rail = document.getElementById('rail')!;
 
@@ -981,7 +981,7 @@ if (DEMO) {
     window.setInterval(sys, 8300); // periodic !balance answer
   }
 } else {
-  const socket = connectOverlay(SERVER_URL, token ?? '');
+  const socket = connectOverlay(SERVER_URL, token ?? '', 'chat');
   socket.on('chat:config', applyConfig);
   socket.on('chat:message', renderMessage);
   socket.on('chat:redemption', renderRedemption);

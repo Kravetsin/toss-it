@@ -6,6 +6,8 @@ import {
   type EquippedCosmetics,
   type LiveStatus,
   type MediaPlayPayload,
+  type OverlayKind,
+  type OverlayPresence,
   type OverlayToServerEvents,
   type ServerToDashboardEvents,
   type ServerToOverlayEvents,
@@ -26,6 +28,14 @@ export type RealtimeServer = Server<
 
 export function roomOf(channelId: string): string {
   return `channel:${channelId}`;
+}
+
+/**
+ * Overlays also join a room per source kind. The channel room is what we broadcast to; these exist
+ * to count the two sources apart — a chat overlay alone must not look like somewhere to play media.
+ */
+function overlayKindRoomOf(channelId: string, kind: OverlayKind): string {
+  return `overlay:${kind}:${channelId}`;
 }
 
 /** Streamer dashboard room: live moderation and playback events. */
@@ -539,7 +549,7 @@ export class PlaybackManager {
    */
   onOverlayDisconnected(channelId: string): void {
     const st = this.state(channelId);
-    if (!st.current || this.overlayCount(channelId) > 0) return;
+    if (!st.current || this.presence(channelId).media > 0) return;
     // Still armed = the overlay never ticked for this show, so it was never on screen. Letting the
     // watchdog run its length out would file it as aired; requeue it for the next overlay instead.
     if (st.deliveryProbe) {
@@ -697,7 +707,8 @@ export class PlaybackManager {
 
   private async tryNext(channelId: string): Promise<void> {
     const st = this.state(channelId);
-    if (st.current || st.queue.length === 0 || this.overlayCount(channelId) === 0) return;
+    // Media source only: a channel running just the chat overlay has nowhere to show a post.
+    if (st.current || st.queue.length === 0 || this.presence(channelId).media === 0) return;
 
     while (st.queue.length > 0) {
       const candidate = st.queue.shift()!;
@@ -752,9 +763,25 @@ export class PlaybackManager {
     }
   }
 
-  /** Connected OBS overlays for a channel; >0 doubles as our "stream is live" signal. */
+  /** Connected OBS overlays for a channel, both sources; >0 doubles as our "stream is live" signal. */
   overlayCount(channelId: string): number {
     return this.io.sockets.adapter.rooms.get(roomOf(channelId))?.size ?? 0;
+  }
+
+  /**
+   * Overlays by source. Only the media one can show a post, so it — not the total — decides whether
+   * the queue may advance. A pre-kind overlay bundle reports nothing and counts as media, which is
+   * exactly how it behaved before.
+   */
+  presence(channelId: string): OverlayPresence {
+    const count = (kind: OverlayKind): number =>
+      this.io.sockets.adapter.rooms.get(overlayKindRoomOf(channelId, kind))?.size ?? 0;
+    return { media: count('media'), chat: count('chat') };
+  }
+
+  /** Tell the channel's dashboards which overlays are live right now. */
+  emitPresence(channelId: string): void {
+    this.io.to(dashboardRoomOf(channelId)).emit('overlay:presence', this.presence(channelId));
   }
 
   /** All channels with at least one overlay connected right now → channelId -> overlay count. */
@@ -954,6 +981,9 @@ export function setupRealtime(io: RealtimeServer, app: FastifyInstance): Playbac
             }
           }
           void socket.join(dashboardRoomOf(channelId));
+          // Presence is a live state, not a stream of changes: a dashboard opened mid-outage must
+          // learn it right away, not on the next overlay event.
+          socket.emit('overlay:presence', playback.presence(channelId));
           return;
         }
 
@@ -973,7 +1003,10 @@ export function setupRealtime(io: RealtimeServer, app: FastifyInstance): Playbac
             socket.disconnect(true);
             return;
           }
+          // Bundles older than the presence work send no kind; media is what they always were.
+          const kind: OverlayKind = socket.handshake.query.kind === 'chat' ? 'chat' : 'media';
           void socket.join(roomOf(channel.id));
+          void socket.join(overlayKindRoomOf(channel.id, kind));
           // The chat overlay reads this on connect; the media overlay ignores it.
           socket.emit('chat:config', {
             fontSize: channel.chatFontSize,
@@ -1009,11 +1042,16 @@ export function setupRealtime(io: RealtimeServer, app: FastifyInstance): Playbac
             io.to(dashboardRoomOf(channel.id)).emit('music:state', state);
           });
           // Last overlay gone → rescue a paused show from stranding as `current` forever.
-          socket.on('disconnect', () => playback.onOverlayDisconnected(channel.id));
+          // Rooms are left before this fires, so both calls already see the socket as gone.
+          socket.on('disconnect', () => {
+            playback.onOverlayDisconnected(channel.id);
+            playback.emitPresence(channel.id);
+          });
           app.log.info(
-            { channelId: channel.id, recovered: socket.recovered },
+            { channelId: channel.id, kind, recovered: socket.recovered },
             'overlay socket connected',
           );
+          playback.emitPresence(channel.id);
           void playback.onOverlayConnected(
             channel.id,
             (payload) => socket.emit('media:play', payload),

@@ -5,6 +5,7 @@ import type {
   ListedUser,
   MusicState,
   MusicTrack,
+  OverlayPresence,
   PlaybackProgress,
   ReputationStats,
   SubmissionSummary,
@@ -20,6 +21,7 @@ import {
   getWhitelist,
 } from '@/lib/api';
 import { connectSocket } from '@/lib/socket';
+import { isMockOn } from '@/lib/devMock';
 import { playNotify } from '@/lib/notify';
 
 /**
@@ -45,6 +47,10 @@ export function useChannelData(
   // DJ knobs (shuffle/volume/hidden) — separate from owner-only settings so moderators get them too.
   const [musicConfig, setMusicConfig] = useState({ shuffle: false, volume: 50, hidden: false });
   const [musicLoading, setMusicLoading] = useState(false);
+  // Overlay sources connected right now, and whether we can still be told about it: a dashboard that
+  // lost the server knows nothing about the overlay and must say so instead of showing stale green.
+  const [presence, setPresence] = useState<OverlayPresence>({ media: 0, chat: 0 });
+  const [serverConnected, setServerConnected] = useState(false);
   // Cross-channel reputation cache by userId, loaded on-demand as submissions arrive.
   const [reputation, setReputation] = useState<Record<string, ReputationStats>>({});
   const reputationRef = useRef(reputation);
@@ -110,6 +116,9 @@ export function useChannelData(
     setAllowed([]);
     setBanned([]);
     setReputation({});
+    // Dev-mock has no socket at all; pretend both sources are there so the UI can be looked at.
+    setPresence(isMockOn() ? { media: 1, chat: 1 } : { media: 0, chat: 0 });
+    setServerConnected(isMockOn());
 
     void getPending(channelId)
       .then(setPending)
@@ -150,6 +159,9 @@ export function useChannelData(
         .then(setHistory)
         .catch(() => {});
     });
+    socket.on('connect', () => setServerConnected(true));
+    socket.on('disconnect', () => setServerConnected(false));
+    socket.on('overlay:presence', (p: OverlayPresence) => setPresence(p));
     socket.on('playback:queue', (q: SubmissionSummary[]) => setQueue(q));
     socket.on('playback:progress', (p: PlaybackProgress) => setProgress(p));
     socket.on('music:state', (s: MusicState) => setMusicState(s));
@@ -176,6 +188,8 @@ export function useChannelData(
     musicConfig,
     setMusicConfig,
     musicLoading,
+    presence,
+    serverConnected,
     refreshLists,
   };
 }

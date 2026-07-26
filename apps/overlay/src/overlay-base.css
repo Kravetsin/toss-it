@@ -31,3 +31,35 @@ body {
 [data-level='off'] .lvl-num {
   display: none;
 }
+
+/* Connection dot. Lives on stream, so it is the smallest thing that can still be noticed: no text,
+   no box — a red pulse when the link has been down long enough to matter, a short green blink when
+   it comes back. The streamer's real readout is the dashboard; this is the corner-of-the-eye one. */
+.conn-dot {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+  z-index: 2147483647;
+}
+.conn-dot.is-down {
+  opacity: 0.9;
+  background: #ff4d4d;
+  box-shadow: 0 0 8px rgba(255, 77, 77, 0.9);
+  animation: conn-pulse 1.4s ease-in-out infinite;
+}
+.conn-dot.is-back {
+  opacity: 0.9;
+  background: #8df0cc;
+  box-shadow: 0 0 8px rgba(141, 240, 204, 0.9);
+}
+@keyframes conn-pulse {
+  50% {
+    opacity: 0.25;
+  }
+}

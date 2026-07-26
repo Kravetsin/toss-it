@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { sendTestPost } from '@/lib/api';
+import { reloadOverlay, sendTestPost } from '@/lib/api';
 import { useApiAction } from '@/hooks/useApiAction';
 import { useI18n } from '@/i18n';
 import { Button, Card, Select } from '@/ui';
@@ -20,7 +20,7 @@ const KIND_LABEL: Record<TestPostKind, string> = {
  * own settings, TTS and queue apply. Lives on the overlay tab because it exists to be used while
  * the sliders below it are being tuned.
  */
-export function OverlayTestCard({ login }: { login: string }) {
+export function OverlayTestCard({ login, channelId }: { login: string; channelId: string | null }) {
   const { t } = useI18n();
   const act = useApiAction();
   const [kind, setKind] = useState<TestPostKind>('text');
@@ -58,6 +58,23 @@ export function OverlayTestCard({ login }: { login: string }) {
         <Button variant="primary" disabled={busy} onClick={send}>
           <Icon name="send" size={16} />
           {t('dash.overlayTestSend')}
+        </Button>
+      </div>
+      {/* The other half of "is my overlay alive": the dashboard topbar says whether it is connected,
+          this fixes the connected-but-frozen case without a trip to OBS. */}
+      <div className="flex flex-col gap-2 border-t border-border pt-3">
+        <p className="text-sm text-muted">{t('dash.overlayReloadHint')}</p>
+        <Button
+          variant="ghost"
+          className="self-start"
+          disabled={!channelId}
+          onClick={() =>
+            channelId &&
+            void act(() => reloadOverlay(channelId), { success: t('toast.overlayReloaded') })
+          }
+        >
+          <Icon name="reload" size={16} />
+          {t('dash.overlayReload')}
         </Button>
       </div>
     </Card>
