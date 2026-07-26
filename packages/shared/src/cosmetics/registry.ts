@@ -41,7 +41,7 @@ import { frameCanopy } from './effects/frame-canopy';
 import { frameStorm } from './effects/frame-storm';
 import { sealNovaEmber, sealNova, sealNovaColor } from './effects/seal-nova';
 import { sealVoidCollapsing, sealVoid, sealVoidColor } from './effects/seal-void';
-import { sealMorseFaint, sealMorse, sealMorseColor } from './effects/seal-morse';
+import { sealCoreCold, sealCore, sealCoreColor } from './effects/seal-core';
 import { sealEye } from './effects/seal-eye';
 import { sealEyeColor } from './effects/seal-eye-color';
 import { entranceGlitch } from './effects/entrance-glitch';
@@ -241,11 +241,11 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   sealVoidCollapsing,
   sealVoid,
   sealVoidColor,
-  // Morse on chat messages, the eye on watch time — the remaining two activity axes. Each is EARNED
+  // The core on chat messages, the eye on watch time — the remaining two activity axes. Each is EARNED
   // and carries its own earned colour upgrade.
-  sealMorseFaint,
-  sealMorse,
-  sealMorseColor,
+  sealCoreCold,
+  sealCore,
+  sealCoreColor,
   sealEye,
   sealEyeColor,
   entranceGlitch,

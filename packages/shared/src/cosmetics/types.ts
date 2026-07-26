@@ -252,8 +252,8 @@ export interface SealModule extends BaseModule {
    */
   svg?: string;
   /**
-   * The catalog id of the colour UPGRADE that unlocks recolouring THIS seal (e.g. seal-morse →
-   * 'seal-morse-color'). Same shape as CardEffectModule.colorUpgrade, but the seal upgrades are
+   * The catalog id of the colour UPGRADE that unlocks recolouring THIS seal (e.g. seal-core →
+   * 'seal-core-color'). Same shape as CardEffectModule.colorUpgrade, but the seal upgrades are
    * EARNED (own `earn` metric), not bought. When set, the seal is colourable: the surface sets a
    * `--seal-tint` custom property on the seal element and the module's css paints from
    * `var(--seal-tint, <default>)`. The chosen colour is stored per-seal in EquippedCosmetics.sealColors.
@@ -365,7 +365,7 @@ export interface EquippedCosmetics {
    */
   seal?: string | null;
   /**
-   * Per-seal #rrggbb tints, keyed by seal id (e.g. { 'seal-morse': '#5ad1ff' }). Mirrors
+   * Per-seal #rrggbb tints, keyed by seal id (e.g. { 'seal-core': '#5ad1ff' }). Mirrors
    * cardEffectColors: each colourable seal keeps its OWN colour and has its OWN upgrade (see
    * SealModule.colorUpgrade), so switching seals keeps each one's colour. An entry exists only once
    * that seal's colour upgrade is EARNED (enforced on equip). The render reads the entry for the

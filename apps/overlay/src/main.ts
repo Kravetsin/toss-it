@@ -1450,7 +1450,7 @@ function demoPayload(kind: MediaKind, st: DemoState): MediaPlayPayload {
     senderSeal: st.sender && st.seal !== 'none' ? st.seal : undefined,
     // Demo the seal colour upgrade on the colourable seals, without a picker.
     senderSealColor:
-      st.sender && st.seal === 'seal-morse'
+      st.sender && st.seal === 'seal-core'
         ? '#5ad1ff'
         : st.sender && st.seal === 'seal-eye'
           ? '#7cff4f'

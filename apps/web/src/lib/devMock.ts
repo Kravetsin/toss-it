@@ -68,7 +68,7 @@ const MOCK_ME: MeResponse = {
     // Own everything + equip a combo so the shop shows all cosmetics equippable and the signed-in
     // user's own nick/cards demo the effects live (dev preview only).
     ownedCosmetics: COSMETICS.map((c) => c.id),
-    // Past the morse seal's first rung (500) but short of its full tape (3000), so that ladder
+    // Past the core seal's first rung (500) but short of its full ring (3000), so that ladder
     // previews a LOCKED rung counting up; also earns every message-frame.
     messagesTotal: 2100,
     // Mid-ladder on the watch axis (the in-progress demo lives here now): Tide (25h) and Embers (50h)
@@ -91,7 +91,7 @@ const MOCK_ME: MeResponse = {
       // ownedCosmetics = every catalog id (so both colour upgrades are owned).
       cardEffectColors: { 'card-butterflies': '#5ad1ff', 'card-eyes': '#7cff4f' },
       // Saved per-seal colours — the picker inside each colourable seal's row seeds from these.
-      sealColors: { 'seal-morse': '#5ad1ff', 'seal-eye': '#7cff4f' },
+      sealColors: { 'seal-core': '#5ad1ff', 'seal-eye': '#7cff4f' },
       frame: 'frame-runner',
       seal: 'seal-nova',
       entrance: 'entrance-astral',
@@ -372,7 +372,7 @@ const MOCK_PENDING: SubmissionSummary[] = [
     // Showcase the colour upgrade: this sender recoloured their butterflies cyan.
     senderCardEffectColor: '#5ad1ff',
     // The butterfly seal, recoloured cyan via its own colour upgrade.
-    senderSeal: 'seal-morse',
+    senderSeal: 'seal-core',
     senderSealColor: '#5ad1ff',
     text: 'замри на секунду — они сядут',
     createdAt: t - 46 * min,
@@ -590,7 +590,7 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     nickEffect: 'nick-glow',
     cardEffect: 'card-rain',
     // Colourable butterfly seal, recoloured cyan.
-    seal: 'seal-morse',
+    seal: 'seal-core',
     sealColor: '#5ad1ff',
     level: 6,
   },

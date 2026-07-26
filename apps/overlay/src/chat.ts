@@ -815,8 +815,8 @@ if (DEMO) {
         cardEffect: 'card-butterflies',
         cardEffectColors: { 'card-butterflies': '#5ad1ff' },
         // The butterfly seal, recoloured cyan via its own colour upgrade.
-        seal: 'seal-morse',
-        sealColors: { 'seal-morse': '#5ad1ff' },
+        seal: 'seal-core',
+        sealColors: { 'seal-core': '#5ad1ff' },
       },
       isFounder: false,
       level: 6,
