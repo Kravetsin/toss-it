@@ -144,6 +144,9 @@ interface ShowState {
   progressTimer: number | undefined;
   /** TTS is speaking right now — ducks the other slot for the speech only. */
   speaking: boolean;
+  /** Held silent by a sounded post in the other slot. Deliberately separate from `paused`, which is
+   *  the streamer's own decision — conflating the two made ducking undo the pause button. */
+  ducked: boolean;
 }
 
 let ytApiPromise: Promise<void> | null = null;
@@ -171,6 +174,7 @@ const newShow = (el: HTMLElement): ShowState => ({
   timedStartTs: 0,
   progressTimer: undefined,
   speaking: false,
+  ducked: false,
 });
 
 const shows: Record<PlaybackSlot, ShowState> = {
@@ -1329,30 +1333,37 @@ function clearStage(sh: ShowState): void {
  * A silent image or gif leaves it alone, which is the entire point of parallel slots.
  */
 function updateSlotDucking(): void {
-  const sh = shows.media;
-  const sounded =
-    !!sh.currentId &&
-    !sh.paused &&
-    (sh.speaking || sh.kind === 'video' || sh.kind === 'audio' || sh.kind === 'youtube');
-  duckMusicSlot(sounded);
+  const media = shows.media;
+  shows.music.ducked =
+    !!media.currentId &&
+    !media.paused &&
+    (media.speaking ||
+      media.kind === 'video' ||
+      media.kind === 'audio' ||
+      media.kind === 'youtube');
+  applyMusicPlayState();
 }
 
-/** Fade the music slot's own player down while something louder is on the main stage. */
-function duckMusicSlot(duck: boolean): void {
+/**
+ * The music slot plays only when nobody is holding it silent: not paused by the streamer, and not
+ * ducked by a sounded post on the main stage. Both inputs go through here, so neither can quietly
+ * undo the other — which is exactly what the pause button hit when ducking called play() behind it.
+ */
+function applyMusicPlayState(): void {
   const sh = shows.music;
   if (!sh.currentId) return;
-  const player = sh.ytPlayer;
-  if (player) {
+  const shouldPlay = !sh.paused && !sh.ducked;
+  if (sh.ytPlayer) {
     try {
-      if (duck) player.pauseVideo();
-      else player.playVideo();
+      if (shouldPlay) sh.ytPlayer.playVideo();
+      else sh.ytPlayer.pauseVideo();
     } catch {
       /* player not ready yet */
     }
   }
   if (sh.mediaEl) {
-    if (duck) sh.mediaEl.pause();
-    else void sh.mediaEl.play().catch(() => {});
+    if (shouldPlay) void sh.mediaEl.play().catch(() => {});
+    else sh.mediaEl.pause();
   }
 }
 
