@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import type {
   ChannelSettings,
-  HistoryEntry,
   ListedUser,
   MusicState,
   MusicTrack,
@@ -13,7 +12,6 @@ import type {
 } from '@tmw/shared';
 import {
   getBans,
-  getHistory,
   getMusic,
   getNowPlaying,
   getPending,
@@ -26,7 +24,7 @@ import { isMockOn } from '@/lib/devMock';
 import { playNotify } from '@/lib/notify';
 
 /**
- * Loads channel data (queue, now playing, settings, lists, history, reputation) and establishes
+ * Loads channel data (queue, now playing, settings, lists, reputation) and establishes
  * live socket connection. Resets on channel change. Sound on new submission uses soundOnRef
  * to avoid socket recreation when toggling sound.
  */
@@ -43,7 +41,6 @@ export function useChannelData(
   const [progress, setProgress] = useState<PlaybackProgress | null>(null);
   const [musicProgress, setMusicProgress] = useState<PlaybackProgress | null>(null);
   const [settings, setSettings] = useState<ChannelSettings | null>(null);
-  const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [allowed, setAllowed] = useState<ListedUser[]>([]);
   const [banned, setBanned] = useState<ListedUser[]>([]);
   const [musicState, setMusicState] = useState<MusicState>({ videoId: null, playing: false });
@@ -67,9 +64,6 @@ export function useChannelData(
       .catch(() => {});
     void getBans(channelId)
       .then(setBanned)
-      .catch(() => {});
-    void getHistory(channelId)
-      .then(setHistory)
       .catch(() => {});
   }, [channelId]);
 
@@ -173,9 +167,6 @@ export function useChannelData(
         setNow(null);
         setProgress(null);
       }
-      void getHistory(channelId)
-        .then(setHistory)
-        .catch(() => {});
     });
     socket.on('connect', () => setServerConnected(true));
     socket.on('disconnect', () => setServerConnected(false));
@@ -200,7 +191,6 @@ export function useChannelData(
     progress,
     settings,
     setSettings,
-    history,
     allowed,
     banned,
     reputation,

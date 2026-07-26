@@ -8,7 +8,6 @@ import {
   type AccessibleChannel,
   type ChannelSettings,
   type EquippedCosmetics,
-  type HistoryEntry,
   type LeaderboardEntry,
   type ListedUser,
   type LivePresence,
@@ -444,28 +443,6 @@ const MOCK_BANS: ListedUser[] = [
   user('google:b2', 'rude_guy', 'rude_guy', 60 * 24 * 9),
 ];
 
-const hist = (
-  id: string,
-  senderName: string,
-  kind: SubmissionSummary['kind'],
-  status: HistoryEntry['status'],
-  agoMin: number,
-  senderUserId: string | null = null,
-  isFounder = false,
-): HistoryEntry => ({
-  ...sub({ id, kind, senderName, senderUserId, createdAt: t - agoMin * min }),
-  status,
-  isFounder,
-});
-
-const MOCK_HISTORY: HistoryEntry[] = [
-  hist('h1', 'streamfan', 'image', 'played', 5, 'twitch:v9'),
-  hist('h2', 'meme_lord', 'video', 'played', 22, 'twitch:v1'),
-  hist('h3', 'spammer_99', 'text', 'rejected', 38, 'twitch:b1'),
-  hist('h4', 'dj_summer', 'audio', 'expired', 64, 'twitch:v3'),
-  hist('h5', 'pixel_witch', 'image', 'played', 95, 'google:v2', true),
-];
-
 const MOCK_REPUTATION: Record<string, ReputationStats> = {
   'twitch:v1': {
     accepted: 14,
@@ -849,8 +826,6 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
         return MOCK_WHITELIST;
       case 'bans':
         return MOCK_BANS;
-      case 'history':
-        return MOCK_HISTORY;
       case 'reputation':
         return MOCK_REPUTATION;
       case 'moderators':

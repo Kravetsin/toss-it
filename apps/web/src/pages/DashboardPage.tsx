@@ -25,7 +25,6 @@ import { ModerationQueue } from '@/features/dashboard/components/ModerationQueue
 import { ModerationSettings } from '@/features/dashboard/components/ModerationSettings';
 import { SubmissionLimits } from '@/features/dashboard/components/SubmissionLimits';
 import { MembersPanel } from '@/features/dashboard/components/MembersPanel';
-import { HistoryCard } from '@/features/dashboard/components/HistoryCard';
 import { useChannels } from '@/features/dashboard/hooks/useChannels';
 import { useChannelData } from '@/features/dashboard/hooks/useChannelData';
 import { useModerationActions } from '@/features/dashboard/hooks/useModerationActions';
@@ -42,7 +41,6 @@ export function DashboardPage() {
   const { channelsList, list, current, channelId, isOwner, setCurrentId } = useChannels();
   const { soundOnRef } = useNotifications();
   const data = useChannelData(channelId, isOwner, soundOnRef);
-  const [historyOpen, setHistoryOpen] = useState(false);
   const [testOpen, setTestOpen] = useState(false);
   const [modSettingsOpen, setModSettingsOpen] = useState(false);
   const actions = useModerationActions({
@@ -94,8 +92,6 @@ export function DashboardPage() {
       onVolumeChange={(v) => applyMusicConfig({ volume: v })}
     />
   ) : null;
-
-  const bannedIds = new Set(data.banned.map((b) => b.userId));
 
   if (meLoading || channelsList === 'loading')
     return (
@@ -179,7 +175,6 @@ export function DashboardPage() {
             success: t('toast.saved'),
           })
         }
-        onOpenHistory={() => setHistoryOpen(true)}
         isOwner={isOwner}
         presence={data.presence}
         serverConnected={data.serverConnected}
@@ -247,16 +242,6 @@ export function DashboardPage() {
       {isOwner && (
         <TestSendModal open={testOpen} onClose={() => setTestOpen(false)} login={current.login} />
       )}
-
-      <Drawer
-        open={historyOpen}
-        onClose={() => setHistoryOpen(false)}
-        title={t('dash.history')}
-        closeLabel={t('common.close')}
-        width="max-w-xl"
-      >
-        <HistoryCard history={data.history} bannedIds={bannedIds} onBan={actions.banById} />
-      </Drawer>
 
       {isOwner && data.settings && (
         <Drawer

@@ -8,7 +8,8 @@ import type { Storage } from './storage';
 
 /**
  * Ephemeral storage: file lives from upload until shown. Sweep deletes files in
- * terminal statuses (with slack for overlay reconnect) and never-played expired ones.
+ * terminal statuses (with slack for overlay reconnect) and never-played expired ones, and clears
+ * the message body on the same clock.
  *
  * `liveChannelIds` returns the channels currently in the air (an overlay is connected). Their queues
  * are exempt from the TTL sweep — see sweep().
@@ -28,7 +29,7 @@ export function startCleanup(
   return timer;
 }
 
-async function sweep(
+export async function sweep(
   storage: Storage,
   log: FastifyBaseLogger,
   liveChannelIds: string[],
@@ -73,7 +74,24 @@ async function sweep(
     for (const d of doomed) await payouts.settle(d.id, 'failed');
   }
 
-  // Terminal statuses past retention: delete file, keep row as history.
+  // The body outlived the file only so the dashboard could show a snippet of it; that view is gone,
+  // so it goes on the same clock — including rows that never had a file (text, YouTube).
+  //
+  // Runs before the file sweep and leaves updatedAt alone on purpose: bumping it would push the row
+  // out of the window below, and the file — the thing that actually matters — would linger a cycle.
+  const { rowsAffected: scrubbed } = await db
+    .update(submissions)
+    .set({ text: null })
+    .where(
+      and(
+        inArray(submissions.status, ['played', 'rejected', 'expired']),
+        isNotNull(submissions.text),
+        lt(submissions.updatedAt, new Date(now - config.cleanup.terminalRetentionMs)),
+      ),
+    );
+  if (scrubbed) log.info({ n: scrubbed }, 'submission texts scrubbed');
+
+  // Terminal statuses past retention: delete file, keep the row — stats and levels count it.
   const stale = await db
     .select()
     .from(submissions)
@@ -99,7 +117,7 @@ async function sweep(
     }
   }
 
-  // The owner's own sends are not history, so once they can no longer play the row goes too.
+  // The owner's own sends count nowhere, so once they can no longer play the row goes too.
   // isNull(filePath) is the guard, not an optimization: if the delete above failed, dropping the
   // row here would strand its file with nothing left pointing at it.
   const { rowsAffected } = await db

@@ -468,6 +468,11 @@ export const submissions = sqliteTable(
     index('idx_submissions_files')
       .on(t.status, t.updatedAt)
       .where(sql`file_path IS NOT NULL`),
+    // Same shape for the message-body scrub. Partial, so a scrubbed row leaves the index and the
+    // sweep never pays to re-read the rows it has already cleared.
+    index('idx_submissions_texts')
+      .on(t.status, t.updatedAt)
+      .where(sql`"text" IS NOT NULL`),
     // Every login claims this identity's unattributed sends. Partial, so the index holds only
     // rows still waiting for an account — it stays tiny however large the history grows.
     index('idx_submissions_unclaimed')

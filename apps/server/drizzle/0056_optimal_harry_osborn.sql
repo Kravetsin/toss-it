@@ -1,0 +1,1 @@
+CREATE INDEX `idx_submissions_texts` ON `submissions` (`status`,`updated_at`) WHERE "text" IS NOT NULL;

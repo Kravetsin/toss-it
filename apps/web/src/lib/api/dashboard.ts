@@ -1,7 +1,6 @@
 import type {
   ChannelPointsStatus,
   ChannelSettings,
-  HistoryEntry,
   IntegrationStatus,
   ListedUser,
   LivePresence,
@@ -329,10 +328,6 @@ export function saveSettings(
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(patch),
   }).then((r) => json<ChannelSettings>(r));
-}
-
-export function getHistory(channelId: string): Promise<HistoryEntry[]> {
-  return fetch(`${dash(channelId)}/history`).then((r) => json<HistoryEntry[]>(r));
 }
 
 export function getModerators(channelId: string): Promise<ListedUser[]> {

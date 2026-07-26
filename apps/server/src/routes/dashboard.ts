@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { and, asc, count, desc, eq, gte, inArray, isNotNull, ne, sql } from 'drizzle-orm';
+import { and, asc, count, eq, gte, inArray, isNotNull, ne, sql } from 'drizzle-orm';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import {
   BOT_LOCALES,
@@ -17,7 +17,6 @@ import {
   type ChannelLink,
   type ChannelSettings,
   type DailyStat,
-  type HistoryEntry,
   type IntegrationStatus,
   type KindStat,
   type ListedUser,
@@ -67,7 +66,6 @@ import {
   emitSubmissionStatus,
   equippedMarksFor,
   equippedMarksOf,
-  marksFromEquipped,
   overlayLayoutsOf,
   roomOf,
   toSummary,
@@ -972,42 +970,6 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         volume: merged.bgMusicVolume,
         hidden: merged.bgMusicHidden,
       };
-    },
-  );
-
-  /** History: everything that left pending (metadata only; files are ephemeral, already deleted). */
-  app.get<{ Params: { channelId: string } }>(
-    '/api/dashboard/:channelId/history',
-    async (req, reply): Promise<HistoryEntry[] | undefined> => {
-      const channel = await requireChannelAccess(req, reply, req.params.channelId);
-      if (!channel) return;
-      const rows = await db
-        .select({ sub: submissions, founderSince: users.founderSince, equipped: users.equipped })
-        .from(submissions)
-        .leftJoin(users, eq(users.id, submissions.senderUserId))
-        .where(
-          and(
-            eq(submissions.channelId, channel.id),
-            inArray(submissions.status, ['played', 'rejected', 'expired']),
-            excludeSelfSends,
-          ),
-        )
-        .orderBy(desc(submissions.updatedAt))
-        .limit(50)
-        .all();
-      const levels = await levelsForSenders(
-        channel.id,
-        rows.map((r) => r.sub.senderUserId),
-      );
-      return rows.map((r) => ({
-        ...toSummary(
-          r.sub,
-          marksFromEquipped(r.equipped ?? null),
-          levels.get(r.sub.senderUserId ?? '') ?? 0,
-        ),
-        status: r.sub.status,
-        isFounder: r.founderSince != null,
-      }));
     },
   );
 
