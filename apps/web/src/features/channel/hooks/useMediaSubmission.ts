@@ -43,10 +43,15 @@ export function useMediaSubmission(
   // TTS voice is a sticky preference, not per-send state ('auto' = server picks by language).
   const [rawVoice, setVoiceState] = useState(() => localStorage.getItem(VOICE_KEY) ?? 'auto');
   const { me } = useMe();
+  // Admins get the paid voices without buying them — the same catalog-wide bypass the shop and
+  // /api/media use, so a voice can be reviewed on a real send.
   const availableVoices = useMemo(
     () =>
       ttsVoices.filter(
-        (v) => v.costDust === 0 || (me?.user?.ownedCosmetics.includes(v.id) ?? false),
+        (v) =>
+          v.costDust === 0 ||
+          me?.user?.isAdmin ||
+          (me?.user?.ownedCosmetics.includes(v.id) ?? false),
       ),
     [me],
   );

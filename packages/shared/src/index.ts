@@ -619,7 +619,8 @@ export interface SessionUser {
   avatarUrl: string | null;
   /** Founder — redeemed founder promo. Grants badge and grandfathering. */
   isFounder: boolean;
-  /** In ADMIN_USER_IDS — may issue promo codes. */
+  /** In ADMIN_USER_IDS — may issue promo codes, and may equip/use any cosmetic without owning or
+   *  earning it (the shop and /api/cosmetics/equip both honour this). */
   isAdmin: boolean;
   /** Stardust — user's global cosmetic wallet. */
   stardust: number;

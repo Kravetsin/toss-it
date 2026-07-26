@@ -40,7 +40,7 @@ import {
   YT_MUSIC_CATEGORY_ID,
 } from '../media/youtube';
 import { isGiphyId } from '../media/giphy';
-import { requireUser } from '../auth';
+import { isAdmin, requireUser } from '../auth';
 import { speakableText, synthesize } from '../tts';
 import {
   dashboardRoomOf,
@@ -187,12 +187,13 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
           }
         }
 
-        // TTS voice: must be a known catalog id; paid ones require ownership.
+        // TTS voice: must be a known catalog id; paid ones require ownership. Admins skip the gate,
+        // same as in /api/cosmetics/equip — they need every voice to review it, not to own it.
         let ttsVoice: string | null = null;
         if (voiceField) {
           const voice = ttsVoiceModule(voiceField);
           if (!voice) return reply.code(400).send({ error: 'Неизвестный голос озвучки' });
-          if (voice.costDust > 0) {
+          if (voice.costDust > 0 && !isAdmin(user.id)) {
             const owned = await db
               .select({ itemId: userCosmetics.itemId })
               .from(userCosmetics)

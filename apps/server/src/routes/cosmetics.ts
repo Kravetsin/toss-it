@@ -11,7 +11,7 @@ import {
 } from '@tmw/shared';
 import { db } from '../db/index';
 import { userCosmetics, users } from '../db/schema';
-import { requireUser } from '../auth';
+import { isAdmin, requireUser } from '../auth';
 import {
   dustEarnedFor,
   messagesTotalFor,
@@ -40,10 +40,16 @@ function earnTotal(userId: string, metric: CosmeticEarn['metric']): Promise<numb
         : messagesTotalFor(userId);
 }
 
-/** Whether the user may USE an item — meets its earn milestone (live) if earned, else owns it. */
+/**
+ * Whether the user may USE an item — meets its earn milestone (live) if earned, else owns it.
+ * Admins (ADMIN_USER_IDS) may equip the whole catalog: they have to look at every cosmetic on real
+ * surfaces to judge it, and grinding each threshold on the live account is not a way to do that.
+ * The bypass is USE-only — the buy route still charges, so no grant is ever written for free.
+ */
 async function unlocked(userId: string, itemId: string): Promise<boolean> {
   const item = COSMETICS.find((c) => c.id === itemId);
   if (!item) return false;
+  if (isAdmin(userId)) return true;
   return item.earn
     ? (await earnTotal(userId, item.earn.metric)) >= item.earn.count
     : owns(userId, itemId);
@@ -149,7 +155,7 @@ export function registerCosmeticsRoutes(app: FastifyInstance): void {
       if (raw === null) {
         delete equipped[field];
       } else if (typeof raw === 'string' && isHexColor(raw)) {
-        if (!(await owns(user.id, itemId))) {
+        if (!(await unlocked(user.id, itemId))) {
           return reply.code(403).send({ error: 'Предмет не куплен' });
         }
         equipped[field] = raw.toLowerCase();
@@ -174,7 +180,7 @@ export function registerCosmeticsRoutes(app: FastifyInstance): void {
         if (value === null) {
           delete next[effectId];
         } else if (typeof value === 'string' && isHexColor(value)) {
-          if (!(await owns(user.id, mod.colorUpgrade))) {
+          if (!(await unlocked(user.id, mod.colorUpgrade))) {
             return reply.code(403).send({ error: 'Предмет не куплен' });
           }
           next[effectId] = value.toLowerCase();
@@ -218,7 +224,7 @@ export function registerCosmeticsRoutes(app: FastifyInstance): void {
       if (raw === null || raw === false) {
         delete equipped.nickFlow;
       } else if (raw === true) {
-        if (!(await owns(user.id, 'nick-flow'))) {
+        if (!(await unlocked(user.id, 'nick-flow'))) {
           return reply.code(403).send({ error: 'Предмет не куплен' });
         }
         equipped.nickFlow = true;
@@ -253,15 +259,13 @@ export function registerCosmeticsRoutes(app: FastifyInstance): void {
         // renders nothing, so equipping it would blank the slot.
         !COSMETICS.find((c) => c.id === raw)?.upgrade
       ) {
-        // Earned cosmetics (frames, the card-effect seals) gate on the live activity count, not
-        // ownership; everything else must be bought. The gate is live, so anyone past it qualifies now.
-        const earn = COSMETICS.find((c) => c.id === raw)?.earn;
-        if (earn) {
-          if ((await earnTotal(user.id, earn.metric)) < earn.count) {
-            return reply.code(403).send({ error: 'Достижение ещё не выполнено' });
-          }
-        } else if (!(await owns(user.id, raw))) {
-          return reply.code(403).send({ error: 'Эффект не куплен' });
+        // Earned cosmetics (frames, seals) gate on the live activity count, not ownership; everything
+        // else must be bought. The gate is live, so anyone past the milestone qualifies right now.
+        if (!(await unlocked(user.id, raw))) {
+          const earned = !!COSMETICS.find((c) => c.id === raw)?.earn;
+          return reply
+            .code(403)
+            .send({ error: earned ? 'Достижение ещё не выполнено' : 'Эффект не куплен' });
         }
         equipped[field] = raw;
       } else {

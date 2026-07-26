@@ -251,9 +251,14 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   const portalColorItem = COSMETICS.find((c) => c.id === PORTAL_COLOR_ID)!;
   // Every specific voice is a purchase; the free path is the "auto" option in the compose form.
   const voiceItems = COSMETICS.filter((c) => c.type === 'tts_voice');
-  const ownsColor = user?.ownedCosmetics.includes(NICK_COLOR_ID) ?? false;
-  const ownsGradient = user?.ownedCosmetics.includes(NICK_GRADIENT_ID) ?? false;
-  const ownsFlow = user?.ownedCosmetics.includes(NICK_FLOW_ID) ?? false;
+  // An admin may equip the whole catalog without buying or grinding for it — the only way to judge a
+  // cosmetic is to wear it on real surfaces (see /api/cosmetics/equip, which enforces the same rule).
+  // Expressed as owning everything and having limitless activity, so no row below needs a branch.
+  const admin = user?.isAdmin ?? false;
+  const ownsItem = (id: string) => admin || (user?.ownedCosmetics.includes(id) ?? false);
+  const ownsColor = ownsItem(NICK_COLOR_ID);
+  const ownsGradient = ownsItem(NICK_GRADIENT_ID);
+  const ownsFlow = ownsItem(NICK_FLOW_ID);
   const equippedColor = user?.equipped.nickColor ?? null;
   const equippedColor2 = user?.equipped.nickColor2 ?? null;
   const equippedFlow = user?.equipped.nickFlow ?? false;
@@ -265,15 +270,15 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   const equippedSeal = user?.equipped.seal ?? null;
   // Per-seal saved colours (butterfly, eye) — the picker inside each seal's row reads/writes here.
   const equippedSealColors = user?.equipped.sealColors ?? {};
-  // Account-wide activity — earned cosmetics (frames) unlock at a threshold instead of a price.
+  // Account-wide activity — earned cosmetics (frames, seals) unlock at a threshold instead of a price.
   const earnTotals = {
-    messages: user?.messagesTotal ?? 0,
-    watchMinutes: user?.watchMinutesTotal ?? 0,
-    submissions: user?.submissionsTotal ?? 0,
-    dustEarned: user?.dustEarnedTotal ?? 0,
+    messages: admin ? Infinity : (user?.messagesTotal ?? 0),
+    watchMinutes: admin ? Infinity : (user?.watchMinutesTotal ?? 0),
+    submissions: admin ? Infinity : (user?.submissionsTotal ?? 0),
+    dustEarned: admin ? Infinity : (user?.dustEarnedTotal ?? 0),
   };
   const equippedEntrance = user?.equipped.entrance ?? null;
-  const ownsPortalColor = user?.ownedCosmetics.includes(PORTAL_COLOR_ID) ?? false;
+  const ownsPortalColor = ownsItem(PORTAL_COLOR_ID);
   const equippedEntranceColor = user?.equipped.entranceColor ?? null;
   const balance = user?.stardust ?? 0;
   const previewName = user?.displayName ?? 'nickname';
@@ -432,7 +437,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     const earnMeta = earn ? EARN_META[earn.metric] : null;
     const earnHave = earn ? earnTotals[earn.metric] : 0;
     const earnUnit = earnMeta?.unit ?? 1;
-    const owned = earn ? earnHave >= earn.count : (user?.ownedCosmetics.includes(e.id) ?? false);
+    const owned = earn ? earnHave >= earn.count : ownsItem(e.id);
     const on = equippedId === e.id;
     const mod = cosmeticModule(e.id);
     const labels = mod?.labels;
@@ -445,7 +450,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     const colorUp = mod?.type === 'card_effect' ? mod.colorUpgrade : undefined;
     const colorMod = colorUp ? cosmeticModule(colorUp) : undefined;
     const colorItem = colorUp ? COSMETICS.find((c) => c.id === colorUp) : undefined;
-    const ownsColorUp = colorUp ? (user?.ownedCosmetics.includes(colorUp) ?? false) : false;
+    const ownsColorUp = colorUp ? ownsItem(colorUp) : false;
     // One source of truth for whether the upgrade gets its own block below — the "new" mark on the
     // name covers the upgrade exactly when it does NOT, so the id always has something to clear it.
     const upgradeShown = !!(colorUp && owned && colorItem && colorMod);
@@ -627,9 +632,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     const colorItem = colorUp ? COSMETICS.find((c) => c.id === colorUp) : undefined;
     const colorMod = colorUp ? cosmeticModule(colorUp) : undefined;
     const headEarn = head.earn;
-    const headOwned = headEarn
-      ? earnTotals[headEarn.metric] >= headEarn.count
-      : (user?.ownedCosmetics.includes(head.id) ?? false);
+    const headOwned = headEarn ? earnTotals[headEarn.metric] >= headEarn.count : ownsItem(head.id);
     const colorEarn = colorItem?.earn;
     const colorMet = colorEarn ? earnTotals[colorEarn.metric] >= colorEarn.count : false;
     const colorEarnMeta = colorEarn ? EARN_META[colorEarn.metric] : null;
@@ -668,9 +671,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
               const earnMeta = earn ? EARN_META[earn.metric] : null;
               const have = earn ? earnTotals[earn.metric] : 0;
               const unit = earnMeta?.unit ?? 1;
-              const owned = earn
-                ? have >= earn.count
-                : (user?.ownedCosmetics.includes(r.id) ?? false);
+              const owned = earn ? have >= earn.count : ownsItem(r.id);
               const on = equippedSeal === r.id;
               return (
                 <div key={r.id} className="flex flex-col items-center gap-2 text-center">
@@ -766,7 +767,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
 
   /** A purchasable TTS voice row: no equip slot — the voice is picked per send in the compose form. */
   const voiceRow = (e: CosmeticItem) => {
-    const owned = user?.ownedCosmetics.includes(e.id) ?? false;
+    const owned = ownsItem(e.id);
     const labels = cosmeticModule(e.id)?.labels;
     if (!labels) return null;
     return (
