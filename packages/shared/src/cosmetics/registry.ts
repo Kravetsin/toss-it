@@ -42,8 +42,7 @@ import { frameStorm } from './effects/frame-storm';
 import { sealNovaEmber, sealNova, sealNovaColor } from './effects/seal-nova';
 import { sealVoidCollapsing, sealVoid, sealVoidColor } from './effects/seal-void';
 import { sealCoreCold, sealCore, sealCoreColor } from './effects/seal-core';
-import { sealEye } from './effects/seal-eye';
-import { sealEyeColor } from './effects/seal-eye-color';
+import { sealHourglassGlass, sealHourglass, sealHourglassColor } from './effects/seal-hourglass';
 import { entranceGlitch } from './effects/entrance-glitch';
 import { entranceAstral } from './effects/entrance-astral';
 import { entrancePortal } from './effects/entrance-portal';
@@ -186,8 +185,9 @@ const BASE_CSS = `
   overflow: visible;
 }
 @media (prefers-reduced-motion: reduce) {
-  /* Pseudo-elements AND inner markup: seals animate on ::before/::after (eye blink, butterfly flap)
-     and on nested SVG nodes (the black hole's orbit), none of which a bare .seal-fx rule reaches. */
+  /* Pseudo-elements AND inner markup: seals animate on ::before/::after (the nova's spark and
+     shockwave) and on nested SVG nodes (the black hole's orbit, the hourglass's grains), none of
+     which a bare .seal-fx rule reaches. */
   .seal-fx,
   .seal-fx::before,
   .seal-fx::after,
@@ -241,13 +241,14 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   sealVoidCollapsing,
   sealVoid,
   sealVoidColor,
-  // The core on chat messages, the eye on watch time — the remaining two activity axes. Each is EARNED
-  // and carries its own earned colour upgrade.
+  // The core on chat messages, the hourglass on watch time — the remaining two activity axes. Each is
+  // EARNED and carries its own earned colour upgrade.
   sealCoreCold,
   sealCore,
   sealCoreColor,
-  sealEye,
-  sealEyeColor,
+  sealHourglassGlass,
+  sealHourglass,
+  sealHourglassColor,
   entranceGlitch,
   entranceAstral,
   entrancePortal,

@@ -84,7 +84,7 @@ interface BadgeDef {
  *  nick (after the level numeral), never trailing the badges — a seal is an artifact worn by the
  *  person, not an achievement chip. Sized via inline font-size (the shared .seal-fx scales from it)
  *  rather than a Tailwind class, so a caller can pass any size without a purge-safe literal. A
- *  colourable seal (butterfly/eye) reads its tint from the `--seal-tint` custom property set here. */
+ *  colourable seal reads its tint from the `--seal-tint` custom property set here. */
 export function SealMark({
   seal,
   color,

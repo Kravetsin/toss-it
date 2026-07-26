@@ -91,7 +91,7 @@ const MOCK_ME: MeResponse = {
       // ownedCosmetics = every catalog id (so both colour upgrades are owned).
       cardEffectColors: { 'card-butterflies': '#5ad1ff', 'card-eyes': '#7cff4f' },
       // Saved per-seal colours — the picker inside each colourable seal's row seeds from these.
-      sealColors: { 'seal-core': '#5ad1ff', 'seal-eye': '#7cff4f' },
+      sealColors: { 'seal-core': '#5ad1ff', 'seal-hourglass': '#7cff4f' },
       frame: 'frame-runner',
       seal: 'seal-nova',
       entrance: 'entrance-astral',
@@ -387,7 +387,7 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderCardEffect: 'card-eyes',
     // Showcase the (now general) colour upgrade recolouring the eyes too — acid green.
     senderCardEffectColor: '#7CFF4F',
-    senderSeal: 'seal-eye',
+    senderSeal: 'seal-hourglass',
     senderSealColor: '#7CFF4F',
     text: 'не оборачивайся',
     createdAt: t - 50 * min,
@@ -573,8 +573,8 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     nickFlow: false,
     nickEffect: 'nick-pulse',
     cardEffect: 'card-snow',
-    // Colourable eye seal, recoloured — previews a tinted seal in the leaderboard.
-    seal: 'seal-eye',
+    // Colourable hourglass seal, recoloured — previews a tinted seal in the leaderboard.
+    seal: 'seal-hourglass',
     sealColor: '#7cff4f',
     level: 10,
   },

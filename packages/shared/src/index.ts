@@ -120,9 +120,9 @@ export interface MediaPlayPayload {
   senderCardEffectColor?: string;
   /** Sender's equipped frame id (e.g. 'frame-runner'); absent if none. Border decoration on the card. */
   senderFrame?: string;
-  /** Sender's equipped seal id (e.g. 'seal-eye-open'); absent if none. A small object, own slot. */
+  /** Sender's equipped seal id (e.g. 'seal-hourglass'); absent if none. A small object, own slot. */
   senderSeal?: string;
-  /** Seal tint (#rrggbb) from the seal's colour upgrade (butterfly/eye); absent = the seal's palette. */
+  /** Seal tint (#rrggbb) from the seal's colour upgrade; absent = the seal's palette. */
   senderSealColor?: string;
   /** Sender's equipped entrance id (e.g. 'entrance-glitch'); absent = the stage's own pop-in. */
   senderEntrance?: string;
@@ -433,7 +433,7 @@ export interface SubmissionSummary {
   senderFrame: string | null;
   /** Sender's equipped seal id, null if none. A small object in the card's free corner. */
   senderSeal: string | null;
-  /** Seal tint (#rrggbb) from the seal's colour upgrade (butterfly/eye); null = the seal's palette. */
+  /** Seal tint (#rrggbb) from the seal's colour upgrade; null = the seal's palette. */
   senderSealColor: string | null;
   /** Sender's per-channel level 0–10 (0/absent = no rank) — drives the curation rail + numeral. */
   senderLevel?: number;
@@ -883,7 +883,7 @@ export interface LeaderboardEntry {
   cardEffectColor?: string | null;
   /** Equipped seal id, null if none — shown next to the badges. */
   seal: string | null;
-  /** Seal tint (#rrggbb) from the seal's colour upgrade (butterfly/eye); null = the seal's palette. */
+  /** Seal tint (#rrggbb) from the seal's colour upgrade; null = the seal's palette. */
   sealColor: string | null;
   /** Per-channel level 0–10 (0/absent = no rank) — the rarity rail + Roman numeral. */
   level?: number;

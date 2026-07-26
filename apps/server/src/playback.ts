@@ -59,9 +59,9 @@ export interface NickMarks {
   cardEffectColor: string | null;
   /** Border decoration on the card (e.g. 'frame-runner'); null = none. */
   frame: string | null;
-  /** Small object the sender carries (e.g. 'seal-eye-open'); null = none. Own slot, not a frame. */
+  /** Small object the sender carries (e.g. 'seal-hourglass'); null = none. Own slot, not a frame. */
   seal: string | null;
-  /** Seal tint (#rrggbb); only meaningful for a colourable seal (butterfly/eye). */
+  /** Seal tint (#rrggbb); only meaningful for a colourable seal. */
   sealColor: string | null;
   /** How the alert arrives on stage; null = the stage's own pop-in. */
   entrance: string | null;

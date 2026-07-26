@@ -237,7 +237,7 @@ export interface FrameModule extends BaseModule {
  */
 export interface SealModule extends BaseModule {
   type: 'seal';
-  /** Class set on the seal element (e.g. 'seal-fx-eye-open'); the module's CSS paints its background. */
+  /** Class set on the seal element (e.g. 'seal-fx-hourglass'); the module's CSS paints its background. */
   className: string;
   /**
    * Optional inner markup (an `<svg>`) the surface places INSIDE the seal element, for a seal that
@@ -359,7 +359,7 @@ export interface EquippedCosmetics {
    *  sender's card, layered over its role colour (the colour is untouched). */
   frame?: string | null;
   /**
-   * Equipped seal item id (e.g. 'seal-eye-open'). A small OBJECT rather than a border treatment, so
+   * Equipped seal item id (e.g. 'seal-hourglass'). A small OBJECT rather than a border treatment, so
    * it has its own slot and can be worn together with a frame. Each surface places it where it has
    * room — the card's free corner, or hanging under the star in the chat gutter.
    */

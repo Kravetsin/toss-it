@@ -240,7 +240,7 @@ function renderMessage(msg: ChatOverlayMessage): void {
     seal.className = `seal ${sealCls}`;
     // Constant markup from the cosmetics registry — not user input (same rule as the star glyph).
     seal.innerHTML = sealMarkup(msg.cosmetics?.seal);
-    // Colourable seals (butterfly/eye) read their tint from --seal-tint; a plain seal has no entry.
+    // Colourable seals read their tint from --seal-tint; a plain seal has no entry.
     const sealColor = msg.cosmetics?.seal
       ? msg.cosmetics.sealColors?.[msg.cosmetics.seal]
       : undefined;
@@ -668,7 +668,7 @@ if (DEMO) {
       userId: 'u6',
       name: 'subfan',
       twitchColor: '#7ec8ff',
-      cosmetics: { cardEffect: 'card-snow', seal: 'seal-nova-ember' },
+      cosmetics: { cardEffect: 'card-snow', seal: 'seal-hourglass-glass' },
       isFounder: false,
       level: 2,
       badges: [SUB],
@@ -814,7 +814,7 @@ if (DEMO) {
       cosmetics: {
         cardEffect: 'card-butterflies',
         cardEffectColors: { 'card-butterflies': '#5ad1ff' },
-        // The butterfly seal, recoloured cyan via its own colour upgrade.
+        // The core seal, recoloured cyan via its own colour upgrade.
         seal: 'seal-core',
         sealColors: { 'seal-core': '#5ad1ff' },
       },
@@ -827,7 +827,7 @@ if (DEMO) {
       userId: 'u21',
       name: 'peekaboo',
       twitchColor: '#ff5a7a',
-      cosmetics: { cardEffect: 'card-eyes', seal: 'seal-eye' },
+      cosmetics: { cardEffect: 'card-eyes', seal: 'seal-hourglass' },
       isFounder: false,
       level: 7,
       fragments: [{ type: 'text', text: 'не оборачивайся' }],

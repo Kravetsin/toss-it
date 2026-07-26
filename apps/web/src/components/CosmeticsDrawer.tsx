@@ -620,7 +620,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     const headMod = cosmeticModule(head.id);
     const labels = headMod?.labels;
     if (!labels) return null;
-    // Colourable seals (butterfly/eye) carry an EARNED colour upgrade; its picker renders below the
+    // Colourable seals carry an EARNED colour upgrade; its picker renders below the
     // ladder, unlocked once the seal itself is earned AND the upgrade's own milestone is met.
     const rungIds = rungs.map((r) => r.id);
     const colorUp = headMod?.type === 'seal' ? headMod.colorUpgrade : undefined;

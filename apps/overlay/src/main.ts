@@ -272,7 +272,7 @@ function decorateSender(el: HTMLElement, payload: MediaPlayPayload): void {
     seal.className = `sender-seal ${sealCls}`;
     // Constant markup from the cosmetics registry — not user input.
     seal.innerHTML = sealMarkup(payload.senderSeal);
-    // Colourable seals (butterfly/eye) read their tint from --seal-tint; a plain seal ignores it.
+    // Colourable seals read their tint from --seal-tint; a plain seal ignores it.
     if (payload.senderSealColor) seal.style.setProperty('--seal-tint', payload.senderSealColor);
     el.appendChild(seal);
   }
@@ -1452,7 +1452,7 @@ function demoPayload(kind: MediaKind, st: DemoState): MediaPlayPayload {
     senderSealColor:
       st.sender && st.seal === 'seal-core'
         ? '#5ad1ff'
-        : st.sender && st.seal === 'seal-eye'
+        : st.sender && st.seal === 'seal-hourglass'
           ? '#7cff4f'
           : undefined,
     // Demo a non-default butterfly colour so the card-colour upgrade shows on the stage without a picker.
@@ -1492,7 +1492,7 @@ function mountDemoPanel(): void {
     // On by default: an entrance is invisible unless you happen to fire an alert while looking, so
     // the demo shows it rather than hiding it behind a click nobody knows to make.
     entrance: 'entrance-glitch',
-    seal: 'seal-eye',
+    seal: 'seal-hourglass',
   };
 
   const style = document.createElement('style');
