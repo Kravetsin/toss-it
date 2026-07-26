@@ -7,6 +7,7 @@ import type {
   MusicTrack,
   OverlayPresence,
   PlaybackProgress,
+  PlaybackSlot,
   ReputationStats,
   SubmissionSummary,
 } from '@tmw/shared';
@@ -36,8 +37,11 @@ export function useChannelData(
 ) {
   const [pending, setPending] = useState<SubmissionSummary[]>([]);
   const [now, setNow] = useState<SubmissionSummary | null>(null);
+  /** The compact player's show, when the channel runs parallel slots. */
+  const [nowMusic, setNowMusic] = useState<SubmissionSummary | null>(null);
   const [queue, setQueue] = useState<SubmissionSummary[]>([]);
   const [progress, setProgress] = useState<PlaybackProgress | null>(null);
+  const [musicProgress, setMusicProgress] = useState<PlaybackProgress | null>(null);
   const [settings, setSettings] = useState<ChannelSettings | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [allowed, setAllowed] = useState<ListedUser[]>([]);
@@ -110,8 +114,10 @@ export function useChannelData(
     if (!channelId) return;
     setPending([]);
     setNow(null);
+    setNowMusic(null);
     setQueue([]);
     setProgress(null);
+    setMusicProgress(null);
     setSettings(null);
     setAllowed([]);
     setBanned([]);
@@ -126,6 +132,7 @@ export function useChannelData(
     void getNowPlaying(channelId)
       .then((r) => {
         setNow(r.now);
+        setNowMusic(r.nowMusic);
         setQueue(r.queue);
       })
       .catch(() => {});
@@ -148,13 +155,24 @@ export function useChannelData(
     socket.on('moderation:resolved', (id: string) =>
       setPending((prev) => prev.filter((p) => p.id !== id)),
     );
-    socket.on('playback:started', (s: SubmissionSummary) => {
-      setNow(s);
-      setProgress(null); // reset until the overlay reports the new item's position
+    socket.on('playback:started', (s: SubmissionSummary, slot?: PlaybackSlot) => {
+      // Each stage owns its own panel; a song starting must not blank the picture's progress bar.
+      if (slot === 'music') {
+        setNowMusic(s);
+        setMusicProgress(null);
+      } else {
+        setNow(s);
+        setProgress(null); // reset until the overlay reports the new item's position
+      }
     });
-    socket.on('playback:ended', () => {
-      setNow(null);
-      setProgress(null);
+    socket.on('playback:ended', (_id: string, slot?: PlaybackSlot) => {
+      if (slot === 'music') {
+        setNowMusic(null);
+        setMusicProgress(null);
+      } else {
+        setNow(null);
+        setProgress(null);
+      }
       void getHistory(channelId)
         .then(setHistory)
         .catch(() => {});
@@ -163,7 +181,9 @@ export function useChannelData(
     socket.on('disconnect', () => setServerConnected(false));
     socket.on('overlay:presence', (p: OverlayPresence) => setPresence(p));
     socket.on('playback:queue', (q: SubmissionSummary[]) => setQueue(q));
-    socket.on('playback:progress', (p: PlaybackProgress) => setProgress(p));
+    socket.on('playback:progress', (p: PlaybackProgress) =>
+      p.slot === 'music' ? setMusicProgress(p) : setProgress(p),
+    );
     socket.on('music:state', (s: MusicState) => setMusicState(s));
     return () => {
       socket.close();
@@ -174,6 +194,8 @@ export function useChannelData(
     pending,
     setPending,
     now,
+    nowMusic,
+    musicProgress,
     queue,
     progress,
     settings,

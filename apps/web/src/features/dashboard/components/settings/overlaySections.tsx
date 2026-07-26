@@ -22,6 +22,7 @@ export function MediaLayoutSettings({
   const [mediaSize, setMediaSize] = useState(settings.overlaySize);
   const [margin, setMargin] = useState(settings.overlayMargin);
   const [ytAsMusic, setYtAsMusic] = useState(settings.youtubeAsMusic);
+  const [parallel, setParallel] = useState(settings.parallelSlots);
   return (
     <div className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
@@ -62,6 +63,24 @@ export function MediaLayoutSettings({
         checked={ytAsMusic}
         onChange={setYtAsMusic}
       />
+      {/* Only meaningful while YouTube goes to the compact player: otherwise the music stage would
+          only ever receive uploaded audio files, and nothing would run in parallel. */}
+      {ytAsMusic && (
+        <Switch
+          icon="image"
+          label={t('dash.parallelSlots')}
+          description={t('settings.parallelSlotsNote')}
+          checked={parallel}
+          onChange={setParallel}
+        />
+      )}
+      {/* Overlapping anchors are allowed — just say what will happen, don't block the save. */}
+      {ytAsMusic && parallel && !settings.musicSeparate && (
+        <p className="flex items-start gap-1.5 text-xs text-faint">
+          <Icon name="monitor" size={13} className="mt-px shrink-0" />
+          {t('settings.sameAnchorNote')}
+        </p>
+      )}
       <SaveRow
         onClick={() =>
           onSave({
@@ -69,6 +88,7 @@ export function MediaLayoutSettings({
             overlaySize: mediaSize,
             overlayMargin: margin,
             youtubeAsMusic: ytAsMusic,
+            parallelSlots: parallel,
           })
         }
       />

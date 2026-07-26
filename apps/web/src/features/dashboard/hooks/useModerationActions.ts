@@ -1,4 +1,4 @@
-import type { SubmissionSummary } from '@tmw/shared';
+import type { PlaybackSlot, SubmissionSummary } from '@tmw/shared';
 import {
   approveSubmission,
   banUser,
@@ -71,12 +71,13 @@ export function useModerationActions({
       }
     })();
   };
-  const skip = () => {
-    if (channelId) void act(() => skipCurrent(channelId), { success: t('toast.skipped') });
+  const skip = (slot: PlaybackSlot = 'media') => {
+    if (channelId) void act(() => skipCurrent(channelId, slot), { success: t('toast.skipped') });
   };
-  const pauseResume = (paused: boolean) => {
+  const pauseResume = (paused: boolean, slot: PlaybackSlot = 'media') => {
     // Fire-and-forget: the overlay's progress ticks reflect the real state; no toast needed.
-    if (channelId) void pauseResumePlayback(channelId, paused ? 'pause' : 'resume').catch(() => {});
+    if (channelId)
+      void pauseResumePlayback(channelId, paused ? 'pause' : 'resume', slot).catch(() => {});
   };
   return { onApprove, onTrust, onReject, onBan, banById, skip, pauseResume };
 }

@@ -131,6 +131,41 @@ export function DashboardPage() {
 
   const accepting = isOwner && data.settings ? data.settings.accepting : null;
 
+  // Both stages, as two cards: the media one always, the compact player's only while it holds a
+  // show. Rendered twice below (mobile column / desktop column), so it lives in one place.
+  const nowPlaying = (
+    <>
+      <NowPlayingCard
+        now={data.now}
+        progress={data.progress}
+        live={data.progress !== null}
+        isOwner={isOwner}
+        volume={isOwner ? data.settings?.volume : undefined}
+        onVolumeChange={isOwner ? onContentVolume : undefined}
+        onSeek={onSeek}
+        onSkip={() => actions.skip('media')}
+        onPauseResume={(paused) => actions.pauseResume(paused, 'media')}
+        onOpenTest={() => setTestOpen(true)}
+      />
+      {data.nowMusic && (
+        <NowPlayingCard
+          now={data.nowMusic}
+          progress={data.musicProgress}
+          live={data.musicProgress !== null}
+          isOwner={isOwner}
+          // No volume slider here: one slider drives both stages (see the plan).
+          onSeek={(seconds) =>
+            channelId && void seekPlayback(channelId, seconds, 'music').catch(() => {})
+          }
+          onSkip={() => actions.skip('music')}
+          onPauseResume={(paused) => actions.pauseResume(paused, 'music')}
+          onOpenTest={() => setTestOpen(true)}
+          title={t('dash.nowPlayingMusic')}
+        />
+      )}
+    </>
+  );
+
   return (
     <Content>
       <DashboardTopbar
@@ -158,18 +193,7 @@ export function DashboardPage() {
           NowPlaying rendered twice for responsive display (mobile lg:hidden, desktop hidden lg:block). */}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-4 lg:hidden">
-          <NowPlayingCard
-            now={data.now}
-            progress={data.progress}
-            live={data.progress !== null}
-            isOwner={isOwner}
-            volume={isOwner ? data.settings?.volume : undefined}
-            onVolumeChange={isOwner ? onContentVolume : undefined}
-            onSeek={onSeek}
-            onSkip={actions.skip}
-            onPauseResume={actions.pauseResume}
-            onOpenTest={() => setTestOpen(true)}
-          />
+          {nowPlaying}
           {channelId && data.queue.length > 0 && (
             <QueueCard channelId={channelId} queue={data.queue} />
           )}
@@ -190,18 +214,7 @@ export function DashboardPage() {
 
         <div className="flex min-w-0 flex-col gap-4 self-start lg:sticky lg:top-20">
           <div className="hidden flex-col gap-4 lg:flex">
-            <NowPlayingCard
-              now={data.now}
-              progress={data.progress}
-              live={data.progress !== null}
-              isOwner={isOwner}
-              volume={isOwner ? data.settings?.volume : undefined}
-              onVolumeChange={isOwner ? onContentVolume : undefined}
-              onSeek={onSeek}
-              onSkip={actions.skip}
-              onPauseResume={actions.pauseResume}
-              onOpenTest={() => setTestOpen(true)}
-            />
+            {nowPlaying}
             {channelId && data.queue.length > 0 && (
               <QueueCard channelId={channelId} queue={data.queue} />
             )}

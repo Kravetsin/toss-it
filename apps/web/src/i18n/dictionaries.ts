@@ -201,6 +201,10 @@ export const en: Dict = {
   'settings.mediaLayout': 'Media placement',
   'settings.music': 'Music',
   'settings.chat': 'Chat',
+  'settings.parallelSlotsNote':
+    'A song holds the compact player while images and gifs keep appearing. Video and voice still pause the music.',
+  'settings.sameAnchorNote':
+    'Both stages point at the same corner, so the music card will sit under the media one. Give music its own position below if you want them side by side.',
   'settings.musicSeparateNote': 'Otherwise a request appears where media does',
   'settings.youtubeAsMusicNote':
     'Most requests are songs, and YouTube data cannot reliably tell a music video from a video. Off = YouTube plays full-size.',
@@ -545,6 +549,8 @@ export const en: Dict = {
   'dash.positionShort': 'Position',
   'dash.musicSeparate': 'Song requests use this layout too',
   'dash.youtubeAsMusic': 'YouTube goes to the music player',
+  'dash.parallelSlots': 'Show posts alongside music',
+  'dash.nowPlayingMusic': 'Now playing — music player',
   'dash.musicLayout': 'Music player',
   'dash.musicLayoutNote': 'Layout for the background-music player.',
   'dash.showSender': 'Show sender name in the overlay',
@@ -912,6 +918,10 @@ export const ru: Dict = {
   'settings.mediaLayout': 'Расположение медиа',
   'settings.music': 'Музыка',
   'settings.chat': 'Чат',
+  'settings.parallelSlotsNote':
+    'Трек занимает компактный плеер, а картинки и гифки продолжают появляться. Видео и озвучка по-прежнему ставят музыку на паузу.',
+  'settings.sameAnchorNote':
+    'Оба плеера смотрят в один угол — музыкальная карточка окажется под медийной. Дай музыке своё положение ниже, если нужно рядом.',
   'settings.musicSeparateNote': 'Иначе заявка появляется там же, где медиа',
   'settings.youtubeAsMusicNote':
     'Чаще всего заказывают музыку, а данные YouTube не отличают клип от видео надёжно. Выключи — YouTube будет играть в большом плеере.',
@@ -1258,6 +1268,8 @@ export const ru: Dict = {
   'dash.positionShort': 'Позиция',
   'dash.musicSeparate': 'Заявки на музыку — в этом же месте',
   'dash.youtubeAsMusic': 'YouTube — в музыкальный плеер',
+  'dash.parallelSlots': 'Показывать посты параллельно с музыкой',
+  'dash.nowPlayingMusic': 'Сейчас играет — музыкальный плеер',
   'dash.musicLayout': 'Музыкальный плеер',
   'dash.musicLayoutNote': 'Раскладка плеера фоновой музыки.',
   'dash.showSender': 'Показывать имя отправителя в оверлее',
@@ -1626,6 +1638,10 @@ export const uk: Dict = {
   'settings.mediaLayout': 'Розташування медіа',
   'settings.music': 'Музика',
   'settings.chat': 'Чат',
+  'settings.parallelSlotsNote':
+    'Трек займає компактний плеєр, а картинки й гіфки продовжують з’являтися. Відео та озвучка так само ставлять музику на паузу.',
+  'settings.sameAnchorNote':
+    'Обидва плеєри дивляться в один кут — музична картка опиниться під медійною. Дай музиці своє положення нижче, якщо потрібно поруч.',
   'settings.musicSeparateNote': 'Інакше заявка буде там, де медіа',
   'settings.youtubeAsMusicNote':
     'Найчастіше замовляють музику, а дані YouTube не відрізняють кліп від відео надійно. Вимкни — YouTube гратиме у великому плеєрі.',
@@ -1974,6 +1990,8 @@ export const uk: Dict = {
   'dash.positionShort': 'Позиція',
   'dash.musicSeparate': 'Заявки на музику — у цьому ж місці',
   'dash.youtubeAsMusic': 'YouTube — у музичний плеєр',
+  'dash.parallelSlots': 'Показувати пости паралельно з музикою',
+  'dash.nowPlayingMusic': 'Зараз грає — музичний плеєр',
   'dash.musicLayout': 'Музичний плеєр',
   'dash.musicLayoutNote': 'Розкладка плеєра фонової музики.',
   'dash.showSender': 'Показувати ім’я відправника в оверлеї',

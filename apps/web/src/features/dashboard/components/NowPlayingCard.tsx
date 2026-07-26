@@ -33,6 +33,7 @@ export function NowPlayingCard({
   onSkip,
   onPauseResume,
   onOpenTest,
+  title,
 }: {
   now: SubmissionSummary | null;
   /** Live position of the current show, or null (no overlay / not reported yet). */
@@ -49,6 +50,8 @@ export function NowPlayingCard({
   onSkip: () => void;
   onPauseResume: (paused: boolean) => void;
   onOpenTest: () => void;
+  /** Heading override — the second card names the stage it belongs to (music vs media). */
+  title?: string;
 }) {
   const { t } = useI18n();
 
@@ -117,7 +120,7 @@ export function NowPlayingCard({
       <div className="relative">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="label-mono text-muted">{t('dash.nowPlaying')}</h2>
+            <h2 className="label-mono text-muted">{title ?? t('dash.nowPlaying')}</h2>
             {now ? (
               <div className="mt-1 flex items-center gap-1.5 text-sm text-muted">
                 {tier && (

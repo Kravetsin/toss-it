@@ -8,6 +8,7 @@ import type {
   MusicCommand,
   MusicDashboard,
   MusicTrack,
+  PlaybackSlot,
   OnboardingStatus,
   ReputationStats,
   StatsSummary,
@@ -146,11 +147,18 @@ export function removeBan(channelId: string, userId: string): Promise<unknown> {
   );
 }
 
-export function getNowPlaying(
-  channelId: string,
-): Promise<{ now: SubmissionSummary | null; queue: SubmissionSummary[] }> {
+export function getNowPlaying(channelId: string): Promise<{
+  now: SubmissionSummary | null;
+  /** The compact player's show, when parallel slots are on. */
+  nowMusic: SubmissionSummary | null;
+  queue: SubmissionSummary[];
+}> {
   return fetch(`${dash(channelId)}/now`).then((r) =>
-    json<{ now: SubmissionSummary | null; queue: SubmissionSummary[] }>(r),
+    json<{
+      now: SubmissionSummary | null;
+      nowMusic: SubmissionSummary | null;
+      queue: SubmissionSummary[];
+    }>(r),
   );
 }
 
@@ -180,11 +188,12 @@ export function clearQueue(channelId: string): Promise<{ removed: number }> {
 export function pauseResumePlayback(
   channelId: string,
   action: 'pause' | 'resume',
+  slot: PlaybackSlot = 'media',
 ): Promise<{ ok: boolean }> {
   return fetch(`${dash(channelId)}/playback`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ action }),
+    body: JSON.stringify({ action, slot }),
   }).then((r) => json<{ ok: boolean }>(r));
 }
 
@@ -198,18 +207,27 @@ export function setContentVolume(channelId: string, volume: number): Promise<{ v
 }
 
 /** Seek the current show to `seconds` (video/audio/YouTube). */
-export function seekPlayback(channelId: string, seconds: number): Promise<{ ok: boolean }> {
+export function seekPlayback(
+  channelId: string,
+  seconds: number,
+  slot: PlaybackSlot = 'media',
+): Promise<{ ok: boolean }> {
   return fetch(`${dash(channelId)}/playback/seek`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ seconds }),
+    body: JSON.stringify({ seconds, slot }),
   }).then((r) => json<{ ok: boolean }>(r));
 }
 
-export function skipCurrent(channelId: string): Promise<{ skipped: boolean }> {
-  return fetch(`${dash(channelId)}/skip`, { method: 'POST' }).then((r) =>
-    json<{ skipped: boolean }>(r),
-  );
+export function skipCurrent(
+  channelId: string,
+  slot: PlaybackSlot = 'media',
+): Promise<{ skipped: boolean }> {
+  return fetch(`${dash(channelId)}/skip`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ slot }),
+  }).then((r) => json<{ skipped: boolean }>(r));
 }
 
 /** Tell every connected overlay source of this channel to reload itself. */
