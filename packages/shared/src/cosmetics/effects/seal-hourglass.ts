@@ -166,10 +166,13 @@ function hourglass(rung: {
     css: `
 /* Geometry shared by both rungs, scoped under .seal-fx so these short class names can't collide with
    anything outside a seal. Emitted by each rung; the duplicate in the concatenated sheet is inert. */
+/* The frame stays a fixed white rather than following the tint — a coloured glass and coloured sand
+   are the same value and the whole seal collapses into two flat triangles. White is also what keeps
+   the SILHOUETTE (the actual "hourglass" read) legible under every colour the upgrade can produce. */
 .seal-fx .hg-body,
 .seal-fx .hg-cap {
   fill: none;
-  stroke: var(--seal-tint, #8df0cc);
+  stroke: #ffffff;
   stroke-linecap: round;
 }
 .seal-fx .hg-body {
