@@ -135,6 +135,8 @@ export interface MediaPlayPayload {
   /** Caption for a file, or body of text-only submission (kind='text'). */
   text?: string;
   ttsText: boolean;
+  /** Which stage to render on. Absent in bundles older than parallel slots — they only have one. */
+  slot?: PlaybackSlot;
   position: OverlayPosition;
   /** Max media size, % of viewport (channel setting). */
   size: number;
@@ -149,6 +151,13 @@ export interface MediaPlayPayload {
   /** Giphy id (kind='gif'); overlay renders the remote GIF from Giphy's CDN. */
   giphyId?: string;
 }
+
+/**
+ * Which of the overlay's two stages a post plays on. Two posts can be up at once, one per slot, so
+ * a three-minute song no longer blocks a two-second gif. Not the same thing as the anchor: where a
+ * post sits is decided by the channel's YouTube switch, this decides what it can play alongside.
+ */
+export type PlaybackSlot = 'media' | 'music';
 
 /** Where a post sits on screen — the trio the overlay applies to the stage. */
 export interface OverlayLayout {
@@ -412,11 +421,11 @@ export interface ServerToOverlayEvents {
   'media:layout': (layouts: OverlayLayouts) => void;
   'media:skip': (submissionId: string) => void;
   /** Pause/resume the current show (dashboard → overlay). Skip is media:skip. */
-  'media:control': (action: 'pause' | 'resume') => void;
+  'media:control': (action: 'pause' | 'resume', slot?: PlaybackSlot) => void;
   /** Live content volume (0-100) applied to the current show — the dashboard's now-playing slider. */
   'media:volume': (volume: number) => void;
   /** Seek the current show to `seconds` (video/audio/YouTube only) — the now-playing scrub bar. */
-  'media:seek': (seconds: number) => void;
+  'media:seek': (seconds: number, slot?: PlaybackSlot) => void;
   /** Channel donation → fullscreen burst FX over media display. */
   'donation:fx': (fx: DonationFx) => void;
   /** Chat display config, sent on connect and whenever settings change. */
@@ -506,14 +515,17 @@ export interface PlaybackProgress {
   /** Total length; 0 = unknown yet (e.g. a YouTube clip still loading). */
   durationMs: number;
   paused: boolean;
+  /** Which stage reported it; absent from bundles older than parallel slots (they mean 'media'). */
+  slot?: PlaybackSlot;
 }
 
 export interface ServerToDashboardEvents {
   'moderation:new': (submission: SubmissionSummary) => void;
   /** Submission left pending (approved/rejected) — remove from list. */
   'moderation:resolved': (submissionId: string) => void;
-  'playback:started': (submission: SubmissionSummary) => void;
-  'playback:ended': (submissionId: string) => void;
+  /** A show started. `slot` says which of the two now-playing panels it belongs to. */
+  'playback:started': (submission: SubmissionSummary, slot?: PlaybackSlot) => void;
+  'playback:ended': (submissionId: string, slot?: PlaybackSlot) => void;
   /** The waiting queue changed (item added/played/reordered) — full ordered list, next-first. */
   'playback:queue': (queue: SubmissionSummary[]) => void;
   /** Live progress of the current show (relayed from the overlay), for the now-playing controls. */
@@ -583,6 +595,11 @@ export interface ChannelSettings {
    * video from a video, and a streamer saying "YouTube goes small" means all of it.
    */
   youtubeAsMusic: boolean;
+  /**
+   * true = two posts can be on screen at once, one per slot: a song keeps playing in the compact
+   * player while images and gifs come and go on the main stage. Off restores single-slot playback.
+   */
+  parallelSlots: boolean;
   /** true = music player has its own layout (music* fields), else inherits overlay*. */
   musicSeparate: boolean;
   musicPosition: OverlayPosition;

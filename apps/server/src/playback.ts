@@ -9,6 +9,7 @@ import {
   type OverlayKind,
   type OverlayLayouts,
   type OverlayPresence,
+  type PlaybackSlot,
   type OverlayToServerEvents,
   type ServerToDashboardEvents,
   type ServerToOverlayEvents,
@@ -209,8 +210,8 @@ export async function senderMarksOf(
   return { ...marksFromEquipped(row?.equipped ?? null), badges };
 }
 
-interface ChannelState {
-  queue: SubmissionRow[];
+/** One playing position on the overlay. Two of these per channel — see PlaybackSlot. */
+interface SlotState {
   current: SubmissionRow | null;
   watchdog: NodeJS.Timeout | null;
   /** Streamer paused the current show — the auto-advance watchdog is off while true. */
@@ -221,6 +222,42 @@ interface ChannelState {
   deliveryProbe: NodeJS.Timeout | null;
   /** Consecutive shows the overlay never confirmed — bounds retrying into a black hole. */
   undelivered: number;
+}
+
+/**
+ * The queue is shared; what plays is per slot. One ordered list keeps a viewer's "you are Nth"
+ * meaningful, while two slots stop a three-minute song from holding the screen against a gif.
+ */
+interface ChannelState {
+  queue: SubmissionRow[];
+  slots: Record<PlaybackSlot, SlotState>;
+}
+
+const SLOTS: PlaybackSlot[] = ['media', 'music'];
+
+const emptySlot = (): SlotState => ({
+  current: null,
+  watchdog: null,
+  paused: false,
+  progress: null,
+  deliveryProbe: null,
+  undelivered: 0,
+});
+
+/**
+ * Which slot a post plays in. Mirrors the anchor rule in resolveLayout deliberately — a post shown
+ * in the compact player is exactly the one that may share the screen — but stays a separate
+ * decision: with parallelSlots off everything funnels into one slot and still gets its own anchor,
+ * which is precisely today's behaviour.
+ */
+export function slotOf(
+  sub: Pick<SubmissionRow, 'kind' | 'mime'>,
+  channel: { youtubeAsMusic: boolean; parallelSlots: boolean } | null | undefined,
+): PlaybackSlot {
+  if (!channel?.parallelSlots) return 'media';
+  if (sub.kind === 'audio') return 'music';
+  if (sub.kind === 'youtube') return channel.youtubeAsMusic ? 'music' : 'media';
+  return 'media';
 }
 
 /**
@@ -247,6 +284,8 @@ const AIRED_MIN_UNKNOWN_MS = 5_000;
 
 export class PlaybackManager {
   private states = new Map<string, ChannelState>();
+  /** Per-channel slot routing (see routingOf); invalidated when settings are saved. */
+  private routing = new Map<string, { youtubeAsMusic: boolean; parallelSlots: boolean }>();
   /** Set after construction (see setPayouts): dust and channel-point refunds ride on playback. */
   private payouts: Payouts | null = null;
 
@@ -262,14 +301,19 @@ export class PlaybackManager {
     this.payouts = payouts;
   }
 
-  /** Returns queue position (1 = next). */
+  /** Returns queue position (1 = next), counting whatever is already on screen. */
   enqueue(sub: SubmissionRow): number {
     const st = this.state(sub.channelId);
     st.queue.push(sub);
-    const position = st.queue.length + (st.current ? 1 : 0);
-    void this.tryNext(sub.channelId);
+    const position = st.queue.length + this.occupied(sub.channelId).length;
+    void this.tryNextAll(sub.channelId);
     void this.emitQueue(sub.channelId);
     return position;
+  }
+
+  /** Offer the queue to every free slot — the entry point for "something changed". */
+  private async tryNextAll(channelId: string): Promise<void> {
+    for (const slot of SLOTS) await this.tryNext(channelId, slot);
   }
 
   /**
@@ -282,10 +326,11 @@ export class PlaybackManager {
     // for every channel a viewer ever asks about.
     const st = this.states.get(channelId);
     if (!st) return null;
-    if (st.current?.id === submissionId) return { playing: true };
+    if (this.slotShowing(channelId, submissionId)) return { playing: true };
     const idx = st.queue.findIndex((s) => s.id === submissionId);
     if (idx === -1) return null;
-    return { playing: false, position: idx + 1 + (st.current ? 1 : 0) };
+    // Counts both slots: with two shows up, the next in line is genuinely third.
+    return { playing: false, position: idx + 1 + this.occupied(channelId).length };
   }
 
   /** Waiting items (not the current show), in play order, as dashboard summaries. */
@@ -395,23 +440,30 @@ export class PlaybackManager {
       .where(eq(submissions.status, 'approved'))
       .orderBy(submissions.createdAt)
       .all();
+    // Keyed by channel AND slot: with two slots, two rows can legitimately have been mid-show.
     const started = new Map<string, SubmissionRow>();
     for (const row of rows) {
       if (!row.startedAt) {
         this.state(row.channelId).queue.push(row);
         continue;
       }
-      // More than one started row per channel only after an abnormal exit; the newest was on
+      const slot = slotOf(row, await this.routingOf(row.channelId));
+      const key = `${row.channelId}:${slot}`;
+      // More than one started row per slot only after an abnormal exit; the newest was on
       // screen, the rest already aired.
-      const prev = started.get(row.channelId);
+      const prev = started.get(key);
       if (prev && (prev.startedAt?.getTime() ?? 0) >= row.startedAt.getTime()) {
         await this.markPlayed(row.id);
         continue;
       }
       if (prev) await this.markPlayed(prev.id);
-      started.set(row.channelId, row);
+      started.set(key, row);
     }
-    for (const [channelId, row] of started) {
+    for (const [key, row] of started) {
+      const [channelId, slot] = [
+        key.slice(0, key.lastIndexOf(':')),
+        key.slice(key.lastIndexOf(':') + 1) as PlaybackSlot,
+      ];
       const remaining = this.remainingMs(row);
       if (remaining <= 0) {
         this.log?.info(
@@ -423,25 +475,34 @@ export class PlaybackManager {
       }
       const st = this.state(channelId);
       this.log?.info(
-        { channelId, submissionId: row.id, remaining, queued: st.queue.length },
+        { channelId, slot, submissionId: row.id, remaining, queued: st.queue.length },
         'playback recovery: restored mid-show row as current',
       );
-      st.current = row;
+      st.slots[slot].current = row;
       // Backstop from the ORIGINAL start, not from now — a restart must not extend the clip.
-      st.watchdog = setTimeout(
+      st.slots[slot].watchdog = setTimeout(
         () => void this.onDone(channelId, row.id, 'watchdog-recovery'),
         remaining,
       );
     }
   }
 
-  getCurrent(channelId: string): SubmissionRow | null {
-    return this.state(channelId).current;
+  getCurrent(channelId: string, slot: PlaybackSlot = 'media'): SubmissionRow | null {
+    return this.state(channelId).slots[slot].current;
   }
 
-  /** Streamer skips the current show. true if something was playing. */
-  async skip(channelId: string): Promise<boolean> {
-    const current = this.state(channelId).current;
+  /** Everything on screen right now — the viewer status check and the dashboard both need both. */
+  currentsOf(channelId: string): { slot: PlaybackSlot; sub: SubmissionRow }[] {
+    const st = this.state(channelId);
+    return SLOTS.filter((s) => st.slots[s].current).map((s) => ({
+      slot: s,
+      sub: st.slots[s].current!,
+    }));
+  }
+
+  /** Streamer skips the show in one slot. true if something was playing there. */
+  async skip(channelId: string, slot: PlaybackSlot = 'media'): Promise<boolean> {
+    const current = this.state(channelId).slots[slot].current;
     if (!current) return false;
     // Overlay gets media:skip and clears the screen; onDone advances the queue
     // regardless of whether the overlay is alive.
@@ -455,30 +516,30 @@ export class PlaybackManager {
    * auto-advance watchdog (the overlay is alive and drives completion) so a paused item never
    * gets force-skipped. Resume re-arms a backstop watchdog. No-op if nothing is playing.
    */
-  pause(channelId: string): boolean {
-    const st = this.state(channelId);
-    if (!st.current || st.paused) return false;
-    st.paused = true;
-    if (st.watchdog) clearTimeout(st.watchdog);
-    st.watchdog = null;
-    this.io.to(roomOf(channelId)).emit('media:control', 'pause');
+  pause(channelId: string, slot: PlaybackSlot = 'media'): boolean {
+    const sl = this.state(channelId).slots[slot];
+    if (!sl.current || sl.paused) return false;
+    sl.paused = true;
+    if (sl.watchdog) clearTimeout(sl.watchdog);
+    sl.watchdog = null;
+    this.io.to(roomOf(channelId)).emit('media:control', 'pause', slot);
     return true;
   }
 
-  resume(channelId: string): boolean {
-    const st = this.state(channelId);
-    if (!st.current || !st.paused) return false;
-    st.paused = false;
-    const sub = st.current;
+  resume(channelId: string, slot: PlaybackSlot = 'media'): boolean {
+    const sl = this.state(channelId).slots[slot];
+    if (!sl.current || !sl.paused) return false;
+    sl.paused = false;
+    const sub = sl.current;
     // Backstop only: normally the overlay's playback:done ends it first. YouTube uses its load grace.
     const watchdogMs =
       sub.kind === 'youtube' ? config.youtube.loadGraceMs : sub.durationMs + config.watchdogGraceMs;
-    if (st.watchdog) clearTimeout(st.watchdog);
-    st.watchdog = setTimeout(
+    if (sl.watchdog) clearTimeout(sl.watchdog);
+    sl.watchdog = setTimeout(
       () => void this.onDone(channelId, sub.id, 'watchdog-resume'),
       watchdogMs,
     );
-    this.io.to(roomOf(channelId)).emit('media:control', 'resume');
+    this.io.to(roomOf(channelId)).emit('media:control', 'resume', slot);
     return true;
   }
 
@@ -487,21 +548,21 @@ export class PlaybackManager {
    * Re-arms the backstop watchdog for the new remaining time so a seek backwards can't force-advance
    * the clip early. The overlay drives real completion; this is only the dead-overlay backstop.
    */
-  seek(channelId: string, seconds: number): boolean {
-    const st = this.state(channelId);
-    const cur = st.current;
+  seek(channelId: string, seconds: number, slot: PlaybackSlot = 'media'): boolean {
+    const sl = this.state(channelId).slots[slot];
+    const cur = sl.current;
     if (!cur) return false;
     if (cur.kind !== 'video' && cur.kind !== 'audio' && cur.kind !== 'youtube') return false;
     const pos = Math.max(0, seconds);
-    if (!st.paused && cur.durationMs > 0) {
+    if (!sl.paused && cur.durationMs > 0) {
       const remainingMs = Math.max(0, cur.durationMs - pos * 1000) + config.watchdogGraceMs;
-      if (st.watchdog) clearTimeout(st.watchdog);
-      st.watchdog = setTimeout(
+      if (sl.watchdog) clearTimeout(sl.watchdog);
+      sl.watchdog = setTimeout(
         () => void this.onDone(channelId, cur.id, 'watchdog-seek'),
         remainingMs,
       );
     }
-    this.io.to(roomOf(channelId)).emit('media:seek', pos);
+    this.io.to(roomOf(channelId)).emit('media:seek', pos, slot);
     return true;
   }
 
@@ -524,45 +585,49 @@ export class PlaybackManager {
     recovered = false,
   ): Promise<void> {
     const st = this.state(channelId);
-    // A fresh overlay is a fresh chance for posts an earlier one failed to take (see the probe).
-    st.undelivered = 0;
-    if (!st.current) {
-      void this.tryNext(channelId);
-      return;
-    }
-    if (recovered) {
+    for (const slot of SLOTS) {
+      const sl = st.slots[slot];
+      // A fresh overlay is a fresh chance for posts an earlier one failed to take (see the probe).
+      sl.undelivered = 0;
+      if (!sl.current) {
+        void this.tryNext(channelId, slot);
+        continue;
+      }
+      if (recovered) {
+        this.log?.info(
+          { channelId, slot, submissionId: sl.current.id },
+          'playback: overlay recovered mid-show — keeping it on screen',
+        );
+        continue;
+      }
+      const sub = sl.current;
       this.log?.info(
-        { channelId, submissionId: st.current.id },
-        'playback: overlay recovered mid-show — keeping it on screen',
+        { channelId, slot, submissionId: sub.id },
+        'playback: overlay (re)connected — restarting the current show from the top',
       );
-      return;
+      // The clip is starting over, so our clock must too: re-arm the backstop for the FULL length
+      // and restamp startedAt. Without this a file clip keeps the watchdog left over from its first
+      // run and gets cut mid-way, and the next restart would measure staleness from a start that
+      // never was.
+      sl.paused = false;
+      sl.progress = null; // the clip starts over — pre-restart positions must not vouch for it
+      sub.startedAt = new Date();
+      await db
+        .update(submissions)
+        .set({ startedAt: sub.startedAt })
+        .where(eq(submissions.id, sub.id));
+      if (sl.watchdog) clearTimeout(sl.watchdog);
+      sl.watchdog = setTimeout(
+        () => void this.onDone(channelId, sub.id, 'watchdog-replay'),
+        sub.durationMs > 0 ? sub.durationMs + config.watchdogGraceMs : config.youtube.loadGraceMs,
+      );
+      if (sl.deliveryProbe) clearTimeout(sl.deliveryProbe);
+      sl.deliveryProbe = setTimeout(
+        () => void this.onDeliveryUnconfirmed(channelId, sub.id),
+        config.realtime.deliveryProbeMs,
+      );
+      replayTo(await this.buildPayload(sub, slot));
     }
-    const sub = st.current;
-    this.log?.info(
-      { channelId, submissionId: sub.id },
-      'playback: overlay (re)connected — restarting the current show from the top',
-    );
-    // The clip is starting over, so our clock must too: re-arm the backstop for the FULL length and
-    // restamp startedAt. Without this a file clip keeps the watchdog left over from its first run and
-    // gets cut mid-way, and the next restart would measure staleness from a start that never was.
-    st.paused = false;
-    st.progress = null; // the clip starts over — pre-restart positions must not vouch for it
-    sub.startedAt = new Date();
-    await db
-      .update(submissions)
-      .set({ startedAt: sub.startedAt })
-      .where(eq(submissions.id, sub.id));
-    if (st.watchdog) clearTimeout(st.watchdog);
-    st.watchdog = setTimeout(
-      () => void this.onDone(channelId, sub.id, 'watchdog-replay'),
-      sub.durationMs > 0 ? sub.durationMs + config.watchdogGraceMs : config.youtube.loadGraceMs,
-    );
-    if (st.deliveryProbe) clearTimeout(st.deliveryProbe);
-    st.deliveryProbe = setTimeout(
-      () => void this.onDeliveryUnconfirmed(channelId, sub.id),
-      config.realtime.deliveryProbeMs,
-    );
-    replayTo(await this.buildPayload(sub));
   }
 
   /**
@@ -572,22 +637,26 @@ export class PlaybackManager {
    * (restarting the clip, audibly). Arm a backstop so an abandoned show self-completes.
    */
   onOverlayDisconnected(channelId: string): void {
+    if (this.presence(channelId).media > 0) return;
     const st = this.state(channelId);
-    if (!st.current || this.presence(channelId).media > 0) return;
-    // Still armed = the overlay never ticked for this show, so it was never on screen. Letting the
-    // watchdog run its length out would file it as aired; requeue it for the next overlay instead.
-    if (st.deliveryProbe) {
-      clearTimeout(st.deliveryProbe);
-      void this.onDeliveryUnconfirmed(channelId, st.current.id);
-      return;
+    for (const slot of SLOTS) {
+      const sl = st.slots[slot];
+      if (!sl.current) continue;
+      // Still armed = the overlay never ticked for this show, so it was never on screen. Letting
+      // the watchdog run its length out would file it as aired; requeue it for the next overlay.
+      if (sl.deliveryProbe) {
+        clearTimeout(sl.deliveryProbe);
+        void this.onDeliveryUnconfirmed(channelId, sl.current.id);
+        continue;
+      }
+      // Only the paused/watchdog-less strand needs rescuing; a playing show already has a watchdog
+      // that will fire.
+      if (sl.watchdog) continue;
+      const sub = sl.current;
+      const ms =
+        sub.durationMs > 0 ? sub.durationMs + config.watchdogGraceMs : config.youtube.loadGraceMs;
+      sl.watchdog = setTimeout(() => void this.onDone(channelId, sub.id, 'watchdog-orphaned'), ms);
     }
-    // Only the paused/watchdog-less strand needs rescuing; a playing show already has a watchdog
-    // that will fire.
-    if (st.watchdog) return;
-    const sub = st.current;
-    const ms =
-      sub.durationMs > 0 ? sub.durationMs + config.watchdogGraceMs : config.youtube.loadGraceMs;
-    st.watchdog = setTimeout(() => void this.onDone(channelId, sub.id, 'watchdog-orphaned'), ms);
   }
 
   /**
@@ -596,11 +665,13 @@ export class PlaybackManager {
    * about existence.
    */
   confirmDelivery(channelId: string, submissionId: string): void {
-    const st = this.state(channelId);
-    if (st.current?.id !== submissionId || !st.deliveryProbe) return;
-    clearTimeout(st.deliveryProbe);
-    st.deliveryProbe = null;
-    st.undelivered = 0;
+    const slot = this.slotShowing(channelId, submissionId);
+    if (!slot) return;
+    const sl = this.state(channelId).slots[slot];
+    if (!sl.deliveryProbe) return;
+    clearTimeout(sl.deliveryProbe);
+    sl.deliveryProbe = null;
+    sl.undelivered = 0;
   }
 
   /**
@@ -609,31 +680,33 @@ export class PlaybackManager {
    * dead overlay is the one failure a viewer can neither see nor retry.
    */
   private async onDeliveryUnconfirmed(channelId: string, submissionId: string): Promise<void> {
+    const slot = this.slotShowing(channelId, submissionId);
+    if (!slot) return;
     const st = this.state(channelId);
-    if (st.current?.id !== submissionId) return;
-    const sub = st.current;
-    st.undelivered += 1;
+    const sl = st.slots[slot];
+    const sub = sl.current!;
+    sl.undelivered += 1;
     this.log?.warn(
-      { channelId, submissionId, undelivered: st.undelivered },
+      { channelId, slot, submissionId, undelivered: sl.undelivered },
       'playback: overlay never confirmed the show — returning it to the queue',
     );
-    st.deliveryProbe = null;
-    if (st.watchdog) clearTimeout(st.watchdog);
-    st.watchdog = null;
-    st.current = null;
-    st.progress = null;
-    st.paused = false;
+    sl.deliveryProbe = null;
+    if (sl.watchdog) clearTimeout(sl.watchdog);
+    sl.watchdog = null;
+    sl.current = null;
+    sl.progress = null;
+    sl.paused = false;
     // Clear the start stamp too: it is what startup recovery reads as "was mid-show".
     sub.startedAt = null;
     await db.update(submissions).set({ startedAt: null }).where(eq(submissions.id, submissionId));
     st.queue.unshift(sub);
-    this.io.to(dashboardRoomOf(channelId)).emit('playback:ended', submissionId);
+    this.io.to(dashboardRoomOf(channelId)).emit('playback:ended', submissionId, slot);
     emitSubmissionStatus(this.io, submissionId, 'approved');
     void this.emitQueue(channelId);
     // Retrying at once would just feed the same dead socket. Past a few tries, stop and wait for an
     // overlay to connect — that path retries on its own (onOverlayConnected).
-    if (st.undelivered < config.realtime.maxUndelivered) {
-      setTimeout(() => void this.tryNext(channelId), config.realtime.deliveryRetryMs);
+    if (sl.undelivered < config.realtime.maxUndelivered) {
+      setTimeout(() => void this.tryNext(channelId, slot), config.realtime.deliveryRetryMs);
     }
   }
 
@@ -642,47 +715,52 @@ export class PlaybackManager {
    * the watchdog can tell a dead overlay from one whose clock has drifted from ours.
    */
   noteProgress(channelId: string, submissionId: string, positionMs: number): void {
-    const st = this.state(channelId);
-    if (st.current?.id !== submissionId || !Number.isFinite(positionMs)) return;
-    st.progress = { at: Date.now(), positionMs: Math.max(0, positionMs), submissionId };
+    const slot = this.slotShowing(channelId, submissionId);
+    if (!slot || !Number.isFinite(positionMs)) return;
+    this.state(channelId).slots[slot].progress = {
+      at: Date.now(),
+      positionMs: Math.max(0, positionMs),
+      submissionId,
+    };
   }
 
   async onDone(channelId: string, submissionId: string, cause = 'overlay-done'): Promise<void> {
-    const st = this.state(channelId);
-    if (st.current?.id !== submissionId) return;
+    const slot = this.slotShowing(channelId, submissionId);
+    if (!slot) return;
+    const sl = this.state(channelId).slots[slot];
 
     // A watchdog exists to reap a DEAD overlay, never to cut a live one. Our clock drifts from the
     // scene's (a deploy restarts the clip, pause/resume shifts it, a stale OBS bundle ignores the
     // restart entirely) — so if the overlay is still ticking progress, defer and re-arm from its
     // REAL position. Every "track skipped mid-play by itself" incident traces back to this cut.
-    const p = st.progress;
+    const p = sl.progress;
     if (
       cause.startsWith('watchdog') &&
       p?.submissionId === submissionId &&
       Date.now() - p.at < PROGRESS_ALIVE_MS &&
-      !st.paused
+      !sl.paused
     ) {
       const left =
-        st.current.durationMs > 0
-          ? Math.max(0, st.current.durationMs - p.positionMs) + config.watchdogGraceMs
+        sl.current!.durationMs > 0
+          ? Math.max(0, sl.current!.durationMs - p.positionMs) + config.watchdogGraceMs
           : config.youtube.loadGraceMs;
       this.log?.info(
-        { channelId, submissionId, cause, positionMs: p.positionMs, rearmMs: left },
+        { channelId, slot, submissionId, cause, positionMs: p.positionMs, rearmMs: left },
         'playback: watchdog deferred — overlay is still reporting progress',
       );
-      if (st.watchdog) clearTimeout(st.watchdog);
-      st.watchdog = setTimeout(() => void this.onDone(channelId, submissionId, cause), left);
+      if (sl.watchdog) clearTimeout(sl.watchdog);
+      sl.watchdog = setTimeout(() => void this.onDone(channelId, submissionId, cause), left);
       return;
     }
 
-    const aired = this.aired(st.current, st.progress, cause);
-    this.log?.info({ channelId, submissionId, cause, aired }, 'playback: show ended');
-    if (st.watchdog) clearTimeout(st.watchdog);
-    st.watchdog = null;
-    if (st.deliveryProbe) clearTimeout(st.deliveryProbe);
-    st.deliveryProbe = null;
-    st.current = null;
-    st.progress = null;
+    const aired = this.aired(sl.current!, sl.progress, cause);
+    this.log?.info({ channelId, slot, submissionId, cause, aired }, 'playback: show ended');
+    if (sl.watchdog) clearTimeout(sl.watchdog);
+    sl.watchdog = null;
+    if (sl.deliveryProbe) clearTimeout(sl.deliveryProbe);
+    sl.deliveryProbe = null;
+    sl.current = null;
+    sl.progress = null;
 
     await this.markPlayed(submissionId);
     // Dust and channel points ride on this verdict — see Payouts.settle.
@@ -690,9 +768,9 @@ export class PlaybackManager {
 
     // Clear straggler overlay copies (multiple open tabs etc.).
     this.io.to(roomOf(channelId)).emit('media:skip', submissionId);
-    this.io.to(dashboardRoomOf(channelId)).emit('playback:ended', submissionId);
+    this.io.to(dashboardRoomOf(channelId)).emit('playback:ended', submissionId, slot);
     emitSubmissionStatus(this.io, submissionId, 'played');
-    void this.tryNext(channelId);
+    void this.tryNext(channelId, slot);
   }
 
   /**
@@ -700,7 +778,7 @@ export class PlaybackManager {
    * frame stays black (region lock, age gate) and it ends at once — indistinguishable from a normal
    * finish except by how far the position got. Everything else we render ourselves, so it aired.
    */
-  private aired(sub: SubmissionRow, progress: ChannelState['progress'], cause: string): boolean {
+  private aired(sub: SubmissionRow, progress: SlotState['progress'], cause: string): boolean {
     if (cause === 'overlay-error') return false;
     if (sub.kind !== 'youtube') return true;
     const positionMs = progress?.submissionId === sub.id ? progress.positionMs : 0;
@@ -711,17 +789,18 @@ export class PlaybackManager {
 
   /** Overlay reported real duration of current clip (YouTube). Reconfigure watchdog. */
   reportDuration(channelId: string, submissionId: string, durationMs: number): void {
-    const st = this.state(channelId);
+    const slot = this.slotShowing(channelId, submissionId);
     // Overlay is only semi-trusted (overlayToken): clamp the value, else garbage/huge
     // numbers would arm the watchdog for a day. Past the limit, tryNext's grace watchdog stays.
     if (
-      st.current?.id !== submissionId ||
+      !slot ||
       !Number.isFinite(durationMs) ||
       durationMs <= 0 ||
       durationMs > 12 * 60 * 60 * 1000
     )
       return;
-    st.current.durationMs = durationMs;
+    const sl = this.state(channelId).slots[slot];
+    sl.current!.durationMs = durationMs;
     // Persist it: startup recovery reads durationMs to decide whether a restored show is still
     // running. YouTube rows are often stored with 0 (no API key, or the lookup failed), which would
     // retire any track longer than the load grace on the next restart — the very skip we fixed.
@@ -730,29 +809,38 @@ export class PlaybackManager {
       .set({ durationMs })
       .where(eq(submissions.id, submissionId))
       .catch(() => {});
-    if (st.watchdog) clearTimeout(st.watchdog);
-    st.watchdog = setTimeout(
+    if (sl.watchdog) clearTimeout(sl.watchdog);
+    sl.watchdog = setTimeout(
       () => void this.onDone(channelId, submissionId, 'watchdog-duration'),
       durationMs + config.watchdogGraceMs,
     );
     // "Now playing" panel gets the real time instead of zero (with nick color).
     // Re-check currency after the async color lookup: the clip may have ended meanwhile,
     // and a late emit would resurrect an already-ended submission on the dashboard.
-    const cur = st.current;
+    const cur = sl.current!;
     void toLiveSummary(cur).then((summary) => {
-      if (this.state(channelId).current?.id === cur.id) {
-        this.io.to(dashboardRoomOf(channelId)).emit('playback:started', summary);
+      if (this.slotShowing(channelId, cur.id)) {
+        this.io.to(dashboardRoomOf(channelId)).emit('playback:started', summary, slot);
       }
     });
   }
 
-  private async tryNext(channelId: string): Promise<void> {
+  /**
+   * Fill one slot from the shared queue: the first waiting post that belongs to this slot, skipping
+   * over posts meant for the other one. That skipping is the whole feature — a gif no longer waits
+   * behind a three-minute song, because the song is not in its way.
+   */
+  private async tryNext(channelId: string, slot: PlaybackSlot): Promise<void> {
     const st = this.state(channelId);
+    const sl = st.slots[slot];
     // Media source only: a channel running just the chat overlay has nowhere to show a post.
-    if (st.current || st.queue.length === 0 || this.presence(channelId).media === 0) return;
+    if (sl.current || st.queue.length === 0 || this.presence(channelId).media === 0) return;
+    const routing = await this.routingOf(channelId);
 
-    while (st.queue.length > 0) {
-      const candidate = st.queue.shift()!;
+    for (;;) {
+      const idx = st.queue.findIndex((s) => slotOf(s, routing) === slot);
+      if (idx === -1) return;
+      const [candidate] = st.queue.splice(idx, 1) as [SubmissionRow];
       // Status may have changed while the item waited in memory (e.g. expired).
       const fresh = await db
         .select()
@@ -763,15 +851,15 @@ export class PlaybackManager {
       // (GIF/YouTube render from a remote CDN, text has no media). Don't drop them as "fileless".
       const fileless = fresh?.kind === 'text' || fresh?.kind === 'youtube' || fresh?.kind === 'gif';
       if (!fresh || fresh.status !== 'approved' || (!fresh.filePath && !fileless)) continue;
-      // Another tryNext call may have grabbed the slot during the DB round-trip.
-      if (st.current) {
-        st.queue.unshift(candidate);
+      // Another tryNext call may have taken this slot during the DB round-trip.
+      if (sl.current) {
+        st.queue.splice(idx, 0, candidate);
         return;
       }
 
-      st.current = fresh;
-      st.paused = false;
-      st.progress = null; // the previous show's ticks must not vouch for this one
+      sl.current = fresh;
+      sl.paused = false;
+      sl.progress = null; // the previous show's ticks must not vouch for this one
       // Persist BEFORE the overlay is told to play: this stamp is what a restarted server reads to
       // know the row was mid-show. Written first so a crash can't leave a playing item looking queued.
       fresh.startedAt = new Date();
@@ -779,8 +867,10 @@ export class PlaybackManager {
         .update(submissions)
         .set({ startedAt: fresh.startedAt })
         .where(eq(submissions.id, fresh.id));
-      this.io.to(roomOf(channelId)).emit('media:play', await this.buildPayload(fresh));
-      this.io.to(dashboardRoomOf(channelId)).emit('playback:started', await toLiveSummary(fresh));
+      this.io.to(roomOf(channelId)).emit('media:play', await this.buildPayload(fresh, slot));
+      this.io
+        .to(dashboardRoomOf(channelId))
+        .emit('playback:started', await toLiveSummary(fresh), slot);
       emitSubmissionStatus(this.io, fresh.id, 'playing');
       void this.emitQueue(channelId); // the item just left the waiting queue
 
@@ -790,13 +880,13 @@ export class PlaybackManager {
         fresh.kind === 'youtube'
           ? config.youtube.loadGraceMs
           : fresh.durationMs + config.watchdogGraceMs;
-      st.watchdog = setTimeout(
+      sl.watchdog = setTimeout(
         () => void this.onDone(channelId, fresh.id, 'watchdog-start'),
         watchdogMs,
       );
       // A socket we still count as connected can be a dead OBS source (half-open TCP survives the
       // link dropping). Until the overlay ticks back, this post is not on screen — see the probe.
-      st.deliveryProbe = setTimeout(
+      sl.deliveryProbe = setTimeout(
         () => void this.onDeliveryUnconfirmed(channelId, fresh.id),
         config.realtime.deliveryProbeMs,
       );
@@ -837,7 +927,7 @@ export class PlaybackManager {
     return out;
   }
 
-  private async buildPayload(sub: SubmissionRow): Promise<MediaPlayPayload> {
+  private async buildPayload(sub: SubmissionRow, slot: PlaybackSlot): Promise<MediaPlayPayload> {
     const channel = await db
       .select({
         volume: channels.volume,
@@ -887,6 +977,7 @@ export class PlaybackManager {
       senderBadges: marks.badges.length ? marks.badges : undefined,
       text: sub.text ?? undefined,
       ttsText: (channel?.ttsMessage ?? false) && !!speakableText(sub.text ?? ''),
+      slot,
       // Music may use its own layout; the server picks it by media type, so the
       // overlay just applies position/size/margin from the payload.
       ...resolveLayout(sub.kind, channel, sub.mime === 'audio/youtube'),
@@ -900,18 +991,51 @@ export class PlaybackManager {
   private state(channelId: string): ChannelState {
     let st = this.states.get(channelId);
     if (!st) {
-      st = {
-        queue: [],
-        current: null,
-        watchdog: null,
-        paused: false,
-        progress: null,
-        deliveryProbe: null,
-        undelivered: 0,
-      };
+      st = { queue: [], slots: { media: emptySlot(), music: emptySlot() } };
       this.states.set(channelId, st);
     }
     return st;
+  }
+
+  /** The slot a submission is currently playing in, or null if it is not on screen. */
+  private slotShowing(channelId: string, submissionId: string): PlaybackSlot | null {
+    const st = this.states.get(channelId);
+    if (!st) return null;
+    return SLOTS.find((s) => st.slots[s].current?.id === submissionId) ?? null;
+  }
+
+  /** Shows on screen right now, in slot order. */
+  private occupied(channelId: string): SubmissionRow[] {
+    const st = this.states.get(channelId);
+    if (!st) return [];
+    return SLOTS.map((s) => st.slots[s].current).filter((c): c is SubmissionRow => c !== null);
+  }
+
+  /**
+   * Routing settings, cached: tryNext runs on every queue event and must not read the channel row
+   * each time. Dropped by invalidateRouting when the streamer saves settings.
+   */
+  private async routingOf(
+    channelId: string,
+  ): Promise<{ youtubeAsMusic: boolean; parallelSlots: boolean }> {
+    const hit = this.routing.get(channelId);
+    if (hit) return hit;
+    const row = await db
+      .select({ youtubeAsMusic: channels.youtubeAsMusic, parallelSlots: channels.parallelSlots })
+      .from(channels)
+      .where(eq(channels.id, channelId))
+      .get();
+    const value = {
+      youtubeAsMusic: row?.youtubeAsMusic ?? true,
+      parallelSlots: row?.parallelSlots ?? true,
+    };
+    this.routing.set(channelId, value);
+    return value;
+  }
+
+  /** Settings were saved — the next post routes by the new rules. */
+  invalidateRouting(channelId: string): void {
+    this.routing.delete(channelId);
   }
 }
 
@@ -992,7 +1116,10 @@ export function setupRealtime(io: RealtimeServer, app: FastifyInstance): Playbac
             .where(eq(submissions.id, submissionId))
             .get();
           if (sub) {
-            const playing = playback.getCurrent(sub.channelId)?.id === submissionId;
+            // Either slot counts — the viewer only cares that their own post is on screen.
+            const playing = playback
+              .currentsOf(sub.channelId)
+              .some((c) => c.sub.id === submissionId);
             socket.emit('submission:status', {
               submissionId,
               status: playing ? 'playing' : sub.status,

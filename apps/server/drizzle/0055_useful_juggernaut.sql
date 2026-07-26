@@ -1,0 +1,1 @@
+ALTER TABLE `channels` ADD `parallel_slots` integer DEFAULT true NOT NULL;

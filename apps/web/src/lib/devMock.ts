@@ -152,6 +152,7 @@ const MOCK_SETTINGS: ChannelSettings = {
   overlaySize: 40,
   overlayMargin: 5,
   youtubeAsMusic: true,
+  parallelSlots: true,
   musicSeparate: true,
   musicPosition: 'top-right',
   musicSize: 30,

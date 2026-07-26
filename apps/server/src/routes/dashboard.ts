@@ -29,6 +29,7 @@ import {
   type OnboardingStatus,
   type ReputationStats,
   type StatsSummary,
+  type PlaybackSlot,
   type SubmissionSummary,
 } from '@tmw/shared';
 import { db } from '../db/index';
@@ -47,6 +48,7 @@ import {
   users,
   whitelist,
   type ChannelRow,
+  type SubmissionRow,
 } from '../db/schema';
 import { config } from '../config';
 import { requireUser } from '../auth';
@@ -132,6 +134,11 @@ async function requireOwnerOf(
 }
 
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
+
+/** Which stage a playback control targets; anything unrecognised means the media one, as before. */
+function slotFrom(body: { slot?: unknown } | null | undefined): PlaybackSlot {
+  return body?.slot === 'music' ? 'music' : 'media';
+}
 
 /** A theme hue: an integer wrapped into [0,360), or null for an untouched knob. */
 const hueOrNull = (v: unknown): number | null =>
@@ -220,6 +227,7 @@ function toSettings(
     overlaySize: ch.overlaySize,
     overlayMargin: ch.overlayMargin,
     youtubeAsMusic: ch.youtubeAsMusic,
+    parallelSlots: ch.parallelSlots,
     musicSeparate: ch.musicSeparate,
     musicPosition: ch.musicPosition,
     musicSize: ch.musicSize,
@@ -309,15 +317,19 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
     async (req, reply) => {
       const channel = await requireChannelAccess(req, reply, req.params.channelId);
       if (!channel) return;
-      const current = playback.getCurrent(channel.id);
+      // Both slots: `now` keeps its old meaning (the media stage) so existing clients are unaffected,
+      // and `nowMusic` carries the compact player's show for the second panel.
+      const summaryOf = async (sub: SubmissionRow) =>
+        toSummary(
+          sub,
+          await equippedMarksOf(sub.senderUserId),
+          await levelForSender(channel.id, sub.senderUserId),
+        );
+      const media = playback.getCurrent(channel.id, 'media');
+      const music = playback.getCurrent(channel.id, 'music');
       return {
-        now: current
-          ? toSummary(
-              current,
-              await equippedMarksOf(current.senderUserId),
-              await levelForSender(channel.id, current.senderUserId),
-            )
-          : null,
+        now: media ? await summaryOf(media) : null,
+        nowMusic: music ? await summaryOf(music) : null,
         queue: await playback.queueSummaries(channel.id),
       };
     },
@@ -360,12 +372,12 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
   );
 
   /** Skip current display: instantly clears overlay and advances the queue. */
-  app.post<{ Params: { channelId: string } }>(
+  app.post<{ Params: { channelId: string }; Body: { slot?: unknown } | null }>(
     '/api/dashboard/:channelId/skip',
     async (req, reply) => {
       const channel = await requireChannelAccess(req, reply, req.params.channelId);
       if (!channel) return;
-      const skipped = await playback.skip(channel.id);
+      const skipped = await playback.skip(channel.id, slotFrom(req.body));
       return { skipped };
     },
   );
@@ -388,26 +400,28 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
   );
 
   /** Pause / resume the current show (freezes the image timer / pauses the player). */
-  app.post<{ Params: { channelId: string }; Body: { action?: 'pause' | 'resume' } | null }>(
-    '/api/dashboard/:channelId/playback',
-    async (req, reply) => {
-      const channel = await requireChannelAccess(req, reply, req.params.channelId);
-      if (!channel) return;
-      const ok =
-        req.body?.action === 'resume' ? playback.resume(channel.id) : playback.pause(channel.id);
-      return { ok };
-    },
-  );
+  app.post<{
+    Params: { channelId: string };
+    Body: { action?: 'pause' | 'resume'; slot?: unknown } | null;
+  }>('/api/dashboard/:channelId/playback', async (req, reply) => {
+    const channel = await requireChannelAccess(req, reply, req.params.channelId);
+    if (!channel) return;
+    const ok =
+      req.body?.action === 'resume'
+        ? playback.resume(channel.id, slotFrom(req.body))
+        : playback.pause(channel.id, slotFrom(req.body));
+    return { ok };
+  });
 
   /** Seek the current show to a position (seconds) — video/audio/YouTube only. */
-  app.post<{ Params: { channelId: string }; Body: { seconds?: unknown } | null }>(
+  app.post<{ Params: { channelId: string }; Body: { seconds?: unknown; slot?: unknown } | null }>(
     '/api/dashboard/:channelId/playback/seek',
     async (req, reply) => {
       const channel = await requireChannelAccess(req, reply, req.params.channelId);
       if (!channel) return;
       const seconds = Number(req.body?.seconds);
       if (!Number.isFinite(seconds)) return reply.code(400).send({ error: 'bad_seconds' });
-      const ok = playback.seek(channel.id, seconds);
+      const ok = playback.seek(channel.id, seconds, slotFrom(req.body));
       return { ok };
     },
   );
@@ -710,6 +724,8 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
             : channel.overlayMargin,
         youtubeAsMusic:
           typeof b.youtubeAsMusic === 'boolean' ? b.youtubeAsMusic : channel.youtubeAsMusic,
+        parallelSlots:
+          typeof b.parallelSlots === 'boolean' ? b.parallelSlots : channel.parallelSlots,
         musicSeparate:
           typeof b.musicSeparate === 'boolean' ? b.musicSeparate : channel.musicSeparate,
         musicPosition: OVERLAY_POSITIONS.includes(b.musicPosition as never)
@@ -757,6 +773,8 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
       // The bot caches per-channel chat flags between reconciles; a toggle the streamer just
       // flipped should take effect now, not in up to five minutes.
       deps.twitchChat.settingsChanged();
+      // Slot routing is cached in the playback manager — the next post must follow the new rules.
+      playback.invalidateRouting(channel.id);
       // Push chat display config live so the OBS chat source updates without a reload.
       io.to(roomOf(channel.id)).emit('chat:config', {
         fontSize: patch.chatFontSize,

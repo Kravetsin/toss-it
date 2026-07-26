@@ -139,6 +139,12 @@ export const channels = sqliteTable('channels', {
    * video reliably — the streamer's own switch beats any classifier, so it overrides the guess.
    */
   youtubeAsMusic: integer('youtube_as_music', { mode: 'boolean' }).notNull().default(true),
+  /**
+   * Two posts on screen at once — a song in the compact player while images/gifs keep coming. Off
+   * restores the single-slot behaviour exactly. Only does anything while youtubeAsMusic is on:
+   * with it off the music slot would only ever receive uploaded audio files.
+   */
+  parallelSlots: integer('parallel_slots', { mode: 'boolean' }).notNull().default(true),
   // Separate layout for the music player when musicSeparate; otherwise inherits overlay*.
   musicSeparate: integer('music_separate', { mode: 'boolean' }).notNull().default(false),
   musicPosition: text('music_position').$type<OverlayPosition>().notNull().default('center'),
