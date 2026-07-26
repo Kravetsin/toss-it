@@ -8,7 +8,8 @@
     "start": "tsx src/index.ts",
     "db:generate": "drizzle-kit generate",
     "piper:setup": "tsx scripts/setup-piper.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",

@@ -38,7 +38,7 @@ export function roomOf(channelId: string): string {
  * Overlays also join a room per source kind. The channel room is what we broadcast to; these exist
  * to count the two sources apart — a chat overlay alone must not look like somewhere to play media.
  */
-function overlayKindRoomOf(channelId: string, kind: OverlayKind): string {
+export function overlayKindRoomOf(channelId: string, kind: OverlayKind): string {
   return `overlay:${kind}:${channelId}`;
 }
 
@@ -1043,7 +1043,7 @@ export class PlaybackManager {
 }
 
 /** Which layout to use for a media type: general (overlay*) or music (music*). */
-function resolveLayout(
+export function resolveLayout(
   kind: SubmissionRow['kind'],
   channel:
     | {

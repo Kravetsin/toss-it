@@ -3,7 +3,7 @@
 A submissions inbox for streamers (a "предложка"): viewers send images, GIFs, videos and
 sounds to a streamer's stream, with moderation, a whitelist and limits. Platform-agnostic
 (Twitch / Kick / YouTube). Production: https://toss-it.org (self-hosted behind Cloudflare;
-legacy https://toss-it.win 301-redirects here, except /api/* which stays live for webhooks).
+legacy https://toss-it.win 301-redirects here, except /api/\* which stays live for webhooks).
 
 ## Monorepo (pnpm workspace)
 
@@ -18,6 +18,8 @@ legacy https://toss-it.win 301-redirects here, except /api/* which stays live fo
 
 - `pnpm dev` — run server + web + overlay together.
 - `pnpm -r typecheck` — typecheck every package.
+- `pnpm test` — vitest (server + shared). Server tests run on a real throwaway SQLite file and fake
+  the playback clock; see `apps/server/test/` for the io stub and the row factories.
 - `pnpm build` — build all.
 - `pnpm lint` — eslint.
 - `pnpm format` — prettier. NOTE: `prettier --write .` rewrites the WHOLE repo; format only the
