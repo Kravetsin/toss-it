@@ -632,8 +632,11 @@ export interface SessionUser {
   watchMinutesTotal: number;
   /** Account-wide submissions sent (all channels, any status, self-sends excluded). */
   submissionsTotal: number;
-  /** Lifetime stardust earned (never lowered by spending) — unlocks the "wealth" seal. */
+  /** Lifetime stardust earned (never lowered by spending) — the "hoarded" cosmetic axis. */
   dustEarnedTotal: number;
+  /** Lifetime stardust spent, summed over everything owned — unlocks the black hole seal. Climbs
+   *  only, because every dust sink is a permanent grant. */
+  dustSpentTotal: number;
   /** Currently equipped cosmetics (nick color, etc.). */
   equipped: EquippedCosmetics;
   /** A Twitch identity opens this account (native or linked) — chat dust reaches it. */

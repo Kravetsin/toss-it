@@ -1,11 +1,12 @@
 import { and, eq, inArray, or, sql } from 'drizzle-orm';
-import { LEVEL_POINTS, xpToLevel } from '@tmw/shared';
+import { COSMETICS, LEVEL_POINTS, xpToLevel } from '@tmw/shared';
 import { db } from './db/index';
 import {
   channelActivity,
   excludeSelfSends,
   linkedIdentities,
   submissions,
+  userCosmetics,
   users,
 } from './db/schema';
 
@@ -177,6 +178,27 @@ export async function dustEarnedFor(userId: string): Promise<number> {
     .where(eq(users.id, userId))
     .get();
   return row?.n ?? 0;
+}
+
+/**
+ * Lifetime dust SPENT, for cosmetics gated on `earn.metric === 'dustSpent'`. Derived from what the
+ * user owns rather than kept as a counter, which is safe for exactly one reason: every dust sink is
+ * a permanent, non-transferable grant (see the sink invariant), so this sum can only ever climb.
+ *
+ * `paidDust` is the price frozen at purchase; rows written before that column exist carry 0, so those
+ * fall back to today's catalog price. That fallback is the only place a price edit can still move an
+ * old row, and it shrinks to nothing as pre-column purchases age out.
+ */
+export async function dustSpentFor(userId: string): Promise<number> {
+  const rows = await db
+    .select({ itemId: userCosmetics.itemId, paidDust: userCosmetics.paidDust })
+    .from(userCosmetics)
+    .where(eq(userCosmetics.userId, userId))
+    .all();
+  return rows.reduce(
+    (sum, r) => sum + (r.paidDust || (COSMETICS.find((c) => c.id === r.itemId)?.costDust ?? 0)),
+    0,
+  );
 }
 
 /**

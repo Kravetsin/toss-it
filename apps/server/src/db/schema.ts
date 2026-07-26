@@ -383,6 +383,10 @@ export const userCosmetics = sqliteTable(
       .notNull()
       .references(() => users.id),
     itemId: text('item_id').notNull(),
+    /** Dust actually paid, frozen at purchase. The 'dustSpent' cosmetic axis sums this, and a
+     *  catalog price edit must never move a threshold someone already passed. 0 = pre-column row;
+     *  dustSpentFor falls back to the catalog price for those. */
+    paidDust: integer('paid_dust').notNull().default(0),
     createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
   },
   (t) => [primaryKey({ columns: [t.userId, t.itemId] })],

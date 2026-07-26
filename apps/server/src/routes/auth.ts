@@ -36,6 +36,7 @@ import {
 } from '../auth';
 import {
   dustEarnedFor,
+  dustSpentFor,
   messagesTotalFor,
   submissionsTotalFor,
   watchMinutesTotalFor,
@@ -475,6 +476,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
         watchMinutesTotal: await watchMinutesTotalFor(user.id),
         submissionsTotal: await submissionsTotalFor(user.id),
         dustEarnedTotal: await dustEarnedFor(user.id),
+        dustSpentTotal: await dustSpentFor(user.id),
         equipped: user.equipped ?? {},
         hasTwitch: !!twitchIdentity,
       },

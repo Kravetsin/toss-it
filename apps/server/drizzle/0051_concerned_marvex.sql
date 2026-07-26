@@ -1,0 +1,1 @@
+ALTER TABLE `user_cosmetics` ADD `paid_dust` integer DEFAULT 0 NOT NULL;

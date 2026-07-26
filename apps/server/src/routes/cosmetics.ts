@@ -14,6 +14,7 @@ import { userCosmetics, users } from '../db/schema';
 import { isAdmin, requireUser } from '../auth';
 import {
   dustEarnedFor,
+  dustSpentFor,
   messagesTotalFor,
   submissionsTotalFor,
   watchMinutesTotalFor,
@@ -37,7 +38,9 @@ function earnTotal(userId: string, metric: CosmeticEarn['metric']): Promise<numb
       ? submissionsTotalFor(userId)
       : metric === 'dustEarned'
         ? dustEarnedFor(userId)
-        : messagesTotalFor(userId);
+        : metric === 'dustSpent'
+          ? dustSpentFor(userId)
+          : messagesTotalFor(userId);
 }
 
 /**
@@ -104,7 +107,9 @@ export function registerCosmeticsRoutes(app: FastifyInstance): void {
     // Grant; a PK conflict means already owned (double-click / double-charge) — refund this debit.
     const granted = await db
       .insert(userCosmetics)
-      .values({ userId: user.id, itemId: item.id, createdAt: new Date() })
+      // paidDust freezes the price this purchase actually cost — the 'dustSpent' axis sums it, so a
+      // later catalog price edit can't move a threshold someone already passed.
+      .values({ userId: user.id, itemId: item.id, paidDust: item.costDust, createdAt: new Date() })
       .onConflictDoNothing();
     if (granted.rowsAffected === 0) {
       await db

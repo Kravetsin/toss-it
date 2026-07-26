@@ -57,6 +57,7 @@ const EARN_META = {
   watchMinutes: { icon: 'clock', unit: 60, lockedKey: 'shop.earnLockedWatch' },
   submissions: { icon: 'send', unit: 1, lockedKey: 'shop.earnLockedSends' },
   dustEarned: { icon: 'sparkles', unit: 1, lockedKey: 'shop.earnLockedDust' },
+  dustSpent: { icon: 'sparkles', unit: 1, lockedKey: 'shop.earnLockedSpent' },
 } as const;
 
 /** Which tab an item lands in. Exhaustive by type, so a new cosmetic type can't quietly miss its
@@ -276,6 +277,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     watchMinutes: admin ? Infinity : (user?.watchMinutesTotal ?? 0),
     submissions: admin ? Infinity : (user?.submissionsTotal ?? 0),
     dustEarned: admin ? Infinity : (user?.dustEarnedTotal ?? 0),
+    dustSpent: admin ? Infinity : (user?.dustSpentTotal ?? 0),
   };
   const equippedEntrance = user?.equipped.entrance ?? null;
   const ownsPortalColor = ownsItem(PORTAL_COLOR_ID);

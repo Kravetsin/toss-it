@@ -1,10 +1,11 @@
 import type { SealModule } from '../types';
 
 /**
- * The Black Hole: the WEALTH seal, earned by LIFETIME dust earned (never lowered by spending, so it
- * can only climb). Replaces the faceted gem, which was a shape rather than a thing — it showed the
- * result of accumulating and never the act. This one is the act: dust falls in and never comes back
- * out, which is exactly what "everything you have ever earned" means.
+ * The Black Hole: the SPENDING seal, earned by LIFETIME dust spent. It began on dust EARNED, which
+ * was the wrong axis for this artwork and worth writing down: earned dust is still yours, and a mark
+ * showing it vanish said the opposite of what it measured. Spending is the thing that actually
+ * matches — dust falls in and never comes back out, which is exactly what buying a cosmetic is.
+ * The metric climbs only (every dust sink is permanent), so no rung can ever un-earn itself.
  *
  * Two rungs, plus a colour upgrade carrying the rest of the progression (same as the nova):
  *  - COLLAPSING — the disk is cold and thin, dust trickles in. Dim, no glow.
@@ -102,7 +103,7 @@ function voidSeal(rung: {
     id: rung.id,
     type: 'seal',
     costDust: 0,
-    earn: { metric: 'dustEarned', count: rung.count },
+    earn: { metric: 'dustSpent', count: rung.count },
     colorUpgrade: 'seal-void-color',
     since: '2026-07-25',
     ladder: 'seal-void',
@@ -196,7 +197,7 @@ ${ORBIT_CSS}${
 
 export const sealVoidCollapsing = voidSeal({
   id: 'seal-void-collapsing',
-  count: 1000,
+  count: 2000,
   className: 'seal-fx-void-collapsing',
   lit: false,
 });
@@ -209,15 +210,19 @@ export const sealVoid = voidSeal({
 });
 
 /**
- * The colour upgrade — EARNED like the seal itself (at 50k lifetime dust, past the void's 10k), never
- * bought. Owning it turns on a #rrggbb picker stored in EquippedCosmetics.sealColors; the shop renders
- * that picker inside the void's own ladder row. Renders nothing itself.
+ * The colour upgrade — EARNED like the seal itself (25k spent, past the void's 10k), never bought.
+ * Owning it turns on a #rrggbb picker stored in EquippedCosmetics.sealColors; the shop renders that
+ * picker inside the void's own ladder row. Renders nothing itself.
+ *
+ * Sized against the catalog rather than picked round: buying EVERYTHING costs about 70k, so this is
+ * roughly a third of it. The old 50k figure came from the earned axis, where it was reachable
+ * without ever buying anything — on the spent axis it would have meant owning 70% of the shop.
  */
 export const sealVoidColor: SealModule = {
   id: 'seal-void-color',
   type: 'seal',
   costDust: 0,
-  earn: { metric: 'dustEarned', count: 50_000 },
+  earn: { metric: 'dustSpent', count: 25_000 },
   upgrade: true,
   since: '2026-07-25',
   className: '',

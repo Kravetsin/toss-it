@@ -78,9 +78,11 @@ const MOCK_ME: MeResponse = {
     // Past both nova rungs (25 / 250) but short of its colour upgrade (500), so the shop previews an
     // earned two-rung ladder with the colour still counting up.
     submissionsTotal: 320,
-    // Lifetime earned dust — the "wealth" axis. Past the black hole's first rung (1000) but not its
-    // second (10k), so that ladder previews the LOCKED rung the nova's no longer shows.
+    // Lifetime earned dust — the hoarding axis, no seal on it yet (the black hole moved to spending).
     dustEarnedTotal: 5400,
+    // Lifetime spent dust. Past the black hole's first rung (2000) but not its second (10k), so that
+    // ladder previews the LOCKED rung the nova's no longer shows.
+    dustSpentTotal: 5400,
     equipped: {
       nickColor: '#8df0cc',
       nickColor2: '#a78bfa',
