@@ -66,6 +66,7 @@ import {
   equippedMarksFor,
   equippedMarksOf,
   marksFromEquipped,
+  overlayLayoutsOf,
   roomOf,
   toSummary,
   type PlaybackManager,
@@ -763,6 +764,10 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
       });
       // Push background-music config live so the media overlay updates without a reload.
       io.to(roomOf(channel.id)).emit('music:config', musicConfigFrom({ ...channel, ...patch }));
+      // Same for the post on screen. Most sends are YouTube and sit there for minutes, so a
+      // streamer resizing a video that landed in the wrong player sees it move now, rather than
+      // having to send something again to check.
+      io.to(roomOf(channel.id)).emit('media:layout', overlayLayoutsOf({ ...channel, ...patch }));
       return toSettings(
         { ...channel, ...patch },
         await chatBotInfo(channel),

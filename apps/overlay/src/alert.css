@@ -302,3 +302,28 @@
     transform: translate(-50%, 0);
   }
 }
+
+/* Layout edits from the dashboard land on a post that is ALREADY on screen (see 'media:layout' and
+   music:config): the card resizes instead of snapping. Position can't ride along — the stage anchors
+   with flex, and justify-content/align-items are discrete — so the move itself is done in JS (see
+   animateLayoutMove), which sets the starting offset and lets this same transition carry it home. */
+.player {
+  transition:
+    transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    width 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    max-width 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+/* The clip inside a hug-the-content card: its caps are what actually change its size. */
+.player.has-media img,
+.player.has-media video {
+  transition:
+    max-width 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    max-height 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .player,
+  .player.has-media img,
+  .player.has-media video {
+    transition: none;
+  }
+}

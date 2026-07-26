@@ -150,6 +150,23 @@ export interface MediaPlayPayload {
   giphyId?: string;
 }
 
+/** Where a post sits on screen — the trio the overlay applies to the stage. */
+export interface OverlayLayout {
+  position: OverlayPosition;
+  size: number;
+  margin: number;
+}
+
+/**
+ * Both anchors at once. Which one a post uses is its own business (audio and YouTube Music go to
+ * the music anchor, everything else to the media one), so a live layout change ships both and lets
+ * the overlay pick for whatever is currently on screen.
+ */
+export interface OverlayLayouts {
+  media: OverlayLayout;
+  music: OverlayLayout;
+}
+
 /** Live status for viewer indicator ('playing' is transient, not persisted). */
 export type LiveStatus = SubmissionStatus | 'playing';
 
@@ -383,6 +400,11 @@ export interface ServerToOverlayEvents {
   'media:play': (payload: MediaPlayPayload) => void;
   /** Dashboard asked this source to reload — the cure for an overlay that is stuck, not offline. */
   'overlay:reload': () => void;
+  /**
+   * Layout settings changed while a post may be on screen. Sent on save, so a streamer fixing the
+   * size of a ten-minute YouTube video sees it move instead of waiting for the next post.
+   */
+  'media:layout': (layouts: OverlayLayouts) => void;
   'media:skip': (submissionId: string) => void;
   /** Pause/resume the current show (dashboard → overlay). Skip is media:skip. */
   'media:control': (action: 'pause' | 'resume') => void;

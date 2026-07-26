@@ -26,6 +26,7 @@ import {
   type MediaPlayPayload,
   type MusicCommand,
   type MusicConfig,
+  type OverlayLayout,
   type OverlayPosition,
   type PlaybackDoneReason,
 } from '@tmw/shared';
@@ -123,6 +124,8 @@ let exitTimer: number | undefined;
 // Playback controls: pause state + progress reporting for the dashboard's now-playing bar.
 let paused = false;
 let currentKind: MediaKind | null = null;
+/** Whether the post on screen is anchored by the channel's music layout rather than its media one. */
+let currentIsMusicLayout = false;
 let mediaEl: HTMLVideoElement | HTMLAudioElement | null = null;
 // Image/gif/text have no player — we track their fixed display window ourselves so it can be frozen.
 let timedDurationMs = 0;
@@ -162,6 +165,15 @@ socket.on('chat:config', (cfg) => {
 });
 socket.on('music:config', applyMusicConfig);
 socket.on('music:command', handleMusicCommand);
+// Layout settings were saved. Only the post already on screen needs this — the next one carries its
+// own layout in the play payload.
+socket.on('media:layout', (layouts) => {
+  if (!currentId) return;
+  const card = stage.querySelector<HTMLElement>('.player');
+  animateLayoutMove(card, () =>
+    applyStageLayout(currentIsMusicLayout ? layouts.music : layouts.media),
+  );
+});
 
 function show(payload: MediaPlayPayload): void {
   // Deliberately unconditional, even for the show already on screen: after a server restart the
@@ -175,11 +187,10 @@ function show(payload: MediaPlayPayload): void {
   currentKind = payload.kind;
   suspendMusic(true); // post on screen → fade out, pause and hide the background music
 
-  const { justify, align } = positionToFlex(payload.position);
-  stage.style.justifyContent = justify;
-  stage.style.alignItems = align;
-  stage.style.padding = `${payload.margin}vh ${payload.margin}vw`;
-  stage.style.setProperty('--overlay-size', String(payload.size));
+  // Which of the channel's two anchors this post uses — the same rule the server applies when it
+  // builds the payload. Remembered so a later settings change can re-apply the right one.
+  currentIsMusicLayout = payload.kind === 'audio' || !!payload.youtubeMusic;
+  applyStageLayout(payload);
 
   const url = resolveMediaUrl(payload.url);
   const alert = document.createElement('div');
@@ -346,6 +357,41 @@ function applyMarquee(viewport: HTMLElement, track: HTMLElement): void {
     const dur = Math.max(5, overflow / 40); // ~40px/s
     track.style.animation = `overlay-marquee ${dur.toFixed(1)}s linear 1s infinite alternate`;
   });
+}
+
+/**
+ * Move a card to wherever `apply` puts it, smoothly. The anchor is flex, and justify-content /
+ * align-items are discrete properties no transition can touch — so measure, apply, then start the
+ * card from its old spot and let the CSS transition on .player carry it back to zero (FLIP).
+ * Transform only: the size change rides the same transition on its own.
+ */
+function animateLayoutMove(el: HTMLElement | null, apply: () => void): void {
+  if (!el || reduceMotion) {
+    apply();
+    return;
+  }
+  const before = el.getBoundingClientRect();
+  apply();
+  const after = el.getBoundingClientRect();
+  const dx = before.left - after.left;
+  const dy = before.top - after.top;
+  if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return; // size-only change — CSS already handles it
+  el.style.transition = 'none'; // jump back without animating...
+  el.style.transform = `translate(${dx}px, ${dy}px)`;
+  requestAnimationFrame(() => {
+    // ...then hand both properties back to the stylesheet, which animates the way home.
+    el.style.transition = '';
+    el.style.transform = '';
+  });
+}
+
+/** Anchor the stage: position drives the flex corner, margin the inset, size the card's scale. */
+function applyStageLayout(layout: OverlayLayout): void {
+  const { justify, align } = positionToFlex(layout.position);
+  stage.style.justifyContent = justify;
+  stage.style.alignItems = align;
+  stage.style.padding = `${layout.margin}vh ${layout.margin}vw`;
+  stage.style.setProperty('--overlay-size', String(layout.size));
 }
 
 /** Report the current show's position to the server (relayed to the dashboard). */
@@ -867,7 +913,10 @@ function applyMusicConfig(cfg: MusicConfig): void {
     musicPlaylistId = null;
   }
   musicMode = mode;
-  updateMusicVisibility();
+  // The layout knobs may have moved with this config — glide the player there rather than teleport
+  // it. Hidden or suspended, there is nothing on screen to measure, so those just apply.
+  if (musicHidden || musicSuspended) updateMusicVisibility();
+  else animateLayoutMove(musicCard, updateMusicVisibility);
 }
 
 /** Hidden = clipped to 1px and transparent, but still rendered so audio keeps playing

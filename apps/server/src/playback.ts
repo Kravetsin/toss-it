@@ -7,6 +7,7 @@ import {
   type LiveStatus,
   type MediaPlayPayload,
   type OverlayKind,
+  type OverlayLayouts,
   type OverlayPresence,
   type OverlayToServerEvents,
   type ServerToDashboardEvents,
@@ -945,6 +946,18 @@ function resolveLayout(
     ? { position: channel.musicPosition, margin: channel.musicMargin }
     : { position: channel.overlayPosition, margin: channel.overlayMargin };
   return { ...anchor, size: channel.musicSize };
+}
+
+/**
+ * Both anchors a channel currently defines, for pushing a layout change to a post already on screen
+ * (see the 'media:layout' event). Derived from the same resolveLayout the play payload uses, so the
+ * live update and the next post can never disagree about what the settings mean.
+ */
+export function overlayLayoutsOf(channel: Parameters<typeof resolveLayout>[1]): OverlayLayouts {
+  return {
+    media: resolveLayout('image', channel),
+    music: resolveLayout('audio', channel),
+  };
 }
 
 export function setupRealtime(io: RealtimeServer, app: FastifyInstance): PlaybackManager {
