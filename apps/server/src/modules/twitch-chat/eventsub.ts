@@ -85,7 +85,8 @@ interface EventNoticeFields {
   notice_type?: string;
   system_message?: string;
   chatter_is_anonymous?: boolean;
-  sub?: { duration_months?: number } | null;
+  // No `sub` object: a plain sub's only field is its multi-month duration, which the caption is
+  // better off without ("new sub · 1").
   resub?: { cumulative_months?: number } | null;
   sub_gift?: { recipient_user_name?: string } | null;
   community_sub_gift?: { total?: number } | null;
@@ -182,14 +183,15 @@ function toNotice(ev: EventNoticeFields): ChatNotice | null {
     ev.community_sub_gift?.total ??
     ev.raid?.viewer_count ??
     ev.modiversary?.months ??
-    ev.bits_badge_tier?.tier ??
-    ev.sub?.duration_months;
+    ev.bits_badge_tier?.tier;
   const otherName =
     ev.raid?.user_name ??
     ev.sub_gift?.recipient_user_name ??
     ev.gift_paid_upgrade?.gifter_user_name ??
     ev.pay_it_forward?.gifter_user_name;
-  return { type, systemMessage: ev.system_message ?? '', count, otherName };
+  // Twitch's own English line stands in until the module swaps in our copy for the channel's
+  // locale — so an unlocalized deploy still says something rather than nothing.
+  return { type, text: ev.system_message ?? '', count, otherName };
 }
 
 /**

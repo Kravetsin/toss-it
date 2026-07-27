@@ -1,7 +1,7 @@
 import { and, eq, inArray, or, type SQL } from 'drizzle-orm';
 import { db } from '../../../db/index';
 import { linkedIdentities, submissions } from '../../../db/schema';
-import { t } from './strings';
+import { t } from '../strings';
 import type { ChatCommand } from './types';
 
 /**

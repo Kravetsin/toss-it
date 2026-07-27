@@ -123,12 +123,7 @@ export const TEST_CHAT_MESSAGES: Omit<ChatOverlayMessage, 'id'>[] = [
     cosmetics: null,
     isFounder: false,
     level: 5,
-    notice: {
-      type: 'watchStreak',
-      systemMessage:
-        'streak_holder watched 12 consecutive streams this month and sparked a watch streak!',
-      count: 12,
-    },
+    notice: { type: 'watchStreak', text: 'серия просмотров · 12', count: 12 },
     fragments: [{ type: 'text', text: 'ни одного не пропустил!' }],
   },
   {
@@ -138,12 +133,7 @@ export const TEST_CHAT_MESSAGES: Omit<ChatOverlayMessage, 'id'>[] = [
     cosmetics: null,
     isFounder: false,
     level: 0,
-    notice: {
-      type: 'raid',
-      systemMessage: '148 raiders from raiding_friend have joined!',
-      count: 148,
-      otherName: 'raiding_friend',
-    },
+    notice: { type: 'raid', text: 'рейд · 148', count: 148, otherName: 'raiding_friend' },
     fragments: [],
   },
   {

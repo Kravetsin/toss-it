@@ -28,6 +28,7 @@ import { awardDust } from './accrual';
 import { isCommand, runCommand, toChatText } from './commands/index';
 import type { PlayResult } from './commands/types';
 import { getRewardById } from '../channel-points/store';
+import { noticeText } from './notices';
 import { bumpMessage, bumpWatch, flushActivity } from './stats';
 import { loadBotCredentials, refreshBotCredentials, type BotCredentials } from './token';
 
@@ -447,6 +448,12 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     const channelId = channelByBroadcaster.get(ev.broadcasterId);
     if (!channelId || excludedLogins.has(ev.chatterLogin)) return;
     if (!chatEnabledChannels.has(channelId) || deps.overlayCount(channelId) === 0) return;
+    // Our caption in the channel's language, in place of Twitch's English line. Every kind gets one
+    // — including an announcement, whose caption is the only thing naming what its mark means.
+    const notice = {
+      ...ev.notice,
+      text: noticeText(ev.notice, botLocales.get(channelId) ?? 'ru'),
+    };
     // An anonymous actor has no id to look a Tossit account up by — the bare notice still shows.
     void Promise.all([
       ev.anonymous ? { cosmetics: null, isFounder: false } : lookupCosmetics(ev.chatterId),
@@ -464,7 +471,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
           level: xpToLevel(xp),
           badges,
           role: roleFromBadges(ev.badges),
-          notice: ev.notice,
+          notice,
           fragments: ev.fragments,
         });
       })

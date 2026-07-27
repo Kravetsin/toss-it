@@ -270,13 +270,14 @@ export type ChatNoticeType =
 /**
  * The notice riding on a chat row. Anything the viewer typed alongside it (a resub message, the
  * text attached to a watch streak) stays in the row's own `fragments` — this only describes the
- * event. Structured fields carry what we can render ourselves; `systemMessage` is the safety net.
+ * event. The caption is composed server-side; the structured fields ride along for anything the
+ * overlay may want to style per kind later.
  */
 export interface ChatNotice {
   type: ChatNoticeType;
-  /** Twitch's own rendered line ("X shared their 5 month Watch Streak!"). Not localizable — it is
-   *  the fallback copy until each kind gets its own, and the only text for kinds with no fields. */
-  systemMessage: string;
+  /** Ready-to-render caption ("серия просмотров · 12"), composed server-side in the channel's bot
+   *  locale. Empty when the event's own text is the message (an announcement). */
+  text: string;
   /** The kind's headline number: streak/cumulative months, gifted subs, raiders, bits tier. */
   count?: number;
   /** The other party, when the event has one: raider, gift recipient, gifter. */

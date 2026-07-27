@@ -1,5 +1,5 @@
 import { levelThreshold, MAX_LEVEL, xpToLevel } from '@tmw/shared';
-import { t } from './strings';
+import { t } from '../strings';
 import type { ChatCommand } from './types';
 
 /**

@@ -233,12 +233,12 @@ function renderMessage(msg: ChatOverlayMessage): void {
     replyTo.append(arrow, who);
     bubble.appendChild(replyTo);
   }
-  // The event line, above whatever the viewer typed with it. Twitch's own wording for now — the
-  // structured fields (count/otherName) are on the wire for when each kind gets its own copy.
-  if (msg.notice?.systemMessage) {
+  // The event caption, above whatever the viewer typed with it. Already composed in the channel's
+  // language server-side — the overlay only places it.
+  if (msg.notice?.text) {
     const notice = document.createElement('div');
     notice.className = 'notice-line';
-    notice.textContent = msg.notice.systemMessage;
+    notice.textContent = msg.notice.text;
     bubble.appendChild(notice);
   }
   const body = document.createElement('span');
@@ -867,12 +867,7 @@ if (DEMO) {
       level: 5,
       badges: [SUB],
       role: 'subscriber',
-      notice: {
-        type: 'watchStreak',
-        systemMessage:
-          'streak_holder watched 12 consecutive streams this month and sparked a watch streak!',
-        count: 12,
-      },
+      notice: { type: 'watchStreak', text: 'серия просмотров · 12', count: 12 },
       fragments: [{ type: 'text', text: 'ни одного не пропустил!' }],
     },
     {
@@ -883,12 +878,7 @@ if (DEMO) {
       cosmetics: null,
       isFounder: false,
       level: 0,
-      notice: {
-        type: 'raid',
-        systemMessage: '148 raiders from raiding_friend have joined!',
-        count: 148,
-        otherName: 'raiding_friend',
-      },
+      notice: { type: 'raid', text: 'рейд · 148', count: 148, otherName: 'raiding_friend' },
       fragments: [],
     },
     {
@@ -901,7 +891,7 @@ if (DEMO) {
       level: 0,
       notice: {
         type: 'subGift',
-        systemMessage: 'An anonymous user gifted a Tier 1 sub to quiet_lurker!',
+        text: 'подписка в подарок · quiet_lurker',
         otherName: 'quiet_lurker',
       },
       fragments: [],
@@ -917,14 +907,10 @@ if (DEMO) {
       level: 8,
       badges: [SUB],
       role: 'subscriber',
-      notice: {
-        type: 'resub',
-        systemMessage: 'oldtimer subscribed at Tier 1. They have subscribed for 26 months!',
-        count: 26,
-      },
+      notice: { type: 'resub', text: 'подписка · 26 мес.', count: 26 },
       fragments: [{ type: 'text', text: 'второй год с тобой' }],
     },
-    // An announcement carries no line of its own — its text IS the message.
+    // An announcement's own text IS the message; the caption is what names its mark.
     {
       id: 'n5',
       userId: 'un5',
@@ -935,7 +921,7 @@ if (DEMO) {
       level: 6,
       badges: [MODERATOR],
       role: 'moderator',
-      notice: { type: 'announcement', systemMessage: '' },
+      notice: { type: 'announcement', text: 'объявление' },
       fragments: [{ type: 'text', text: 'через 10 минут розыгрыш — не расходимся' }],
     },
     {
@@ -946,11 +932,7 @@ if (DEMO) {
       cosmetics: null,
       isFounder: false,
       level: 3,
-      notice: {
-        type: 'bitsBadgeTier',
-        systemMessage: 'bit_thrower just earned a new 10,000 Bits badge!',
-        count: 10000,
-      },
+      notice: { type: 'bitsBadgeTier', text: 'новый бейдж битов · 10 000', count: 10000 },
       fragments: [],
     },
     // 7-9 walk the big-emote ladder: 1 → 6em, 2-3 → 3.75em, 4-6 → 2.25em.

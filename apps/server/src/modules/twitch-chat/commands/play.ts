@@ -1,4 +1,4 @@
-import { t } from './strings';
+import { t } from '../strings';
 import type { ChatCommand } from './types';
 
 /**
