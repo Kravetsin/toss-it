@@ -251,19 +251,22 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* Twitch chat notice (sub/gift/raid/watch streak…): the event line above the viewer's own text.
-   --notice is the event's accent, picked per kind: money-shaped events share the sub violet, the
-   rest carry their own. Everything below reads from it, so a new kind only needs a color. */
-.msg[data-notice] {
-  --notice: #8df0cc;
+/* Rows that are more than someone talking: a Twitch notice (sub/gift/raid/watch streak…), or a
+   message Twitch itself marks out (bits, a paid highlight, a newcomer's first line).
+   --event is the accent, picked per kind: money-shaped events share the sub violet, bits are green
+   wherever they appear, the rest carry their own. Border, caption and thread mark all read from it,
+   so a new kind needs a color and nothing else. */
+.msg[data-notice],
+.msg[data-emphasis] {
+  --event: #8df0cc;
 }
 .msg[data-notice='raid'],
 .msg[data-notice='unraid'] {
-  --notice: #ff7ac6;
+  --event: #ff7ac6;
 }
 .msg[data-notice='watchStreak'],
 .msg[data-notice='modiversary'] {
-  --notice: #ffd479;
+  --event: #ffd479;
 }
 .msg[data-notice='sub'],
 .msg[data-notice='resub'],
@@ -272,37 +275,56 @@
 .msg[data-notice='giftPaidUpgrade'],
 .msg[data-notice='primePaidUpgrade'],
 .msg[data-notice='payItForward'] {
-  --notice: #a78bfa;
+  --event: #a78bfa;
 }
 .msg[data-notice='announcement'] {
-  --notice: #7ec8ff;
+  --event: #7ec8ff;
 }
+/* Bits are green wherever they show up — the badge tier event and a cheer in a message alike. */
 .msg[data-notice='bitsBadgeTier'],
-.msg[data-notice='charityDonation'] {
-  --notice: #3fd35a;
+.msg[data-notice='charityDonation'],
+.msg[data-emphasis='cheer'] {
+  --event: #3fd35a;
 }
-.msg .bubble .notice-line {
+/* Twitch's own purple for a paid highlight — the one accent viewers already read as "bought". */
+.msg[data-emphasis='highlighted'] {
+  --event: #9147ff;
+}
+/* A newcomer gets brand mint: this is the row a streamer is meant to answer. */
+.msg[data-emphasis='intro'] {
+  --event: #8df0cc;
+}
+/* Reads as a caption for the row, not as words someone typed. */
+.msg .bubble .caption {
   position: relative;
   z-index: 1;
   margin-bottom: 0.15em;
-  font-size: 0.84em;
+  font-size: 0.74em;
   font-weight: 600;
   line-height: 1.25;
-  color: var(--notice, #8df0cc);
-}
-/* The line reads as a caption for the event, not as words someone typed. */
-.msg .bubble .notice-line {
-  font-size: 0.74em;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+  color: var(--event, #8df0cc);
 }
-/* Border in the event's color: on a notice the event is the point, not the fact that the author
-   happens to be a sub. The [data-role] twin is not decoration — it matches the role-border rule's
-   specificity so this one wins on document order. The role halo goes too: one accent per row. */
+/* Border in the event's color: here the event is the point, not the fact that the author happens to
+   be a sub. The [data-role] twins are not decoration — they match the role-border rule's
+   specificity so these win on document order. The role halo goes too: one accent per row. */
 #chat .msg[data-notice] .bubble,
-#chat .msg[data-notice][data-role] .bubble {
-  border-color: color-mix(in srgb, var(--notice) 55%, transparent);
+#chat .msg[data-notice][data-role] .bubble,
+#chat .msg[data-emphasis] .bubble,
+#chat .msg[data-emphasis][data-role] .bubble {
+  border-color: color-mix(in srgb, var(--event) 55%, transparent);
   box-shadow: 0 8px 22px -12px rgba(0, 0, 0, 0.6);
+}
+/* A paid highlight is the only one that also fills: the viewer bought visibility, and a hairline
+   is not visibility. Everything else stays a normal bubble with a colored edge. */
+.msg[data-emphasis='highlighted'] .bubble {
+  background: color-mix(in srgb, #9147ff 15%, rgba(13, 17, 17, 0.58));
+}
+/* The bits number rides next to its art in the tier's own color (set inline from the catalog). */
+.msg .bubble .bits {
+  font-weight: 700;
+  padding: 0 0.15em;
 }
 
 /* --- The mark on the thread ------------------------------------------------------------------
@@ -320,7 +342,7 @@
   top: 0.27em;
   width: 0.86em;
   height: 0.86em;
-  color: var(--notice, #8df0cc);
+  color: var(--event, #8df0cc);
 }
 /* Default silhouette, and the streak's own: an eclipse ring — a rim with nothing inside. */
 .msg .mark::before {

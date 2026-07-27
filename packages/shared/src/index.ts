@@ -230,7 +230,21 @@ export interface IntegrationStatus {
 export type ChatFragment =
   | { type: 'text'; text: string }
   | { type: 'emote'; id: string; text: string }
-  | { type: 'mention'; text: string };
+  | { type: 'mention'; text: string }
+  /**
+   * A cheer ("Cheer100"): its art and tier color are resolved server-side from the channel's
+   * cheermote catalog. `prefix`/`tier` are what Twitch said and travel unresolved, so a failed
+   * catalog fetch still renders the cheer as its plain text instead of dropping the bits.
+   */
+  | {
+      type: 'cheermote';
+      text: string;
+      bits: number;
+      prefix: string;
+      tier: number;
+      url?: string;
+      color?: string;
+    };
 
 /** A resolved platform chat badge (mod/vip/broadcaster/subscriber…) ready to render:
  *  the server turns Twitch's set_id/version into a CDN image URL so the overlay stays dumb. */
@@ -284,6 +298,19 @@ export interface ChatNotice {
   otherName?: string;
 }
 
+/**
+ * Why a message stands out beyond who wrote it. `highlighted` = the viewer spent channel points on
+ * "Highlight My Message"; `cheer` = it carries bits; `intro` = a newcomer's first line (Twitch's
+ * "user intro"). All three are things a viewer paid for or a streamer wants to answer, so the
+ * overlay owes them a mark. `text` is the caption where one helps, already in the bot's locale.
+ */
+export interface ChatEmphasis {
+  kind: 'highlighted' | 'cheer' | 'intro';
+  text?: string;
+  /** Bits in the message (cheer only) — the same total Twitch reports for the whole line. */
+  bits?: number;
+}
+
 /** A chat message forwarded to the chat overlay (twitch-chat module → overlay). */
 export interface ChatOverlayMessage {
   /** Twitch message id (for targeted deletion). */
@@ -309,6 +336,8 @@ export interface ChatOverlayMessage {
   /** Present when the row is a Twitch chat notice (sub/raid/watch streak…) rather than plain chat.
    *  The row is otherwise identical — same author look, same deletion by id. */
   notice?: ChatNotice;
+  /** Twitch's own emphasis on the message itself — see ChatEmphasis. */
+  emphasis?: ChatEmphasis;
   fragments: ChatFragment[];
 }
 

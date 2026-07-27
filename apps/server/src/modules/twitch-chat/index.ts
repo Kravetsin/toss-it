@@ -24,11 +24,13 @@ import { roomOf, type PlaybackManager, type QueueState, type RealtimeServer } fr
 import { resolvePlayableYoutube, submitResolvedYoutube } from '../../media/submit';
 import { EventSubClient, type ChatNoticeEvent } from './eventsub';
 import { createBadgeResolver, roleFromBadges, type EventBadge } from './badges';
+import { createCheermoteResolver } from './cheermotes';
 import { awardDust } from './accrual';
 import { isCommand, runCommand, toChatText } from './commands/index';
 import type { PlayResult } from './commands/types';
 import { getRewardById } from '../channel-points/store';
 import { noticeText } from './notices';
+import { t } from './strings';
 import { bumpMessage, bumpWatch, flushActivity } from './stats';
 import { loadBotCredentials, refreshBotCredentials, type BotCredentials } from './token';
 
@@ -105,6 +107,8 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
   const liveChatters = new Map<string, { viewers: LiveViewer[]; at: number }>();
   // Resolves native platform badges to image URLs (cached catalogs; helixGet is hoisted below).
   const badgeResolver = createBadgeResolver({ helixGet, log: deps.log });
+  // Same idea for cheers: one cached catalog per channel, nothing per message.
+  const cheermoteResolver = createCheermoteResolver({ helixGet, log: deps.log });
 
   /**
    * Sender's all-time per-channel XP: chat messages + watch-minutes (from channel_activity, by
@@ -333,6 +337,8 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     reply?: { name: string };
     /** Set when the message is a channel-points reward's text input. */
     rewardId?: string;
+    emphasis?: 'highlighted' | 'intro';
+    bits?: number;
   }
 
   function onChatMessage(ev: ChatMsg): void {
@@ -420,8 +426,9 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
       lookupCosmetics(ev.chatterId),
       lookupXp(channelId, ev.chatterId),
       badgeResolver.resolve(ev.broadcasterId, ev.badges),
+      cheermoteResolver.resolve(ev.broadcasterId, ev.fragments),
     ])
-      .then(([{ cosmetics, isFounder }, xp, badges]) => {
+      .then(([{ cosmetics, isFounder }, xp, badges, fragments]) => {
         deps.io.to(roomOf(channelId)).emit('chat:message', {
           id: ev.messageId,
           userId: ev.chatterId,
@@ -433,7 +440,16 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
           badges,
           role: roleFromBadges(ev.badges),
           reply: ev.reply,
-          fragments: ev.fragments,
+          // Bits win over a paid highlight when a viewer bought both on one line: the money is the
+          // louder fact, and the row has one accent to give.
+          emphasis: ev.bits
+            ? { kind: 'cheer', bits: ev.bits }
+            : ev.emphasis === 'intro'
+              ? { kind: 'intro', text: t(botLocales.get(channelId) ?? 'ru', 'emphasisIntro') }
+              : ev.emphasis === 'highlighted'
+                ? { kind: 'highlighted' }
+                : undefined,
+          fragments,
         });
       })
       .catch((err) => deps.log.warn({ err }, 'twitch-chat: chat emit failed'));

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { toNotice } from './eventsub';
+import { toFragments, toNotice } from './eventsub';
 
 /**
  * The notice mapper decides what reaches the overlay at all: an unmapped kind must be dropped
@@ -80,6 +80,22 @@ describe('toNotice', () => {
         gift_paid_upgrade: { gifter_user_name: 'santa' },
       })?.otherName,
     ).toBe('santa');
+  });
+
+  it('carries the bits of a cheer through unresolved, and keeps a broken one readable', () => {
+    expect(
+      toFragments(
+        [
+          { type: 'cheermote', text: 'Cheer100', cheermote: { prefix: 'Cheer', bits: 100 } },
+          { type: 'cheermote', text: 'Cheer50', cheermote: { bits: 50 } },
+        ],
+        '',
+      ),
+    ).toEqual([
+      { type: 'cheermote', text: 'Cheer100', bits: 100, prefix: 'Cheer', tier: 0 },
+      // No prefix means no art to look up — it stays the text Twitch sent, bits still on screen.
+      { type: 'text', text: 'Cheer50' },
+    ]);
   });
 
   it("carries Twitch's line as the stand-in caption, never undefined", () => {

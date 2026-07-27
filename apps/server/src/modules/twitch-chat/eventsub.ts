@@ -39,6 +39,11 @@ export interface ChatMessageEvent {
   reply?: { name: string };
   /** Set when the message is the input to a channel-points reward (its custom reward id). */
   rewardId?: string;
+  /** Twitch's own emphasis on the message: a paid highlight or a newcomer's first line. Power-ups
+   *  (message effect, gigantified emote) are deliberately not mapped — nobody buys them. */
+  emphasis?: 'highlighted' | 'intro';
+  /** Bits in the message, when it is a cheer (Twitch's own total for the line). */
+  bits?: number;
 }
 
 /** A chat notice (sub/raid/watch streak…). Same shape as a message — it occupies a chat row and is
@@ -71,6 +76,7 @@ interface EventFragment {
   text?: string;
   emote?: { id?: string };
   mention?: { user_login?: string; user_name?: string };
+  cheermote?: { prefix?: string; bits?: number; tier?: number };
 }
 
 /** Reply metadata Twitch attaches to a threaded message. */
@@ -113,6 +119,9 @@ interface EventSubMessage {
       color?: string;
       badges?: { set_id?: string; id?: string }[];
       message?: { text?: string; fragments?: EventFragment[] };
+      /** 'text' | 'channel_points_highlighted' | 'user_intro' | power-up kinds. */
+      message_type?: string;
+      cheer?: { bits?: number } | null;
       reply?: EventReply | null;
       /** Set when the message is the text input of a channel-points reward redemption. */
       channel_points_custom_reward_id?: string | null;
@@ -130,14 +139,28 @@ function toBadges(raw: { set_id?: string; id?: string }[] | undefined): EventBad
   return out;
 }
 
-/** Map Twitch fragments to our text/emote/mention shape. Twitch already classifies an @mention
- *  as its own fragment type; we preserve that so the overlay can keep an emote-only reply big. */
-function toFragments(raw: EventFragment[] | undefined, fallbackText: string): ChatFragment[] {
+/** Map Twitch fragments to our text/emote/mention/cheermote shape. Twitch already classifies an
+ *  @mention as its own fragment type; we preserve that so the overlay can keep an emote-only reply
+ *  big. Exported for its tests — like toNotice, it is pure and everything around it needs a socket. */
+export function toFragments(
+  raw: EventFragment[] | undefined,
+  fallbackText: string,
+): ChatFragment[] {
   if (!raw || raw.length === 0) return fallbackText ? [{ type: 'text', text: fallbackText }] : [];
   return raw.map((f) => {
     if (f.type === 'emote' && f.emote?.id)
       return { type: 'emote', id: f.emote.id, text: f.text ?? '' };
     if (f.type === 'mention') return { type: 'mention', text: f.text ?? '' };
+    // A cheer without a prefix cannot be resolved to art, so it stays text — which still reads
+    // as "Cheer100", exactly what it did before cheermotes were understood at all.
+    if (f.type === 'cheermote' && f.cheermote?.prefix)
+      return {
+        type: 'cheermote',
+        text: f.text ?? '',
+        bits: f.cheermote.bits ?? 0,
+        prefix: f.cheermote.prefix,
+        tier: f.cheermote.tier ?? 0,
+      };
     return { type: 'text', text: f.text ?? '' };
   });
 }
@@ -151,6 +174,13 @@ function stripReplyPrefix(fragments: ChatFragment[]): ChatFragment[] {
   while (fragments[i]?.type === 'text' && fragments[i]!.text.trim() === '') i += 1;
   return fragments.slice(i);
 }
+
+/** Twitch `message_type` -> the emphasis the overlay draws. Anything absent is an ordinary line:
+ *  'text' itself, and the power-up kinds we chose not to render. */
+const EMPHASIS: Record<string, 'highlighted' | 'intro' | undefined> = {
+  channel_points_highlighted: 'highlighted',
+  user_intro: 'intro',
+};
 
 /** Twitch `notice_type` -> our kind. Anything absent (including Twitch's own 'unknown', and any
  *  kind added after this table was written) is dropped rather than rendered as a blank row. */
@@ -395,6 +425,8 @@ export class EventSubClient {
           fragments: parentName ? stripReplyPrefix(fragments) : fragments,
           reply: parentName ? { name: parentName } : undefined,
           rewardId: ev.channel_points_custom_reward_id ?? undefined,
+          emphasis: EMPHASIS[ev.message_type ?? ''],
+          bits: ev.cheer?.bits ?? undefined,
         });
       } else if (subType === 'channel.chat.notification') {
         const notice = toNotice(ev);

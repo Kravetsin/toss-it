@@ -104,6 +104,21 @@ function renderFragments(parent: HTMLElement, fragments: ChatFragment[]): void {
       img.src = emoteUrl(f.id, big?.scale ?? '1.0');
       img.alt = f.text;
       parent.appendChild(img);
+    } else if (f.type === 'cheermote') {
+      // Art plus the amount in the tier's own color. The number never hides behind the art: it is
+      // what the viewer actually paid. Unresolved art (catalog fetch failed) leaves "Cheer100".
+      if (f.url) {
+        const img = document.createElement('img');
+        img.className = 'emote';
+        img.src = f.url;
+        img.alt = f.text;
+        parent.appendChild(img);
+      }
+      const amount = document.createElement('span');
+      amount.className = 'bits';
+      if (f.color) amount.style.color = f.color;
+      amount.textContent = f.url ? String(f.bits) : f.text;
+      parent.appendChild(amount);
     } else if (!big) {
       // In big mode the only text left is the padding between emotes; flex gap replaces it.
       parent.appendChild(document.createTextNode(f.text));
@@ -121,6 +136,9 @@ function renderMessage(msg: ChatOverlayMessage): void {
   // Notices (sub/raid/watch streak…) are chat rows with an event line on top. The kind lands on the
   // row so the styling can branch per event without touching this function.
   if (msg.notice) row.dataset.notice = msg.notice.type;
+  // Emphasis is the same idea for the message itself: bits, a paid highlight, a newcomer's first
+  // line. Both feed the row's --event accent, so they share the border and caption treatment.
+  if (msg.emphasis) row.dataset.emphasis = msg.emphasis.kind;
 
   // Level: rarity tint on the star marker + a Roman numeral before the name; glow kicks in from
   // level 6 up. The trail line itself stays mint — the brand thread through the whole chat.
@@ -233,13 +251,14 @@ function renderMessage(msg: ChatOverlayMessage): void {
     replyTo.append(arrow, who);
     bubble.appendChild(replyTo);
   }
-  // The event caption, above whatever the viewer typed with it. Already composed in the channel's
-  // language server-side — the overlay only places it.
-  if (msg.notice?.text) {
-    const notice = document.createElement('div');
-    notice.className = 'notice-line';
-    notice.textContent = msg.notice.text;
-    bubble.appendChild(notice);
+  // The caption, above whatever the viewer typed: what the event was, or why this line stands out.
+  // Already composed in the channel's language server-side — the overlay only places it.
+  const captionText = msg.notice?.text || msg.emphasis?.text;
+  if (captionText) {
+    const caption = document.createElement('div');
+    caption.className = 'caption';
+    caption.textContent = captionText;
+    bubble.appendChild(caption);
   }
   const body = document.createElement('span');
   body.className = 'body';
@@ -281,11 +300,11 @@ function appendRow(row: HTMLElement, wakeColor: string): void {
   const prevTip = lastTipY;
   updateRail();
   animateMarker(row, prevTip);
-  // A notice's thread flash matches its mark. The accent lives in CSS (one place per kind), so read
-  // it back off the row rather than keeping a second copy of the palette here.
+  // An event's thread flash matches its accent. That accent lives in CSS (one place per kind), so
+  // read it back off the row rather than keeping a second copy of the palette here.
   fireWake(
-    row.dataset.notice
-      ? getComputedStyle(row).getPropertyValue('--notice').trim() || wakeColor
+    row.dataset.notice || row.dataset.emphasis
+      ? getComputedStyle(row).getPropertyValue('--event').trim() || wakeColor
       : wakeColor,
   );
   scheduleFade(row);
@@ -934,6 +953,67 @@ if (DEMO) {
       level: 3,
       notice: { type: 'bitsBadgeTier', text: 'новый бейдж битов · 10 000', count: 10000 },
       fragments: [],
+    },
+    // Emphasis: what Twitch marks on the message itself. Art and tier color are resolved from the
+    // channel's cheermote catalog server-side; here they are pinned to the real global 100-bit tier.
+    {
+      id: 'e1',
+      userId: 'ue1',
+      name: 'bit_thrower',
+      twitchColor: '#7ec8ff',
+      cosmetics: null,
+      isFounder: false,
+      level: 3,
+      emphasis: { kind: 'cheer', bits: 100 },
+      fragments: [
+        {
+          type: 'cheermote',
+          text: 'Cheer100',
+          bits: 100,
+          prefix: 'Cheer',
+          tier: 100,
+          url: 'https://d3aqoihi2n8ty8.cloudfront.net/actions/cheer/dark/animated/100/2.gif',
+          color: '#9c3ee8',
+        },
+        { type: 'text', text: ' держи на кофе' },
+      ],
+    },
+    // The catalog can fail; then the cheer stays the plain text Twitch sent, bits still readable.
+    {
+      id: 'e1b',
+      userId: 'ue1b',
+      name: 'unresolved_cheer',
+      twitchColor: '#9ab0ad',
+      cosmetics: null,
+      isFounder: false,
+      level: 0,
+      emphasis: { kind: 'cheer', bits: 50 },
+      fragments: [
+        { type: 'cheermote', text: 'Cheer50', bits: 50, prefix: 'Cheer', tier: 1 },
+        { type: 'text', text: ' и так сойдёт' },
+      ],
+    },
+    {
+      id: 'e2',
+      userId: 'ue2',
+      name: 'loud_and_proud',
+      twitchColor: '#c9a0ff',
+      cosmetics: null,
+      isFounder: false,
+      level: 4,
+      emphasis: { kind: 'highlighted' },
+      fragments: [{ type: 'text', text: 'выделил сообщение за баллы — заметь меня' }],
+    },
+    {
+      id: 'e3',
+      userId: 'ue3',
+      name: 'first_timer',
+      twitchColor: '#8df0cc',
+      cosmetics: null,
+      isFounder: false,
+      level: 0,
+      emphasis: { kind: 'intro', text: 'первое сообщение' },
+      fragments: [{ type: 'text', text: 'всем привет, я тут впервые' }],
     },
     // 7-9 walk the big-emote ladder: 1 → 6em, 2-3 → 3.75em, 4-6 → 2.25em.
     {

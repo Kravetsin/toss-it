@@ -42,6 +42,8 @@ const STRINGS = {
     noticeModiversary: 'mod anniversary',
     /** Unit for the counts that are months (resub, mod anniversary). */
     noticeMonths: 'mo',
+    /** Caption on a newcomer's first line — the one message a streamer should answer. */
+    emphasisIntro: 'first message',
   },
   ru: {
     queueAhead: 'перед тобой {n}',
@@ -74,6 +76,7 @@ const STRINGS = {
     noticeWatchStreak: 'серия просмотров',
     noticeModiversary: 'годовщина модератора',
     noticeMonths: 'мес.',
+    emphasisIntro: 'первое сообщение',
   },
   uk: {
     queueAhead: 'перед тобою {n}',
@@ -106,6 +109,7 @@ const STRINGS = {
     noticeWatchStreak: 'серія переглядів',
     noticeModiversary: 'річниця модератора',
     noticeMonths: 'міс.',
+    emphasisIntro: 'перше повідомлення',
   },
 } as const satisfies Record<BotLocale, Record<string, string>>;
 
