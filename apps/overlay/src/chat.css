@@ -306,15 +306,19 @@
   text-transform: uppercase;
   color: var(--event, #8df0cc);
 }
-/* Border in the event's color: here the event is the point, not the fact that the author happens to
-   be a sub. The [data-role] twins are not decoration — they match the role-border rule's
-   specificity so these win on document order. The role halo goes too: one accent per row. */
+/* Border and halo in the event's color: here the event is the point, not the fact that the author
+   happens to be a sub. The [data-role] twins are not decoration — they match the role-border rule's
+   specificity so these win on document order, halo included: one accent per row, never two.
+   The glow is wider and warmer than the role border's (20px at 58% against 14px at 42%) — a role
+   marks who is talking, an event has to carry across a column of people talking. */
 #chat .msg[data-notice] .bubble,
 #chat .msg[data-notice][data-role] .bubble,
 #chat .msg[data-emphasis] .bubble,
 #chat .msg[data-emphasis][data-role] .bubble {
   border-color: color-mix(in srgb, var(--event) 55%, transparent);
-  box-shadow: 0 8px 22px -12px rgba(0, 0, 0, 0.6);
+  box-shadow:
+    0 8px 22px -12px rgba(0, 0, 0, 0.6),
+    0 0 20px -2px color-mix(in srgb, var(--event) 58%, transparent);
 }
 /* A paid highlight is the only one that also fills: the viewer bought visibility, and a hairline
    is not visibility. Everything else stays a normal bubble with a colored edge. */
