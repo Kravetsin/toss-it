@@ -1479,8 +1479,13 @@ function triggerDonationFx(fx: DonationFx): void {
 // never covers a post or burns into a recording.
 const MIN_SOURCE_SIDE = 700; // catches OBS's 800×600 default; leaves 720p (1280×720) alone
 const SIZE_HINT_MS = 30_000;
+// CEF's own default window is 800×600 and OBS applies the source's configured size only after the
+// first layout, so an early reading can be that default rather than the streamer's setting. Never
+// flag on the first small reading: wait it out and re-check.
+const SIZE_SETTLE_MS = 5_000;
 let sizeHintEl: HTMLElement | null = null;
 let sizeHintTimer: number | undefined;
+let sizeSettleTimer: number | undefined;
 let sizeHintDismissed = false;
 let lastSourceDims = '';
 
@@ -1491,6 +1496,28 @@ function hideSizeHint(): void {
   }
   sizeHintEl?.remove();
   sizeHintEl = null;
+}
+
+function cancelSizeSettle(): void {
+  if (sizeSettleTimer !== undefined) {
+    window.clearTimeout(sizeSettleTimer);
+    sizeSettleTimer = undefined;
+  }
+}
+
+/** Show only if the source is still small once the size has had time to settle. */
+function scheduleSizeHint(): void {
+  if (sizeSettleTimer !== undefined) return;
+  sizeSettleTimer = window.setTimeout(() => {
+    sizeSettleTimer = undefined;
+    if (sizeHintDismissed || document.hidden) return;
+    if (Math.min(window.innerWidth, window.innerHeight) >= MIN_SOURCE_SIDE) return;
+    if (shows.media.currentId || shows.music.currentId) {
+      scheduleSizeHint(); // busy on stream — retry once the overlay is idle
+      return;
+    }
+    showSizeHint();
+  }, SIZE_SETTLE_MS);
 }
 
 function showSizeHint(): void {
@@ -1519,8 +1546,16 @@ function evaluateSourceSize(): void {
   if (sizeHintDismissed) return;
   const dims = `${window.innerWidth}×${window.innerHeight}`;
   if (Math.min(window.innerWidth, window.innerHeight) < MIN_SOURCE_SIDE) {
-    if (dims !== lastSourceDims || !sizeHintEl) showSizeHint(); // re-show on a genuine resize
+    // A hidden source (inactive scene) isn't laid out, so its size means nothing yet — the
+    // visibilitychange listener re-runs this once OBS actually renders it.
+    if (document.hidden) return;
+    if (sizeHintEl) {
+      if (dims !== lastSourceDims) showSizeHint(); // already settled: just refresh the numbers
+    } else {
+      scheduleSizeHint();
+    }
   } else {
+    cancelSizeSettle();
     hideSizeHint();
   }
   lastSourceDims = dims;
@@ -1532,6 +1567,9 @@ let sizeHintDebounce: number | undefined;
 window.addEventListener('resize', () => {
   if (sizeHintDebounce !== undefined) window.clearTimeout(sizeHintDebounce);
   sizeHintDebounce = window.setTimeout(evaluateSourceSize, 250);
+});
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) evaluateSourceSize();
 });
 // Defer past first layout: a deferred module script runs before layout in some CEF/preview builds,
 // where window.innerWidth still reads 0 (which would false-trigger on every load). A timer, not rAF —
