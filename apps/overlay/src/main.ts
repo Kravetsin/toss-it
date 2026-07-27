@@ -245,7 +245,6 @@ function show(sh: ShowState, payload: MediaPlayPayload): void {
   // overlay is told to play the current post again, and rebuilding it from scratch is what makes
   // the two sides agree. Skipping the rebuild left the card playing but the controls dead.
   clearStage(sh);
-  hideSizeHint(); // a post is arriving — never leave the setup hint sitting over media on stream
   sh.currentId = payload.submissionId;
   sh.finishing = false;
   sh.paused = false;
@@ -1470,113 +1469,6 @@ function triggerDonationFx(fx: DonationFx): void {
   }
   requestAnimationFrame(frame);
 }
-
-// ── OBS source-size guard ───────────────────────────────────────────────────
-// A browser source left small (OBS's default is 800×600) renders a player too tiny to read. We can
-// only see our OWN viewport, not how OBS scales the source on the canvas — so this is a HINT, not an
-// auto-fix: it can't tell a small-but-scaled-up source from a small one shown small. Keyed on the
-// SHORTER side so a vertical source (e.g. 1080×1920) isn't flagged. Idle-only + self-hiding so it
-// never covers a post or burns into a recording.
-const MIN_SOURCE_SIDE = 700; // catches OBS's 800×600 default; leaves 720p (1280×720) alone
-const SIZE_HINT_MS = 30_000;
-// CEF's own default window is 800×600 and OBS applies the source's configured size only after the
-// first layout, so an early reading can be that default rather than the streamer's setting. Never
-// flag on the first small reading: wait it out and re-check.
-const SIZE_SETTLE_MS = 5_000;
-let sizeHintEl: HTMLElement | null = null;
-let sizeHintTimer: number | undefined;
-let sizeSettleTimer: number | undefined;
-let sizeHintDismissed = false;
-let lastSourceDims = '';
-
-function hideSizeHint(): void {
-  if (sizeHintTimer !== undefined) {
-    window.clearTimeout(sizeHintTimer);
-    sizeHintTimer = undefined;
-  }
-  sizeHintEl?.remove();
-  sizeHintEl = null;
-}
-
-function cancelSizeSettle(): void {
-  if (sizeSettleTimer !== undefined) {
-    window.clearTimeout(sizeSettleTimer);
-    sizeSettleTimer = undefined;
-  }
-}
-
-/** Show only if the source is still small once the size has had time to settle. */
-function scheduleSizeHint(): void {
-  if (sizeSettleTimer !== undefined) return;
-  sizeSettleTimer = window.setTimeout(() => {
-    sizeSettleTimer = undefined;
-    if (sizeHintDismissed || document.hidden) return;
-    if (Math.min(window.innerWidth, window.innerHeight) >= MIN_SOURCE_SIDE) return;
-    if (shows.media.currentId || shows.music.currentId) {
-      scheduleSizeHint(); // busy on stream — retry once the overlay is idle
-      return;
-    }
-    showSizeHint();
-  }, SIZE_SETTLE_MS);
-}
-
-function showSizeHint(): void {
-  if (shows.media.currentId || shows.music.currentId) return; // never over a post on stream
-  hideSizeHint();
-  const el = document.createElement('div');
-  el.className = 'source-hint';
-  el.innerHTML = `
-    <button class="source-hint-x" aria-label="Скрыть" type="button">×</button>
-    <div class="source-hint-title">⚠ Источник в OBS слишком маленький</div>
-    <div class="source-hint-body">
-      Размер браузер-источника: <b>${window.innerWidth}×${window.innerHeight}</b>.
-      Впишите <b>1920×1080</b> (или размер вашей сцены) в свойства источника — иначе плеер будет крошечным.
-      Растягивание рамки на сцене только размывает картинку, размер источника оно не меняет.
-    </div>`;
-  el.querySelector('.source-hint-x')!.addEventListener('click', () => {
-    sizeHintDismissed = true;
-    hideSizeHint();
-  });
-  document.body.appendChild(el);
-  sizeHintEl = el;
-  sizeHintTimer = window.setTimeout(hideSizeHint, SIZE_HINT_MS);
-}
-
-function evaluateSourceSize(): void {
-  if (sizeHintDismissed) return;
-  const dims = `${window.innerWidth}×${window.innerHeight}`;
-  if (Math.min(window.innerWidth, window.innerHeight) < MIN_SOURCE_SIDE) {
-    // A hidden source (inactive scene) isn't laid out, so its size means nothing yet — the
-    // visibilitychange listener re-runs this once OBS actually renders it.
-    if (document.hidden) return;
-    if (sizeHintEl) {
-      if (dims !== lastSourceDims) showSizeHint(); // already settled: just refresh the numbers
-    } else {
-      scheduleSizeHint();
-    }
-  } else {
-    cancelSizeSettle();
-    hideSizeHint();
-  }
-  lastSourceDims = dims;
-}
-
-// OBS reloads the page when the source dimensions change, so this runs fresh each time; the resize
-// listener covers any in-place resize.
-let sizeHintDebounce: number | undefined;
-window.addEventListener('resize', () => {
-  if (sizeHintDebounce !== undefined) window.clearTimeout(sizeHintDebounce);
-  sizeHintDebounce = window.setTimeout(evaluateSourceSize, 250);
-});
-document.addEventListener('visibilitychange', () => {
-  if (!document.hidden) evaluateSourceSize();
-});
-// Defer past first layout: a deferred module script runs before layout in some CEF/preview builds,
-// where window.innerWidth still reads 0 (which would false-trigger on every load). A timer, not rAF —
-// rAF is paused while the page is hidden (an OBS source on an inactive scene), so it could never run.
-if (document.readyState === 'complete') window.setTimeout(evaluateSourceSize, 0);
-else
-  window.addEventListener('load', () => window.setTimeout(evaluateSourceSize, 0), { once: true });
 
 // DEV demo (?demo=1): runs sample media through the real overlay render without
 // server/token, dev-only. See apps/web/REDESIGN.md §5.4 (overlay track).
