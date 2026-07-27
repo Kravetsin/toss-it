@@ -447,6 +447,9 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
   function onChatNotice(ev: ChatNoticeEvent): void {
     const channelId = channelByBroadcaster.get(ev.broadcasterId);
     if (!channelId || excludedLogins.has(ev.chatterLogin)) return;
+    // Same invariant the message path holds: the bot never mirrors itself into the overlay. Nothing
+    // reaches this today (it only writes plain messages), but an /announce would.
+    if (creds && ev.chatterId === creds.userId) return;
     if (!chatEnabledChannels.has(channelId) || deps.overlayCount(channelId) === 0) return;
     // Our caption in the channel's language, in place of Twitch's English line. Every kind gets one
     // — including an announcement, whose caption is the only thing naming what its mark means.

@@ -88,7 +88,7 @@ interface EventNoticeFields {
   // No `sub` object: a plain sub's only field is its multi-month duration, which the caption is
   // better off without ("new sub · 1").
   resub?: { cumulative_months?: number } | null;
-  sub_gift?: { recipient_user_name?: string } | null;
+  sub_gift?: { recipient_user_name?: string; community_gift_id?: string | null } | null;
   community_sub_gift?: { total?: number } | null;
   gift_paid_upgrade?: { gifter_user_name?: string } | null;
   pay_it_forward?: { gifter_user_name?: string } | null;
@@ -177,6 +177,11 @@ function toNotice(ev: EventNoticeFields): ChatNotice | null {
   // Shared Chat mirrors the same events with a prefix; the kind underneath is what matters.
   const type = NOTICE_TYPES[(ev.notice_type ?? '').replace(/^shared_chat_/, '')];
   if (!type) return null;
+  // A gift bomb arrives as one community_sub_gift PLUS one sub_gift per recipient. Rendering all of
+  // them would flush the whole column (MAX_MESSAGES is 40) on a 100-gift drop, so the batch row is
+  // the event and its members are dropped — the same way Twitch's own chat collapses them. Members
+  // are exactly the ones carrying the batch id; a standalone gift has none.
+  if (type === 'subGift' && ev.sub_gift?.community_gift_id) return null;
   const count =
     ev.watch_streak?.streak_count ??
     ev.resub?.cumulative_months ??
@@ -398,7 +403,10 @@ export class EventSubClient {
           this.deps.onChatNotice({
             broadcasterId: bid,
             chatterId: ev.chatter_user_id ?? '',
-            chatterLogin: ev.chatter_user_login ?? '',
+            // Twitch's own reference disagrees with its bindings on whether a notification carries
+            // chatter_user_login at all, so don't depend on it: the display name lowercased is the
+            // login for every Latin-named account, which is what the exclusion list holds.
+            chatterLogin: ev.chatter_user_login ?? ev.chatter_user_name?.toLowerCase() ?? '',
             chatterName: ev.chatter_user_name ?? ev.chatter_user_login ?? '',
             messageId: ev.message_id ?? '',
             color: ev.color || null,
