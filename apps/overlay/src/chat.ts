@@ -118,6 +118,9 @@ function renderMessage(msg: ChatOverlayMessage): void {
   row.dataset.user = msg.userId;
   // Role-tinted message border (broadcaster/mod/vip) — colors live in chat.html.
   if (msg.role) row.dataset.role = msg.role;
+  // Notices (sub/raid/watch streak…) are chat rows with an event line on top. The kind lands on the
+  // row so the styling can branch per event without touching this function.
+  if (msg.notice) row.dataset.notice = msg.notice.type;
 
   // Level: rarity tint on the star marker + a Roman numeral before the name; glow kicks in from
   // level 6 up. The trail line itself stays mint — the brand thread through the whole chat.
@@ -134,9 +137,15 @@ function renderMessage(msg: ChatOverlayMessage): void {
 
   const color = msg.cosmetics?.nickColor ?? msg.twitchColor ?? DEFAULT_COLOR;
 
-  // Thread marker: a tier-colored star for ranked viewers, a small nick-colored bead for
+  // Thread marker. A notice hands the thread to the EVENT: the mark's silhouette is what says
+  // "raid" or "watch streak" at a glance, and the author's rank still shows as the numeral on the
+  // name line. Otherwise: a tier-colored star for ranked viewers, a small nick-colored bead for
   // newcomers — the star is what marks an established viewer.
-  if (tier) {
+  if (msg.notice) {
+    const mark = document.createElement('span');
+    mark.className = 'mark'; // shape and color come from data-notice (chat.css)
+    row.appendChild(mark);
+  } else if (tier) {
     const star = document.createElement('span');
     star.className = 'star';
     star.innerHTML = STAR_SVG; // constant, trusted markup — not user input
@@ -224,10 +233,19 @@ function renderMessage(msg: ChatOverlayMessage): void {
     replyTo.append(arrow, who);
     bubble.appendChild(replyTo);
   }
+  // The event line, above whatever the viewer typed with it. Twitch's own wording for now — the
+  // structured fields (count/otherName) are on the wire for when each kind gets its own copy.
+  if (msg.notice?.systemMessage) {
+    const notice = document.createElement('div');
+    notice.className = 'notice-line';
+    notice.textContent = msg.notice.systemMessage;
+    bubble.appendChild(notice);
+  }
   const body = document.createElement('span');
   body.className = 'body';
   renderFragments(body, msg.fragments);
-  bubble.appendChild(body);
+  // Most notices carry no text of their own — an empty body would add a blank line under the event.
+  if (msg.fragments.length > 0 || !msg.notice) bubble.appendChild(body);
   // The seal rides WITH the bubble, not with the row: the name line's height varies (numeral,
   // badges), so anything positioned from the row's top drifts off the first line. Anchoring to a
   // wrapper that starts exactly where the bubble starts makes the offset a constant.
@@ -263,7 +281,13 @@ function appendRow(row: HTMLElement, wakeColor: string): void {
   const prevTip = lastTipY;
   updateRail();
   animateMarker(row, prevTip);
-  fireWake(wakeColor);
+  // A notice's thread flash matches its mark. The accent lives in CSS (one place per kind), so read
+  // it back off the row rather than keeping a second copy of the palette here.
+  fireWake(
+    row.dataset.notice
+      ? getComputedStyle(row).getPropertyValue('--notice').trim() || wakeColor
+      : wakeColor,
+  );
   scheduleFade(row);
 }
 
@@ -424,7 +448,8 @@ function renderRedemption(ev: { name: string; dust: number }): void {
  *  offset* is used instead of rects so running FLIP transforms don't skew the numbers. */
 function tipY(row: HTMLElement): number {
   const anchor =
-    row.querySelector<HTMLElement>('.star, .dot') ?? row.querySelector<HTMLElement>('.name-line');
+    row.querySelector<HTMLElement>('.star, .dot, .mark') ??
+    row.querySelector<HTMLElement>('.name-line');
   if (!anchor) return row.offsetTop;
   return row.offsetTop + anchor.offsetTop + anchor.offsetHeight / 2;
 }
@@ -455,7 +480,7 @@ function updateRail(): void {
  *  same curve the rail tip extends with — so the drawing thread is literally its trail. */
 function animateMarker(row: HTMLElement, prevTip: number | null): void {
   if (reduceMotion) return;
-  const marker = row.querySelector<HTMLElement>('.star, .dot');
+  const marker = row.querySelector<HTMLElement>('.star, .dot, .mark');
   if (!marker) return;
   const font = parseFloat(getComputedStyle(chat).fontSize);
   // First message has no tip to split from — condense in place with a short drop.
@@ -830,6 +855,104 @@ if (DEMO) {
       level: 7,
       fragments: [{ type: 'text', text: 'не оборачивайся' }],
     },
+    // Notices: the three shapes the row has to survive — event + text, event alone, and an
+    // anonymous actor (no cosmetics, no level, nothing to look up).
+    {
+      id: 'n1',
+      userId: 'un1',
+      name: 'streak_holder',
+      twitchColor: '#ffd479',
+      cosmetics: { cardEffect: 'card-stardust' },
+      isFounder: false,
+      level: 5,
+      badges: [SUB],
+      role: 'subscriber',
+      notice: {
+        type: 'watchStreak',
+        systemMessage:
+          'streak_holder watched 12 consecutive streams this month and sparked a watch streak!',
+        count: 12,
+      },
+      fragments: [{ type: 'text', text: 'ни одного не пропустил!' }],
+    },
+    {
+      id: 'n2',
+      userId: 'un2',
+      name: 'raiding_friend',
+      twitchColor: '#ff7ac6',
+      cosmetics: null,
+      isFounder: false,
+      level: 0,
+      notice: {
+        type: 'raid',
+        systemMessage: '148 raiders from raiding_friend have joined!',
+        count: 148,
+        otherName: 'raiding_friend',
+      },
+      fragments: [],
+    },
+    {
+      id: 'n3',
+      userId: '',
+      name: 'Anonymous',
+      twitchColor: null,
+      cosmetics: null,
+      isFounder: false,
+      level: 0,
+      notice: {
+        type: 'subGift',
+        systemMessage: 'An anonymous user gifted a Tier 1 sub to quiet_lurker!',
+        otherName: 'quiet_lurker',
+      },
+      fragments: [],
+    },
+    // A decorated regular's resub: the crystal takes the thread, the level stays on the name line.
+    {
+      id: 'n4',
+      userId: 'un4',
+      name: 'oldtimer',
+      twitchColor: null,
+      cosmetics: { nickColor: '#a78bfa', nickEffect: 'nick-glow', cardEffect: 'card-stardust' },
+      isFounder: true,
+      level: 8,
+      badges: [SUB],
+      role: 'subscriber',
+      notice: {
+        type: 'resub',
+        systemMessage: 'oldtimer subscribed at Tier 1. They have subscribed for 26 months!',
+        count: 26,
+      },
+      fragments: [{ type: 'text', text: 'второй год с тобой' }],
+    },
+    // An announcement carries no line of its own — its text IS the message.
+    {
+      id: 'n5',
+      userId: 'un5',
+      name: 'trusty_mod',
+      twitchColor: '#00d68f',
+      cosmetics: null,
+      isFounder: false,
+      level: 6,
+      badges: [MODERATOR],
+      role: 'moderator',
+      notice: { type: 'announcement', systemMessage: '' },
+      fragments: [{ type: 'text', text: 'через 10 минут розыгрыш — не расходимся' }],
+    },
+    {
+      id: 'n6',
+      userId: 'un6',
+      name: 'bit_thrower',
+      twitchColor: '#3fd35a',
+      cosmetics: null,
+      isFounder: false,
+      level: 3,
+      notice: {
+        type: 'bitsBadgeTier',
+        systemMessage: 'bit_thrower just earned a new 10,000 Bits badge!',
+        count: 10000,
+      },
+      fragments: [],
+    },
     // 7-9 walk the big-emote ladder: 1 → 6em, 2-3 → 3.75em, 4-6 → 2.25em.
     {
       id: '7',
@@ -971,14 +1094,26 @@ if (DEMO) {
     ];
     renderSystem(demoLines[sysI++ % demoLines.length]!);
   };
+  // Every mark at once, one screen: a shape that fails to read, or drifts off the thread, is only
+  // obvious next to the others. They also ride the ordinary loop above, mixed into real chat.
+  const noticeSamples = demo.filter((m) => m.notice);
+  let noticeRun = 0;
+  const notices = () => {
+    noticeRun += 1;
+    for (const sample of noticeSamples)
+      renderMessage({ ...sample, id: `${sample.id}-${noticeRun}` });
+  };
   (window as unknown as Record<string, unknown>).__push = push;
   (window as unknown as Record<string, unknown>).__redeem = redeem;
   (window as unknown as Record<string, unknown>).__sys = sys;
+  (window as unknown as Record<string, unknown>).__notices = notices;
   push();
+  notices();
   if (!q.has('manual')) {
     window.setInterval(push, 1900);
     window.setInterval(redeem, 6100); // periodic stardust line among the chatter
     window.setInterval(sys, 8300); // periodic !balance answer
+    window.setInterval(notices, 11700); // the notice trio, one event at a time
   }
 } else {
   const socket = connectOverlay(SERVER_URL, token ?? '', 'chat');

@@ -1,5 +1,5 @@
 import type { FastifyBaseLogger } from 'fastify';
-import type { ChatFragment } from '@tmw/shared';
+import type { ChatFragment, ChatNotice, ChatNoticeType } from '@tmw/shared';
 import { config } from '../../config';
 import type { EventBadge } from './badges';
 
@@ -16,6 +16,7 @@ const WATCHDOG_MS = 30_000;
 // All chat-read scoped (user:read:chat), same condition; v1. Ordered: primary first.
 const CHAT_SUB_TYPES = [
   'channel.chat.message',
+  'channel.chat.notification',
   'channel.chat.message_delete',
   'channel.chat.clear_user_messages',
   'channel.chat.clear',
@@ -40,12 +41,22 @@ export interface ChatMessageEvent {
   rewardId?: string;
 }
 
+/** A chat notice (sub/raid/watch streak…). Same shape as a message — it occupies a chat row and is
+ *  deletable by id — plus the event itself. `anonymous` = Twitch hid the actor (anonymous gift),
+ *  so there is no id to look a Tossit account up by. */
+export interface ChatNoticeEvent extends ChatMessageEvent {
+  notice: ChatNotice;
+  anonymous: boolean;
+}
+
 export interface EventSubDeps {
   /** Raw numeric Twitch id of the bot (the user_id condition of chat subscriptions). */
   botUserId: string;
   /** Valid bot access token; refresh=true forces a token refresh first. null = bot disconnected. */
   getAccessToken(refresh?: boolean): Promise<string | null>;
   onChatMessage(ev: ChatMessageEvent): void;
+  /** A chat notice arrived (sub/gift/raid/watch streak/announcement…). */
+  onChatNotice(ev: ChatNoticeEvent): void;
   /** A message was deleted on Twitch. */
   onChatDelete(broadcasterId: string, messageId: string): void;
   /** A user's messages were cleared (timeout/ban). */
@@ -68,6 +79,24 @@ interface EventReply {
   parent_user_name?: string;
 }
 
+/** The `channel.chat.notification` half of an event: the kind, Twitch's own rendered line, and one
+ *  populated sub-object per kind (the others are null). Only the fields we actually surface. */
+interface EventNoticeFields {
+  notice_type?: string;
+  system_message?: string;
+  chatter_is_anonymous?: boolean;
+  sub?: { duration_months?: number } | null;
+  resub?: { cumulative_months?: number } | null;
+  sub_gift?: { recipient_user_name?: string } | null;
+  community_sub_gift?: { total?: number } | null;
+  gift_paid_upgrade?: { gifter_user_name?: string } | null;
+  pay_it_forward?: { gifter_user_name?: string } | null;
+  raid?: { user_name?: string; viewer_count?: number } | null;
+  bits_badge_tier?: { tier?: number } | null;
+  watch_streak?: { streak_count?: number } | null;
+  modiversary?: { months?: number } | null;
+}
+
 interface EventSubMessage {
   metadata?: { message_type?: string };
   payload?: {
@@ -86,7 +115,7 @@ interface EventSubMessage {
       reply?: EventReply | null;
       /** Set when the message is the text input of a channel-points reward redemption. */
       channel_points_custom_reward_id?: string | null;
-    };
+    } & EventNoticeFields;
   };
 }
 
@@ -120,6 +149,47 @@ function stripReplyPrefix(fragments: ChatFragment[]): ChatFragment[] {
   let i = 1;
   while (fragments[i]?.type === 'text' && fragments[i]!.text.trim() === '') i += 1;
   return fragments.slice(i);
+}
+
+/** Twitch `notice_type` -> our kind. Anything absent (including Twitch's own 'unknown', and any
+ *  kind added after this table was written) is dropped rather than rendered as a blank row. */
+const NOTICE_TYPES: Record<string, ChatNoticeType> = {
+  sub: 'sub',
+  resub: 'resub',
+  sub_gift: 'subGift',
+  community_sub_gift: 'communitySubGift',
+  gift_paid_upgrade: 'giftPaidUpgrade',
+  prime_paid_upgrade: 'primePaidUpgrade',
+  pay_it_forward: 'payItForward',
+  raid: 'raid',
+  unraid: 'unraid',
+  announcement: 'announcement',
+  bits_badge_tier: 'bitsBadgeTier',
+  charity_donation: 'charityDonation',
+  watch_streak: 'watchStreak',
+  modiversary: 'modiversary',
+};
+
+/** Read the notice out of an event, or null if it is a kind we don't render. Exactly one sub-object
+ *  is populated per notice, so the ?? chains below pick that one — they are not a priority order. */
+function toNotice(ev: EventNoticeFields): ChatNotice | null {
+  // Shared Chat mirrors the same events with a prefix; the kind underneath is what matters.
+  const type = NOTICE_TYPES[(ev.notice_type ?? '').replace(/^shared_chat_/, '')];
+  if (!type) return null;
+  const count =
+    ev.watch_streak?.streak_count ??
+    ev.resub?.cumulative_months ??
+    ev.community_sub_gift?.total ??
+    ev.raid?.viewer_count ??
+    ev.modiversary?.months ??
+    ev.bits_badge_tier?.tier ??
+    ev.sub?.duration_months;
+  const otherName =
+    ev.raid?.user_name ??
+    ev.sub_gift?.recipient_user_name ??
+    ev.gift_paid_upgrade?.gifter_user_name ??
+    ev.pay_it_forward?.gifter_user_name;
+  return { type, systemMessage: ev.system_message ?? '', count, otherName };
 }
 
 /**
@@ -318,6 +388,24 @@ export class EventSubClient {
           reply: parentName ? { name: parentName } : undefined,
           rewardId: ev.channel_points_custom_reward_id ?? undefined,
         });
+      } else if (subType === 'channel.chat.notification') {
+        const notice = toNotice(ev);
+        // Anything the viewer typed alongside the event (resub/watch-streak message) rides in the
+        // notification itself — Twitch never sends it a second time as a chat message.
+        if (notice) {
+          this.deps.onChatNotice({
+            broadcasterId: bid,
+            chatterId: ev.chatter_user_id ?? '',
+            chatterLogin: ev.chatter_user_login ?? '',
+            chatterName: ev.chatter_user_name ?? ev.chatter_user_login ?? '',
+            messageId: ev.message_id ?? '',
+            color: ev.color || null,
+            badges: toBadges(ev.badges),
+            fragments: toFragments(ev.message?.fragments, ev.message?.text ?? ''),
+            notice,
+            anonymous: ev.chatter_is_anonymous === true || !ev.chatter_user_id,
+          });
+        }
       } else if (subType === 'channel.chat.message_delete' && ev.message_id) {
         this.deps.onChatDelete(bid, ev.message_id);
       } else if (subType === 'channel.chat.clear_user_messages' && ev.target_user_id) {

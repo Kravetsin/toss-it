@@ -115,6 +115,37 @@ export const TEST_CHAT_MESSAGES: Omit<ChatOverlayMessage, 'id'>[] = [
     role: 'broadcaster',
     fragments: [{ type: 'text', text: 'это я, с косметикой и бордером ведущего ' }, POG],
   },
+  // Notices: with a message attached (the watch streak that started this) and without one.
+  {
+    userId: 'test-n1',
+    name: 'streak_holder',
+    twitchColor: '#ffd479',
+    cosmetics: null,
+    isFounder: false,
+    level: 5,
+    notice: {
+      type: 'watchStreak',
+      systemMessage:
+        'streak_holder watched 12 consecutive streams this month and sparked a watch streak!',
+      count: 12,
+    },
+    fragments: [{ type: 'text', text: 'ни одного не пропустил!' }],
+  },
+  {
+    userId: 'test-n2',
+    name: 'raiding_friend',
+    twitchColor: '#ff7ac6',
+    cosmetics: null,
+    isFounder: false,
+    level: 0,
+    notice: {
+      type: 'raid',
+      systemMessage: '148 raiders from raiding_friend have joined!',
+      count: 148,
+      otherName: 'raiding_friend',
+    },
+    fragments: [],
+  },
   {
     userId: 'test-8',
     name: 'quiet_lurker',

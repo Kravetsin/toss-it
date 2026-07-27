@@ -251,6 +251,130 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* Twitch chat notice (sub/gift/raid/watch streak…): the event line above the viewer's own text.
+   --notice is the event's accent, picked per kind: money-shaped events share the sub violet, the
+   rest carry their own. Everything below reads from it, so a new kind only needs a color. */
+.msg[data-notice] {
+  --notice: #8df0cc;
+}
+.msg[data-notice='raid'],
+.msg[data-notice='unraid'] {
+  --notice: #ff7ac6;
+}
+.msg[data-notice='watchStreak'],
+.msg[data-notice='modiversary'] {
+  --notice: #ffd479;
+}
+.msg[data-notice='sub'],
+.msg[data-notice='resub'],
+.msg[data-notice='subGift'],
+.msg[data-notice='communitySubGift'],
+.msg[data-notice='giftPaidUpgrade'],
+.msg[data-notice='primePaidUpgrade'],
+.msg[data-notice='payItForward'] {
+  --notice: #a78bfa;
+}
+.msg[data-notice='announcement'] {
+  --notice: #7ec8ff;
+}
+.msg[data-notice='bitsBadgeTier'],
+.msg[data-notice='charityDonation'] {
+  --notice: #3fd35a;
+}
+.msg .bubble .notice-line {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 0.15em;
+  font-size: 0.84em;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--notice, #8df0cc);
+}
+/* The line reads as a caption for the event, not as words someone typed. */
+.msg .bubble .notice-line {
+  font-size: 0.74em;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+/* Border in the event's color: on a notice the event is the point, not the fact that the author
+   happens to be a sub. The [data-role] twin is not decoration — it matches the role-border rule's
+   specificity so this one wins on document order. The role halo goes too: one accent per row. */
+#chat .msg[data-notice] .bubble,
+#chat .msg[data-notice][data-role] .bubble {
+  border-color: color-mix(in srgb, var(--notice) 55%, transparent);
+  box-shadow: 0 8px 22px -12px rgba(0, 0, 0, 0.6);
+}
+
+/* --- The mark on the thread ------------------------------------------------------------------
+   A notice puts the EVENT on the rail in place of the author's star/bead, and the silhouette is
+   what names it: ring, crystal, chevron, pulse, drop. All of them float — no plate, no halo behind,
+   the mass comes from the outline (same rule the seals follow).
+
+   Geometry is shared and exact, so a shape can never drift off the thread: border-box + a box whose
+   centre lands where .dot's does (0.553em across, 0.7em down = the middle of the name line's first
+   line). Shapes only ever change what is drawn INSIDE that box. */
+.msg .mark {
+  position: absolute;
+  box-sizing: border-box;
+  left: 0.123em;
+  top: 0.27em;
+  width: 0.86em;
+  height: 0.86em;
+  color: var(--notice, #8df0cc);
+}
+/* Default silhouette, and the streak's own: an eclipse ring — a rim with nothing inside. */
+.msg .mark::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 0.13em solid currentColor;
+  border-radius: 50%;
+  box-shadow: 0 0 7px color-mix(in srgb, currentColor 55%, transparent);
+}
+/* Subs and everything gift-shaped: a crystal. Inset compensates the diagonal a rotated square
+   gains, so the silhouette still fits the shared box. */
+.msg[data-notice='sub'] .mark::before,
+.msg[data-notice='resub'] .mark::before,
+.msg[data-notice='subGift'] .mark::before,
+.msg[data-notice='communitySubGift'] .mark::before,
+.msg[data-notice='giftPaidUpgrade'] .mark::before,
+.msg[data-notice='primePaidUpgrade'] .mark::before,
+.msg[data-notice='payItForward'] .mark::before {
+  inset: 0.11em;
+  border-radius: 14%;
+  border-width: 0.12em;
+  transform: rotate(45deg);
+}
+/* A raid arrives: a chevron pointing down the thread, in the direction the column grows. */
+.msg[data-notice='raid'] .mark::before,
+.msg[data-notice='unraid'] .mark::before {
+  inset: 0.1em;
+  border-radius: 0;
+  border-width: 0.14em 0.14em 0 0;
+  transform: rotate(135deg);
+}
+/* An announcement broadcasts: a lit core inside a wider ring. */
+.msg[data-notice='announcement'] .mark::before {
+  inset: 0.26em;
+  border: none;
+  background: currentColor;
+}
+.msg[data-notice='announcement'] .mark::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 0.09em solid currentColor;
+  border-radius: 50%;
+  opacity: 0.5;
+}
+/* Bits and charity: a drop. */
+.msg[data-notice='bitsBadgeTier'] .mark::before,
+.msg[data-notice='charityDonation'] .mark::before {
+  inset: 0.06em;
+  border-radius: 50% 50% 50% 0;
+  border-width: 0.12em;
+  transform: rotate(-45deg);
+}
 .msg .emote {
   height: 1.5em;
   vertical-align: middle;

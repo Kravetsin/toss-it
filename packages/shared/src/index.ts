@@ -245,6 +245,44 @@ export interface ChatBadge {
  *  Priority high→low: broadcaster > moderator > vip > subscriber. */
 export type ChatRole = 'broadcaster' | 'moderator' | 'vip' | 'subscriber';
 
+/**
+ * Chat events Twitch delivers next to the messages themselves (EventSub `channel.chat.notification`,
+ * the old IRC USERNOTICE): subs, gifts, raids, watch streaks, announcements. Shared-chat variants
+ * fold into their base kind — a sub from a co-streamed channel is still a sub. Kinds we do not know
+ * are dropped server-side, so this list is the whole vocabulary the overlay has to render.
+ */
+export type ChatNoticeType =
+  | 'sub'
+  | 'resub'
+  | 'subGift'
+  | 'communitySubGift'
+  | 'giftPaidUpgrade'
+  | 'primePaidUpgrade'
+  | 'payItForward'
+  | 'raid'
+  | 'unraid'
+  | 'announcement'
+  | 'bitsBadgeTier'
+  | 'charityDonation'
+  | 'watchStreak'
+  | 'modiversary';
+
+/**
+ * The notice riding on a chat row. Anything the viewer typed alongside it (a resub message, the
+ * text attached to a watch streak) stays in the row's own `fragments` — this only describes the
+ * event. Structured fields carry what we can render ourselves; `systemMessage` is the safety net.
+ */
+export interface ChatNotice {
+  type: ChatNoticeType;
+  /** Twitch's own rendered line ("X shared their 5 month Watch Streak!"). Not localizable — it is
+   *  the fallback copy until each kind gets its own, and the only text for kinds with no fields. */
+  systemMessage: string;
+  /** The kind's headline number: streak/cumulative months, gifted subs, raiders, bits tier. */
+  count?: number;
+  /** The other party, when the event has one: raider, gift recipient, gifter. */
+  otherName?: string;
+}
+
 /** A chat message forwarded to the chat overlay (twitch-chat module → overlay). */
 export interface ChatOverlayMessage {
   /** Twitch message id (for targeted deletion). */
@@ -267,6 +305,9 @@ export interface ChatOverlayMessage {
   /** Present when this message is a reply; drives the "↳ @name" indicator above the bubble.
    *  `name` is the parent author's display name (without the leading @). */
   reply?: { name: string };
+  /** Present when the row is a Twitch chat notice (sub/raid/watch streak…) rather than plain chat.
+   *  The row is otherwise identical — same author look, same deletion by id. */
+  notice?: ChatNotice;
   fragments: ChatFragment[];
 }
 

@@ -22,7 +22,7 @@ import {
 import { config } from '../../config';
 import { roomOf, type PlaybackManager, type QueueState, type RealtimeServer } from '../../playback';
 import { resolvePlayableYoutube, submitResolvedYoutube } from '../../media/submit';
-import { EventSubClient } from './eventsub';
+import { EventSubClient, type ChatNoticeEvent } from './eventsub';
 import { createBadgeResolver, roleFromBadges, type EventBadge } from './badges';
 import { awardDust } from './accrual';
 import { isCommand, runCommand, toChatText } from './commands/index';
@@ -438,6 +438,39 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
       .catch((err) => deps.log.warn({ err }, 'twitch-chat: chat emit failed'));
   }
 
+  /**
+   * A Twitch chat notice (sub/gift/raid/watch streak/announcement). Rendered as a chat row like any
+   * message — including whatever the viewer typed with it, which arrives nowhere else. Deliberately
+   * outside the message path: it earns no dust and runs no commands, because nobody chatted here.
+   */
+  function onChatNotice(ev: ChatNoticeEvent): void {
+    const channelId = channelByBroadcaster.get(ev.broadcasterId);
+    if (!channelId || excludedLogins.has(ev.chatterLogin)) return;
+    if (!chatEnabledChannels.has(channelId) || deps.overlayCount(channelId) === 0) return;
+    // An anonymous actor has no id to look a Tossit account up by — the bare notice still shows.
+    void Promise.all([
+      ev.anonymous ? { cosmetics: null, isFounder: false } : lookupCosmetics(ev.chatterId),
+      ev.anonymous ? 0 : lookupXp(channelId, ev.chatterId),
+      badgeResolver.resolve(ev.broadcasterId, ev.badges),
+    ])
+      .then(([{ cosmetics, isFounder }, xp, badges]) => {
+        deps.io.to(roomOf(channelId)).emit('chat:message', {
+          id: ev.messageId,
+          userId: ev.chatterId,
+          name: ev.chatterName,
+          twitchColor: ev.color,
+          cosmetics,
+          isFounder,
+          level: xpToLevel(xp),
+          badges,
+          role: roleFromBadges(ev.badges),
+          notice: ev.notice,
+          fragments: ev.fragments,
+        });
+      })
+      .catch((err) => deps.log.warn({ err }, 'twitch-chat: notice emit failed'));
+  }
+
   function forwardToOverlay(broadcasterId: string, emit: (channelId: string) => void): void {
     const channelId = channelByBroadcaster.get(broadcasterId);
     if (channelId) emit(channelId);
@@ -665,6 +698,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
       botUserId: creds.userId,
       getAccessToken,
       onChatMessage,
+      onChatNotice,
       onChatDelete: (bid, messageId) =>
         forwardToOverlay(bid, (chId) => deps.io.to(roomOf(chId)).emit('chat:delete', messageId)),
       onChatClearUser: (bid, userId) =>
