@@ -172,8 +172,9 @@ const NOTICE_TYPES: Record<string, ChatNoticeType> = {
 };
 
 /** Read the notice out of an event, or null if it is a kind we don't render. Exactly one sub-object
- *  is populated per notice, so the ?? chains below pick that one — they are not a priority order. */
-function toNotice(ev: EventNoticeFields): ChatNotice | null {
+ *  is populated per notice, so the ?? chains below pick that one — they are not a priority order.
+ *  Exported for its tests: everything else here needs a socket, this is the one pure decision. */
+export function toNotice(ev: EventNoticeFields): ChatNotice | null {
   // Shared Chat mirrors the same events with a prefix; the kind underneath is what matters.
   const type = NOTICE_TYPES[(ev.notice_type ?? '').replace(/^shared_chat_/, '')];
   if (!type) return null;
