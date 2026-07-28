@@ -271,10 +271,10 @@ export async function submitResolvedYoutube(
 }
 
 /**
- * Put a line from chat on stream (`!tts <text>`) — the same submission every other entry point
- * makes, so moderation, the queue, the dust and the speaking are all decided by the channel's
- * existing settings rather than by anything special to chat. Whether it airs at once is
- * `autoApproveText`; whether it is read aloud is `ttsMessage`, checked at playback.
+ * Put a line on stream — from `!tts <text>` or from a channel-points redemption, which differ only
+ * in whether points were spent. Moderation, the queue, the dust and the speaking are all decided by
+ * the channel's existing settings rather than by anything special to either door: whether it airs
+ * at once is `autoApproveText`, whether it is read aloud is `ttsMessage`, checked at playback.
  */
 export async function submitChatText(
   deps: { playback: PlaybackManager; io: RealtimeServer },
@@ -284,6 +284,8 @@ export async function submitChatText(
     text: string;
     senderTwitchId: string;
     senderName: string;
+    /** Present when points were spent: the redemption to settle once the line's fate is known. */
+    redemption?: { rewardId: string; redemptionId: string; cost: number };
   },
 ): Promise<{ autoApproved: boolean; submissionId: string }> {
   const { userId, trusted, isSelfSend } = await senderStanding(
@@ -322,17 +324,18 @@ export async function submitChatText(
   };
   await routeSubmission(deps, row);
   // Owed, not paid — same as `!play`: a line the streamer rejects, or one that expires unshown,
-  // earns nobody anything. See settleSubmission.
+  // earns nobody anything, and the points behind it come back. See settleSubmission.
   if (!isSelfSend) {
+    const cost = input.redemption?.cost ?? 0;
     await db.insert(submissionPayouts).values({
       submissionId: row.id,
       channelId: input.channelId,
       senderPlatformUserId: input.senderTwitchId,
       broadcasterId: input.broadcasterId,
-      dust: CHANNEL_POINTS.dustForRequest(0),
-      mirrorDust: CHANNEL_POINTS.dustForRequest(0, 'owner'),
-      rewardId: null,
-      redemptionId: null,
+      dust: CHANNEL_POINTS.dustForRequest(cost),
+      mirrorDust: CHANNEL_POINTS.dustForRequest(cost, 'owner'),
+      rewardId: input.redemption?.rewardId ?? null,
+      redemptionId: input.redemption?.redemptionId ?? null,
       createdAt: new Date(),
     });
   }

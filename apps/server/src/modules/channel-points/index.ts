@@ -1,7 +1,17 @@
 import type { FastifyBaseLogger } from 'fastify';
-import { CHANNEL_POINTS, DUST_POINTS } from '@tmw/shared';
+import {
+  CHANNEL_POINTS,
+  CHAT_TEXT_MAX_LEN,
+  DUST_POINTS,
+  type ChannelPointsStatus,
+} from '@tmw/shared';
 import { roomOf, type PlaybackManager, type RealtimeServer } from '../../playback';
-import { acceptsSends, resolvePlayableYoutube, submitResolvedYoutube } from '../../media/submit';
+import {
+  acceptsSends,
+  resolvePlayableYoutube,
+  submitChatText,
+  submitResolvedYoutube,
+} from '../../media/submit';
 import { isRedemptionKnown } from '../../media/payout';
 import { awardDust } from '../twitch-chat/accrual';
 import { ChannelPointsEventSub, type RedemptionEvent } from './eventsub';
@@ -82,8 +92,32 @@ function youtubeText(lang: string | undefined): { title: string; prompt: string 
   return YOUTUBE_TEXT[lang as keyof typeof YOUTUBE_TEXT] ?? YOUTUBE_TEXT.ru;
 }
 
-/** The two independent rewards Tossit can own on a channel; each is created/removed on its own. */
-export type RewardKind = 'stardust' | 'youtube';
+/**
+ * Line-on-stream reward text. Also viewer input (they type the line), and the same "paid only on
+ * air" promise as the YouTube request — the length cap is named because Twitch will happily accept
+ * a longer input that we would then have to refund.
+ */
+const TTS_TEXT = {
+  ru: {
+    title: 'Отправить текст на экран (Tossit)',
+    prompt: `Напиши строку — она появится на стриме, а если стример включил озвучку, её ещё и прочитают. До ${CHAT_TEXT_MAX_LEN} символов. Пыль Tossit начислим, когда покажут: каждые ${N} балла = 1 ⭐, минимум ${DUST_POINTS.send} ⭐. Не показали (отказ модератора) — баллы вернутся.`,
+  },
+  uk: {
+    title: 'Надіслати текст на екран (Tossit)',
+    prompt: `Напиши рядок — він з'явиться на стрімі, а якщо стример увімкнув озвучення, його ще й прочитають. До ${CHAT_TEXT_MAX_LEN} символів. Пил Tossit нарахуємо, коли покажуть: кожні ${N} бали = 1 ⭐, мінімум ${DUST_POINTS.send} ⭐. Не показали (відмова модератора) — бали повернуться.`,
+  },
+  en: {
+    title: 'Put a line on stream (Tossit)',
+    prompt: `Write a line — it goes on the stream, and is read aloud if the streamer speaks messages. Up to ${CHAT_TEXT_MAX_LEN} characters. Tossit stardust is credited once it shows: every ${N} points = 1 ⭐, at least ${DUST_POINTS.send} ⭐. If it never shows (moderator said no), your points come back.`,
+  },
+} as const;
+
+function ttsText(lang: string | undefined): { title: string; prompt: string } {
+  return TTS_TEXT[lang as keyof typeof TTS_TEXT] ?? TTS_TEXT.ru;
+}
+
+/** The independent rewards Tossit can own on a channel; each is created/removed on its own. */
+export type RewardKind = 'stardust' | 'youtube' | 'tts';
 
 export interface ChannelPointsModule {
   start(): void;
@@ -104,24 +138,15 @@ export interface ChannelPointsModule {
   }): Promise<{ ok: boolean; error?: string }>;
   /** Fully disconnect: delete every reward on Twitch and drop the stored token. */
   disconnect(channelId: string): Promise<void>;
-  /** Add (or re-create) a reward on an already-connected channel — one call per kind. */
-  addStardustReward(
+  /** Add (or re-create) one reward on an already-connected channel. */
+  addReward(
     channelId: string,
+    kind: RewardKind,
     opts: { cost?: number; lang?: string },
   ): Promise<{ ok: boolean; error?: string }>;
-  addYoutubeReward(
-    channelId: string,
-    opts: { cost?: number; lang?: string },
-  ): Promise<{ ok: boolean; error?: string }>;
-  /** Remove a single reward (deletes it on Twitch), keeping the connection + the other reward. */
-  removeStardustReward(channelId: string): Promise<void>;
-  removeYoutubeReward(channelId: string): Promise<void>;
-  status(channelId: string): Promise<{
-    connected: boolean;
-    externalName: string | null;
-    hasStardust: boolean;
-    hasYoutube: boolean;
-  }>;
+  /** Remove a single reward (deletes it on Twitch), keeping the connection + the other rewards. */
+  removeReward(channelId: string, kind: RewardKind): Promise<void>;
+  status(channelId: string): Promise<ChannelPointsStatus>;
   /**
    * Report what became of a YouTube request bought with points: aired → FULFILLED (points taken),
    * anything else → CANCELED (points refunded). Called by the payout layer, which owns the verdict.
@@ -306,6 +331,52 @@ export function createChannelPointsModule(deps: {
   }
 
   /**
+   * A line bought with points. Same shape as the YouTube request — refund on anything we cannot
+   * put on screen, otherwise submit and leave the redemption pending until it airs. The only new
+   * refusal is length: Twitch accepts a longer input than we will show.
+   */
+  async function processTts(
+    reward: RewardRecord,
+    conn: ConnectionRecord,
+    ev: RedemptionEvent,
+  ): Promise<void> {
+    const text = ev.userInput.trim();
+    const refund = async (why: string): Promise<void> => {
+      await authorized(reward.channelId, (token) =>
+        cancelRedemption(token, conn.broadcasterId, reward.rewardId, ev.redemptionId),
+      );
+      log.info({ channelId: reward.channelId, why }, 'channel-points: tts refunded');
+    };
+    if (!(await acceptsSends(reward.channelId, conn.broadcasterId, ev.redeemerId))) {
+      return refund('not accepting');
+    }
+    if (!text) return refund('empty');
+    if (text.length > CHAT_TEXT_MAX_LEN) return refund('too long');
+
+    // Shared with the `!tts` chat command (media/submit.ts), so a line is treated identically
+    // however it arrived; the dust is owed from here and paid on air, scaled by what was spent.
+    const { autoApproved } = await submitChatText(
+      { playback, io },
+      {
+        channelId: reward.channelId,
+        broadcasterId: conn.broadcasterId,
+        text,
+        senderTwitchId: ev.redeemerId,
+        senderName: ev.redeemerName,
+        redemption: {
+          rewardId: reward.rewardId,
+          redemptionId: ev.redemptionId,
+          cost: ev.cost,
+        },
+      },
+    );
+    log.info(
+      { channelId: reward.channelId, autoApproved },
+      'channel-points: tts submitted, redemption pending until it airs',
+    );
+  }
+
+  /**
    * The submission's fate, told to Twitch: aired → take the points, anything else → give them back.
    * Never throws — a settle that fails leaves the redemption pending, which the streamer can still
    * resolve by hand in their own queue, and that is a better failure than losing the points.
@@ -356,6 +427,8 @@ export function createChannelPointsModule(deps: {
       await processStardust(reward, conn, ev);
     } else if (reward.kind === 'youtube') {
       await processYoutube(reward, conn, ev);
+    } else if (reward.kind === 'tts') {
+      await processTts(reward, conn, ev);
     } else {
       log.warn({ kind: reward.kind }, 'channel-points: reward kind has no handler');
     }
@@ -392,7 +465,9 @@ export function createChannelPointsModule(deps: {
           pagination?: { cursor?: string };
         };
         for (const r of body.data ?? []) {
-          if (reward.kind === 'youtube' && (await isRedemptionKnown(r.id))) continue;
+          // Both request kinds stay UNFULFILLED while queued, so the backlog holds ones we already
+          // took (a payout row exists — skip) next to ones we never saw.
+          if (reward.kind !== 'stardust' && (await isRedemptionKnown(r.id))) continue;
           const ev = {
             broadcasterId: conn.broadcasterId,
             redemptionId: r.id,
@@ -404,6 +479,7 @@ export function createChannelPointsModule(deps: {
           };
           if (reward.kind === 'stardust') await processStardust(reward, conn, ev);
           else if (reward.kind === 'youtube') await processYoutube(reward, conn, ev);
+          else if (reward.kind === 'tts') await processTts(reward, conn, ev);
           total += 1;
         }
         after = body.pagination?.cursor;
@@ -461,7 +537,9 @@ export function createChannelPointsModule(deps: {
     kind: RewardKind,
     lang: string | undefined,
   ): { title: string; prompt: string } {
-    return kind === 'youtube' ? youtubeText(lang) : rewardText(lang);
+    if (kind === 'youtube') return youtubeText(lang);
+    if (kind === 'tts') return ttsText(lang);
+    return rewardText(lang);
   }
 
   /**
@@ -478,9 +556,9 @@ export function createChannelPointsModule(deps: {
     run: (fn: (token: string) => Promise<Response>) => Promise<Response | null>,
   ): Promise<string | null> {
     const text = rewardTextFor(kind, lang);
-    // Only the YouTube reward takes viewer input (the link); stardust is a plain click.
+    // Both request rewards take viewer input (the link / the line); stardust is a plain click.
     const res = await run((token) =>
-      createReward(token, broadcasterId, text.title, cost, text.prompt, kind === 'youtube'),
+      createReward(token, broadcasterId, text.title, cost, text.prompt, kind !== 'stardust'),
     );
     if (res?.ok) {
       return ((await res.json()) as { data?: { id: string }[] }).data?.[0]?.id ?? null;
@@ -603,32 +681,18 @@ export function createChannelPointsModule(deps: {
       await deleteConnection(channelId);
       eventsub.sync();
     },
-    addStardustReward(channelId, opts): Promise<{ ok: boolean; error?: string }> {
-      return addReward(channelId, 'stardust', opts);
-    },
-    addYoutubeReward(channelId, opts): Promise<{ ok: boolean; error?: string }> {
-      return addReward(channelId, 'youtube', opts);
-    },
-    removeStardustReward(channelId): Promise<void> {
-      return removeReward(channelId, 'stardust');
-    },
-    removeYoutubeReward(channelId): Promise<void> {
-      return removeReward(channelId, 'youtube');
-    },
-    async status(channelId): Promise<{
-      connected: boolean;
-      externalName: string | null;
-      hasStardust: boolean;
-      hasYoutube: boolean;
-    }> {
+    addReward,
+    removeReward,
+    async status(channelId): Promise<ChannelPointsStatus> {
       const conn = await getConnection(channelId);
-      // "connected" = the Twitch authorization (token) exists; the two rewards are independent add-ons.
+      // "connected" = the Twitch authorization (token) exists; the rewards are independent add-ons.
       const rewards = conn ? await getRewardsByChannel(channelId) : [];
       return {
         connected: !!conn,
         externalName: conn?.externalName ?? null,
         hasStardust: rewards.some((r) => r.kind === 'stardust'),
         hasYoutube: rewards.some((r) => r.kind === 'youtube'),
+        hasTts: rewards.some((r) => r.kind === 'tts'),
       };
     },
     settleRedemption,

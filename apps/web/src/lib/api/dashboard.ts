@@ -280,7 +280,7 @@ export function getChannelPointsStatus(): Promise<ChannelPointsStatus> {
 /** OAuth entry to create ONE reward (`reward`) at the chosen `cost` — used when not yet connected. */
 export function channelPointsConnectUrl(
   returnTo: string,
-  reward: 'stardust' | 'youtube',
+  reward: RewardKind,
   cost: number,
   lang: string,
 ): string {
@@ -291,28 +291,23 @@ export function disconnectChannelPoints(): Promise<unknown> {
   return fetch('/api/channel-points/disconnect', { method: 'POST' }).then((r) => json(r));
 }
 
-export function addChannelPointsStardust(lang: string, cost: number): Promise<unknown> {
-  return fetch('/api/channel-points/stardust', {
+/** Which Tossit reward a call is about — the kind is the path segment on the server. */
+export type RewardKind = 'stardust' | 'youtube' | 'tts';
+
+export function addChannelPointsReward(
+  kind: RewardKind,
+  lang: string,
+  cost: number,
+): Promise<unknown> {
+  return fetch(`/api/channel-points/${kind}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ lang, cost }),
   }).then((r) => json(r));
 }
 
-export function removeChannelPointsStardust(): Promise<unknown> {
-  return fetch('/api/channel-points/stardust', { method: 'DELETE' }).then((r) => json(r));
-}
-
-export function addChannelPointsYoutube(lang: string, cost: number): Promise<unknown> {
-  return fetch('/api/channel-points/youtube', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ lang, cost }),
-  }).then((r) => json(r));
-}
-
-export function removeChannelPointsYoutube(): Promise<unknown> {
-  return fetch('/api/channel-points/youtube', { method: 'DELETE' }).then((r) => json(r));
+export function removeChannelPointsReward(kind: RewardKind): Promise<unknown> {
+  return fetch(`/api/channel-points/${kind}`, { method: 'DELETE' }).then((r) => json(r));
 }
 
 export function getSettings(channelId: string): Promise<ChannelSettings> {

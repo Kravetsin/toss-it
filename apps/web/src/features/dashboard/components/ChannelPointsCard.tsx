@@ -1,14 +1,13 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { CHANNEL_POINTS, type ChannelPointsStatus } from '@tmw/shared';
+import { CHANNEL_POINTS, CHAT_TEXT_MAX_LEN, type ChannelPointsStatus } from '@tmw/shared';
 import {
-  addChannelPointsStardust,
-  addChannelPointsYoutube,
+  addChannelPointsReward,
   channelPointsConnectUrl,
   disconnectChannelPoints,
   getChannelPointsStatus,
-  removeChannelPointsStardust,
-  removeChannelPointsYoutube,
+  removeChannelPointsReward,
+  type RewardKind,
 } from '@/lib/api';
 import { useI18n, type TFn } from '@/i18n';
 import { Icon, type IconName } from '@/ui/icons';
@@ -16,7 +15,12 @@ import { Slider } from '@/features/dashboard/components/settings/controls';
 import { Button, Card } from '@/ui';
 import { DustMark } from '@/components/DustMark';
 
-type RewardKind = 'stardust' | 'youtube';
+/** Which status flag a reward kind owns, as a patch — one place to add the next kind. */
+function hasFlag(kind: RewardKind, value: boolean): Partial<ChannelPointsStatus> {
+  if (kind === 'stardust') return { hasStardust: value };
+  if (kind === 'youtube') return { hasYoutube: value };
+  return { hasTts: value };
+}
 
 /** Split a translated string on the ⭐ marker and swap it for our own stardust glyph (DustMark) —
  *  the dictionary keeps '⭐' as a language-agnostic placeholder, never rendered as the raw emoji. */
@@ -40,10 +44,10 @@ function withDustIcon(text: string): ReactNode {
 }
 
 /**
- * Channel-points integration. Two fully independent rewards, each its own tile with its own price:
- * stardust (points → dust + overlay effect) and a YouTube request (link into the inbox). The Twitch
+ * Channel-points integration. Fully independent rewards, each its own tile with its own price:
+ * stardust (points → dust + overlay effect), a YouTube request, and a line on stream. The Twitch
  * authorization is shared — creating the FIRST reward runs OAuth; the rest reuse the stored token —
- * so a streamer can set up either, both, or neither. Disconnect revokes everything.
+ * so a streamer can set up any of them, or none. Disconnect revokes everything.
  */
 export function ChannelPointsCard() {
   const { t, lang } = useI18n();
@@ -51,6 +55,7 @@ export function ChannelPointsCard() {
   const [busy, setBusy] = useState(false);
   const [stardustCost, setStardustCost] = useState<number>(CHANNEL_POINTS.defaultCost);
   const [ytCost, setYtCost] = useState<number>(CHANNEL_POINTS.defaultCost);
+  const [ttsCost, setTtsCost] = useState<number>(CHANNEL_POINTS.defaultCost);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,7 +76,13 @@ export function ChannelPointsCard() {
       setBusy(true);
       try {
         await disconnectChannelPoints();
-        setStatus({ connected: false, externalName: null, hasStardust: false, hasYoutube: false });
+        setStatus({
+          connected: false,
+          externalName: null,
+          hasStardust: false,
+          hasYoutube: false,
+          hasTts: false,
+        });
       } finally {
         setBusy(false);
       }
@@ -87,9 +98,8 @@ export function ChannelPointsCard() {
     void (async () => {
       setBusy(true);
       try {
-        if (kind === 'stardust') await addChannelPointsStardust(lang, cost);
-        else await addChannelPointsYoutube(lang, cost);
-        patch(kind === 'stardust' ? { hasStardust: true } : { hasYoutube: true });
+        await addChannelPointsReward(kind, lang, cost);
+        patch(hasFlag(kind, true));
       } finally {
         setBusy(false);
       }
@@ -99,9 +109,8 @@ export function ChannelPointsCard() {
     void (async () => {
       setBusy(true);
       try {
-        if (kind === 'stardust') await removeChannelPointsStardust();
-        else await removeChannelPointsYoutube();
-        patch(kind === 'stardust' ? { hasStardust: false } : { hasYoutube: false });
+        await removeChannelPointsReward(kind);
+        patch(hasFlag(kind, false));
       } finally {
         setBusy(false);
       }
@@ -114,6 +123,8 @@ export function ChannelPointsCard() {
   // so the slider shows both — otherwise the streamer's own share is a surprise.
   const ytDust = CHANNEL_POINTS.dustForRequest(ytCost);
   const ytMirror = CHANNEL_POINTS.dustForRequest(ytCost, 'owner');
+  const ttsDust = CHANNEL_POINTS.dustForRequest(ttsCost);
+  const ttsMirror = CHANNEL_POINTS.dustForRequest(ttsCost, 'owner');
 
   return (
     <Card className="flex flex-col gap-3">
@@ -195,6 +206,38 @@ export function ChannelPointsCard() {
               variant="primary"
               disabled={busy || loading}
               onClick={() => create('youtube', ytCost)}
+            >
+              {t('dash.channelPointsRewardCreate')}
+            </Button>
+          </>
+        )}
+      </RewardTile>
+
+      <RewardTile
+        icon="volume-2"
+        title={t('dash.channelPointsTtsTitle')}
+        description={withDustIcon(t('dash.channelPointsTtsNote', { n: CHAT_TEXT_MAX_LEN }))}
+        badge={status?.hasTts ? <ActiveBadge t={t} /> : undefined}
+        note={<OverlayNote t={t} />}
+      >
+        {status?.hasTts ? (
+          <RemoveRow t={t} busy={busy} onRemove={() => remove('tts')} />
+        ) : (
+          <>
+            <Slider
+              icon="volume-2"
+              label={t('dash.channelPointsTtsCost', { cost: ttsCost })}
+              min={CHANNEL_POINTS.minCost}
+              max={CHANNEL_POINTS.maxCost}
+              step={CHANNEL_POINTS.costStep}
+              value={ttsCost}
+              onChange={setTtsCost}
+            />
+            <PayoutBox viewer={ttsDust} owner={ttsMirror} t={t} />
+            <Button
+              variant="primary"
+              disabled={busy || loading}
+              onClick={() => create('tts', ttsCost)}
             >
               {t('dash.channelPointsRewardCreate')}
             </Button>

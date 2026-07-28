@@ -750,10 +750,16 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
   }
 
   if (pathname === '/api/channel-points/status') {
-    return { connected: false, externalName: null, hasStardust: false, hasYoutube: false };
+    return {
+      connected: false,
+      externalName: null,
+      hasStardust: false,
+      hasYoutube: false,
+      hasTts: false,
+    };
   }
-  // add (POST) / remove (DELETE) for either reward.
-  if (pathname === '/api/channel-points/stardust' || pathname === '/api/channel-points/youtube') {
+  // add (POST) / remove (DELETE) for any reward kind — the kind is the last path segment.
+  if (/^\/api\/channel-points\/(stardust|youtube|tts)$/.test(pathname)) {
     return { ok: true };
   }
 

@@ -1,12 +1,12 @@
 import crypto from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { CHANNEL_POINTS, CHAT_TEXT_MAX_LEN } from '@tmw/shared';
 import { fakeIo, makeChannel } from '../../test/fakes';
 import { db } from '../db/index';
-import { linkedIdentities, submissions, users, whitelist } from '../db/schema';
+import { linkedIdentities, submissionPayouts, submissions, users, whitelist } from '../db/schema';
 import { PlaybackManager } from '../playback';
 import { parseYoutube } from './youtube';
-import { CHAT_TEXT_MAX_LEN } from '@tmw/shared';
 import { acceptsSends, dropsCaption, submitChatText, submitResolvedYoutube } from './submit';
 
 /**
@@ -175,6 +175,30 @@ describe('submitChatText', () => {
     const { twitchId, userId } = await makeViewer();
     await db.insert(whitelist).values({ channelId, userId, createdAt: new Date() });
     expect((await say(twitchId, 'hello stream')).autoApproved).toBe(true);
+  });
+
+  // A line bought with points must carry the redemption, or nothing can ever give them back.
+  it('owes the redemption behind a paid line, scaled by what was spent', async () => {
+    const { twitchId } = await makeViewer();
+    const { submissionId } = await submitChatText(deps, {
+      channelId,
+      broadcasterId,
+      text: 'hello stream',
+      senderTwitchId: twitchId,
+      senderName: 'viewer',
+      redemption: { rewardId: 'rw_1', redemptionId: 'rd_1', cost: 1000 },
+    });
+    const payout = await db
+      .select()
+      .from(submissionPayouts)
+      .where(eq(submissionPayouts.submissionId, submissionId))
+      .get();
+    expect(payout).toMatchObject({
+      redemptionId: 'rd_1',
+      rewardId: 'rw_1',
+      dust: CHANNEL_POINTS.dustForRequest(1000),
+      settledAt: null,
+    });
   });
 
   // The command refuses an over-long line outright; this is the belt to that pair of braces.

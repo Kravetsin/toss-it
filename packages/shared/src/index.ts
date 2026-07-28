@@ -224,6 +224,8 @@ export interface ChannelPointsStatus {
   hasStardust: boolean;
   /** Whether the YouTube-request reward is set up. */
   hasYoutube: boolean;
+  /** Whether the "put a line on stream" reward is set up. */
+  hasTts: boolean;
 }
 
 /** Donation integration status (dashboard). Callback model: provider POSTs to us. */

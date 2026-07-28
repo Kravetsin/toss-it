@@ -530,6 +530,10 @@ export const en: Dict = {
   'dash.channelPointsStardustDesc':
     'Viewers get stardust for points and trigger the overlay effect.',
   'dash.channelPointsYoutubeTitle': 'YouTube request',
+  'dash.channelPointsTtsTitle': 'Line on stream',
+  'dash.channelPointsTtsCost': 'Line cost: {cost} points',
+  'dash.channelPointsTtsNote':
+    'Viewers spend points to put up to {n} characters on your screen — read aloud too, if you speak messages. Stardust is credited only once it shows; if it never does, their points come back.',
   'dash.channelPointsRewardActive': 'active',
   'dash.channelPointsCost': 'Reward cost: {cost} points',
   'dash.payoutViewer': 'Viewer gets',
@@ -1277,6 +1281,10 @@ export const ru: Dict = {
   'dash.channelPointsStardustDesc':
     'За баллы зритель получает звёздную пыль и запускает эффект на оверлее.',
   'dash.channelPointsYoutubeTitle': 'Заказ видео с YouTube',
+  'dash.channelPointsTtsTitle': 'Текст на экран',
+  'dash.channelPointsTtsCost': 'Стоимость строки: {cost} баллов',
+  'dash.channelPointsTtsNote':
+    'Зрители тратят баллы, чтобы вывести на экран до {n} символов — с озвучкой, если у вас включено чтение сообщений. Пыль начисляем, только когда покажем; не показали — баллы возвращаются.',
   'dash.channelPointsRewardActive': 'активна',
   'dash.channelPointsCost': 'Цена награды: {cost} баллов',
   'dash.payoutViewer': 'Зрителю',
@@ -2026,6 +2034,10 @@ export const uk: Dict = {
   'dash.channelPointsStardustDesc':
     'За бали глядач отримує зоряний пил і запускає ефект на оверлеї.',
   'dash.channelPointsYoutubeTitle': 'Замовлення відео з YouTube',
+  'dash.channelPointsTtsTitle': 'Текст на екран',
+  'dash.channelPointsTtsCost': 'Вартість рядка: {cost} балів',
+  'dash.channelPointsTtsNote':
+    'Глядачі витрачають бали, щоб вивести на екран до {n} символів — з озвученням, якщо у вас увімкнено читання повідомлень. Пил нараховуємо, лише коли покажемо; не показали — бали повертаються.',
   'dash.channelPointsRewardActive': 'активна',
   'dash.channelPointsCost': 'Ціна нагороди: {cost} балів',
   'dash.payoutViewer': 'Глядачеві',

@@ -54,6 +54,12 @@ const FAKE_LOGIN_RE = /^[a-z0-9_]{2,25}$/i;
 /** Manage this channel's custom rewards + redemptions — the streamer's channel-points opt-in. */
 const CHANNEL_POINTS_SCOPE = 'channel:manage:redemptions';
 
+/** The reward kinds a request may name, or null for anything we don't own. Central so the OAuth
+ *  entry and the add/remove routes accept exactly the same set. */
+function rewardKindOf(value: string | undefined): RewardKind | null {
+  return value === 'stardust' || value === 'youtube' || value === 'tts' ? value : null;
+}
+
 /** OAuth state cookie payload. bot = admin's bot-connect; link = attach Twitch to session user;
  *  cp = streamer's channel-points opt-in (channelId carries which channel gets the reward). */
 export interface OAuthState {
@@ -506,7 +512,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
         .get();
       if (!channel) return reply.code(400).send({ error: 'Нет канала' });
       const returnTo = safeReturnTo(req.query.returnTo);
-      const cpReward: RewardKind = req.query.reward === 'youtube' ? 'youtube' : 'stardust';
+      const cpReward: RewardKind = rewardKindOf(req.query.reward) ?? 'stardust';
       const cpCost = req.query.cost ? Number(req.query.cost) : undefined;
       const cpLang = req.query.lang;
       const state = crypto.randomBytes(16).toString('hex');
@@ -543,7 +549,13 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
       .where(eq(channels.ownerUserId, user.id))
       .get();
     if (!channel)
-      return { connected: false, externalName: null, hasStardust: false, hasYoutube: false };
+      return {
+        connected: false,
+        externalName: null,
+        hasStardust: false,
+        hasYoutube: false,
+        hasTts: false,
+      };
     return deps.channelPoints.status(channel.id);
   });
 
@@ -559,10 +571,13 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
     return { ok: true };
   });
 
-  /** Add the stardust reward to the caller's already-connected channel. */
-  app.post<{ Body: { cost?: number; lang?: string } | null }>(
-    '/api/channel-points/stardust',
+  /** Add one reward to the caller's already-connected channel; the kind is the path segment, so a
+   *  new reward kind needs no new route. */
+  app.post<{ Params: { kind: string }; Body: { cost?: number; lang?: string } | null }>(
+    '/api/channel-points/:kind',
     async (req, reply) => {
+      const kind = rewardKindOf(req.params.kind);
+      if (!kind) return reply.code(404).send({ error: 'Неизвестная награда' });
       const user = await requireUser(req, reply);
       if (!user) return;
       const channel = await db
@@ -571,7 +586,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
         .where(eq(channels.ownerUserId, user.id))
         .get();
       if (!channel) return reply.code(400).send({ error: 'Нет канала' });
-      const result = await deps.channelPoints.addStardustReward(channel.id, {
+      const result = await deps.channelPoints.addReward(channel.id, kind, {
         cost: req.body?.cost,
         lang: req.body?.lang,
       });
@@ -580,7 +595,9 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
     },
   );
 
-  app.delete('/api/channel-points/stardust', async (req, reply) => {
+  app.delete<{ Params: { kind: string } }>('/api/channel-points/:kind', async (req, reply) => {
+    const kind = rewardKindOf(req.params.kind);
+    if (!kind) return reply.code(404).send({ error: 'Неизвестная награда' });
     const user = await requireUser(req, reply);
     if (!user) return;
     const channel = await db
@@ -588,40 +605,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
       .from(channels)
       .where(eq(channels.ownerUserId, user.id))
       .get();
-    if (channel) await deps.channelPoints.removeStardustReward(channel.id);
-    return { ok: true };
-  });
-
-  /** Add the YouTube-request reward to the caller's already-connected channel. */
-  app.post<{ Body: { cost?: number; lang?: string } | null }>(
-    '/api/channel-points/youtube',
-    async (req, reply) => {
-      const user = await requireUser(req, reply);
-      if (!user) return;
-      const channel = await db
-        .select({ id: channels.id })
-        .from(channels)
-        .where(eq(channels.ownerUserId, user.id))
-        .get();
-      if (!channel) return reply.code(400).send({ error: 'Нет канала' });
-      const result = await deps.channelPoints.addYoutubeReward(channel.id, {
-        cost: req.body?.cost,
-        lang: req.body?.lang,
-      });
-      if (!result.ok) return reply.code(400).send({ error: result.error ?? 'failed' });
-      return { ok: true };
-    },
-  );
-
-  app.delete('/api/channel-points/youtube', async (req, reply) => {
-    const user = await requireUser(req, reply);
-    if (!user) return;
-    const channel = await db
-      .select({ id: channels.id })
-      .from(channels)
-      .where(eq(channels.ownerUserId, user.id))
-      .get();
-    if (channel) await deps.channelPoints.removeYoutubeReward(channel.id);
+    if (channel) await deps.channelPoints.removeReward(channel.id, kind);
     return { ok: true };
   });
 
