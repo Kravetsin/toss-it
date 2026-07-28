@@ -1,20 +1,31 @@
-import type { ChatFragment, ChatSystemLine } from '@tmw/shared';
+import type { BotCommandInfo, ChatFragment, ChatSystemLine } from '@tmw/shared';
 import { balance } from './balance';
 import { play } from './play';
 import { queue } from './queue';
 import { tossit } from './tossit';
 import { xp } from './xp';
-import type { ChatCommand, CommandContext, CommandDeps } from './types';
+import type { ChannelCommandState, ChatCommand, CommandContext, CommandDeps } from './types';
 
-export type { ChatCommand, CommandContext, CommandDeps } from './types';
+export type { ChannelCommandState, ChatCommand, CommandContext, CommandDeps } from './types';
 
 /** The registry: one entry per command file in this folder. Order is what `!tossit` lists, so it
  *  runs from the one a newcomer needs first to the one only a regular asks for. */
 const COMMANDS: ChatCommand[] = [tossit, balance, xp, queue, play];
 
 /** Triggers a viewer can actually use in this channel — what `!tossit` advertises. */
-export function availableTriggers(ctx: CommandContext, deps: CommandDeps): string[] {
-  return COMMANDS.filter((cmd) => cmd.available?.(ctx, deps) ?? true).map((cmd) => cmd.name);
+export function availableTriggers(state: ChannelCommandState): string[] {
+  return COMMANDS.filter((cmd) => cmd.available?.(state) ?? true).map((cmd) => cmd.name);
+}
+
+/** The whole command set for the dashboard, disabled ones included and flagged as such — a
+ *  streamer needs to see `!play` exists before deciding to switch it on. Registry-driven, so the
+ *  settings screen cannot drift from what the bot actually answers. */
+export function commandCatalog(state: ChannelCommandState): BotCommandInfo[] {
+  return COMMANDS.map((cmd) => ({
+    name: cmd.name,
+    aliases: cmd.aliases ?? [],
+    enabled: cmd.available?.(state) ?? true,
+  }));
 }
 
 const byTrigger = new Map<string, ChatCommand>();

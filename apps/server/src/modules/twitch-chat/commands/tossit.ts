@@ -15,7 +15,9 @@ export const tossit: ChatCommand = {
   name: 'tossit',
   aliases: ['help', 'commands'],
   async run(ctx, deps) {
-    const others = availableTriggers(ctx, deps).filter((name) => name !== tossit.name);
+    const others = availableTriggers(deps.commandState(ctx.channelId)).filter(
+      (name) => name !== tossit.name,
+    );
     return {
       name: ctx.name,
       text: others.map((name) => `!${name}`).join(' ') || undefined,

@@ -119,6 +119,14 @@ const MOCK_CHANNELS: AccessibleChannel[] = [
 ];
 
 const MOCK_SETTINGS: ChannelSettings = {
+  // Mirrors the server's registry, `!play` left off — the state the command card has to show.
+  chatCommands: [
+    { name: 'tossit', aliases: ['help', 'commands'], enabled: true },
+    { name: 'balance', aliases: ['dust'], enabled: true },
+    { name: 'xp', aliases: ['level', 'уровень', 'рівень'], enabled: true },
+    { name: 'queue', aliases: ['очередь', 'черга'], enabled: true },
+    { name: 'play', aliases: ['sr'], enabled: false },
+  ],
   maxDurationMs: 30_000,
   imageDurationMs: 8_000,
   maxAudioDurationMs: 180_000,

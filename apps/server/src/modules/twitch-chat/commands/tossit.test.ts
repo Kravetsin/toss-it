@@ -22,7 +22,7 @@ describe('!tossit', () => {
     xpFor: async () => 0,
     play: async () => ({ kind: 'disabled' }),
     channelUrl: () => 'toss-it.org/c/kravets',
-    playEnabled: () => playEnabled,
+    commandState: () => ({ playEnabled }),
   });
 
   it('lists the other commands and points at the channel page', async () => {

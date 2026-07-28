@@ -341,6 +341,21 @@ export interface ChatOverlayMessage {
   fragments: ChatFragment[];
 }
 
+/**
+ * One chat-bot command as the dashboard shows it. Comes from the server's command registry rather
+ * than a list kept by hand in the UI, so a command that is added, renamed or switched off can never
+ * disagree with what the bot really answers. What each one DOES is UI copy and stays in the web
+ * app's i18n, keyed by `name`.
+ */
+export interface BotCommandInfo {
+  /** Primary trigger, without the leading '!'. */
+  name: string;
+  /** Extra triggers that do the same thing. */
+  aliases: string[];
+  /** False = the streamer has this one switched off; it is listed, but greyed and unusable. */
+  enabled: boolean;
+}
+
 /** Languages the chat bot can answer in. Mirrors the web app's own Lang set. */
 export const BOT_LOCALES = ['en', 'ru', 'uk'] as const;
 export type BotLocale = (typeof BOT_LOCALES)[number];
@@ -627,6 +642,8 @@ export interface ChannelSettings {
   youtubeAutoMaxMinutes: number;
   /** Streamer opt-in: GIFs with a safe Giphy rating skip moderation (risky ones still queue). */
   autoApproveGifs: boolean;
+  /** Read-only: every command the bot answers to, disabled ones included (see BotCommandInfo). */
+  chatCommands: BotCommandInfo[];
   /** Read-only: chat bot login to /mod, or null when unavailable for this channel. */
   chatBotLogin: string | null;
   /** Read-only: the bot is currently subscribed to this channel's chat. */

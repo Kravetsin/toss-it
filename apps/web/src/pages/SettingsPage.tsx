@@ -14,6 +14,7 @@ import { useSettingsData } from '@/features/dashboard/hooks/useSettingsData';
 import { ModerationSettings } from '@/features/dashboard/components/ModerationSettings';
 import { SubmissionLimits } from '@/features/dashboard/components/SubmissionLimits';
 import { ChatDustSettings } from '@/features/dashboard/components/ChatDustSettings';
+import { BotCommandsCard } from '@/features/dashboard/components/BotCommandsCard';
 import { ChannelPageSettings } from '@/features/dashboard/components/ChannelPageSettings';
 import { ChannelThemeSettings } from '@/features/dashboard/components/ChannelThemeSettings';
 // Donations (Donatello) integration is temporarily disabled (unfinished) — re-enable the import
@@ -159,6 +160,8 @@ export function SettingsPage() {
         <div className="flex flex-col gap-4">
           {/* The chat bot sits with the other integrations (it IS one), not under "Channel page". */}
           <ChatDustSettings settings={settings} onSave={onSave} />
+          {/* Directly under the bot's own toggles: the list answers "what did I just switch on". */}
+          <BotCommandsCard commands={settings.chatCommands} />
           {/* Donations (Donatello) temporarily disabled — unfinished. Re-enable this block plus the
               IntegrationsCard + sendTestDonation imports when ready.
           <IntegrationsCard

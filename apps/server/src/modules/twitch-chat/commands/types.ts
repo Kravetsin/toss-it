@@ -27,13 +27,20 @@ export type PlayResult =
   | { kind: 'queued' }
   | { kind: 'moderation' };
 
+/** The streamer's own switches over the command set — everything `available()` is allowed to ask
+ *  about. Kept to plain data so the dashboard can answer it from a channel row. */
+export interface ChannelCommandState {
+  /** `!play` is off by default: ordering media from chat is a separate yes from /mod'ding the bot. */
+  playEnabled: boolean;
+}
+
 /** Live state a command cannot read from the DB, injected by the twitch-chat module. */
 export interface CommandDeps {
   /** The streamer's public Tossit page, ready to paste into chat (no scheme — chat clients link it
    *  anyway, and a bare host reads shorter). */
   channelUrl(channelId: string): string;
-  /** Has the streamer turned `!play` on? Off by default, so it is not advertised by default. */
-  playEnabled(channelId: string): boolean;
+  /** This channel's command switches, for the commands that need to know about each other. */
+  commandState(channelId: string): ChannelCommandState;
   /** The playback queue lives in server memory, not in SQL — see PlaybackManager.queueState. */
   queueState(channelId: string, submissionId: string): QueueState | null;
   /** All-time per-channel XP for a twitch id (messages + watch-minutes + 10× aired sends). The
@@ -55,10 +62,11 @@ export interface ChatCommand {
   name: string;
   /** Extra triggers, lowercase. */
   aliases?: string[];
-  /** Usable in this channel right now? Only `!tossit` reads this, to avoid advertising a command
-   *  the streamer never turned on. Absent = always available. Running is still each command's own
-   *  business: `!play` stays silent by itself when disabled. */
-  available?(ctx: CommandContext, deps: CommandDeps): boolean;
+  /** Offered in a channel with these toggles? Absent = always. Read by `!tossit` (so a command the
+   *  streamer never turned on is not advertised) and by the dashboard's command list, which is why
+   *  it takes plain channel state instead of a caller's context. Running is still each command's
+   *  own business: `!play` stays silent by itself when disabled. */
+  available?(state: ChannelCommandState): boolean;
   /** The line to answer with, or null to stay silent. */
   run(ctx: CommandContext, deps: CommandDeps): Promise<ChatSystemLine | null>;
 }

@@ -58,6 +58,7 @@ import {
   validateYoutube,
 } from '../media/youtube';
 import type { TwitchChatModule } from '../modules/twitch-chat/index';
+import { commandCatalog } from '../modules/twitch-chat/commands/index';
 import type { Payouts } from '../media/payout';
 import { decryptSecret, encryptSecret } from '../crypto';
 import { levelForSender, levelsForSenders } from '../level';
@@ -196,6 +197,8 @@ function toSettings(
 ): ChannelSettings {
   return {
     earnedBackgrounds,
+    // Straight from the bot's own registry, so the settings screen lists exactly what answers.
+    chatCommands: commandCatalog({ playEnabled: ch.chatPlayCommand }),
     chatBotLogin: chatBot.login,
     chatBotReading: chatBot.reading,
     maxDurationMs: ch.maxDurationMs,

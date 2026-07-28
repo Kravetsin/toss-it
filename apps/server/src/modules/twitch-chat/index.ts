@@ -414,7 +414,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
           xpFor: lookupXp,
           play: playFromChat,
           channelUrl,
-          playEnabled: (channelId) => playCommandChannels.has(channelId),
+          commandState: (id) => ({ playEnabled: playCommandChannels.has(id) }),
         },
       )
         .then((line) => {
