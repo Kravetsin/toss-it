@@ -15,6 +15,8 @@ import { ModerationSettings } from '@/features/dashboard/components/ModerationSe
 import { SubmissionLimits } from '@/features/dashboard/components/SubmissionLimits';
 import { ChatDustSettings } from '@/features/dashboard/components/ChatDustSettings';
 import { BotCommandsCard } from '@/features/dashboard/components/BotCommandsCard';
+import { ChatUpsellCard } from '@/features/home/components/ChatUpsellCard';
+import { useOnboarding } from '@/features/home/hooks/useOnboarding';
 import { ChannelPageSettings } from '@/features/dashboard/components/ChannelPageSettings';
 import { ChannelThemeSettings } from '@/features/dashboard/components/ChannelThemeSettings';
 // Donations (Donatello) integration is temporarily disabled (unfinished) — re-enable the import
@@ -50,6 +52,9 @@ export function SettingsPage() {
 
   const { channelId, current, isOwner } = useChannels();
   const { settings, loading, save } = useSettingsData(channelId, isOwner);
+  // Only the Bot tab's empty state needs this (it carries the bot's public name for the /mod line),
+  // so it is fetched only while that tab is open rather than on every settings visit.
+  const onboarding = useOnboarding(section === 'bot' && isOwner ? channelId : null);
 
   // The overlay URLs live here too (same card as Home): the URL and its settings
   // belong on one screen — users look for both where they see the overlay.
@@ -168,12 +173,15 @@ export function SettingsPage() {
               {/* Right under the bot's own toggles: the list answers "what did I just switch on". */}
               <BotCommandsCard commands={settings.chatCommands} />
             </>
+          ) : onboarding === null ? null : onboarding.botLogin ? (
+            // No bot HERE because the owner never linked Twitch. The same card the home page uses,
+            // so both doors offer the same two actions — a dead-end explanation would leave the
+            // streamer reading what is wrong with no way to fix it.
+            <ChatUpsellCard botLogin={onboarding.botLogin} />
           ) : (
-            // No bot for this channel (service down, or the owner never linked Twitch). Listing
-            // commands nothing answers to would be worse than saying so — and an empty tab worse
-            // still. Same sentence the home page uses, so the explanation never forks.
+            // No bot ANYWHERE: the service itself is down, and there is nothing to /mod yet.
             <Card>
-              <p className="text-muted">{t('guide.chat.noTwitch')}</p>
+              <p className="text-muted">{t('guide.chat.unavailable')}</p>
             </Card>
           )}
         </div>
