@@ -281,12 +281,12 @@ export class EventSubClient {
     this.stopped = true;
     if (this.watchdogTimer) clearInterval(this.watchdogTimer);
     this.watchdogTimer = null;
-    this.disconnect();
+    this.disconnect('stop');
   }
 
   /** Drop the socket without scheduling a reconnect. Subscriptions die with the session, so there
    *  is nothing to DELETE — which is also why this is cheaper than unsubscribing channel by channel. */
-  private disconnect(): void {
+  private disconnect(reason: 'idle' | 'stop'): void {
     for (const t of [this.keepaliveTimer, this.welcomeTimer, this.reconnectTimer]) {
       if (t) clearTimeout(t);
     }
@@ -302,6 +302,9 @@ export class EventSubClient {
     this.inflight.clear();
     // Start the next revival at the short delay, however long we sat idle.
     this.reconnectDelayMs = 1_000;
+    // Only when there was something to close: an idle client reconciles to "nothing wanted" every
+    // five minutes, and that must not print a line each time.
+    if (ws || pending) this.deps.log.info({ reason }, 'twitch-chat: socket closed');
     ws?.close();
     pending?.close();
   }
@@ -322,7 +325,7 @@ export class EventSubClient {
     // Nobody live: hold no socket at all. Twitch closes a subscription-less session after 10s
     // (close 4003), so keeping it open would just reconnect in a loop all night.
     if (this.wanted.size === 0) {
-      this.disconnect();
+      this.disconnect('idle');
       return;
     }
     if (!this.ws && !this.pending && !this.reconnectTimer) this.connect(EVENTSUB_WS_URL);
@@ -434,6 +437,11 @@ export class EventSubClient {
       if (keepaliveSec) this.keepaliveMs = keepaliveSec * 1000;
       this.reconnectDelayMs = 1_000;
       this.bumpKeepalive();
+      // The pair to "socket closed": one line per session, so the night can be read off the log.
+      this.deps.log.info(
+        { channels: this.wanted.size, handoff: !!handoffFrom },
+        'twitch-chat: session open',
+      );
       if (handoffFrom) {
         // session_reconnect handoff: subscriptions carry over to the new session.
         handoffFrom.close();
@@ -537,6 +545,11 @@ export class EventSubClient {
     old?.close();
     if (this.keepaliveTimer) clearTimeout(this.keepaliveTimer);
     if (this.reconnectTimer || this.stopped) return;
+    // Unplanned: a deliberate teardown goes through disconnect() and never lands here.
+    this.deps.log.info(
+      { delayMs: this.reconnectDelayMs },
+      'twitch-chat: socket lost, reconnecting',
+    );
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
       this.connect(EVENTSUB_WS_URL);

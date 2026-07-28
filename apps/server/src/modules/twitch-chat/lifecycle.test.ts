@@ -24,7 +24,14 @@ class FakeSocket {
 let sockets: FakeSocket[] = [];
 let realWebSocket: typeof globalThis.WebSocket;
 
-const log = { warn() {}, info() {}, error() {} } as unknown as FastifyBaseLogger;
+let logged: string[] = [];
+const log = {
+  warn() {},
+  error() {},
+  info(_fields: unknown, msg: string) {
+    logged.push(msg);
+  },
+} as unknown as FastifyBaseLogger;
 
 function makeClient(): EventSubClient {
   return new EventSubClient({
@@ -41,6 +48,7 @@ function makeClient(): EventSubClient {
 
 beforeEach(() => {
   sockets = [];
+  logged = [];
   realWebSocket = globalThis.WebSocket;
   globalThis.WebSocket = FakeSocket as unknown as typeof globalThis.WebSocket;
   vi.useFakeTimers();
@@ -84,6 +92,15 @@ describe('EventSubClient connection lifecycle', () => {
     // The close must not look like a failure: no reconnect timer, no watchdog revival.
     vi.advanceTimersByTime(5 * 60_000);
     expect(sockets).toHaveLength(1);
+    client.stop();
+  });
+
+  it('logs the close once, not on every idle reconcile', () => {
+    const client = makeClient();
+    client.start();
+    client.setBroadcasters(new Map([['100', 'core']]));
+    for (let i = 0; i < 3; i += 1) client.setBroadcasters(new Map());
+    expect(logged.filter((m) => m === 'twitch-chat: socket closed')).toHaveLength(1);
     client.stop();
   });
 
