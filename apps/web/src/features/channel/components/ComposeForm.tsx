@@ -2,7 +2,7 @@ import { TEXT_MAX_LEN, type TtsVoiceModule } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { clock } from '@/lib/format';
 import { playVoicePreview } from '@/lib/voicePreview';
-import { youtubeIdFromText } from '@/lib/youtube';
+import { captionBesideYoutube, youtubeIdFromText } from '@/lib/youtube';
 import { useShop } from '@/providers/ShopProvider';
 import { Icon } from '@/ui/icons';
 import { Accordion, Alert, Button, IconButton, Select, Textarea } from '@/ui';
@@ -17,6 +17,8 @@ export function ComposeForm({
   file,
   gif = null,
   gifAutoApprove = true,
+  textAutoApprove = true,
+  youtubeAutoApprove = false,
   previewUrl,
   text,
   senderName,
@@ -36,6 +38,10 @@ export function ComposeForm({
   gif?: SelectedGif | null;
   /** Channel setting: do safe GIFs bypass moderation here? Drives the picker copy and the notice. */
   gifAutoApprove?: boolean;
+  /** Channel setting: may viewer text air unmoderated? false = a caption on an instant send is dropped. */
+  textAutoApprove?: boolean;
+  /** Channel setting: may YouTube links air unmoderated? Same caption rule applies to them. */
+  youtubeAutoApprove?: boolean;
   previewUrl: string | null;
   text: string;
   senderName: string;
@@ -59,6 +65,12 @@ export function ComposeForm({
   const cooling = cooldownSec > 0;
   // YouTube preview only for a text link with no file/gif selected.
   const ytId = file || gif ? null : youtubeIdFromText(text);
+  // The server drops the caption when the media would air instantly but the words wouldn't — say so
+  // now, because afterwards they are simply gone and it reads as the streamer ignoring them.
+  const captionWillDrop =
+    !textAutoApprove &&
+    ((!!gif && gifAutoApprove && !!text.trim()) ||
+      (!!ytId && youtubeAutoApprove && !!captionBesideYoutube(text)));
 
   return (
     <div className="flex flex-col gap-4">
@@ -123,6 +135,14 @@ export function ComposeForm({
             {text.length}/{TEXT_MAX_LEN}
           </span>
         </div>
+        {captionWillDrop && (
+          <div className="mt-2">
+            <Alert tone="warn">
+              <Icon name="square-alert" size={16} />
+              <span>{t('channel.captionDroppedNotice')}</span>
+            </Alert>
+          </div>
+        )}
       </div>
 
       {/* No owned voices yet: a second door into the shop, right when picking one matters. */}

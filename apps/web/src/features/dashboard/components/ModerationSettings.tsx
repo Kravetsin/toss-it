@@ -19,10 +19,27 @@ export function ModerationSettings({
   const [ytMusic, setYtMusic] = useState(settings.autoApproveYoutubeMusic);
   const [ytVideo, setYtVideo] = useState(settings.autoApproveYoutubeVideo);
   const [ytMax, setYtMax] = useState(settings.youtubeAutoMaxMinutes);
+  const [textAuto, setTextAuto] = useState(settings.autoApproveText);
 
   const toggleGif = (next: boolean) => {
     setGifAuto(next);
     onSave({ autoApproveGifs: next });
+  };
+
+  // Nothing vouches for a viewer's own words the way Giphy's rating vouches for a GIF — enabling
+  // this is the one bypass that puts unreviewed writing on stream, so it asks first.
+  const toggleText = async (next: boolean) => {
+    if (next) {
+      const ok = await confirm({
+        title: t('mod.textConfirmTitle'),
+        message: t('mod.textConfirmMsg'),
+        confirmLabel: t('mod.textConfirmOk'),
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    setTextAuto(next);
+    onSave({ autoApproveText: next });
   };
 
   // Music plays in a compact corner player (low-risk) — toggle instantly.
@@ -55,6 +72,16 @@ export function ModerationSettings({
           description={t('mod.gifAutoApproveNote')}
           checked={gifAuto}
           onChange={toggleGif}
+        />
+      </div>
+      <div className="py-4">
+        <Switch
+          icon="message-circle"
+          label={t('mod.textAutoApprove')}
+          // Spells out the fallback, because "off" here is not simply "text waits for you".
+          description={textAuto ? t('mod.textAutoApproveOn') : t('mod.textAutoApproveOff')}
+          checked={textAuto}
+          onChange={(v) => void toggleText(v)}
         />
       </div>
       <div className="flex flex-col gap-3 pt-4">

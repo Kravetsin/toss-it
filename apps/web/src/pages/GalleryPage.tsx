@@ -112,6 +112,7 @@ const DEMO_RESULT: UploadResponse = {
   queuePosition: 1,
   cooldownSec: 60,
   stardustBalance: 0,
+  captionDropped: false,
 };
 
 /**

@@ -225,6 +225,15 @@ export const en: Dict = {
   'mod.gifAutoApprove': 'Skip moderation for safe GIFs',
   'mod.gifAutoApproveNote':
     'GIFs with a safe Giphy rating go straight to the screen; riskier ones still go to your queue.',
+  'mod.textAutoApprove': 'Skip moderation for text',
+  'mod.textAutoApproveOn':
+    'Anything a viewer writes goes on screen — and is read aloud, if TTS is on — without your review.',
+  'mod.textAutoApproveOff':
+    'Text-only sends wait for you. A caption attached to an instantly-approved GIF or link is dropped, so the media still airs at once.',
+  'mod.textConfirmTitle': 'Auto-approve viewer text?',
+  'mod.textConfirmMsg':
+    "A GIF is vouched for by its Giphy rating, a video by YouTube — nobody vouches for a viewer's own words. With this on, whatever they write appears on your stream unreviewed.",
+  'mod.textConfirmOk': 'Enable',
   'chatDust.title': 'Stardust for watching and chatting',
   'chatDust.note':
     'While you are live, viewers earn stardust for every minute watched and every chat message. Viewers without an account get their dust when they first sign in.',
@@ -350,6 +359,10 @@ export const en: Dict = {
   'channel.gifAllReviewed': 'GIFs appear after the streamer reviews them.',
   'channel.gifRemove': 'Remove GIF',
   'channel.gifModerationNotice': 'This GIF will go to the streamer for approval first.',
+  'channel.captionDroppedNotice':
+    'This streamer airs media instantly but not text — the caption will be dropped. Send it on its own to have it reviewed.',
+  'channel.captionDroppedDone':
+    'Your media went on screen, but the caption did not — this streamer does not air viewer text unreviewed.',
   'channel.gifUnavailable': 'GIFs are unavailable right now.',
   'channel.removeFile': 'Remove',
   'channel.processing': 'The server is processing your file (trimming and transcoding)…',
@@ -953,6 +966,15 @@ export const ru: Dict = {
   'mod.gifAutoApprove': 'Пропускать безопасные GIF без модерации',
   'mod.gifAutoApproveNote':
     'Гифки с безопасным рейтингом Giphy идут сразу на экран; рискованные всё равно попадают в очередь.',
+  'mod.textAutoApprove': 'Пропускать текст без модерации',
+  'mod.textAutoApproveOn':
+    'Всё, что напишет зритель, выходит на экран — и озвучивается, если включено — без вашей проверки.',
+  'mod.textAutoApproveOff':
+    'Отправки одним текстом ждут вас. Подпись к гифке или ссылке, которая идёт в эфир сразу, отбрасывается — само медиа не задерживается.',
+  'mod.textConfirmTitle': 'Автопропуск текста от зрителей?',
+  'mod.textConfirmMsg':
+    'За гифку ручается рейтинг Giphy, за видео — YouTube, а за слова зрителя не ручается никто. С этой настройкой всё написанное попадёт на стрим без вашей проверки.',
+  'mod.textConfirmOk': 'Включить',
   'chatDust.title': 'Звёздная пыль за просмотр и чат',
   'chatDust.note':
     'Пока вы в эфире, зрители получают пыль за каждую минуту просмотра и за каждое сообщение в чате. Зрителям без аккаунта пыль копится и выдаётся при первом входе.',
@@ -1079,6 +1101,10 @@ export const ru: Dict = {
   'channel.gifAllReviewed': 'Гифки появятся после проверки стримером.',
   'channel.gifRemove': 'Убрать GIF',
   'channel.gifModerationNotice': 'Эта гифка сначала уйдёт стримеру на проверку.',
+  'channel.captionDroppedNotice':
+    'Этот стример пропускает медиа сразу, а текст — нет: подпись не попадёт в эфир. Отправь её отдельно, тогда она пойдёт на проверку.',
+  'channel.captionDroppedDone':
+    'Медиа вышло на экран, а подпись — нет: этот стример не пропускает текст зрителей без проверки.',
   'channel.gifUnavailable': 'GIF сейчас недоступны.',
   'channel.removeFile': 'Убрать',
   'channel.processing': 'Сервер обрабатывает файл (обрезка и перекодирование)…',
@@ -1682,6 +1708,15 @@ export const uk: Dict = {
   'mod.gifAutoApprove': 'Пропускати безпечні GIF без модерації',
   'mod.gifAutoApproveNote':
     'Гіфки з безпечним рейтингом Giphy йдуть одразу на екран; ризиковані все одно потрапляють у чергу.',
+  'mod.textAutoApprove': 'Пропускати текст без модерації',
+  'mod.textAutoApproveOn':
+    'Усе, що напише глядач, виходить на екран — і озвучується, якщо ввімкнено — без вашої перевірки.',
+  'mod.textAutoApproveOff':
+    'Відправки самим текстом чекають на вас. Підпис до гіфки чи посилання, яке йде в ефір одразу, відкидається — саме медіа не затримується.',
+  'mod.textConfirmTitle': 'Автопропуск тексту від глядачів?',
+  'mod.textConfirmMsg':
+    'За гіфку ручається рейтинг Giphy, за відео — YouTube, а за слова глядача не ручається ніхто. З цим налаштуванням усе написане потрапить на стрім без вашої перевірки.',
+  'mod.textConfirmOk': 'Увімкнути',
   'chatDust.title': 'Зоряний пил за перегляд і чат',
   'chatDust.note':
     'Поки ви в ефірі, глядачі отримують пил за кожну хвилину перегляду та за кожне повідомлення в чаті. Глядачам без акаунта пил накопичується і видається при першому вході.',
@@ -1810,6 +1845,10 @@ export const uk: Dict = {
   'channel.gifAllReviewed': 'Гіфки з’являться після перевірки стримером.',
   'channel.gifRemove': 'Прибрати GIF',
   'channel.gifModerationNotice': 'Ця гіфка спершу піде стримеру на перевірку.',
+  'channel.captionDroppedNotice':
+    'Цей стример пропускає медіа одразу, а текст — ні: підпис не потрапить в ефір. Надішли його окремо, тоді він піде на перевірку.',
+  'channel.captionDroppedDone':
+    'Медіа вийшло на екран, а підпис — ні: цей стример не пропускає текст глядачів без перевірки.',
   'channel.gifUnavailable': 'GIF зараз недоступні.',
   'channel.removeFile': 'Прибрати',
   'channel.processing': 'Сервер обробляє файл (обрізка та перекодування)…',

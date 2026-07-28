@@ -262,6 +262,9 @@ export function registerChannelRoutes(app: FastifyInstance): void {
         maxAudioDurationMs: channels.maxAudioDurationMs,
         maxFileSizeBytes: channels.maxFileSizeBytes,
         autoApproveGifs: channels.autoApproveGifs,
+        autoApproveText: channels.autoApproveText,
+        autoApproveYoutubeMusic: channels.autoApproveYoutubeMusic,
+        autoApproveYoutubeVideo: channels.autoApproveYoutubeVideo,
         ttsName: channels.ttsName,
         ttsMessage: channels.ttsMessage,
         description: channels.description,
@@ -284,6 +287,8 @@ export function registerChannelRoutes(app: FastifyInstance): void {
       equipped,
       ttsName,
       ttsMessage,
+      autoApproveYoutubeMusic,
+      autoApproveYoutubeVideo,
       accentHue,
       bgHue,
       bgTint,
@@ -313,6 +318,9 @@ export function registerChannelRoutes(app: FastifyInstance): void {
     const response: PublicChannelInfo = {
       ...rest,
       ttsEnabled: ttsName || ttsMessage,
+      // Collapsed to one flag: the viewer page only needs "could a link air unmoderated here?" to
+      // warn that a caption would be dropped. Music vs video is decided server-side by category.
+      autoApproveYoutube: autoApproveYoutubeMusic || autoApproveYoutubeVideo,
       isFounder: founderSince != null,
       nickColor: equipped?.nickColor ?? null,
       nickColor2: equipped?.nickColor2 ?? null,

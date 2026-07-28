@@ -101,6 +101,12 @@ export const channels = sqliteTable('channels', {
   youtubeAutoMaxMinutes: integer('youtube_auto_max_minutes').notNull().default(10),
   // Streamer opt-in (default on): GIFs with a safe Giphy rating bypass moderation.
   autoApproveGifs: integer('auto_approve_gifs', { mode: 'boolean' }).notNull().default(true),
+  // Streamer opt-in: text the viewer wrote themselves bypasses moderation. Off by default — every
+  // other bypass leans on someone vouching for the content (Giphy's rating, YouTube's own
+  // moderation), and nothing vouches for a viewer's words. While off, a caption riding along with
+  // an auto-approved GIF/link is dropped instead of dragging the whole send into moderation, which
+  // would make those bypasses useless — most sends carry a caption.
+  autoApproveText: integer('auto_approve_text', { mode: 'boolean' }).notNull().default(false),
   showSenderName: integer('show_sender_name', { mode: 'boolean' }).notNull().default(true),
   // Streamer opt-out: render the Twitch chat (with Tossit cosmetics) in the chat overlay source.
   chatOverlayEnabled: integer('chat_overlay_enabled', { mode: 'boolean' }).notNull().default(true),

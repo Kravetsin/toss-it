@@ -125,6 +125,16 @@ export function ChannelPage() {
           </Card>
         ) : (
           <>
+            {/* The compose form warns beforehand when it can, but a link's verdict is only known
+                server-side — so the send itself reports whether the caption made it. */}
+            {sub.phase.name === 'done' && sub.phase.result.captionDropped && (
+              <div className="mb-4">
+                <Alert tone="warn">
+                  <Icon name="square-alert" size={16} />
+                  <span>{t('channel.captionDroppedDone')}</span>
+                </Alert>
+              </div>
+            )}
             {firstSendHint && (
               <div className="mb-4 flex items-center justify-between gap-3 rounded-[var(--radius)] border border-accent/40 bg-accent-soft/40 px-4 py-3 text-sm">
                 <span className="flex items-center gap-2 text-text">
@@ -167,6 +177,8 @@ export function ChannelPage() {
                 file={sub.file}
                 gif={sub.gif}
                 gifAutoApprove={loadedChannel?.autoApproveGifs ?? true}
+                textAutoApprove={loadedChannel?.autoApproveText ?? true}
+                youtubeAutoApprove={loadedChannel?.autoApproveYoutube ?? false}
                 previewUrl={sub.previewUrl}
                 text={sub.text}
                 senderName={me.user.displayName}

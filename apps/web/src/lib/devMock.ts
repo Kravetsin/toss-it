@@ -137,6 +137,7 @@ const MOCK_SETTINGS: ChannelSettings = {
   autoApproveYoutubeVideo: false,
   youtubeAutoMaxMinutes: 10,
   autoApproveGifs: true,
+  autoApproveText: false,
   // Mock owner has no linked Twitch (MOCK_ME.hasTwitch=false), so the bot isn't usable here and has
   // no login — matches production (chatBotLogin is non-null only for Twitch-linked owners). This
   // hides ChatDustSettings and surfaces ChatUpsellCard, the consistent not-linked home view.
@@ -503,6 +504,9 @@ function mockPublicChannel(login: string): PublicChannelInfo {
     maxAudioDurationMs: MOCK_SETTINGS.maxAudioDurationMs,
     maxFileSizeBytes: MOCK_SETTINGS.maxFileSizeBytes,
     autoApproveGifs: MOCK_SETTINGS.autoApproveGifs,
+    autoApproveText: MOCK_SETTINGS.autoApproveText,
+    autoApproveYoutube:
+      MOCK_SETTINGS.autoApproveYoutubeMusic || MOCK_SETTINGS.autoApproveYoutubeVideo,
     ttsEnabled: true,
     viewerLevel: 8,
     viewerXp: 34000, // between L8 (25600) and L9 (51200) — the hover reads 34000/51200

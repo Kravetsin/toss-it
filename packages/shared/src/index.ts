@@ -648,6 +648,11 @@ export interface ChannelSettings {
   youtubeAutoMaxMinutes: number;
   /** Streamer opt-in: GIFs with a safe Giphy rating skip moderation (risky ones still queue). */
   autoApproveGifs: boolean;
+  /**
+   * Streamer opt-in: text the viewer wrote skips moderation. While off, a caption attached to an
+   * otherwise auto-approved send is dropped instead of pulling that send into moderation.
+   */
+  autoApproveText: boolean;
   /** Read-only: every command the bot answers to, disabled ones included (see BotCommandInfo). */
   chatCommands: BotCommandInfo[];
   /** Read-only: chat bot login to /mod, or null when unavailable for this channel. */
@@ -744,6 +749,11 @@ export interface UploadResponse {
   cooldownSec: number;
   /** Sender's stardust balance after crediting this submission. */
   stardustBalance: number;
+  /**
+   * The caption was dropped so the media could air instantly (channel doesn't auto-approve text).
+   * Reported because the client can't always predict it — a link's music/video verdict is server-side.
+   */
+  captionDropped: boolean;
 }
 
 /**
@@ -893,6 +903,10 @@ export interface PublicChannelInfo {
   maxFileSizeBytes: number;
   /** Whether safe-rated GIFs skip moderation here — viewer page shows honest "instant vs review" copy. */
   autoApproveGifs: boolean;
+  /** Whether viewer-written text skips moderation; false = a caption on an instant send is dropped. */
+  autoApproveText: boolean;
+  /** Whether YouTube links can air unmoderated (music or video) — same caption warning applies. */
+  autoApproveYoutube: boolean;
   /** Whether the streamer reads sends aloud (name or message) — drives the voice picker. */
   ttsEnabled: boolean;
   /** The logged-in viewer's own per-channel level (0 = anon/none) — for their header card. */

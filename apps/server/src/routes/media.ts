@@ -40,6 +40,7 @@ import {
   YT_MUSIC_CATEGORY_ID,
 } from '../media/youtube';
 import { isGiphyId } from '../media/giphy';
+import { dropsCaption } from '../media/submit';
 import { isAdmin, requireUser } from '../auth';
 import { speakableText, synthesize } from '../tts';
 import {
@@ -119,6 +120,8 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
             cooldownSec: Math.round(config.moderation.viewerCooldownMs / 1000),
             // Ban grants no stardust; return current balance for indistinguishability.
             stardustBalance: user.stardust,
+            // Consistent with the 'pending' above: text that goes to moderation is never dropped.
+            captionDropped: false,
           };
           return reply.code(201).send(fake);
         }
@@ -228,6 +231,9 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
         // YouTube auto-approve is decided in the link branch (needs the video's category + length),
         // then folded into `autoApproved` below with the whitelist/GIF bypasses.
         let ytAutoApprove = false;
+        // The two halves of a link's text, kept separate for the caption rule below.
+        let ytCaption: string | undefined;
+        let ytTitle: string | undefined;
 
         if (hasFile) {
           // Global limit is enforced by multipart; per-channel limit checked here.
@@ -332,8 +338,11 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
             // Store the real length for display (queue/history); overlay still gets 0 and ends on its
             // own event. 0 when unknown (no API key).
             durationMs = ytDurationSec > 0 ? ytDurationSec * 1000 : 0;
-            // Caption: leftover text minus the link, else the video title (clipped).
-            text = (yt.caption ?? (meta.title || undefined))?.slice(0, TEXT_MAX_LEN) || undefined;
+            // Caption: leftover text minus the link, else the video title (clipped). Kept apart
+            // because only the caption is the viewer's own words — the title is YouTube's.
+            ytCaption = yt.caption?.slice(0, TEXT_MAX_LEN) || undefined;
+            ytTitle = (meta.title || undefined)?.slice(0, TEXT_MAX_LEN) || undefined;
+            text = ytCaption ?? ytTitle;
             // Auto-approve: video gated separately from music (full-screen can take over the stream).
             // The length cap applies only when we know the length; unknown → no cap (prior behavior).
             const withinCap =
@@ -358,9 +367,22 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
               .from(whitelist)
               .where(and(eq(whitelist.channelId, channel.id), eq(whitelist.userId, user.id)))
               .get()) !== undefined;
-        // Opt-in bypasses: YouTube (per music/video, decided above) and GIFs (source-moderated).
+        // Opt-in bypasses: YouTube (per music/video, decided above), GIFs (source-moderated) and
+        // plain text. Text is its own axis because it rides along with every other kind.
         const autoApproved =
-          whitelisted || ytAutoApprove || (kind === 'gif' && channel.autoApproveGifs);
+          whitelisted ||
+          ytAutoApprove ||
+          (kind === 'gif' && channel.autoApproveGifs) ||
+          (kind === 'text' && channel.autoApproveText);
+        // A link keeps its title when the caption goes — that text is YouTube's, not the viewer's.
+        const captionDropped =
+          dropsCaption({
+            autoApproved,
+            trusted: whitelisted,
+            autoApproveText: channel.autoApproveText,
+            textOnly: kind === 'text',
+          }) && !!(kind === 'youtube' ? ytCaption : text);
+        if (captionDropped) text = kind === 'youtube' ? ytTitle : undefined;
 
         const now = new Date();
         const row: SubmissionRow = {
@@ -416,6 +438,7 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
           // Owner has no cooldown (test send) → 0; viewer gets the channel window.
           cooldownSec: isOwner ? 0 : Math.round(config.moderation.viewerCooldownMs / 1000),
           stardustBalance,
+          captionDropped,
         };
         return reply.code(201).send(response);
       } finally {

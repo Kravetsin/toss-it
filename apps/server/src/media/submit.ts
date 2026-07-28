@@ -7,6 +7,7 @@ import {
   linkedIdentities,
   submissionPayouts,
   submissions,
+  whitelist,
   type SubmissionRow,
 } from '../db/schema';
 import {
@@ -85,6 +86,24 @@ export async function createYoutubeSubmission(
   return row;
 }
 
+/**
+ * Is the viewer's own caption dropped from this send? Every bypass leans on someone vouching for
+ * the content (Giphy's rating, YouTube's moderation) and nobody vouches for a viewer's words — so
+ * they are not part of what an instant approval promises. Dropping the caption rather than sending
+ * the whole thing to moderation is what keeps those bypasses worth having: most sends carry one.
+ * Through moderation, or from a trusted sender, the words stand.
+ */
+export function dropsCaption(opts: {
+  autoApproved: boolean;
+  /** Owner or whitelisted — the streamer already vouched for this sender. */
+  trusted: boolean;
+  autoApproveText: boolean;
+  /** The words ARE the submission (kind 'text'); dropping them would leave an empty row on screen. */
+  textOnly: boolean;
+}): boolean {
+  return opts.autoApproved && !opts.trusted && !opts.autoApproveText && !opts.textOnly;
+}
+
 /** A YouTube link that parsed and is embeddable — ready to become a submission. */
 export interface ResolvedYoutube {
   parsed: ParsedYoutube;
@@ -135,7 +154,6 @@ export async function submitResolvedYoutube(
   const autoAllowed = isMusic
     ? !!channel?.autoApproveYoutubeMusic
     : !!channel?.autoApproveYoutubeVideo;
-  const autoApproved = autoAllowed && durationSec > 0 && durationSec <= capSec;
   // Sender = the viewer's linked Tossit account, or null (anonymous — dust still accrues to twitch id).
   const link = await db
     .select({ userId: linkedIdentities.userId })
@@ -147,6 +165,27 @@ export async function submitResolvedYoutube(
       ),
     )
     .get();
+  // The whitelist is keyed by Tossit account, so it can only apply to a chatter who linked one —
+  // and it means the same here as on the web: this viewer's requests air without review, cap and
+  // type gates included, and their caption is their own to write.
+  const whitelisted =
+    !!link &&
+    (await db
+      .select()
+      .from(whitelist)
+      .where(and(eq(whitelist.channelId, input.channelId), eq(whitelist.userId, link.userId)))
+      .get()) !== undefined;
+  const trusted = isSelfSend || whitelisted;
+  const autoApproved = trusted || (autoAllowed && durationSec > 0 && durationSec <= capSec);
+  // An auto-approved link airs under the video's title instead of the viewer's caption.
+  const caption = dropsCaption({
+    autoApproved,
+    trusted,
+    autoApproveText: !!channel?.autoApproveText,
+    textOnly: false,
+  })
+    ? undefined
+    : parsed.caption;
   const row = await createYoutubeSubmission(deps, {
     channelId: input.channelId,
     senderUserId: link?.userId ?? null,
@@ -156,7 +195,7 @@ export async function submitResolvedYoutube(
     senderPlatform: 'twitch',
     senderPlatformUserId: input.senderTwitchId,
     parsed,
-    title: (parsed.caption ?? meta.title ?? undefined)?.slice(0, 280),
+    title: (caption ?? meta.title ?? undefined)?.slice(0, 280),
     durationMs: durationSec > 0 ? durationSec * 1000 : 0,
     isMusic,
     autoApproved,

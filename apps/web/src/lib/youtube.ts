@@ -5,6 +5,14 @@ export function youtubeIdFromText(text: string): string | null {
   return m?.[1] ?? null;
 }
 
+/**
+ * What's left of the text once the YouTube link is taken out — the server calls this the caption
+ * and treats it as the viewer's own words. Approximate on purpose: it only drives a warning.
+ */
+export function captionBesideYoutube(text: string): string {
+  return text.replace(/\S*(?:youtu\.be|youtube\.com)\/\S*/gi, ' ').trim();
+}
+
 export function youtubeThumbnail(id: string): string {
   return `https://img.youtube.com/vi/${id}/hqdefault.jpg`;
 }
