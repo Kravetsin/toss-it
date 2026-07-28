@@ -13,12 +13,13 @@ import type { Socket } from 'socket.io-client';
 import type { SubmissionSummary } from '@tmw/shared';
 import { getMyChannels, getPending } from '@/lib/api';
 import { connectSocket } from '@/lib/socket';
-import { initAudioUnlock, playNotify } from '@/lib/notify';
+import { initAudioUnlock, playNotify, setNotifyVolume } from '@/lib/notify';
 import { useMe } from '@/hooks/useMe';
 import { useToast } from '@/providers/ToastProvider';
 import { useI18n } from '@/i18n';
 
 const SOUND_KEY = 'tmw_modsound';
+const VOLUME_KEY = 'tmw_modsound_vol';
 const DESKTOP_KEY = 'tmw_desktopnotif';
 const SELECTED_CHANNEL_KEY = 'tmw_dash_channel'; // written by useChannels
 const MAX_ITEMS = 50;
@@ -42,6 +43,11 @@ interface NotificationsValue {
   markAllRead: () => void;
   soundOn: boolean;
   toggleSound: () => void;
+  /** Chime loudness, 0-100 (same scale as every other volume in the app). */
+  soundVolume: number;
+  setSoundVolume: (v: number) => void;
+  /** Play the chime at the current volume — the only way to judge a level is to hear it. */
+  previewSound: () => void;
   /** Fresh sound preference for the dashboard's own socket handler (avoids reconnect on toggle). */
   soundOnRef: RefObject<boolean>;
   desktopEnabled: boolean;
@@ -71,6 +77,13 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [soundOn, setSoundOn] = useState(() => localStorage.getItem(SOUND_KEY) !== '0');
+  const [soundVolume, setSoundVolumeState] = useState(() => {
+    // Read the raw string first: Number(null) and Number('') are both 0, so parsing blind would
+    // turn "never set this" into "muted" for everyone who already uses the app.
+    const raw = localStorage.getItem(VOLUME_KEY);
+    const stored = raw ? Number(raw) : NaN;
+    return Number.isFinite(stored) && stored >= 0 && stored <= 100 ? Math.round(stored) : 100;
+  });
   const soundOnRef = useRef(soundOn);
   soundOnRef.current = soundOn;
   const [desktopPref, setDesktopPref] = useState(() => localStorage.getItem(DESKTOP_KEY) === '1');
@@ -84,6 +97,12 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     initAudioUnlock();
   }, []);
+
+  // Push the preference into the audio module, which is where every caller reads it from — the
+  // dashboard's own socket plays the chime too and must not need its own copy.
+  useEffect(() => {
+    setNotifyVolume(soundVolume / 100);
+  }, [soundVolume]);
 
   // Merge new items newest-first, deduped by id, capped.
   const addItems = useCallback((incoming: NotificationItem[]) => {
@@ -221,6 +240,17 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const setSoundVolume = useCallback((v: number) => {
+    const next = Math.min(100, Math.max(0, Math.round(v)));
+    localStorage.setItem(VOLUME_KEY, String(next));
+    // Applied here as well as in the effect: a preview fired from the same gesture must already
+    // hear the new level, and the effect only runs after the render.
+    setNotifyVolume(next / 100);
+    setSoundVolumeState(next);
+  }, []);
+
+  const previewSound = useCallback(() => playNotify(), []);
+
   const toggleDesktop = useCallback(() => {
     if (!('Notification' in window)) {
       toast(t('notif.unsupported'), 'warn');
@@ -258,6 +288,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         markAllRead,
         soundOn,
         toggleSound,
+        soundVolume,
+        setSoundVolume,
+        previewSound,
         soundOnRef,
         desktopEnabled,
         permission,

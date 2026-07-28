@@ -4,6 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { useI18n } from '@/i18n';
 import { Icon, type IconName } from '@/ui/icons';
 import { CountBadge, Tooltip } from '@/ui';
+// Deep import: the media barrel exports players, not this level→icon helper. Reused rather than
+// re-picked so the bell's speaker icon fills up exactly like every other volume control's.
+import { volumeIcon } from '@/ui/media/VolumeSlider';
 import { useNotifications, type NotificationItem } from '@/providers/NotificationsProvider';
 
 const PANEL_MAX_H = 440;
@@ -66,6 +69,44 @@ function ToggleRow({
   );
 }
 
+/**
+ * Loudness of the chime, right under its on/off row. Exists because the two states people actually
+ * needed were never "on" and "off" but "quieter" and "off" — a chime that startles gets muted, and
+ * a muted chime is a missed submission. Previews on release, since a level can only be judged by
+ * ear; mid-drag it stays silent so dragging across the range isn't a burst of beeps.
+ */
+function VolumeRow({
+  value,
+  onChange,
+  onCommit,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  onCommit: () => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <div className="flex items-center gap-2.5 px-3 pb-2.5">
+      <Icon name={volumeIcon(false, value / 100)} size={16} className="shrink-0 text-muted" />
+      <input
+        type="range"
+        min={0}
+        max={100}
+        step={5}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        onPointerUp={onCommit}
+        onKeyUp={onCommit}
+        aria-label={t('notif.volumeLabel')}
+        aria-valuetext={`${value}%`}
+        className="slider-star flex-1"
+        style={{ ['--val' as string]: `${value}%` }}
+      />
+      <span className="w-9 shrink-0 text-right label-mono text-muted">{value}%</span>
+    </div>
+  );
+}
+
 function FeedItem({ item, onNavigate }: { item: NotificationItem; onNavigate: () => void }) {
   const { t, lang } = useI18n();
   const name = item.senderName ?? t('common.anon');
@@ -108,6 +149,9 @@ export function NotificationBell({
     markAllRead,
     soundOn,
     toggleSound,
+    soundVolume,
+    setSoundVolume,
+    previewSound,
     desktopEnabled,
     toggleDesktop,
   } = useNotifications();
@@ -274,6 +318,10 @@ export function NotificationBell({
                 on={soundOn}
                 onToggle={toggleSound}
               />
+              {/* Only while the chime is on: a volume slider under an OFF switch controls nothing. */}
+              {soundOn && (
+                <VolumeRow value={soundVolume} onChange={setSoundVolume} onCommit={previewSound} />
+              )}
               <ToggleRow
                 icon="monitor"
                 label={t('notif.desktopLabel')}
