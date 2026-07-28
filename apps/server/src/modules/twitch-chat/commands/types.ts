@@ -29,6 +29,11 @@ export type PlayResult =
 
 /** Live state a command cannot read from the DB, injected by the twitch-chat module. */
 export interface CommandDeps {
+  /** The streamer's public Tossit page, ready to paste into chat (no scheme — chat clients link it
+   *  anyway, and a bare host reads shorter). */
+  channelUrl(channelId: string): string;
+  /** Has the streamer turned `!play` on? Off by default, so it is not advertised by default. */
+  playEnabled(channelId: string): boolean;
   /** The playback queue lives in server memory, not in SQL — see PlaybackManager.queueState. */
   queueState(channelId: string, submissionId: string): QueueState | null;
   /** All-time per-channel XP for a twitch id (messages + watch-minutes + 10× aired sends). The
@@ -50,6 +55,10 @@ export interface ChatCommand {
   name: string;
   /** Extra triggers, lowercase. */
   aliases?: string[];
+  /** Usable in this channel right now? Only `!tossit` reads this, to avoid advertising a command
+   *  the streamer never turned on. Absent = always available. Running is still each command's own
+   *  business: `!play` stays silent by itself when disabled. */
+  available?(ctx: CommandContext, deps: CommandDeps): boolean;
   /** The line to answer with, or null to stay silent. */
   run(ctx: CommandContext, deps: CommandDeps): Promise<ChatSystemLine | null>;
 }

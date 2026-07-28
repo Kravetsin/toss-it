@@ -11,6 +11,7 @@ import type { ChatCommand } from './types';
 export const play: ChatCommand = {
   name: 'play',
   aliases: ['sr'],
+  available: (ctx, deps) => deps.playEnabled(ctx.channelId),
   async run(ctx, deps) {
     // Everything after the trigger is the link (+ optional caption) — rejoined so a caption with
     // spaces survives the arg split.

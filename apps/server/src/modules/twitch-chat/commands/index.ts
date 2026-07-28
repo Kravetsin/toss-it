@@ -2,13 +2,20 @@ import type { ChatFragment, ChatSystemLine } from '@tmw/shared';
 import { balance } from './balance';
 import { play } from './play';
 import { queue } from './queue';
+import { tossit } from './tossit';
 import { xp } from './xp';
 import type { ChatCommand, CommandContext, CommandDeps } from './types';
 
 export type { ChatCommand, CommandContext, CommandDeps } from './types';
 
-/** The registry: one entry per command file in this folder. */
-const COMMANDS: ChatCommand[] = [balance, play, queue, xp];
+/** The registry: one entry per command file in this folder. Order is what `!tossit` lists, so it
+ *  runs from the one a newcomer needs first to the one only a regular asks for. */
+const COMMANDS: ChatCommand[] = [tossit, balance, xp, queue, play];
+
+/** Triggers a viewer can actually use in this channel — what `!tossit` advertises. */
+export function availableTriggers(ctx: CommandContext, deps: CommandDeps): string[] {
+  return COMMANDS.filter((cmd) => cmd.available?.(ctx, deps) ?? true).map((cmd) => cmd.name);
+}
 
 const byTrigger = new Map<string, ChatCommand>();
 for (const cmd of COMMANDS) {

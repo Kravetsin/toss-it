@@ -95,6 +95,8 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
   let playCommandChannels = new Set<string>();
   /** Per-channel bot answer language. Refreshed on reconcile; missing = the column default. */
   let botLocales = new Map<string, BotLocale>();
+  /** Channel id -> owner login, the /c/<login> the `!tossit` answer points at. */
+  let channelLogins = new Map<string, string>();
   /** twitch id -> Tossit cosmetics, short-lived cache (chat volume; avoid a DB read per msg). */
   const cosmeticsCache = new Map<
     string,
@@ -190,6 +192,17 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     };
     cosmeticsCache.set(twitchId, value);
     return value;
+  }
+
+  /**
+   * The channel's public page, as a viewer should paste it: no scheme, since chat clients link a
+   * bare host anyway and it reads shorter on screen. Falls back to the site itself if the login is
+   * momentarily unknown (a channel added between reconciles) — a working link beats a broken one.
+   */
+  function channelUrl(channelId: string): string {
+    const host = config.webUrl.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+    const login = channelLogins.get(channelId);
+    return login ? `${host}/c/${login}` : host;
   }
 
   /** channelId -> the owner's broadcaster twitch id, among channels the bot currently serves. */
@@ -396,7 +409,13 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
           name: ev.chatterName,
           locale: botLocales.get(channelId) ?? 'ru',
         },
-        { queueState: deps.queueState, xpFor: lookupXp, play: playFromChat },
+        {
+          queueState: deps.queueState,
+          xpFor: lookupXp,
+          play: playFromChat,
+          channelUrl,
+          playEnabled: (channelId) => playCommandChannels.has(channelId),
+        },
       )
         .then((line) => {
           if (!line) return;
@@ -662,6 +681,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
         botReplies: channels.chatBotReplies,
         playCommand: channels.chatPlayCommand,
         botLocale: channels.botLocale,
+        ownerLogin: users.login,
       })
       .from(channels)
       .innerJoin(
@@ -671,6 +691,9 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
           eq(linkedIdentities.provider, 'twitch'),
         ),
       )
+      // The public page lives at /c/<owner login>, which is the Tossit account's login — not the
+      // twitch identity's, since an owner may have signed in with Google and linked Twitch after.
+      .innerJoin(users, eq(users.id, channels.ownerUserId))
       .all();
     const modded = rows.filter((r) => moderated.has(r.broadcasterId));
     channelByBroadcaster = new Map(modded.map((r) => [r.broadcasterId, r.id]));
@@ -678,6 +701,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     botReplyChannels = new Set(modded.filter((r) => r.botReplies).map((r) => r.id));
     playCommandChannels = new Set(modded.filter((r) => r.playCommand).map((r) => r.id));
     botLocales = new Map(modded.map((r) => [r.id, r.botLocale]));
+    channelLogins = new Map(modded.map((r) => [r.id, r.ownerLogin]));
     client.setBroadcasters(new Set(channelByBroadcaster.keys()));
     await loadExclusions();
   }
