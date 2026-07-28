@@ -1,7 +1,7 @@
 import type { FastifyBaseLogger } from 'fastify';
 import { CHANNEL_POINTS, DUST_POINTS } from '@tmw/shared';
 import { roomOf, type PlaybackManager, type RealtimeServer } from '../../playback';
-import { resolvePlayableYoutube, submitResolvedYoutube } from '../../media/submit';
+import { acceptsSends, resolvePlayableYoutube, submitResolvedYoutube } from '../../media/submit';
 import { isRedemptionKnown } from '../../media/payout';
 import { awardDust } from '../twitch-chat/accrual';
 import { ChannelPointsEventSub, type RedemptionEvent } from './eventsub';
@@ -257,6 +257,18 @@ export function createChannelPointsModule(deps: {
     conn: ConnectionRecord,
     ev: RedemptionEvent,
   ): Promise<void> {
+    // Checked before the link is even resolved: a paused channel owes the viewer their points back,
+    // not a round-trip to YouTube. Same switch the site and the chat commands honour.
+    if (!(await acceptsSends(reward.channelId, conn.broadcasterId, ev.redeemerId))) {
+      await authorized(reward.channelId, (token) =>
+        cancelRedemption(token, conn.broadcasterId, reward.rewardId, ev.redemptionId),
+      );
+      log.info(
+        { channelId: reward.channelId },
+        'channel-points: channel is not accepting sends, refunded',
+      );
+      return;
+    }
     const resolved = await resolvePlayableYoutube(ev.userInput);
     if (!resolved) {
       // Nothing playable — refund the points rather than take them for a bad/private link.

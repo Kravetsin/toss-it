@@ -7,7 +7,7 @@ import { linkedIdentities, submissions, users, whitelist } from '../db/schema';
 import { PlaybackManager } from '../playback';
 import { parseYoutube } from './youtube';
 import { CHAT_TEXT_MAX_LEN } from '@tmw/shared';
-import { dropsCaption, submitChatText, submitResolvedYoutube } from './submit';
+import { acceptsSends, dropsCaption, submitChatText, submitResolvedYoutube } from './submit';
 
 /**
  * The caption rule decides what a viewer's own words are allowed to do, so each case here is one a
@@ -61,6 +61,27 @@ const makeViewer = async (): Promise<{ twitchId: string; userId: string }> => {
     .values({ provider: 'twitch', providerId: twitchId, userId, createdAt: new Date() });
   return { twitchId, userId };
 };
+
+/**
+ * The pause switch, which every door has to honour — the website always did, chat and channel
+ * points learned to only after a viewer could refill a queue the streamer had just stopped.
+ */
+describe('acceptsSends', () => {
+  it('takes sends while the channel is open', async () => {
+    const id = await makeChannel();
+    expect(await acceptsSends(id, 'tw_owner', 'tw_viewer')).toBe(true);
+  });
+
+  it('turns viewers away once the streamer paused', async () => {
+    const id = await makeChannel({ accepting: false });
+    expect(await acceptsSends(id, 'tw_owner', 'tw_viewer')).toBe(false);
+  });
+
+  it('still lets the broadcaster through — the switch is aimed at viewers', async () => {
+    const id = await makeChannel({ accepting: false });
+    expect(await acceptsSends(id, 'tw_owner', 'tw_owner')).toBe(true);
+  });
+});
 
 /**
  * A request that arrives from chat (`!play`) or a channel-points redemption. The streamer's

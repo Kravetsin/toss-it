@@ -121,6 +121,25 @@ export function dropsCaption(opts: {
 }
 
 /**
+ * Is the channel taking sends at all right now? "Stop taking sends" has to mean it at every door,
+ * or a streamer clearing their queue mid-stream watches chat and channel points refill it. The
+ * broadcaster is exempt, same as on the web — the switch is aimed at viewers, not at testing.
+ */
+export async function acceptsSends(
+  channelId: string,
+  broadcasterId: string,
+  senderTwitchId: string,
+): Promise<boolean> {
+  if (senderTwitchId === broadcasterId) return true;
+  const row = await db
+    .select({ accepting: channels.accepting })
+    .from(channels)
+    .where(eq(channels.id, channelId))
+    .get();
+  return row?.accepting ?? true;
+}
+
+/**
  * Where a chatter stands with this channel: the Tossit account behind their platform id (null when
  * they never signed in — dust still accrues to the platform id), and whether the streamer already
  * vouched for them. Shared by every non-web entry point so a viewer is judged the same however

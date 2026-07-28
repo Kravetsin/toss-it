@@ -22,7 +22,12 @@ import {
 } from '../../db/schema';
 import { config } from '../../config';
 import { roomOf, type PlaybackManager, type QueueState, type RealtimeServer } from '../../playback';
-import { resolvePlayableYoutube, submitChatText, submitResolvedYoutube } from '../../media/submit';
+import {
+  acceptsSends,
+  resolvePlayableYoutube,
+  submitChatText,
+  submitResolvedYoutube,
+} from '../../media/submit';
 import { EventSubClient, type ChatNoticeEvent } from './eventsub';
 import { createBadgeResolver, roleFromBadges, type EventBadge } from './badges';
 import { createCheermoteResolver } from './cheermotes';
@@ -242,16 +247,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
   ): Promise<
     { kind: 'ratelimited'; waitS: number } | { kind: 'channelFull' } | { kind: 'paused' } | null
   > {
-    // "Stop taking sends" has to mean it at every door, or the streamer clearing a queue mid-stream
-    // watches chat refill it. The broadcaster is exempt, same as on the web.
-    if (twitchId !== broadcasterId) {
-      const ch = await db
-        .select({ accepting: channels.accepting })
-        .from(channels)
-        .where(eq(channels.id, channelId))
-        .get();
-      if (ch && !ch.accepting) return { kind: 'paused' };
-    }
+    if (!(await acceptsSends(channelId, broadcasterId, twitchId))) return { kind: 'paused' };
 
     // Matched by the platform id (works for the unregistered) OR the linked account, so it can't
     // be dodged by logging in/out.
