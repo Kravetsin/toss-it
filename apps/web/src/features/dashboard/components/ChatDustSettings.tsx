@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { BOT_LOCALES, type BotLocale, type ChannelSettings } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
@@ -80,6 +81,21 @@ export function ChatDustSettings({
               onSave({ chatBotReplies: botReplies, chatPlayCommand: playCommand, botLocale })
             }
           />
+          {/* The other half of "chat": what the bot SAYS is here, how chat LOOKS is a property of
+              the overlay source. Both screens point at each other, because a streamer looking for
+              "chat settings" has no way of guessing which half they mean. */}
+          <p className="flex items-start gap-1.5 text-xs text-faint">
+            <Icon name="message-circle" size={13} className="mt-px shrink-0" />
+            <span>
+              {t('chatDust.overlayNote')}{' '}
+              <Link
+                to="/dashboard/settings/overlay"
+                className="text-accent underline-offset-2 outline-none hover:underline focus-visible:underline"
+              >
+                {t('settings.overlay')}
+              </Link>
+            </span>
+          </p>
         </div>
       )}
     </Card>

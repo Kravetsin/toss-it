@@ -224,13 +224,14 @@ export function ChatSettings({
         </div>
       )}
       {/* This section is about RENDERING chat; how the bot answers commands is a property of the
-          bot, and lives with it in Integrations. Only the signpost stays here. */}
+          bot, and lives on its own tab. Only the signpost stays here — "chat" is a word that sends
+          people to two different screens, so each has to point at the other. */}
       <p className="flex items-start gap-1.5 text-xs text-faint">
         <Icon name="sparkles" size={13} className="mt-px shrink-0" />
         <span>
           {t('dash.chatBotNote')}{' '}
           <Link
-            to="/dashboard/settings/integrations"
+            to="/dashboard/settings/bot"
             className="text-accent underline-offset-2 outline-none hover:underline focus-visible:underline"
           >
             {t('dash.chatBotLink')}

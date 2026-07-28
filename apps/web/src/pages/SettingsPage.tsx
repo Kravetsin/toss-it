@@ -33,8 +33,8 @@ function Content({ children }: { children: ReactNode }) {
   return <div className="mx-auto max-w-4xl px-4 py-6 lg:px-8">{children}</div>;
 }
 
-type Section = 'overlay' | 'moderation' | 'channel' | 'integrations';
-const SECTIONS: Section[] = ['overlay', 'moderation', 'channel', 'integrations'];
+type Section = 'overlay' | 'moderation' | 'channel' | 'bot' | 'integrations';
+const SECTIONS: Section[] = ['overlay', 'moderation', 'channel', 'bot', 'integrations'];
 
 /**
  * Channel settings (owner-only), split into tabs so each concern is its own screen rather than
@@ -85,6 +85,7 @@ export function SettingsPage() {
     { key: 'overlay', label: t('settings.overlay') },
     { key: 'moderation', label: t('settings.moderation') },
     { key: 'channel', label: t('settings.channel') },
+    { key: 'bot', label: t('settings.bot') },
     { key: 'integrations', label: t('settings.integrations') },
   ];
 
@@ -156,12 +157,28 @@ export function SettingsPage() {
           <ChannelThemeSettings settings={settings} onSave={onSave} />
           <ChannelPageSettings settings={settings} onSave={onSave} />
         </div>
+      ) : section === 'bot' ? (
+        <div className="flex flex-col gap-4">
+          {/* The bot is its own object — an account living in someone's chat, with its own language
+              and its own command set. It is not an integration with an outside service, which is
+              what the tab next door is for. */}
+          {settings.chatBotLogin ? (
+            <>
+              <ChatDustSettings settings={settings} onSave={onSave} />
+              {/* Right under the bot's own toggles: the list answers "what did I just switch on". */}
+              <BotCommandsCard commands={settings.chatCommands} />
+            </>
+          ) : (
+            // No bot for this channel (service down, or the owner never linked Twitch). Listing
+            // commands nothing answers to would be worse than saying so — and an empty tab worse
+            // still. Same sentence the home page uses, so the explanation never forks.
+            <Card>
+              <p className="text-muted">{t('guide.chat.noTwitch')}</p>
+            </Card>
+          )}
+        </div>
       ) : (
         <div className="flex flex-col gap-4">
-          {/* The chat bot sits with the other integrations (it IS one), not under "Channel page". */}
-          <ChatDustSettings settings={settings} onSave={onSave} />
-          {/* Directly under the bot's own toggles: the list answers "what did I just switch on". */}
-          <BotCommandsCard commands={settings.chatCommands} />
           {/* Donations (Donatello) temporarily disabled — unfinished. Re-enable this block plus the
               IntegrationsCard + sendTestDonation imports when ready.
           <IntegrationsCard

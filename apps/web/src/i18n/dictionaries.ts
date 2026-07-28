@@ -195,6 +195,7 @@ export const en: Dict = {
   'settings.overlay': 'Overlay',
   'settings.moderation': 'Moderation',
   'settings.channel': 'Channel page',
+  'settings.bot': 'Bot',
   'settings.integrations': 'Integrations',
   'settings.toggles': 'Toggles',
   'settings.limits': 'Limits',
@@ -227,6 +228,7 @@ export const en: Dict = {
   'chatDust.title': 'Stardust for watching and chatting',
   'chatDust.note':
     'While you are live, viewers earn stardust for every minute watched and every chat message. Viewers without an account get their dust when they first sign in.',
+  'chatDust.overlayNote': 'How the chat itself looks (font, badges, hiding) is set in',
   'chatDust.reading': 'The bot is reading your chat — dust is being earned',
   'chatDust.modHint': 'Type /mod {bot} in your chat — the bot connects within ~5 minutes.',
   'toast.dustClaimed': 'You found {n} stardust!',
@@ -582,7 +584,7 @@ export const en: Dict = {
   'botCmd.queue': 'Where their submission is in the play order.',
   'botCmd.play': 'Order a YouTube link straight from chat.',
   'dash.chatBotNote': 'Bot commands (!balance, !queue) are set up in',
-  'dash.chatBotLink': 'Integrations',
+  'dash.chatBotLink': 'Bot',
   'dash.chatFont': 'Chat font: {n}px',
   'dash.chatFade': 'Hide after: {n}s',
   'dash.chatFadeOff': 'Hide after: off (keep)',
@@ -920,6 +922,7 @@ export const ru: Dict = {
   'settings.overlay': 'Оверлей',
   'settings.moderation': 'Модерация',
   'settings.channel': 'Страница канала',
+  'settings.bot': 'Бот',
   'settings.integrations': 'Интеграции',
   'settings.toggles': 'Переключатели',
   'settings.limits': 'Лимиты',
@@ -952,6 +955,7 @@ export const ru: Dict = {
   'chatDust.title': 'Звёздная пыль за просмотр и чат',
   'chatDust.note':
     'Пока вы в эфире, зрители получают пыль за каждую минуту просмотра и за каждое сообщение в чате. Зрителям без аккаунта пыль копится и выдаётся при первом входе.',
+  'chatDust.overlayNote': 'Как выглядит сам чат (шрифт, бейджи, скрытие) — настраивается в разделе',
   'chatDust.reading': 'Бот читает ваш чат — пыль начисляется',
   'chatDust.modHint':
     'Напишите /mod {bot} в чате своего канала — бот подключится в течение ~5 минут.',
@@ -1307,7 +1311,7 @@ export const ru: Dict = {
   'botCmd.queue': 'Какое место занимает его отправка в очереди показа.',
   'botCmd.play': 'Заказ ссылки с YouTube прямо из чата.',
   'dash.chatBotNote': 'Команды бота (!balance, !очередь) настраиваются в разделе',
-  'dash.chatBotLink': 'Интеграции',
+  'dash.chatBotLink': 'Бот',
   'dash.chatFont': 'Шрифт чата: {n}px',
   'dash.chatFade': 'Скрывать через: {n}с',
   'dash.chatFadeOff': 'Скрывать через: выкл (не скрывать)',
@@ -1646,6 +1650,7 @@ export const uk: Dict = {
   'settings.overlay': 'Оверлей',
   'settings.moderation': 'Модерація',
   'settings.channel': 'Сторінка каналу',
+  'settings.bot': 'Бот',
   'settings.integrations': 'Інтеграції',
   'settings.toggles': 'Перемикачі',
   'settings.limits': 'Ліміти',
@@ -1678,6 +1683,8 @@ export const uk: Dict = {
   'chatDust.title': 'Зоряний пил за перегляд і чат',
   'chatDust.note':
     'Поки ви в ефірі, глядачі отримують пил за кожну хвилину перегляду та за кожне повідомлення в чаті. Глядачам без акаунта пил накопичується і видається при першому вході.',
+  'chatDust.overlayNote':
+    'Як виглядає сам чат (шрифт, бейджі, приховування) — налаштовується в розділі',
   'chatDust.reading': 'Бот читає ваш чат — пил нараховується',
   'chatDust.modHint':
     'Напишіть /mod {bot} у чаті свого каналу — бот підключиться протягом ~5 хвилин.',
@@ -2035,7 +2042,7 @@ export const uk: Dict = {
   'botCmd.queue': 'Яке місце посідає його надсилання в черзі показу.',
   'botCmd.play': 'Замовлення посилання з YouTube просто з чату.',
   'dash.chatBotNote': 'Команди бота (!balance, !черга) налаштовуються в розділі',
-  'dash.chatBotLink': 'Інтеграції',
+  'dash.chatBotLink': 'Бот',
   'dash.chatFont': 'Шрифт чату: {n}px',
   'dash.chatFade': 'Ховати через: {n}с',
   'dash.chatFadeOff': 'Ховати через: вимк (не ховати)',
