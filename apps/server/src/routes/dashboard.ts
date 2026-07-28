@@ -275,7 +275,9 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
       // `login` gates the bot as usable HERE (owner linked); `serviceLogin` is just the bot's public
       // name whenever the service runs — shown so a not-yet-linked owner can pre-mod the bot.
       login: s.connected && twitchIdentity ? s.login : null,
-      reading: deps.twitchChat.readsChannel(ch.id),
+      // Modded, not subscribed-right-now: the bot only holds subscriptions while an overlay is
+      // connected, and a streamer setting things up with OBS closed must not see "not reading".
+      reading: deps.twitchChat.moderatesChannel(ch.id),
       serviceLogin: s.connected ? s.login : null,
     };
   };

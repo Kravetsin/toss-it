@@ -38,9 +38,12 @@ import { getRewardById } from '../channel-points/store';
 import { noticeText } from './notices';
 import { t } from './strings';
 import { bumpMessage, bumpWatch, flushActivity } from './stats';
+import { planSubs } from './subplan';
 import { loadBotCredentials, refreshBotCredentials, type BotCredentials } from './token';
 
 const RECONCILE_INTERVAL_MS = 5 * 60_000;
+/** How long a channel keeps its subscriptions after its last overlay went away (see planSubs). */
+const LIVE_GRACE_MS = 10 * 60_000;
 const STATS_FLUSH_MS = 30_000;
 const LEVEL_TTL_MS = 60_000;
 /** Watch-time granularity: +1 min per poll. Twitch's chatters list lags a couple of
@@ -67,8 +70,9 @@ export interface TwitchChatModule {
   /** Admin (re)connected the bot account — reload credentials and restart. */
   credentialsChanged(): void;
   status(): { connected: boolean; login: string | null };
-  /** Is the bot actually subscribed to this channel's chat right now? */
-  readsChannel(channelId: string): boolean;
+  /** Is the bot modded in this channel's chat — i.e. will it read once the stream is up? Not the
+   *  same as subscribed right now: subscriptions only exist while an overlay is connected. */
+  moderatesChannel(channelId: string): boolean;
   /** Latest "who's in chat now" snapshot for a live channel (Twitch), or null if unknown. */
   liveViewers(channelId: string): { viewers: LiveViewer[]; at: number } | null;
   /** Admin edited the leaderboard exclusions — refresh the collection guard now. */
@@ -95,6 +99,8 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
   let excludedLogins = new Set<string>();
   /** Channel ids whose streamer left the chat overlay enabled. Refreshed on reconcile. */
   let chatEnabledChannels = new Set<string>();
+  /** channel id -> last time an overlay was connected, for the unsubscribe grace. */
+  const lastLiveAt = new Map<string, number>();
   /** Channel ids whose streamer opted the bot into writing answers back to Twitch chat. */
   let botReplyChannels = new Set<string>();
   /** Channel ids whose streamer enabled `!play` (order YouTube links from chat). Off by default. */
@@ -773,7 +779,23 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     ttsCommandChannels = new Set(modded.filter((r) => r.ttsCommand).map((r) => r.id));
     botLocales = new Map(modded.map((r) => [r.id, r.botLocale]));
     channelLogins = new Map(modded.map((r) => [r.id, r.ownerLogin]));
-    client.setBroadcasters(new Set(channelByBroadcaster.keys()));
+    // Subscriptions follow the stream, not the sign-up: a channel with no overlay connected reads
+    // nothing anyway, and the session's 300-subscription budget is better spent on live channels.
+    client.setBroadcasters(
+      planSubs(
+        modded.map((r) => ({
+          channelId: r.id,
+          broadcasterId: r.broadcasterId,
+          chatOverlay: r.chatEnabled,
+        })),
+        {
+          now: Date.now(),
+          live: (channelId) => deps.overlayCount(channelId) > 0,
+          lastLiveAt,
+          graceMs: LIVE_GRACE_MS,
+        },
+      ),
+    );
     await loadExclusions();
   }
 
@@ -781,6 +803,14 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     if (!client) return false;
     for (const [broadcasterId, chId] of channelByBroadcaster) {
       if (chId === channelId) return client.isSubscribed(broadcasterId);
+    }
+    return false;
+  }
+
+  /** Modded and enabled — the channel is in the reconciled set, whether or not it is live now. */
+  function moderatesChannel(channelId: string): boolean {
+    for (const chId of channelByBroadcaster.values()) {
+      if (chId === channelId) return true;
     }
     return false;
   }
@@ -863,7 +893,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     status() {
       return { connected: client != null && creds != null, login: creds?.login ?? null };
     },
-    readsChannel,
+    moderatesChannel,
     liveViewers(channelId) {
       return liveChatters.get(channelId) ?? null;
     },

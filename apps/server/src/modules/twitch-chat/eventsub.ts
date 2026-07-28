@@ -13,14 +13,25 @@ const WELCOME_TIMEOUT_MS = 15_000;
 /** Last-resort self-heal: revive the client if it is dead with nothing scheduled. */
 const WATCHDOG_MS = 30_000;
 
-// All chat-read scoped (user:read:chat), same condition; v1. Ordered: primary first.
-const CHAT_SUB_TYPES = [
-  'channel.chat.message',
+// All chat-read scoped (user:read:chat), same condition; v1.
+/** The stream everything rides on: dust, stats, commands and the chat mirror. */
+const PRIMARY_SUB_TYPE = 'channel.chat.message';
+/** Read only by the chat overlay — events to render and moderation to mirror. A channel without it
+ *  costs one subscription instead of five, and a session only has 300. */
+const OVERLAY_SUB_TYPES = [
   'channel.chat.notification',
   'channel.chat.message_delete',
   'channel.chat.clear_user_messages',
   'channel.chat.clear',
 ] as const;
+
+/** How deep we read a channel: messages only, or the chat overlay's extras on top. */
+export type ChatSubTier = 'core' | 'full';
+
+/** Ordered: primary first, so a failed subscribe gives up before spending quota on the extras. */
+function typesFor(tier: ChatSubTier): string[] {
+  return tier === 'full' ? [PRIMARY_SUB_TYPE, ...OVERLAY_SUB_TYPES] : [PRIMARY_SUB_TYPE];
+}
 
 export interface ChatMessageEvent {
   broadcasterId: string;
@@ -239,9 +250,11 @@ export class EventSubClient {
   /** In-flight connection attempt: created but no session_welcome yet. */
   private pending: WebSocket | null = null;
   private sessionId: string | null = null;
-  private wanted = new Set<string>();
-  /** broadcasterId -> all its subscription ids (chat + moderation), for DELETE on removal. */
-  private subs = new Map<string, string[]>();
+  private wanted = new Map<string, ChatSubTier>();
+  /** broadcasterId -> its live subscriptions (type -> Twitch id), for DELETE on removal. */
+  private subs = new Map<string, { tier: ChatSubTier; ids: Map<string, string> }>();
+  /** Broadcasters with a subscribe in flight, so overlapping reconciles POST once. */
+  private inflight = new Set<string>();
   private keepaliveMs = 60_000;
   private keepaliveTimer: NodeJS.Timeout | null = null;
   private welcomeTimer: NodeJS.Timeout | null = null;
@@ -254,9 +267,10 @@ export class EventSubClient {
 
   start(): void {
     this.stopped = false;
-    this.connect(EVENTSUB_WS_URL);
+    // Deliberately no connect here: Twitch closes a session that creates no subscription within 10s
+    // (close 4003), and nothing is wanted until the first reconcile. setBroadcasters opens it.
     this.watchdogTimer = setInterval(() => {
-      if (!this.ws && !this.pending && !this.reconnectTimer) {
+      if (this.wanted.size > 0 && !this.ws && !this.pending && !this.reconnectTimer) {
         this.deps.log.warn('twitch-chat: watchdog found dead client, reconnecting');
         this.connect(EVENTSUB_WS_URL);
       }
@@ -265,34 +279,55 @@ export class EventSubClient {
 
   stop(): void {
     this.stopped = true;
+    if (this.watchdogTimer) clearInterval(this.watchdogTimer);
+    this.watchdogTimer = null;
+    this.disconnect();
+  }
+
+  /** Drop the socket without scheduling a reconnect. Subscriptions die with the session, so there
+   *  is nothing to DELETE — which is also why this is cheaper than unsubscribing channel by channel. */
+  private disconnect(): void {
     for (const t of [this.keepaliveTimer, this.welcomeTimer, this.reconnectTimer]) {
       if (t) clearTimeout(t);
     }
-    if (this.watchdogTimer) clearInterval(this.watchdogTimer);
     this.keepaliveTimer = null;
     this.welcomeTimer = null;
     this.reconnectTimer = null;
-    this.watchdogTimer = null;
-    this.pending?.close();
-    this.pending = null;
-    this.ws?.close();
+    // Null both before closing: onclose must not read them as live and schedule a reconnect.
+    const [ws, pending] = [this.ws, this.pending];
     this.ws = null;
+    this.pending = null;
     this.sessionId = null;
     this.subs.clear();
+    this.inflight.clear();
+    // Start the next revival at the short delay, however long we sat idle.
+    this.reconnectDelayMs = 1_000;
+    ws?.close();
+    pending?.close();
   }
 
-  /** Reconcile the desired broadcaster set: subscribe added, unsubscribe removed. */
-  setBroadcasters(ids: Set<string>): void {
-    // Diff against actual subscriptions (not the previous wanted set) so a past
-    // failed subscribe is retried on the next reconcile. Duplicate POSTs are
-    // impossible outside a reconcile overlap, and Twitch answers those with 409.
-    const added = [...ids].filter((id) => !this.subs.has(id));
-    const removed = [...new Set([...this.wanted, ...this.subs.keys()])].filter(
-      (id) => !ids.has(id),
+  /** Reconcile the desired broadcasters and their tiers: subscribe what is missing, drop the rest. */
+  setBroadcasters(wanted: Map<string, ChatSubTier>): void {
+    // Diff against actual subscriptions (not the previous wanted set) so a past failed subscribe is
+    // retried on the next reconcile. Overlapping reconciles can ask twice; subscribe() dedupes.
+    const stale = [...wanted].filter(([id, tier]) => {
+      const cur = this.subs.get(id);
+      // A short id map means an earlier subscribe only half-landed — finish it now.
+      return !cur || cur.tier !== tier || cur.ids.size !== typesFor(tier).length;
+    });
+    const removed = [...new Set([...this.wanted.keys(), ...this.subs.keys()])].filter(
+      (id) => !wanted.has(id),
     );
-    this.wanted = new Set(ids);
+    this.wanted = new Map(wanted);
+    // Nobody live: hold no socket at all. Twitch closes a subscription-less session after 10s
+    // (close 4003), so keeping it open would just reconnect in a loop all night.
+    if (this.wanted.size === 0) {
+      this.disconnect();
+      return;
+    }
+    if (!this.ws && !this.pending && !this.reconnectTimer) this.connect(EVENTSUB_WS_URL);
     if (!this.sessionId) return; // welcome handler will subscribe everything wanted
-    for (const id of added) void this.subscribe(id);
+    for (const [id, tier] of stale) void this.subscribe(id, tier);
     for (const id of removed) void this.unsubscribe(id);
   }
 
@@ -308,7 +343,7 @@ export class EventSubClient {
   async verify(): Promise<void> {
     const session = this.sessionId;
     if (!session) return;
-    const confirmed = new Map<string, { ids: string[]; primary: boolean }>();
+    const confirmed = new Map<string, Map<string, string>>();
     let cursor: string | undefined;
     do {
       const url = new URL(HELIX_SUBS_URL);
@@ -329,20 +364,29 @@ export class EventSubClient {
         if (s.transport?.session_id !== session) continue;
         const bid = s.condition?.broadcaster_user_id;
         if (!bid) continue;
-        const entry = confirmed.get(bid) ?? { ids: [], primary: false };
-        entry.ids.push(s.id);
-        if (s.type === 'channel.chat.message') entry.primary = true;
-        confirmed.set(bid, entry);
+        const types = confirmed.get(bid) ?? new Map<string, string>();
+        types.set(s.type, s.id);
+        confirmed.set(bid, types);
       }
       cursor = body.pagination?.cursor;
     } while (cursor);
     if (this.sessionId !== session) return; // session changed mid-verify
-    for (const bid of [...this.subs.keys()]) {
-      if (!confirmed.get(bid)?.primary) {
-        this.subs.delete(bid);
+    // Take Twitch's answer as the view: ghosts disappear, and a subscription we created but lost
+    // track of (a session handoff landing mid-subscribe) is adopted instead of being re-POSTed
+    // forever as a duplicate. An incomplete set needs no special case — the next diff sees it fall
+    // short of its tier and fills the gap.
+    const next = new Map<string, { tier: ChatSubTier; ids: Map<string, string> }>();
+    for (const [bid, ids] of confirmed) {
+      if (ids.has(PRIMARY_SUB_TYPE)) next.set(bid, { tier: ids.size > 1 ? 'full' : 'core', ids });
+    }
+    for (const [bid, entry] of this.subs) {
+      // A subscribe in flight is not on Twitch yet — keep our view of it rather than racing it.
+      if (this.inflight.has(bid)) next.set(bid, entry);
+      else if (!next.has(bid)) {
         this.deps.log.warn({ broadcasterId: bid }, 'twitch-chat: ghost subscription healed');
       }
     }
+    this.subs = next;
   }
 
   private connect(url: string, handoffFrom?: WebSocket): void {
@@ -383,6 +427,9 @@ export class EventSubClient {
       this.welcomeTimer = null;
       this.ws = ws;
       this.sessionId = msg.payload?.session?.id ?? null;
+      // Subscribes still in flight belong to the previous session id, so they neither store their
+      // result nor clear their slot — release the slots here or those channels stay blocked.
+      this.inflight.clear();
       const keepaliveSec = msg.payload?.session?.keepalive_timeout_seconds;
       if (keepaliveSec) this.keepaliveMs = keepaliveSec * 1000;
       this.reconnectDelayMs = 1_000;
@@ -393,7 +440,7 @@ export class EventSubClient {
       } else {
         // Fresh session: old subscriptions are gone, recreate all wanted ones.
         this.subs.clear();
-        for (const id of this.wanted) void this.subscribe(id);
+        for (const [id, tier] of this.wanted) void this.subscribe(id, tier);
       }
       return;
     }
@@ -468,7 +515,8 @@ export class EventSubClient {
         // Drop remnants and retry now — waiting for the next reconcile would leave
         // the channel dark for up to 5 minutes.
         void this.unsubscribe(broadcasterId).then(() => {
-          if (this.wanted.has(broadcasterId)) void this.subscribe(broadcasterId);
+          const tier = this.wanted.get(broadcasterId);
+          if (tier) void this.subscribe(broadcasterId, tier);
         });
       }
     }
@@ -537,22 +585,43 @@ export class EventSubClient {
     return data.data?.[0]?.id ?? null;
   }
 
-  private async subscribe(broadcasterId: string): Promise<void> {
-    if (!this.sessionId || this.subs.has(broadcasterId)) return;
+  /** Bring a broadcaster to `tier`: create what it lacks, delete what the tier no longer wants. */
+  private async subscribe(broadcasterId: string, tier: ChatSubTier): Promise<void> {
+    // Two reconciles can overlap (the 5-minute one firing into an overlay's quick reconcile). Without
+    // this guard the second pass sees an empty id map, POSTs duplicates, gets 409s back, and then
+    // concludes the channel failed — dropping the entry the first pass had just filled in.
+    if (!this.sessionId || this.inflight.has(broadcasterId)) return;
+    this.inflight.add(broadcasterId);
+    const session = this.sessionId;
+    const entry = this.subs.get(broadcasterId) ?? { tier, ids: new Map<string, string>() };
+    const want = typesFor(tier);
     try {
-      const ids: string[] = [];
-      let primaryOk = false;
-      for (const subType of CHAT_SUB_TYPES) {
-        const id = await this.subscribeOne(broadcasterId, subType);
-        if (id) ids.push(id);
-        if (subType === 'channel.chat.message') primaryOk = id != null;
+      // Shed first, so a downgrade frees quota before the next channel spends it.
+      for (const [subType, id] of [...entry.ids]) {
+        if (want.includes(subType)) continue;
+        entry.ids.delete(subType);
+        void this.deleteSub(id);
       }
-      // Only mark subscribed if the message stream itself succeeded — else next
-      // reconcile retries (moderation subs alone are useless).
-      if (primaryOk) this.subs.set(broadcasterId, ids);
-      else for (const id of ids) void this.deleteSub(id);
+      for (const subType of want) {
+        if (entry.ids.has(subType)) continue;
+        const id = await this.subscribeOne(broadcasterId, subType);
+        if (id) entry.ids.set(subType, id);
+      }
+      entry.tier = tier;
+      if (this.sessionId !== session) return; // reconnected mid-subscribe; the welcome redoes it
+      // Only count as subscribed if the message stream itself is up — else next reconcile
+      // retries (the overlay extras alone are useless).
+      if (entry.ids.has(PRIMARY_SUB_TYPE)) this.subs.set(broadcasterId, entry);
+      else {
+        this.subs.delete(broadcasterId);
+        for (const id of entry.ids.values()) void this.deleteSub(id);
+      }
     } catch (err) {
       this.deps.log.warn({ err, broadcasterId }, 'twitch-chat: subscribe error');
+    } finally {
+      // Only our own session's slot: a newer welcome already cleared the set, and freeing it here
+      // would let a second subscribe start while this one's replacement is still running.
+      if (this.sessionId === session) this.inflight.delete(broadcasterId);
     }
   }
 
@@ -562,8 +631,8 @@ export class EventSubClient {
   }
 
   private async unsubscribe(broadcasterId: string): Promise<void> {
-    const ids = this.subs.get(broadcasterId);
+    const entry = this.subs.get(broadcasterId);
     this.subs.delete(broadcasterId);
-    for (const id of ids ?? []) await this.deleteSub(id);
+    for (const id of entry?.ids.values() ?? []) await this.deleteSub(id);
   }
 }
