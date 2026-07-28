@@ -122,6 +122,25 @@ describe('submitResolvedYoutube', () => {
     });
   });
 
+  // Same hole as the paid line: the streamer's own request has to be settleable, or it comes back
+  // from the Twitch backlog on every restart.
+  it('owes a paid self-send too, at zero dust', async () => {
+    const { submissionId } = await submitResolvedYoutube(deps, {
+      channelId,
+      broadcasterId,
+      resolved: resolved(''),
+      senderTwitchId: broadcasterId,
+      senderName: 'streamer',
+      redemption: { rewardId: 'rw_1', redemptionId: 'rd_self_yt', cost: 1000 },
+    });
+    const payout = await db
+      .select()
+      .from(submissionPayouts)
+      .where(eq(submissionPayouts.submissionId, submissionId))
+      .get();
+    expect(payout).toMatchObject({ redemptionId: 'rd_self_yt', dust: 0, mirrorDust: 0 });
+  });
+
   it('airs a whitelisted viewer at once, caption and all', async () => {
     const { twitchId, userId } = await makeViewer();
     await db.insert(whitelist).values({ channelId, userId, createdAt: new Date() });
@@ -199,6 +218,46 @@ describe('submitChatText', () => {
       dust: CHANNEL_POINTS.dustForRequest(1000),
       settledAt: null,
     });
+  });
+
+  /**
+   * The streamer testing their own reward used to get no payout row at all — and that row is the
+   * only thing that tells Twitch the redemption is done. Without it the redemption stayed
+   * UNFULFILLED, the startup backlog sweep read it as never seen, and every deploy put the same
+   * line back on stream.
+   */
+  it('owes a paid self-send too, at zero dust', async () => {
+    const { submissionId } = await submitChatText(deps, {
+      channelId,
+      broadcasterId,
+      text: 'testing my own reward',
+      senderTwitchId: broadcasterId,
+      senderName: 'streamer',
+      redemption: { rewardId: 'rw_1', redemptionId: 'rd_self', cost: 1000 },
+    });
+    const payout = await db
+      .select()
+      .from(submissionPayouts)
+      .where(eq(submissionPayouts.submissionId, submissionId))
+      .get();
+    expect(payout).toMatchObject({ redemptionId: 'rd_self', dust: 0, mirrorDust: 0 });
+  });
+
+  // A free self-send has neither dust nor a verdict to deliver, so it still writes nothing.
+  it('writes no row for a self-send with no points behind it', async () => {
+    const { submissionId } = await submitChatText(deps, {
+      channelId,
+      broadcasterId,
+      text: 'just talking',
+      senderTwitchId: broadcasterId,
+      senderName: 'streamer',
+    });
+    const payout = await db
+      .select()
+      .from(submissionPayouts)
+      .where(eq(submissionPayouts.submissionId, submissionId))
+      .get();
+    expect(payout).toBeUndefined();
   });
 
   // The command refuses an over-long line outright; this is the belt to that pair of braces.

@@ -251,17 +251,21 @@ export async function submitResolvedYoutube(
   });
   // Dust is owed, not paid: a link that never reaches the screen (region-locked, rejected, left in
   // the queue till it expired) pays nobody, and a redemption behind it gets its points back. See
-  // settleSubmission. Self-sends earn nothing at all, so they get no row.
-  if (!isSelfSend) {
+  // settleSubmission. A self-send earns nothing, but when points were spent the row must still
+  // exist: it is what carries the verdict back to Twitch, and what tells the backlog sweep this
+  // redemption was already taken. Only a self-send with nothing behind it has neither.
+  if (!isSelfSend || input.redemption) {
     await db.insert(submissionPayouts).values({
       submissionId: row.id,
       channelId: input.channelId,
       senderPlatformUserId: input.senderTwitchId,
       broadcasterId: input.broadcasterId,
       // !play costs no points, so it lands on the floor of both rates: a plain send's worth, which
-      // is exactly the web mirror it is meant to be.
-      dust: CHANNEL_POINTS.dustForRequest(input.redemption?.cost ?? 0),
-      mirrorDust: CHANNEL_POINTS.dustForRequest(input.redemption?.cost ?? 0, 'owner'),
+      // is exactly the web mirror it is meant to be. Zeroed for a self-send — the floor is not free.
+      dust: isSelfSend ? 0 : CHANNEL_POINTS.dustForRequest(input.redemption?.cost ?? 0),
+      mirrorDust: isSelfSend
+        ? 0
+        : CHANNEL_POINTS.dustForRequest(input.redemption?.cost ?? 0, 'owner'),
       rewardId: input.redemption?.rewardId ?? null,
       redemptionId: input.redemption?.redemptionId ?? null,
       createdAt: new Date(),
@@ -324,16 +328,17 @@ export async function submitChatText(
   };
   await routeSubmission(deps, row);
   // Owed, not paid — same as `!play`: a line the streamer rejects, or one that expires unshown,
-  // earns nobody anything, and the points behind it come back. See settleSubmission.
-  if (!isSelfSend) {
+  // earns nobody anything, and the points behind it come back. See settleSubmission. A paid
+  // self-send still gets its row, for the same reason as above.
+  if (!isSelfSend || input.redemption) {
     const cost = input.redemption?.cost ?? 0;
     await db.insert(submissionPayouts).values({
       submissionId: row.id,
       channelId: input.channelId,
       senderPlatformUserId: input.senderTwitchId,
       broadcasterId: input.broadcasterId,
-      dust: CHANNEL_POINTS.dustForRequest(cost),
-      mirrorDust: CHANNEL_POINTS.dustForRequest(cost, 'owner'),
+      dust: isSelfSend ? 0 : CHANNEL_POINTS.dustForRequest(cost),
+      mirrorDust: isSelfSend ? 0 : CHANNEL_POINTS.dustForRequest(cost, 'owner'),
       rewardId: input.redemption?.rewardId ?? null,
       redemptionId: input.redemption?.redemptionId ?? null,
       createdAt: new Date(),
