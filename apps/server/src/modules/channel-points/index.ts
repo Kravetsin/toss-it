@@ -100,15 +100,15 @@ function youtubeText(lang: string | undefined): { title: string; prompt: string 
 const TTS_TEXT = {
   ru: {
     title: 'Отправить текст на экран (Tossit)',
-    prompt: `Напиши строку — она появится на стриме, а если стример включил озвучку, её ещё и прочитают. До ${CHAT_TEXT_MAX_LEN} символов. Пыль Tossit начислим, когда покажут: каждые ${N} балла = 1 ⭐, минимум ${DUST_POINTS.send} ⭐. Не показали (отказ модератора) — баллы вернутся.`,
+    prompt: `Строка на стриме, с озвучкой если она включена. До ${CHAT_TEXT_MAX_LEN} символов. Пыль начислим, когда покажем: ${N} балла = 1 ⭐, минимум ${DUST_POINTS.send} ⭐. Не показали — баллы вернутся.`,
   },
   uk: {
     title: 'Надіслати текст на екран (Tossit)',
-    prompt: `Напиши рядок — він з'явиться на стрімі, а якщо стример увімкнув озвучення, його ще й прочитають. До ${CHAT_TEXT_MAX_LEN} символів. Пил Tossit нарахуємо, коли покажуть: кожні ${N} бали = 1 ⭐, мінімум ${DUST_POINTS.send} ⭐. Не показали (відмова модератора) — бали повернуться.`,
+    prompt: `Рядок на стрімі, з озвученням якщо воно ввімкнене. До ${CHAT_TEXT_MAX_LEN} символів. Пил нарахуємо, коли покажемо: ${N} бали = 1 ⭐, мінімум ${DUST_POINTS.send} ⭐. Не показали — бали повернуться.`,
   },
   en: {
     title: 'Put a line on stream (Tossit)',
-    prompt: `Write a line — it goes on the stream, and is read aloud if the streamer speaks messages. Up to ${CHAT_TEXT_MAX_LEN} characters. Tossit stardust is credited once it shows: every ${N} points = 1 ⭐, at least ${DUST_POINTS.send} ⭐. If it never shows (moderator said no), your points come back.`,
+    prompt: `A line on stream, read aloud if the streamer has that on. Up to ${CHAT_TEXT_MAX_LEN} characters. Stardust once it shows: ${N} points = 1 ⭐, at least ${DUST_POINTS.send} ⭐. Never shows — points come back.`,
   },
 } as const;
 
@@ -118,6 +118,24 @@ function ttsText(lang: string | undefined): { title: string; prompt: string } {
 
 /** The independent rewards Tossit can own on a channel; each is created/removed on its own. */
 export type RewardKind = 'stardust' | 'youtube' | 'tts';
+
+/**
+ * What Twitch will store for a reward: title ≤45 chars, prompt ≤200. Longer is rejected with a
+ * plain 400, which our create path reads as "already exists" — so an overlong prompt looks like a
+ * reward that mysteriously refuses to be created. See the test that measures every locale.
+ */
+export const REWARD_TITLE_MAX = 45;
+export const REWARD_PROMPT_MAX = 200;
+
+/** Reward title/prompt for a kind, in the streamer's language. */
+export function rewardTextFor(
+  kind: RewardKind,
+  lang: string | undefined,
+): { title: string; prompt: string } {
+  if (kind === 'youtube') return youtubeText(lang);
+  if (kind === 'tts') return ttsText(lang);
+  return rewardText(lang);
+}
 
 export interface ChannelPointsModule {
   start(): void;
@@ -532,16 +550,6 @@ export function createChannelPointsModule(deps: {
       ),
   });
 
-  /** Reward title/prompt for a kind, in the streamer's language. */
-  function rewardTextFor(
-    kind: RewardKind,
-    lang: string | undefined,
-  ): { title: string; prompt: string } {
-    if (kind === 'youtube') return youtubeText(lang);
-    if (kind === 'tts') return ttsText(lang);
-    return rewardText(lang);
-  }
-
   /**
    * Create a reward of `kind` on Twitch, or recover its id if it already exists (idempotent). `run`
    * executes a Helix call with a valid token — a fresh OAuth token during connect, or authorized()
@@ -564,12 +572,19 @@ export function createChannelPointsModule(deps: {
       return ((await res.json()) as { data?: { id: string }[] }).data?.[0]?.id ?? null;
     }
     if (res?.status === 400) {
-      // Already exists — recover its id by exact title (both kinds carry "(Tossit)").
+      // Usually "already exists" — recover its id by exact title (every title carries "(Tossit)").
       const listRes = await run((token) => getManageableRewards(token, broadcasterId));
       if (listRes?.ok) {
         const list = (await listRes.json()) as { data?: { id: string; title: string }[] };
-        return list.data?.find((r) => r.title === text.title)?.id ?? null;
+        const found = list.data?.find((r) => r.title === text.title)?.id;
+        if (found) return found;
       }
+      // No reward by that title, so the 400 meant something else — copy over Twitch's length caps
+      // being the usual culprit. Say so, or this looks like a reward that refuses to be created.
+      log.warn(
+        { channelId, kind, title: text.title.length, prompt: text.prompt.length },
+        'channel-points: create rejected and no existing reward matches — check the copy limits',
+      );
       return null;
     }
     const body = res ? await res.text() : 'no response (token decrypt/refresh failed)';
