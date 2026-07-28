@@ -24,6 +24,7 @@ import {
   getManageableRewards,
   getRedemptions,
 } from './helix';
+import { sweepVerdict } from './sweep';
 import { refreshStreamerCreds, type StreamerCreds } from './token';
 import {
   type ConnectionRecord,
@@ -466,6 +467,8 @@ export function createChannelPointsModule(deps: {
     for (const reward of await getRewardsByChannel(channelId)) {
       let after: string | undefined;
       let total = 0;
+      let stale = 0;
+      let capped = 0;
       do {
         const res = await authorized(channelId, (token) =>
           getRedemptions(token, conn.broadcasterId, reward.rewardId, 'UNFULFILLED', after),
@@ -478,6 +481,7 @@ export function createChannelPointsModule(deps: {
             user_name?: string;
             user_login?: string;
             user_input?: string;
+            redeemed_at?: string;
             reward?: { cost?: number };
           }[];
           pagination?: { cursor?: string };
@@ -486,6 +490,20 @@ export function createChannelPointsModule(deps: {
           // Both request kinds stay UNFULFILLED while queued, so the backlog holds ones we already
           // took (a payout row exists — skip) next to ones we never saw.
           if (reward.kind !== 'stardust' && (await isRedemptionKnown(r.id))) continue;
+          const verdict = sweepVerdict({
+            queues: reward.kind !== 'stardust',
+            redeemedAt: r.redeemed_at,
+            takenSoFar: total,
+            now: Date.now(),
+          });
+          if (verdict === 'stale') {
+            stale += 1;
+            continue;
+          }
+          if (verdict === 'capped') {
+            capped += 1;
+            continue;
+          }
           const ev = {
             broadcasterId: conn.broadcasterId,
             redemptionId: r.id,
@@ -504,6 +522,14 @@ export function createChannelPointsModule(deps: {
       } while (after);
       if (total > 0)
         log.info({ channelId, rewardId: reward.rewardId, total }, 'channel-points: swept backlog');
+      // Never silent: what the bounds refused stays pending on Twitch, and the streamer can only
+      // resolve by hand what they know about.
+      if (stale > 0 || capped > 0) {
+        log.warn(
+          { channelId, rewardId: reward.rewardId, stale, capped },
+          'channel-points: backlog left for the streamer to resolve',
+        );
+      }
     }
   }
 

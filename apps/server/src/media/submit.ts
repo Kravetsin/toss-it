@@ -31,25 +31,32 @@ import {
  */
 export async function createYoutubeSubmission(
   deps: { playback: PlaybackManager; io: RealtimeServer },
-  input: {
-    channelId: string;
-    senderUserId: string | null;
-    senderName: string;
-    /** Sender's platform identity, which a redemption knows even when senderUserId is null. */
-    senderPlatform?: string;
-    senderPlatformUserId?: string;
-    parsed: ParsedYoutube;
-    /** Caption (leftover text) or the video title. */
-    title: string | undefined;
-    /** Real video length (ms) if known from the API — for display; 0 = unknown (shows as ∞). */
-    durationMs?: number;
-    /** Music vs video (compact player vs full-screen). Defaults to the parsed URL's own signal. */
-    isMusic?: boolean;
-    autoApproved: boolean;
-    /** The broadcaster requested their own video — plays fine, but excluded from stats. */
-    isSelfSend?: boolean;
-  },
+  input: YoutubeSubmissionInput,
 ): Promise<SubmissionRow> {
+  return routeSubmission(deps, buildYoutubeSubmission(input));
+}
+
+interface YoutubeSubmissionInput {
+  channelId: string;
+  senderUserId: string | null;
+  senderName: string;
+  /** Sender's platform identity, which a redemption knows even when senderUserId is null. */
+  senderPlatform?: string;
+  senderPlatformUserId?: string;
+  parsed: ParsedYoutube;
+  /** Caption (leftover text) or the video title. */
+  title: string | undefined;
+  /** Real video length (ms) if known from the API — for display; 0 = unknown (shows as ∞). */
+  durationMs?: number;
+  /** Music vs video (compact player vs full-screen). Defaults to the parsed URL's own signal. */
+  isMusic?: boolean;
+  autoApproved: boolean;
+  /** The broadcaster requested their own video — plays fine, but excluded from stats. */
+  isSelfSend?: boolean;
+}
+
+/** The row on its own, stored by nobody yet: whatever is owed on it gets written first. */
+function buildYoutubeSubmission(input: YoutubeSubmissionInput): SubmissionRow {
   const now = new Date();
   const row: SubmissionRow = {
     id: crypto.randomUUID(),
@@ -77,7 +84,7 @@ export async function createYoutubeSubmission(
     ttsVoice: null,
     isSelfSend: input.isSelfSend ?? false,
   };
-  return routeSubmission(deps, row);
+  return row;
 }
 
 /** Store a submission and send it where its status says: the play queue, or the moderation feed. */
@@ -234,7 +241,7 @@ export async function submitResolvedYoutube(
   })
     ? undefined
     : parsed.caption;
-  const row = await createYoutubeSubmission(deps, {
+  const row = buildYoutubeSubmission({
     channelId: input.channelId,
     senderUserId: userId,
     senderName: input.senderName,
@@ -254,6 +261,9 @@ export async function submitResolvedYoutube(
   // settleSubmission. A self-send earns nothing, but when points were spent the row must still
   // exist: it is what carries the verdict back to Twitch, and what tells the backlog sweep this
   // redemption was already taken. Only a self-send with nothing behind it has neither.
+  //
+  // Written BEFORE the row is stored and queued: the unique index on redemptionId is what makes one
+  // redemption twice on screen impossible, and it can only refuse a duplicate that has not aired.
   if (!isSelfSend || input.redemption) {
     await db.insert(submissionPayouts).values({
       submissionId: row.id,
@@ -271,6 +281,7 @@ export async function submitResolvedYoutube(
       createdAt: new Date(),
     });
   }
+  await routeSubmission(deps, row);
   return { autoApproved, submissionId: row.id };
 }
 
@@ -326,10 +337,10 @@ export async function submitChatText(
     ttsVoice: null,
     isSelfSend,
   };
-  await routeSubmission(deps, row);
   // Owed, not paid — same as `!play`: a line the streamer rejects, or one that expires unshown,
   // earns nobody anything, and the points behind it come back. See settleSubmission. A paid
-  // self-send still gets its row, for the same reason as above.
+  // self-send still gets its row, and it is written before queueing, both for the same reasons as
+  // in submitResolvedYoutube.
   if (!isSelfSend || input.redemption) {
     const cost = input.redemption?.cost ?? 0;
     await db.insert(submissionPayouts).values({
@@ -344,5 +355,6 @@ export async function submitChatText(
       createdAt: new Date(),
     });
   }
+  await routeSubmission(deps, row);
   return { autoApproved, submissionId: row.id };
 }
