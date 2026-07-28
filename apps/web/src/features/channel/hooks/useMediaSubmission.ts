@@ -65,16 +65,25 @@ export function useMediaSubmission(
   const previewUrl = useFilePreview(file);
 
   // On load/refresh, surface any remaining cooldown proactively (server knows the last send),
-  // instead of only revealing it when the next send is rejected.
+  // instead of only revealing it when the next send is rejected. Re-synced when the tab comes
+  // back, since a long-backgrounded tab can't be trusted to have tracked the clock itself.
   useEffect(() => {
     let cancelled = false;
-    void getChannelCooldown(login).then(({ cooldownSec: sec, windowSec }) => {
-      if (cancelled) return;
-      if (windowSec > 0) setCooldownWindowSec(windowSec);
-      if (sec > 0) setCooldownSec(sec);
-    });
+    const sync = () => {
+      void getChannelCooldown(login).then(({ cooldownSec: sec, windowSec }) => {
+        if (cancelled) return;
+        if (windowSec > 0) setCooldownWindowSec(windowSec);
+        setCooldownSec(sec);
+      });
+    };
+    sync();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') sync();
+    };
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
       cancelled = true;
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, [login, setCooldownSec]);
 
