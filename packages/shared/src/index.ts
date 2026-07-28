@@ -16,6 +16,12 @@ export function giphyGifUrl(id: string, rendition = 'giphy.gif'): string {
 /** Max message/caption length; validated on both client and server. */
 export const TEXT_MAX_LEN = 280;
 
+/**
+ * Shorter cap for `!tts` from chat. The website's 280 is read out in roughly half a minute, which
+ * is a lot of airtime to hand out for free — a chat line pays nothing, so it has to be brief.
+ */
+export const CHAT_TEXT_MAX_LEN = 180;
+
 /** One of 9 preset anchors for media placement in overlay (3x3 grid order). */
 export type OverlayPosition =
   | 'top-left'
@@ -669,6 +675,8 @@ export interface ChannelSettings {
   chatBotReplies: boolean;
   /** Let viewers order YouTube links from chat with `!play <link>` (no channel points needed). */
   chatPlayCommand: boolean;
+  /** Let viewers put a line on stream with `!tts <text>` — read aloud when the channel speaks messages. */
+  chatTtsCommand: boolean;
   /** Language the bot answers in. Separate from the dashboard's own language: the streamer may
    *  read the UI in one language and run a chat in another. */
   botLocale: BotLocale;

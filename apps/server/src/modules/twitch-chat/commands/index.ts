@@ -3,6 +3,7 @@ import { balance } from './balance';
 import { play } from './play';
 import { queue } from './queue';
 import { tossit } from './tossit';
+import { tts } from './tts';
 import { xp } from './xp';
 import type { ChannelCommandState, ChatCommand, CommandContext, CommandDeps } from './types';
 
@@ -10,7 +11,7 @@ export type { ChannelCommandState, ChatCommand, CommandContext, CommandDeps } fr
 
 /** The registry: one entry per command file in this folder. Order is what `!tossit` lists, so it
  *  runs from the one a newcomer needs first to the one only a regular asks for. */
-const COMMANDS: ChatCommand[] = [tossit, balance, xp, queue, play];
+const COMMANDS: ChatCommand[] = [tossit, balance, xp, queue, play, tts];
 
 /** Triggers a viewer can actually use in this channel — what `!tossit` advertises. */
 export function availableTriggers(state: ChannelCommandState): string[] {
@@ -62,16 +63,21 @@ const lastByChannel = new Map<string, number>();
 /** Leading `!word`; letters cover non-Latin triggers, since chat is not English-only. */
 const TRIGGER_RE = /^!([\p{L}\d_]{1,24})(?:\s+|$)/u;
 
-/** Does this message address one of our commands? Cheap and synchronous (no cooldown, no DB) —
- *  the mirror needs the answer before it decides whether to show the message at all. */
-export function isCommand(fragments: ChatFragment[]): boolean {
+/** Does this message address one of our commands, in THIS channel? Cheap and synchronous (no
+ *  cooldown, no DB) — the mirror needs the answer before it decides whether to show the message at
+ *  all. Channel state matters: a trigger the streamer never enabled gets no answer card, so
+ *  swallowing it would just lose the message. Common triggers like `!say` may well belong to
+ *  another bot there. */
+export function isCommand(fragments: ChatFragment[], state: ChannelCommandState): boolean {
   const match = TRIGGER_RE.exec(
     fragments
       .map((f) => f.text)
       .join('')
       .trim(),
   );
-  return match !== null && byTrigger.has(match[1]!.toLowerCase());
+  if (!match) return false;
+  const cmd = byTrigger.get(match[1]!.toLowerCase());
+  return !!cmd && (cmd.available?.(state) ?? true);
 }
 
 function onCooldown(channelId: string, twitchId: string, command: string, now: number): boolean {

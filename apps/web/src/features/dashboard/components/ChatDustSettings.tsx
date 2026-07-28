@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BOT_LOCALES, type BotLocale, type ChannelSettings } from '@tmw/shared';
+import { BOT_LOCALES, CHAT_TEXT_MAX_LEN, type BotLocale, type ChannelSettings } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
 import { Card, Select, Switch } from '@/ui';
@@ -24,6 +24,7 @@ export function ChatDustSettings({
   const { t } = useI18n();
   const [botReplies, setBotReplies] = useState(settings.chatBotReplies);
   const [playCommand, setPlayCommand] = useState(settings.chatPlayCommand);
+  const [ttsCommand, setTtsCommand] = useState(settings.chatTtsCommand);
   const [botLocale, setBotLocale] = useState<BotLocale>(settings.botLocale);
   if (!settings.chatBotLogin) return null;
 
@@ -65,6 +66,15 @@ export function ChatDustSettings({
             checked={playCommand}
             onChange={setPlayCommand}
           />
+          {/* Whether the line is spoken or only shown is the channel's TTS setting; whether it waits
+              for review is the text auto-approve one. Both are named in the note. */}
+          <Switch
+            icon="volume-2"
+            label={t('dash.chatTtsCommand')}
+            description={t('dash.chatTtsCommandNote', { n: CHAT_TEXT_MAX_LEN })}
+            checked={ttsCommand}
+            onChange={setTtsCommand}
+          />
           <div className="flex flex-col gap-1.5">
             {/* Select renders `label` as aria only, so the visible caption is ours to draw. */}
             <span className="label-mono text-faint">{t('dash.botLocale')}</span>
@@ -78,7 +88,12 @@ export function ChatDustSettings({
           </div>
           <SaveRow
             onClick={() =>
-              onSave({ chatBotReplies: botReplies, chatPlayCommand: playCommand, botLocale })
+              onSave({
+                chatBotReplies: botReplies,
+                chatPlayCommand: playCommand,
+                chatTtsCommand: ttsCommand,
+                botLocale,
+              })
             }
           />
           {/* The other half of "chat": what the bot SAYS is here, how chat LOOKS is a property of

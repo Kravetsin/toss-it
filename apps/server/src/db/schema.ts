@@ -122,6 +122,12 @@ export const channels = sqliteTable('channels', {
    * deliberately. Same pipeline, rate limit and auto-approve rules as a web/channel-points send.
    */
   chatPlayCommand: integer('chat_play_command', { mode: 'boolean' }).notNull().default(false),
+  /**
+   * Let viewers put a line on stream with `!tts <text>`. Same pipeline and limits as `!play`, and
+   * the same auto-approve rules — so whether it airs at once or waits for review is decided by
+   * `autoApproveText`, and whether it is spoken by `ttsMessage`.
+   */
+  chatTtsCommand: integer('chat_tts_command', { mode: 'boolean' }).notNull().default(false),
   /** Language the bot answers commands in. Seeded from the dashboard's language at channel
    *  creation, then owned by the streamer — the UI language and the chat language differ often. */
   botLocale: text('bot_locale').$type<BotLocale>().notNull().default('ru'),

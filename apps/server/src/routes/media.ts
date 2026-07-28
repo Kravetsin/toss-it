@@ -40,7 +40,7 @@ import {
   YT_MUSIC_CATEGORY_ID,
 } from '../media/youtube';
 import { isGiphyId } from '../media/giphy';
-import { dropsCaption } from '../media/submit';
+import { dropsCaption, textDurationMs } from '../media/submit';
 import { isAdmin, requireUser } from '../auth';
 import { speakableText, synthesize } from '../tts';
 import {
@@ -351,11 +351,10 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
               (ytIsMusic ? channel.autoApproveYoutubeMusic : channel.autoApproveYoutubeVideo) &&
               withinCap;
           } else {
-            // Text-only: no transcode. Display time scales with reading time but
-            // caps at 15s (enough for 280 chars); longer TTS finishes off-screen.
+            // Text-only: no transcode, and the same on-screen time a chat line gets.
             kind = 'text';
             outMime = 'text/plain';
-            durationMs = Math.min(15_000, Math.max(4000, 4000 + 60 * text!.length));
+            durationMs = textDurationMs(text!);
           }
         }
 

@@ -581,6 +581,9 @@ export const en: Dict = {
   'dash.chatPlayCommand': 'Let viewers order tracks with !play',
   'dash.chatPlayCommandNote':
     'No channel points needed: !play <link> queues a YouTube video, same limits (1/min) as a site send.',
+  'dash.chatTtsCommand': 'Let viewers put a line on stream with !tts',
+  'dash.chatTtsCommandNote':
+    '!tts <text> sends up to {n} characters to the screen, same limits (1/min) as a site send. Read aloud only if you speak messages; goes for review unless you auto-approve text.',
   'dash.botLocale': 'Bot answer language',
   'dash.botLocale.en': 'English',
   'dash.botLocale.ru': 'Russian',
@@ -597,6 +600,7 @@ export const en: Dict = {
   'botCmd.xp': 'Their level and XP on your channel.',
   'botCmd.queue': 'Where their submission is in the play order.',
   'botCmd.play': 'Order a YouTube link straight from chat.',
+  'botCmd.tts': 'Put a line on stream without leaving chat.',
   'dash.chatBotNote': 'Bot commands (!balance, !queue) are set up in',
   'dash.chatBotLink': 'Bot',
   'dash.chatFont': 'Chat font: {n}px',
@@ -1324,6 +1328,9 @@ export const ru: Dict = {
   'dash.chatPlayCommand': 'Разрешить заказ треков командой !play',
   'dash.chatPlayCommandNote':
     'Без баллов канала: !play <ссылка> ставит видео с YouTube в очередь, лимит тот же (1/мин), что и при отправке с сайта.',
+  'dash.chatTtsCommand': 'Разрешить текст на экран командой !tts',
+  'dash.chatTtsCommandNote':
+    '!tts <текст> отправляет на экран до {n} символов, лимит тот же (1/мин), что и при отправке с сайта. Озвучится, только если у вас включено чтение сообщений; уйдёт на модерацию, если не включён автопропуск текста.',
   'dash.botLocale': 'Язык ответов бота',
   'dash.botLocale.en': 'Английский',
   'dash.botLocale.ru': 'Русский',
@@ -1338,6 +1345,7 @@ export const ru: Dict = {
   'botCmd.xp': 'Его уровень и опыт на твоём канале.',
   'botCmd.queue': 'Какое место занимает его отправка в очереди показа.',
   'botCmd.play': 'Заказ ссылки с YouTube прямо из чата.',
+  'botCmd.tts': 'Текст на экран прямо из чата, без захода на сайт.',
   'dash.chatBotNote': 'Команды бота (!balance, !очередь) настраиваются в разделе',
   'dash.chatBotLink': 'Бот',
   'dash.chatFont': 'Шрифт чата: {n}px',
@@ -2069,6 +2077,9 @@ export const uk: Dict = {
   'dash.chatPlayCommand': 'Дозволити замовлення треків командою !play',
   'dash.chatPlayCommandNote':
     'Без балів каналу: !play <посилання> ставить відео з YouTube у чергу, ліміт той самий (1/хв), що й при надсиланні із сайту.',
+  'dash.chatTtsCommand': 'Дозволити текст на екран командою !tts',
+  'dash.chatTtsCommandNote':
+    '!tts <текст> надсилає на екран до {n} символів, ліміт той самий (1/хв), що й при надсиланні із сайту. Озвучиться, лише якщо у вас увімкнено читання повідомлень; піде на модерацію, якщо не ввімкнено автопропуск тексту.',
   'dash.botLocale': 'Мова відповідей бота',
   'dash.botLocale.en': 'Англійська',
   'dash.botLocale.ru': 'Російська',
@@ -2083,6 +2094,7 @@ export const uk: Dict = {
   'botCmd.xp': 'Його рівень і досвід на твоєму каналі.',
   'botCmd.queue': 'Яке місце посідає його надсилання в черзі показу.',
   'botCmd.play': 'Замовлення посилання з YouTube просто з чату.',
+  'botCmd.tts': 'Текст на екран просто з чату, без заходу на сайт.',
   'dash.chatBotNote': 'Команди бота (!balance, !черга) налаштовуються в розділі',
   'dash.chatBotLink': 'Бот',
   'dash.chatFont': 'Шрифт чату: {n}px',

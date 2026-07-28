@@ -23,7 +23,22 @@ export type PlayResult =
   | { kind: 'disabled' }
   | { kind: 'ratelimited'; waitS: number }
   | { kind: 'channelFull' }
+  /** The streamer switched submissions off — every door says so, not just the website. */
+  | { kind: 'paused' }
   | { kind: 'unplayable' }
+  | { kind: 'queued' }
+  | { kind: 'moderation' };
+
+/**
+ * Outcome of a `!tts` line. Mostly the same shapes as a link request, because it is the same
+ * pipeline — `tooLong` is the one thing only text can run into.
+ */
+export type SayResult =
+  | { kind: 'disabled' }
+  | { kind: 'ratelimited'; waitS: number }
+  | { kind: 'channelFull' }
+  | { kind: 'paused' }
+  | { kind: 'tooLong'; max: number }
   | { kind: 'queued' }
   | { kind: 'moderation' };
 
@@ -32,6 +47,8 @@ export type PlayResult =
 export interface ChannelCommandState {
   /** `!play` is off by default: ordering media from chat is a separate yes from /mod'ding the bot. */
   playEnabled: boolean;
+  /** `!tts` — same reasoning, and it puts the viewer's own words on the stream. */
+  ttsEnabled: boolean;
 }
 
 /** Live state a command cannot read from the DB, injected by the twitch-chat module. */
@@ -54,6 +71,14 @@ export interface CommandDeps {
     name: string;
     link: string;
   }): Promise<PlayResult>;
+  /** Put a line on stream (`!tts`). Same ownership split as `play`: the module holds the gate, the
+   *  limits and the submission; the command only turns the result into a line. */
+  say(input: {
+    channelId: string;
+    twitchId: string;
+    name: string;
+    text: string;
+  }): Promise<SayResult>;
 }
 
 /** One command = one file in this folder + one entry in the registry (see ./index.ts). */

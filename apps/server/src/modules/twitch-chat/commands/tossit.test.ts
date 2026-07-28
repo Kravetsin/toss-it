@@ -17,12 +17,13 @@ describe('!tossit', () => {
     locale: 'ru',
   });
 
-  const deps = (playEnabled: boolean): CommandDeps => ({
+  const deps = (playEnabled: boolean, ttsEnabled = false): CommandDeps => ({
     queueState: () => null,
     xpFor: async () => 0,
     play: async () => ({ kind: 'disabled' }),
+    say: async () => ({ kind: 'disabled' }),
     channelUrl: () => 'toss-it.org/c/kravets',
-    commandState: () => ({ playEnabled }),
+    commandState: () => ({ playEnabled, ttsEnabled }),
   });
 
   it('lists the other commands and points at the channel page', async () => {
@@ -39,6 +40,13 @@ describe('!tossit', () => {
     const on = await tossit.run(ctx(), deps(true));
     expect(off?.text).not.toContain('!play');
     expect(on?.text).toContain('!play');
+  });
+
+  it('advertises !tts only where the streamer turned it on', async () => {
+    const off = await tossit.run(ctx(), deps(false, false));
+    const on = await tossit.run(ctx(), deps(false, true));
+    expect(off?.text).not.toContain('!tts');
+    expect(on?.text).toContain('!tts');
   });
 
   it('never lists itself — the viewer just typed it', async () => {

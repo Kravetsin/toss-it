@@ -1,6 +1,7 @@
 import { and, count, desc, eq, gt, or, sql } from 'drizzle-orm';
 import type { FastifyBaseLogger } from 'fastify';
 import {
+  CHAT_TEXT_MAX_LEN,
   DUST_POINTS,
   LEVEL_POINTS,
   xpToLevel,
@@ -21,13 +22,13 @@ import {
 } from '../../db/schema';
 import { config } from '../../config';
 import { roomOf, type PlaybackManager, type QueueState, type RealtimeServer } from '../../playback';
-import { resolvePlayableYoutube, submitResolvedYoutube } from '../../media/submit';
+import { resolvePlayableYoutube, submitChatText, submitResolvedYoutube } from '../../media/submit';
 import { EventSubClient, type ChatNoticeEvent } from './eventsub';
 import { createBadgeResolver, roleFromBadges, type EventBadge } from './badges';
 import { createCheermoteResolver } from './cheermotes';
 import { awardDust } from './accrual';
 import { isCommand, runCommand, toChatText } from './commands/index';
-import type { PlayResult } from './commands/types';
+import type { ChannelCommandState, PlayResult, SayResult } from './commands/types';
 import { getRewardById } from '../channel-points/store';
 import { noticeText } from './notices';
 import { t } from './strings';
@@ -93,6 +94,8 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
   let botReplyChannels = new Set<string>();
   /** Channel ids whose streamer enabled `!play` (order YouTube links from chat). Off by default. */
   let playCommandChannels = new Set<string>();
+  /** Channel ids whose streamer enabled `!tts` (put a line on stream from chat). Off by default. */
+  let ttsCommandChannels = new Set<string>();
   /** Per-channel bot answer language. Refreshed on reconcile; missing = the column default. */
   let botLocales = new Map<string, BotLocale>();
   /** Channel id -> owner login, the /c/<login> the `!tossit` answer points at. */
@@ -215,10 +218,84 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
 
   /**
    * Back the `!play` command: order a YouTube link from chat with the exact same guardrails a web
-   * send has. Disabled unless the streamer opted in; then the per-viewer 1/min cooldown and the
-   * channel's hourly ceiling (both from config.moderation, matched to what media.ts enforces), then
-   * the shared submission pipeline (music/auto-approve/dust). The command turns the result into a line.
+   * send has — the shared limits, then the shared submission pipeline (music/auto-approve/dust).
+   * Disabled unless the streamer opted in. The command turns the result into a line.
    */
+  /** This channel's command switches — what `available()` and the mirror both ask about. */
+  function commandStateOf(channelId: string): ChannelCommandState {
+    return {
+      playEnabled: playCommandChannels.has(channelId),
+      ttsEnabled: ttsCommandChannels.has(channelId),
+    };
+  }
+
+  /**
+   * Every gate a send passes, whichever door it came through: the channel's own pause switch, the
+   * per-viewer cooldown and the hourly ceiling (the latter two from config.moderation, matched to
+   * what media.ts enforces). Null = clear to send. Shared by the chat commands so a second one
+   * cannot quietly become the cheap way past the first one's limits.
+   */
+  async function submitLimits(
+    channelId: string,
+    broadcasterId: string,
+    twitchId: string,
+  ): Promise<
+    { kind: 'ratelimited'; waitS: number } | { kind: 'channelFull' } | { kind: 'paused' } | null
+  > {
+    // "Stop taking sends" has to mean it at every door, or the streamer clearing a queue mid-stream
+    // watches chat refill it. The broadcaster is exempt, same as on the web.
+    if (twitchId !== broadcasterId) {
+      const ch = await db
+        .select({ accepting: channels.accepting })
+        .from(channels)
+        .where(eq(channels.id, channelId))
+        .get();
+      if (ch && !ch.accepting) return { kind: 'paused' };
+    }
+
+    // Matched by the platform id (works for the unregistered) OR the linked account, so it can't
+    // be dodged by logging in/out.
+    const identity = await db
+      .select({ userId: linkedIdentities.userId })
+      .from(linkedIdentities)
+      .where(
+        and(eq(linkedIdentities.provider, 'twitch'), eq(linkedIdentities.providerId, twitchId)),
+      )
+      .get();
+    const mine = identity
+      ? or(
+          eq(submissions.senderPlatformUserId, twitchId),
+          eq(submissions.senderUserId, identity.userId),
+        )
+      : eq(submissions.senderPlatformUserId, twitchId);
+    const last = await db
+      .select({ createdAt: submissions.createdAt })
+      .from(submissions)
+      .where(and(eq(submissions.channelId, channelId), mine))
+      .orderBy(desc(submissions.createdAt))
+      .get();
+    const cd = config.moderation.viewerCooldownMs;
+    if (last) {
+      const elapsed = Date.now() - last.createdAt.getTime();
+      if (elapsed < cd) return { kind: 'ratelimited', waitS: Math.ceil((cd - elapsed) / 1000) };
+    }
+
+    // Flood/raid backstop, same as the web path (owner tests excluded).
+    const hourly = await db
+      .select({ n: count() })
+      .from(submissions)
+      .where(
+        and(
+          eq(submissions.channelId, channelId),
+          gt(submissions.createdAt, new Date(Date.now() - 3_600_000)),
+          excludeSelfSends,
+        ),
+      )
+      .get();
+    if ((hourly?.n ?? 0) >= config.moderation.channelHourlyLimit) return { kind: 'channelFull' };
+    return null;
+  }
+
   async function playFromChat(input: {
     channelId: string;
     twitchId: string;
@@ -229,49 +306,8 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     const broadcasterId = broadcasterOf(input.channelId);
     if (!broadcasterId) return { kind: 'disabled' }; // not a channel we currently serve
 
-    // Per-viewer cooldown: matched by the platform id (works for the unregistered) OR the linked
-    // account, so it can't be dodged by logging in/out. Same window as a web send.
-    const identity = await db
-      .select({ userId: linkedIdentities.userId })
-      .from(linkedIdentities)
-      .where(
-        and(
-          eq(linkedIdentities.provider, 'twitch'),
-          eq(linkedIdentities.providerId, input.twitchId),
-        ),
-      )
-      .get();
-    const mine = identity
-      ? or(
-          eq(submissions.senderPlatformUserId, input.twitchId),
-          eq(submissions.senderUserId, identity.userId),
-        )
-      : eq(submissions.senderPlatformUserId, input.twitchId);
-    const last = await db
-      .select({ createdAt: submissions.createdAt })
-      .from(submissions)
-      .where(and(eq(submissions.channelId, input.channelId), mine))
-      .orderBy(desc(submissions.createdAt))
-      .get();
-    const cd = config.moderation.viewerCooldownMs;
-    if (last) {
-      const elapsed = Date.now() - last.createdAt.getTime();
-      if (elapsed < cd) return { kind: 'ratelimited', waitS: Math.ceil((cd - elapsed) / 1000) };
-    }
-
-    // Channel hourly ceiling — the same flood/raid backstop the web path uses (owner tests excluded).
-    const hourly = await db
-      .select({ n: count() })
-      .from(submissions)
-      .where(
-        and(
-          eq(submissions.channelId, input.channelId),
-          gt(submissions.createdAt, new Date(Date.now() - 3_600_000)),
-          excludeSelfSends,
-        ),
-      )
-      .get();
-    if ((hourly?.n ?? 0) >= config.moderation.channelHourlyLimit) return { kind: 'channelFull' };
+    const limited = await submitLimits(input.channelId, broadcasterId, input.twitchId);
+    if (limited) return limited;
 
     const resolved = await resolvePlayableYoutube(input.link);
     if (!resolved) return { kind: 'unplayable' };
@@ -281,6 +317,41 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
         channelId: input.channelId,
         broadcasterId,
         resolved,
+        senderTwitchId: input.twitchId,
+        senderName: input.name,
+      },
+    );
+    return { kind: autoApproved ? 'queued' : 'moderation' };
+  }
+
+  /**
+   * Back the `!tts` command: a line from chat onto the stream, through the same limits and the same
+   * submission pipeline as everything else. Length is capped harder than a web send because this
+   * door is free (see CHAT_TEXT_MAX_LEN), and a too-long line is refused rather than trimmed — the
+   * viewer still has their words in chat and can shorten them themselves.
+   */
+  async function sayFromChat(input: {
+    channelId: string;
+    twitchId: string;
+    name: string;
+    text: string;
+  }): Promise<SayResult> {
+    if (!ttsCommandChannels.has(input.channelId)) return { kind: 'disabled' };
+    const broadcasterId = broadcasterOf(input.channelId);
+    if (!broadcasterId) return { kind: 'disabled' };
+    if (input.text.length > CHAT_TEXT_MAX_LEN) {
+      return { kind: 'tooLong', max: CHAT_TEXT_MAX_LEN };
+    }
+
+    const limited = await submitLimits(input.channelId, broadcasterId, input.twitchId);
+    if (limited) return limited;
+
+    const { autoApproved } = await submitChatText(
+      { playback: deps.playback, io: deps.io },
+      {
+        channelId: input.channelId,
+        broadcasterId,
+        text: input.text,
         senderTwitchId: input.twitchId,
         senderName: input.name,
       },
@@ -396,10 +467,11 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     // shared bot account off Twitch's platform-wide spam radar.
     const toOverlay = chatEnabledChannels.has(channelId) && live;
     const toChat = botReplyChannels.has(channelId) && live;
-    // !play has a side effect (it queues media), so the registry must run even when no answer can
-    // land — the confirmation is then simply dropped, but the link still reaches the queue.
-    const playOn = playCommandChannels.has(channelId) && live;
-    if (toOverlay || toChat || playOn) {
+    // !play and !tts have a side effect (they queue media), so the registry must run even when no
+    // answer can land — the confirmation is then simply dropped, but the send still reaches the queue.
+    const sendOn =
+      (playCommandChannels.has(channelId) || ttsCommandChannels.has(channelId)) && live;
+    if (toOverlay || toChat || sendOn) {
       void runCommand(
         ev.fragments,
         {
@@ -413,8 +485,9 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
           queueState: deps.queueState,
           xpFor: lookupXp,
           play: playFromChat,
+          say: sayFromChat,
           channelUrl,
-          commandState: (id) => ({ playEnabled: playCommandChannels.has(id) }),
+          commandState: commandStateOf,
         },
       )
         .then((line) => {
@@ -440,7 +513,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     // and showing both left them racing (the card and the mirror resolve on different promises,
     // so the order flipped run to run). Swallowed even when the cooldown eats the answer —
     // silently dropping a repeat is the anti-spam doing its job.
-    if (!toOverlay || isCommand(ev.fragments)) return;
+    if (!toOverlay || isCommand(ev.fragments, commandStateOf(channelId))) return;
     void Promise.all([
       lookupCosmetics(ev.chatterId),
       lookupXp(channelId, ev.chatterId),
@@ -680,6 +753,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
         chatEnabled: channels.chatOverlayEnabled,
         botReplies: channels.chatBotReplies,
         playCommand: channels.chatPlayCommand,
+        ttsCommand: channels.chatTtsCommand,
         botLocale: channels.botLocale,
         ownerLogin: users.login,
       })
@@ -700,6 +774,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     chatEnabledChannels = new Set(modded.filter((r) => r.chatEnabled).map((r) => r.id));
     botReplyChannels = new Set(modded.filter((r) => r.botReplies).map((r) => r.id));
     playCommandChannels = new Set(modded.filter((r) => r.playCommand).map((r) => r.id));
+    ttsCommandChannels = new Set(modded.filter((r) => r.ttsCommand).map((r) => r.id));
     botLocales = new Map(modded.map((r) => [r.id, r.botLocale]));
     channelLogins = new Map(modded.map((r) => [r.id, r.ownerLogin]));
     client.setBroadcasters(new Set(channelByBroadcaster.keys()));

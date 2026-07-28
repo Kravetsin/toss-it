@@ -1,0 +1,1 @@
+ALTER TABLE `channels` ADD `chat_tts_command` integer DEFAULT false NOT NULL;

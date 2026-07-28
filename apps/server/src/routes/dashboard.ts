@@ -198,7 +198,10 @@ function toSettings(
   return {
     earnedBackgrounds,
     // Straight from the bot's own registry, so the settings screen lists exactly what answers.
-    chatCommands: commandCatalog({ playEnabled: ch.chatPlayCommand }),
+    chatCommands: commandCatalog({
+      playEnabled: ch.chatPlayCommand,
+      ttsEnabled: ch.chatTtsCommand,
+    }),
     chatBotLogin: chatBot.login,
     chatBotReading: chatBot.reading,
     maxDurationMs: ch.maxDurationMs,
@@ -219,6 +222,7 @@ function toSettings(
     chatOverlayEnabled: ch.chatOverlayEnabled,
     chatBotReplies: ch.chatBotReplies,
     chatPlayCommand: ch.chatPlayCommand,
+    chatTtsCommand: ch.chatTtsCommand,
     botLocale: ch.botLocale,
     chatFontSize: ch.chatFontSize,
     chatFadeSeconds: ch.chatFadeSeconds,
@@ -698,6 +702,8 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
           typeof b.chatBotReplies === 'boolean' ? b.chatBotReplies : channel.chatBotReplies,
         chatPlayCommand:
           typeof b.chatPlayCommand === 'boolean' ? b.chatPlayCommand : channel.chatPlayCommand,
+        chatTtsCommand:
+          typeof b.chatTtsCommand === 'boolean' ? b.chatTtsCommand : channel.chatTtsCommand,
         botLocale: BOT_LOCALES.includes(b.botLocale as BotLocale)
           ? (b.botLocale as BotLocale)
           : channel.botLocale,

@@ -6,7 +6,8 @@ import { db } from '../db/index';
 import { linkedIdentities, submissions, users, whitelist } from '../db/schema';
 import { PlaybackManager } from '../playback';
 import { parseYoutube } from './youtube';
-import { dropsCaption, submitResolvedYoutube } from './submit';
+import { CHAT_TEXT_MAX_LEN } from '@tmw/shared';
+import { dropsCaption, submitChatText, submitResolvedYoutube } from './submit';
 
 /**
  * The caption rule decides what a viewer's own words are allowed to do, so each case here is one a
@@ -44,6 +45,23 @@ describe('dropsCaption', () => {
   });
 });
 
+let channelId: string;
+let broadcasterId: string;
+let deps: { playback: PlaybackManager; io: ReturnType<typeof fakeIo>['io'] };
+
+/** A chatter with a linked Tossit account — the only kind the whitelist can name. */
+const makeViewer = async (): Promise<{ twitchId: string; userId: string }> => {
+  const userId = `u_${crypto.randomUUID()}`;
+  const twitchId = `tw_${crypto.randomUUID()}`;
+  await db
+    .insert(users)
+    .values({ id: userId, login: userId, displayName: userId, createdAt: new Date() });
+  await db
+    .insert(linkedIdentities)
+    .values({ provider: 'twitch', providerId: twitchId, userId, createdAt: new Date() });
+  return { twitchId, userId };
+};
+
 /**
  * A request that arrives from chat (`!play`) or a channel-points redemption. The streamer's
  * whitelist has to mean the same thing here as on the site — otherwise trusting someone quietly
@@ -54,23 +72,6 @@ describe('submitResolvedYoutube', () => {
     parsed: parseYoutube(`https://youtu.be/dQw4w9WgXcQ ${caption}`)!,
     meta: { title: 'The video own title' },
   });
-
-  let channelId: string;
-  let broadcasterId: string;
-  let deps: { playback: PlaybackManager; io: ReturnType<typeof fakeIo>['io'] };
-
-  /** A chatter with a linked Tossit account — the only kind the whitelist can name. */
-  const makeViewer = async (): Promise<{ twitchId: string; userId: string }> => {
-    const userId = `u_${crypto.randomUUID()}`;
-    const twitchId = `tw_${crypto.randomUUID()}`;
-    await db
-      .insert(users)
-      .values({ id: userId, login: userId, displayName: userId, createdAt: new Date() });
-    await db
-      .insert(linkedIdentities)
-      .values({ provider: 'twitch', providerId: twitchId, userId, createdAt: new Date() });
-    return { twitchId, userId };
-  };
 
   const request = async (twitchId: string, caption: string) => {
     const { submissionId, autoApproved } = await submitResolvedYoutube(deps, {
@@ -107,5 +108,58 @@ describe('submitResolvedYoutube', () => {
       autoApproved: true,
       text: 'look at this',
     });
+  });
+});
+
+/**
+ * `!tts` from chat. It is the free door onto the stream, so what decides its fate has to be the
+ * channel's own settings and nothing chat-specific.
+ */
+describe('submitChatText', () => {
+  const say = async (twitchId: string, text: string) => {
+    const { submissionId, autoApproved } = await submitChatText(deps, {
+      channelId,
+      broadcasterId,
+      text,
+      senderTwitchId: twitchId,
+      senderName: 'viewer',
+    });
+    const row = await db.select().from(submissions).where(eq(submissions.id, submissionId)).get();
+    return { autoApproved, text: row?.text ?? null, kind: row?.kind };
+  };
+
+  beforeEach(async () => {
+    channelId = await makeChannel();
+    broadcasterId = `tw_b_${crypto.randomUUID()}`;
+    const io = fakeIo().io;
+    deps = { playback: new PlaybackManager(io), io };
+  });
+
+  it('waits for review while the channel does not auto-approve text', async () => {
+    const { twitchId } = await makeViewer();
+    expect(await say(twitchId, 'hello stream')).toEqual({
+      autoApproved: false,
+      text: 'hello stream',
+      kind: 'text',
+    });
+  });
+
+  it('airs at once once the streamer opted into viewer text', async () => {
+    channelId = await makeChannel({ autoApproveText: true });
+    const { twitchId } = await makeViewer();
+    expect((await say(twitchId, 'hello stream')).autoApproved).toBe(true);
+  });
+
+  it('airs for a whitelisted viewer even without that setting', async () => {
+    const { twitchId, userId } = await makeViewer();
+    await db.insert(whitelist).values({ channelId, userId, createdAt: new Date() });
+    expect((await say(twitchId, 'hello stream')).autoApproved).toBe(true);
+  });
+
+  // The command refuses an over-long line outright; this is the belt to that pair of braces.
+  it('never stores more than the chat cap', async () => {
+    const { twitchId } = await makeViewer();
+    const { text } = await say(twitchId, 'x'.repeat(CHAT_TEXT_MAX_LEN + 50));
+    expect(text).toHaveLength(CHAT_TEXT_MAX_LEN);
   });
 });

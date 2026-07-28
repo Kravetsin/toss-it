@@ -31,6 +31,8 @@ export const play: ChatCommand = {
         return { name: ctx.name, text: t(ctx.locale, 'playWait', { n: res.waitS }) };
       case 'channelFull':
         return { name: ctx.name, text: t(ctx.locale, 'playFull') };
+      case 'paused':
+        return { name: ctx.name, text: t(ctx.locale, 'playPaused') };
       case 'unplayable':
         return { name: ctx.name, text: t(ctx.locale, 'playBad') };
       case 'queued':
