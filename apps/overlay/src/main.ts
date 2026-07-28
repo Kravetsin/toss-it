@@ -258,6 +258,9 @@ function show(sh: ShowState, payload: MediaPlayPayload): void {
   sh.isAudio = payload.kind === 'audio';
   applyStageLayout(sh, payload);
 
+  // Where this show already is: set when the server rebuilds a clip we were disconnected through,
+  // so it picks up where it was instead of starting over. 0 for a post arriving normally.
+  const startAtMs = Math.max(0, payload.startAtMs ?? 0);
   const url = resolveMediaUrl(payload.url);
   const alert = document.createElement('div');
   alert.className = 'alert enter';
@@ -272,10 +275,12 @@ function show(sh: ShowState, payload: MediaPlayPayload): void {
   if (payload.sound) playChime(payload.volume);
   scheduleSpeech(sh, payload);
 
-  // Hard cap: leaves screen no later than server-issued durationMs.
+  // Hard cap: leaves screen no later than server-issued durationMs, counted from the clip's own
+  // start — so a show resumed mid-way gets only what is left of it, never a fresh full window.
   // YouTube uses durationMs=0 (no cap) — finishes on the player's 'ended' event.
   if (payload.durationMs > 0) {
-    sh.hideTimer = window.setTimeout(() => finish(sh), payload.durationMs);
+    const left = Math.max(0, payload.durationMs - startAtMs);
+    sh.hideTimer = window.setTimeout(() => finish(sh), left);
   }
 
   // Progress/pause plumbing. video/audio play through a media element; image/gif/text run on the
@@ -283,8 +288,19 @@ function show(sh: ShowState, payload: MediaPlayPayload): void {
   sh.mediaEl = alert.querySelector<HTMLVideoElement | HTMLAudioElement>('video, audio');
   if (!sh.mediaEl && payload.durationMs > 0) {
     sh.timedDurationMs = payload.durationMs;
-    sh.timedElapsedMs = 0;
+    // Elapsed, not zero: progress stays absolute in the clip, which is what the server matches
+    // its own position against.
+    sh.timedElapsedMs = startAtMs;
     sh.timedStartTs = Date.now();
+  }
+  // Seeking needs a timeline: currentTime set before metadata lands is silently dropped.
+  if (sh.mediaEl && startAtMs > 0) {
+    const el = sh.mediaEl;
+    const seek = (): void => {
+      el.currentTime = startAtMs / 1000;
+    };
+    if (el.readyState >= 1) seek();
+    else el.addEventListener('loadedmetadata', seek, { once: true });
   }
   sh.progressTimer = window.setInterval(() => emitProgress(sh), 350);
   // A sounded post must not fight the song in the other slot.
@@ -664,7 +680,11 @@ function createYoutubePlayer(sh: ShowState, payload: MediaPlayPayload): HTMLElem
         playsinline: 1,
         modestbranding: 1,
         cc_load_policy: 0, // don't force captions on (the unload below actually turns them off)
-        start: payload.youtubeStartSeconds ?? 0,
+        // A resume position is already absolute in the video (the player's clock counts from the
+        // video's start, not the link's timecode), so it replaces the timecode instead of adding.
+        start: payload.startAtMs
+          ? Math.floor(payload.startAtMs / 1000)
+          : (payload.youtubeStartSeconds ?? 0),
       },
       events: {
         onReady: (e) => {

@@ -37,6 +37,13 @@ describe('PlaybackManager', () => {
     playback.confirmDelivery(channelId, submissionId);
     playback.noteProgress(channelId, submissionId, positionMs);
   };
+  /** One OBS source (re)connecting, and whatever got replayed to that socket alone. */
+  const reconnect = async (kind: 'media' | 'chat' = 'media', recovered = false) => {
+    const replayed: MediaPlayPayload[] = [];
+    await playback.onOverlayConnected(channelId, (p) => replayed.push(p), recovered, kind);
+    await settle();
+    return replayed;
+  };
 
   beforeEach(async () => {
     // Fake only the clock the playback code schedules on. Faking setImmediate too would freeze the
@@ -149,6 +156,73 @@ describe('PlaybackManager', () => {
     expect(playback.getCurrent(channelId, 'media')).toBeNull();
     const row = await db.select().from(submissions).where(eq(submissions.id, sub.id)).get();
     expect(row?.status).toBe('played');
+  });
+
+  it('resumes the current show where it was instead of rewinding it on reconnect', async () => {
+    const song = await makeSubmission(channelId, youtubePatch({ durationMs: 240_000 }));
+    playback.enqueue(song);
+    await settle();
+    tick(song.id, 50_000);
+    await advance(9_000); // the link is out for nine seconds
+
+    const replayed = await reconnect();
+
+    // 50s played plus the 9s away: where the track would be had the link never dropped.
+    expect(replayed).toHaveLength(1);
+    expect(replayed[0]!.startAtMs).toBe(59_000);
+  });
+
+  it('restamps a resumed clip’s start so the rebuild cannot extend it', async () => {
+    const sub = await makeSubmission(channelId, { durationMs: 10_000 });
+    playback.enqueue(sub);
+    await settle();
+    tick(sub.id, 8_000);
+    await advance(1_000);
+
+    await reconnect();
+
+    // Startup recovery measures what is left from this stamp, so it must say "began 9s ago".
+    const row = await db.select().from(submissions).where(eq(submissions.id, sub.id)).get();
+    expect(Date.now() - row!.startedAt!.getTime()).toBe(9_000);
+  });
+
+  it('brings a paused show back at its pause position, not at the elapsed one', async () => {
+    const song = await makeSubmission(channelId, youtubePatch({ durationMs: 240_000 }));
+    playback.enqueue(song);
+    await settle();
+    tick(song.id, 30_000);
+    playback.pause(channelId, 'music');
+    await advance(20_000); // time passes, but a paused clip does not move
+
+    const replayed = await reconnect();
+
+    expect(replayed[0]!.startAtMs).toBe(30_000);
+  });
+
+  it('leaves the media slot alone when the chat overlay reconnects', async () => {
+    const song = await makeSubmission(channelId, youtubePatch({ durationMs: 240_000 }));
+    playback.enqueue(song);
+    await settle();
+    tick(song.id, 30_000);
+    playback.pause(channelId, 'music');
+
+    const replayed = await reconnect('chat');
+
+    // Nothing replayed, and the show is still paused — a chat source cannot show a post, so it has
+    // no business rebuilding one (it used to, which is how a reconnect restarted the track twice).
+    expect(replayed).toHaveLength(0);
+    expect(playback.resume(channelId, 'music')).toBe(true);
+  });
+
+  it('leaves a show that never stopped alone when socket.io recovers the session', async () => {
+    const song = await makeSubmission(channelId, youtubePatch({ durationMs: 240_000 }));
+    playback.enqueue(song);
+    await settle();
+    tick(song.id, 30_000);
+
+    const replayed = await reconnect('media', true);
+
+    expect(replayed).toHaveLength(0);
   });
 
   it('finishing one slot leaves the other playing', async () => {

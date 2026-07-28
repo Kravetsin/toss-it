@@ -567,23 +567,28 @@ export class PlaybackManager {
   }
 
   /**
-   * An overlay (re)connected. ONE rule, deliberately: whatever is current starts over from the top.
+   * An overlay (re)connected. ONE rule, deliberately: the current show is rebuilt from scratch, and
+   * it resumes at the position OUR clock says it reached (see resumePositionOf) rather than at zero.
    *
    * Earlier versions tried to let the overlay keep playing across a reconnect by matching what it
    * reported on screen. It worked only sometimes, and the half-adopted state left the two sides
-   * disagreeing (the streamer's pause button stopped working). A restart is worse but always the
-   * same, which is what a streamer can actually be told to expect after a deploy.
+   * disagreeing (the streamer's pause button stopped working). So the rebuild stays unconditional —
+   * the server, not the overlay, says where the clip is — but rewinding a four-minute track to the
+   * top on every blink is what a streamer hears as "it started over by itself".
    *
    * `recovered` is the one exception, and it is not guesswork: socket.io vouches that this is the
    * same client back inside the recovery window with every missed event replayed to it, so the clip
-   * on screen never stopped. On a link that blinks every minute, restarting there would mean a clip
-   * that starts over forever and never finishes.
+   * on screen never stopped. Rebuilding there would interrupt a clip that never actually broke.
    */
   async onOverlayConnected(
     channelId: string,
     replayTo: (payload: MediaPlayPayload) => void,
     recovered = false,
+    kind: OverlayKind = 'media',
   ): Promise<void> {
+    // The chat overlay cannot show a post. It used to reach here anyway, which rebuilt the media
+    // slot a SECOND time on every reconnect — and, worse, unpaused a show the streamer had paused.
+    if (kind !== 'media') return;
     const st = this.state(channelId);
     for (const slot of SLOTS) {
       const sl = st.slots[slot];
@@ -601,17 +606,18 @@ export class PlaybackManager {
         continue;
       }
       const sub = sl.current;
+      const resumeMs = this.resumePositionOf(sl, sub);
       this.log?.info(
-        { channelId, slot, submissionId: sub.id },
-        'playback: overlay (re)connected — restarting the current show from the top',
+        { channelId, slot, submissionId: sub.id, resumeMs },
+        'playback: overlay (re)connected — rebuilding the current show at its live position',
       );
-      // The clip is starting over, so our clock must too: re-arm the backstop for the FULL length
-      // and restamp startedAt. Without this a file clip keeps the watchdog left over from its first
-      // run and gets cut mid-way, and the next restart would measure staleness from a start that
-      // never was.
+      // Restamp startedAt as if the clip had begun `resumeMs` ago: startup recovery measures what
+      // is left from this stamp, so a resume must move it forward by exactly what we skip. Leaving
+      // it at `now` is what used to hand a restarted clip a full-length backstop and let a rebuild
+      // extend it past its own end.
       sl.paused = false;
-      sl.progress = null; // the clip starts over — pre-restart positions must not vouch for it
-      sub.startedAt = new Date();
+      sl.progress = null; // the rebuilt clip has yet to tick — pre-reconnect positions can't vouch
+      sub.startedAt = new Date(Date.now() - resumeMs);
       await db
         .update(submissions)
         .set({ startedAt: sub.startedAt })
@@ -619,15 +625,34 @@ export class PlaybackManager {
       if (sl.watchdog) clearTimeout(sl.watchdog);
       sl.watchdog = setTimeout(
         () => void this.onDone(channelId, sub.id, 'watchdog-replay'),
-        sub.durationMs > 0 ? sub.durationMs + config.watchdogGraceMs : config.youtube.loadGraceMs,
+        sub.durationMs > 0
+          ? Math.max(0, sub.durationMs - resumeMs) + config.watchdogGraceMs
+          : config.youtube.loadGraceMs,
       );
       if (sl.deliveryProbe) clearTimeout(sl.deliveryProbe);
       sl.deliveryProbe = setTimeout(
         () => void this.onDeliveryUnconfirmed(channelId, sub.id),
         config.realtime.deliveryProbeMs,
       );
-      replayTo(await this.buildPayload(sub, slot));
+      replayTo(await this.buildPayload(sub, slot, resumeMs));
     }
+  }
+
+  /**
+   * Where a reconnecting overlay should pick the current show up. The clip kept running on our
+   * clock while the overlay was away, so its last reported position plus the time since is where it
+   * would be had nothing broken — the same place socket.io's own recovery would have left it.
+   *
+   * Two cases deliberately do NOT extrapolate: a paused show never moved, and a clip of unknown
+   * length (a YouTube row whose duration never reached us) has no end to clamp against, so guessing
+   * past it would end the request the moment it loads instead of playing it.
+   */
+  private resumePositionOf(sl: SlotState, sub: SubmissionRow): number {
+    const p = sl.progress;
+    if (p?.submissionId !== sub.id) return 0;
+    const known = sub.durationMs > 0;
+    const at = p.positionMs + (sl.paused || !known ? 0 : Date.now() - p.at);
+    return known ? Math.min(at, sub.durationMs) : at;
   }
 
   /**
@@ -930,7 +955,11 @@ export class PlaybackManager {
     return out;
   }
 
-  private async buildPayload(sub: SubmissionRow, slot: PlaybackSlot): Promise<MediaPlayPayload> {
+  private async buildPayload(
+    sub: SubmissionRow,
+    slot: PlaybackSlot,
+    startAtMs = 0,
+  ): Promise<MediaPlayPayload> {
     const channel = await db
       .select({
         volume: channels.volume,
@@ -961,6 +990,7 @@ export class PlaybackManager {
       // YouTube stores its real length for dashboard display, but the overlay must not hard-cap on
       // it (buffering/ads make wall-clock > length → early cut) — it finishes on the 'ended' event.
       durationMs: sub.kind === 'youtube' ? 0 : sub.durationMs,
+      startAtMs: startAtMs > 0 ? startAtMs : undefined,
       volume: channel?.volume ?? 100,
       sound: channel?.soundAlert ?? false,
       // TTS reads the name aloud; pointless if the name isn't shown — or if no voice can
@@ -1097,6 +1127,14 @@ export function overlayLayoutsOf(channel: Parameters<typeof resolveLayout>[1]): 
 
 export function setupRealtime(io: RealtimeServer, app: FastifyInstance): PlaybackManager {
   const playback = new PlaybackManager(io, app.log);
+  // When each source was last seen leaving, so a connect can log how long it was gone. In memory on
+  // purpose: it is diagnostic only, and a restart is exactly when the number means nothing anyway.
+  const lastSeen = new Map<string, number>();
+  const seenKey = (channelId: string, kind: OverlayKind): string => `${channelId}:${kind}`;
+  const offlineMsOf = (channelId: string, kind: OverlayKind): number | null => {
+    const at = lastSeen.get(seenKey(channelId, kind));
+    return at == null ? null : Date.now() - at;
+  };
 
   io.on('connection', (socket) => {
     void (async () => {
@@ -1240,14 +1278,30 @@ export function setupRealtime(io: RealtimeServer, app: FastifyInstance): Playbac
           socket.on('music:state', (state) => {
             io.to(dashboardRoomOf(channel.id)).emit('music:state', state);
           });
+          const connectedAt = Date.now();
           // Last overlay gone → rescue a paused show from stranding as `current` forever.
           // Rooms are left before this fires, so both calls already see the socket as gone.
-          socket.on('disconnect', () => {
+          socket.on('disconnect', (reason) => {
+            lastSeen.set(seenKey(channel.id, kind), Date.now());
+            // The one thing the logs could never answer after a "it started over by itself" report:
+            // whether the link died (transport error/ping timeout) or the source was reloaded
+            // (transport close on a short session) — the two look identical at the next connect.
+            app.log.info(
+              { channelId: channel.id, kind, reason, sessionMs: Date.now() - connectedAt },
+              'overlay socket disconnected',
+            );
             playback.onOverlayDisconnected(channel.id);
             playback.emitPresence(channel.id);
           });
+          // offlineMs against recovered tells the two apart from the other side: a gap under the
+          // recovery window that still came back recovered:false means a fresh page, not an outage.
           app.log.info(
-            { channelId: channel.id, kind, recovered: socket.recovered },
+            {
+              channelId: channel.id,
+              kind,
+              recovered: socket.recovered,
+              offlineMs: offlineMsOf(channel.id, kind),
+            },
             'overlay socket connected',
           );
           playback.emitPresence(channel.id);
@@ -1258,6 +1312,7 @@ export function setupRealtime(io: RealtimeServer, app: FastifyInstance): Playbac
               channel.id,
               (payload) => socket.emit('media:play', payload),
               socket.recovered,
+              kind,
             )
             .catch((err) =>
               app.log.error({ err, channelId: channel.id }, 'overlay connect failed'),

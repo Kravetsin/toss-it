@@ -100,6 +100,12 @@ export interface MediaPlayPayload {
   kind: MediaKind;
   /** Hard display cap: overlay removes media when this timer elapses. */
   durationMs: number;
+  /**
+   * Where the show already is, in ms — a reconnecting overlay picks the clip up here instead of at
+   * zero. Absent/0 = from the top. The cap above still counts from the clip's start, so the overlay
+   * must subtract this from it.
+   */
+  startAtMs?: number;
   /** Playback volume, 0-100 (channel setting). */
   volume: number;
   sound: boolean;
