@@ -16,13 +16,16 @@ import type { EntranceModule } from '../types';
  * WHY JS + A CANVAS IN FRONT:
  * - The clip has to track the block's REAL bottom edge against a fixed waterline every frame — a
  *   keyframe cannot know where the block will be laid out.
- * - Water is in FRONT of what comes out of it: the line and the spray have to cross the block's lower
- *   edge, or it reads as sliding over a painted line rather than passing through a surface.
+ * - Water is in FRONT of what comes out of it: the foam and the near side of each ring have to cross
+ *   the block's lower edge, or it reads as sliding over a painting rather than passing through water.
  *
- * ONE LINE, AND IT IS THE WATER'S. An earlier version drew a second, white one along the block's
- * clipped edge — surface tension gripping the thing coming through. It read as a hard highlight the
- * message was riding out on rather than as water, and it drew the eye to the exact place the message
- * is still incomplete. The wave already passes across that edge; the crossing needs nothing else.
+ * NO DRAWN WATERLINE, AND THAT IS THE POINT. Two lines were tried and both are gone. A white meniscus
+ * along the block's clipped edge read as a hard highlight the message was riding out on — and it drew
+ * the eye to the one place the message is still incomplete. A tinted sine wave across the span lasted
+ * longer, but once the foam got dense enough to read as real spray, the single smooth stroke next to
+ * it was obviously a SYMBOL for water sitting in a picture of water. What is left is only what water
+ * actually looks like from above: rings that say where the surface is, and foam that says what it is
+ * made of. Nothing draws the surface itself.
  *
  * The block is READABLE EARLY on purpose: it clears the water in the first half of the run, and the
  * rest is the surface calming down. An entrance may borrow a moment of legibility, not spend the
@@ -256,7 +259,8 @@ function frame(now: number): void {
     const up = easeOut(clamp((ms - RISE_IN) / RISE_MS, 0, 1));
     const ty = rise * (1 - up);
     // The waterline: just under where the block comes to rest, so the block clears it completely (see
-    // the header). 6px, not 0 — at exactly 0 the meniscus and the block's own border fight.
+    // the header). Never drawn — it is where the rings are centred and where the foam is thrown from.
+    // 6px, not 0: at exactly 0 the foam churns on the block's own border and reads as stuck to it.
     const surfY = by + bh + 6;
 
     t.el.style.transform = `translateY(${ty.toFixed(1)}px)`;
@@ -267,14 +271,10 @@ function frame(now: number): void {
     setClip(t.el, cut > 0.5 ? `inset(0 0 ${Math.ceil(cut)}px 0)` : 'none');
 
     const cx = bx + bw / 2;
-    const span = bw * 0.6 + 90; // half-width the surface is drawn over, decaying to nothing at the ends
-    const x0 = Math.round(cx - span);
-    const x1 = Math.round(cx + span);
-    // Amplitude peaks while the block is coming through and calms afterwards — the water is disturbed
-    // BY the arrival, so its loudest moment is the crossing, not the start.
-    const crossing = clamp(1 - Math.abs(ms - (RISE_IN + RISE_MS * 0.55)) / (RISE_MS * 0.8), 0, 1);
-    const amp = 2 + 8 * crossing;
-    const lineA = clamp(ms / 90, 0, 1) * clamp((DUR - ms) / 420, 0, 1);
+    const span = bw * 0.6 + 90; // how far the disturbance reaches to either side
+    // How disturbed the water is overall: everything drawn fades with this rather than each particle
+    // outliving the moment that threw it.
+    const waterA = clamp(ms / 90, 0, 1) * clamp((DUR - ms) / 420, 0, 1);
 
     ctx.save();
     if (t.clipTo) {
@@ -287,30 +287,10 @@ function frame(now: number): void {
     ctx.lineCap = 'round';
     ctx.shadowColor = t.color;
 
-    // 1) THE SURFACE. Two overlapping sines so it never reads as a single clean wave, with the
-    //    amplitude falling to zero at both ends of the span — the line dies out instead of being cut.
-    if (lineA > 0.01) {
-      ctx.globalAlpha = clamp(lineA * 0.75, 0, 1);
-      ctx.strokeStyle = t.color;
-      ctx.shadowBlur = 10;
-      ctx.lineWidth = 1.3;
-      ctx.beginPath();
-      for (let x = x0; x <= x1; x += 5) {
-        const d = (x - cx) / span;
-        const fall = Math.max(0, 1 - d * d);
-        const y =
-          surfY +
-          (Math.sin(x * 0.05 + ms * 0.009) * amp + Math.sin(x * 0.023 - ms * 0.006) * amp * 0.45) *
-            fall;
-        if (x === x0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-    }
-
-    // 2) RINGS spreading from where it broke through. Three, staggered, each flattening as it goes —
-    //    an ellipse read at a glancing angle, not a circle on a wall.
+    // 1) RINGS spreading from where it broke through. Four, staggered, each flattening as it goes —
+    //    an ellipse read at a glancing angle, not a circle on a wall. With no drawn waterline left,
+    //    these and the foam ARE the water: the rings say where the surface is and the foam says what
+    //    it is made of, which is why they are bright rather than a background detail.
     //
     //    Each ring is drawn as TWO ARCS, and this is what makes it a ring AROUND the message rather
     //    than a hoop painted over it: seen at a glancing angle, the far side of a ripple rides UP the
@@ -319,20 +299,40 @@ function frame(now: number): void {
     //    message — and the near arc is drawn normally, on top. The concept version got this for free
     //    by putting its whole canvas behind the block, which would also have hidden the spray thrown
     //    up in front; splitting the ring keeps both halves of the illusion.
+    //
+    //    Each arc is stroked twice — a wide dim halo and a bright thin line over it, the same way the
+    //    bolt and the arcs are built in entrance-strike. Both passes are TINTED: a white core would
+    //    put back exactly the hard highlight the meniscus was removed for.
     const liveTop = by + ty;
     const holeBottom = Math.min(by + bh + ty, surfY); // the block's VISIBLE bottom while it crosses
-    for (let k = 0; k < 3; k++) {
-      const rl = (ms - (RISE_IN + RISE_MS * 0.4) - k * 150) / 700;
+    const ringArc = (rx: number, ry: number, from: number, to: number, a: number): void => {
+      ctx!.strokeStyle = t.color;
+      ctx!.shadowBlur = 12;
+      ctx!.globalAlpha = clamp(a * 0.45, 0, 1);
+      ctx!.lineWidth = 3.4;
+      ctx!.beginPath();
+      ctx!.ellipse(cx, surfY, rx, ry, 0, from, to);
+      ctx!.stroke();
+      ctx!.shadowBlur = 6;
+      ctx!.globalAlpha = clamp(a, 0, 1);
+      ctx!.lineWidth = 1.5;
+      ctx!.beginPath();
+      ctx!.ellipse(cx, surfY, rx, ry, 0, from, to);
+      ctx!.stroke();
+      ctx!.shadowBlur = 0;
+    };
+    for (let k = 0; k < 4; k++) {
+      const rl = (ms - (RISE_IN + RISE_MS * 0.35) - k * 130) / 700;
       if (rl <= 0 || rl >= 1) continue;
       const e = easeOut(rl);
       const rx = bw * 0.35 + e * (span * 0.9);
       // Tall enough for the far side to actually reach up behind the message; a ring that only ever
       // clears a few px below it has no far side to speak of.
       const ry = 5 + e * 30;
-      ctx.globalAlpha = clamp((1 - rl) * 0.4 * lineA, 0, 1);
-      ctx.strokeStyle = t.color;
-      ctx.lineWidth = 1;
-      if (holeBottom > liveTop) {
+      // Holds most of its brightness while it travels and drops off at the end, so the ring reads all
+      // the way out instead of dying two thirds of the way there.
+      const a = (1 - rl * 0.75) * waterA;
+      if (a > 0.01 && holeBottom > liveTop) {
         ctx.save();
         ctx.beginPath();
         // Outer bound first, then the block as a hole. The outer must cover everything we may draw:
@@ -346,17 +346,13 @@ function frame(now: number): void {
         }
         ctx.rect(bx, liveTop, bw, holeBottom - liveTop);
         ctx.clip('evenodd');
-        ctx.beginPath();
-        ctx.ellipse(cx, surfY, rx, ry, 0, Math.PI, TAU); // the far side, riding up behind the block
-        ctx.stroke();
+        ringArc(rx, ry, Math.PI, TAU, a); // the far side, riding up behind the block
         ctx.restore();
       }
-      ctx.beginPath();
-      ctx.ellipse(cx, surfY, rx, ry, 0, 0, Math.PI); // the near side, in front
-      ctx.stroke();
+      if (a > 0.01) ringArc(rx, ry, 0, Math.PI, a); // the near side, in front
     }
 
-    // 3) SPRAY thrown up off the waterline and falling back in. Killed the moment it returns to the
+    // 2) SPRAY thrown up off the waterline and falling back in. Killed the moment it returns to the
     //    line — the whole point of a waterline is that nothing passes it unnoticed. Foam keeps coming
     //    while the water is still disturbed, so the whole population is faded out with the surface
     //    rather than each speck outliving the wave that threw it.
@@ -368,7 +364,7 @@ function frame(now: number): void {
       const x = bx + bw * d.u + d.vx * sec;
       const life = clamp(sec / (2 * (d.vy / 700)), 0, 1); // 0 at launch, 1 when it lands
       const size = d.sz * 2.6;
-      const alpha = clamp((1 - life * 0.7) * (d.froth ? 0.7 : 0.85) * lineA, 0, 1);
+      const alpha = clamp((1 - life * 0.7) * (d.froth ? 0.7 : 0.85) * waterA, 0, 1);
       // Froth is drawn as the crisp core ALONE. At two or three px the coloured halo under it is a
       // smudge nobody can see, and skipping it halves the draw calls for two thirds of the swarm —
       // which is what pays for a swarm this size in the first place.
