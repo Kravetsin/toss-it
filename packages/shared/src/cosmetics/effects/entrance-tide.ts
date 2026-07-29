@@ -48,6 +48,8 @@ interface Drop {
   vy: number; // upward speed, px/s
   ph: number; // ms it is thrown, clustered around the crossing
   sz: number; // base size
+  /** Froth (the many small slow specks churning at the line) rather than a thrown droplet. */
+  froth: boolean;
 }
 interface Tide {
   el: HTMLElement;
@@ -164,20 +166,38 @@ function ensureCanvas(mount: HTMLElement): void {
 /**
  * Water thrown up along the block as it breaks through, which then falls back into the line. NOT drips
  * hanging off the bottom edge: the surface sits a few px under that edge, so a drip would have nothing
- * to fall through and would blink out in one frame. Spray is thrown UP from the meniscus, so it has
+ * to fall through and would blink out in one frame. Spray is thrown UP from the waterline, so it has
  * real travel — and it happens at the crossing, which is the moment the water is actually disturbed.
+ *
+ * TWO POPULATIONS, because sea foam is not a handful of droplets. Most of it is FROTH: small, slow,
+ * barely clearing the line, churning along the whole width for as long as the water is disturbed. The
+ * rest are thrown droplets that actually arc. Assigned BY INDEX rather than rolled per particle — the
+ * catalog already learned that lesson on card-sakura's depth planes: independent draws let one bucket
+ * take over a small swarm, and a run with no froth is exactly the sparse look this replaces.
  */
 function buildSpray(w: number): Drop[] {
-  const n = clamp(Math.round(w * 0.08), 8, 22); // scales with the width breaking the surface
+  const n = clamp(Math.round(w * 0.42), 46, 130); // dense enough to read as foam, not as debris
   const out: Drop[] = [];
   for (let i = 0; i < n; i++) {
-    const u = 0.04 + Math.random() * 0.92;
+    const froth = i % 3 !== 0; // two of every three
+    // Spawns a little past both edges: foam spreads off the sides of what came through, it does not
+    // stop at the block's corners.
+    const u = -0.05 + Math.random() * 1.1;
+    const dir = u < 0.5 ? -1 : 1;
     out.push({
       u,
-      vx: (u < 0.5 ? -1 : 1) * (10 + Math.random() * 55), // outward, away from the centre
-      vy: 120 + Math.random() * 140,
-      ph: RISE_IN + RISE_MS * 0.25 + Math.random() * RISE_MS * 0.6,
-      sz: 1.2 + Math.random() * 2,
+      froth,
+      vx: dir * (froth ? 4 + Math.random() * 26 : 20 + Math.random() * 75),
+      // Froth barely leaves the water (apex a few px); a droplet arcs tens of px up.
+      vy: froth ? 55 + Math.random() * 85 : 150 + Math.random() * 150,
+      // The froth churns across the whole crossing and keeps going after; the droplets are thrown at
+      // the moment of the pierce.
+      ph: froth
+        ? RISE_IN + Math.random() * RISE_MS * 1.3
+        : RISE_IN + RISE_MS * 0.2 + Math.random() * RISE_MS * 0.5,
+      // Squared, so the size distribution is mostly specks with a few fat drops — an even spread of
+      // sizes reads as gravel.
+      sz: froth ? 0.45 + Math.random() ** 2 * 0.9 : 1 + Math.random() ** 2 * 2.2,
     });
   }
   return out;
@@ -337,7 +357,9 @@ function frame(now: number): void {
     }
 
     // 3) SPRAY thrown up off the waterline and falling back in. Killed the moment it returns to the
-    //    line — the whole point of a waterline is that nothing passes it unnoticed.
+    //    line — the whole point of a waterline is that nothing passes it unnoticed. Foam keeps coming
+    //    while the water is still disturbed, so the whole population is faded out with the surface
+    //    rather than each speck outliving the wave that threw it.
     for (const d of t.spray!) {
       const sec = (ms - d.ph) / 1000;
       if (sec <= 0) continue;
@@ -346,10 +368,15 @@ function frame(now: number): void {
       const x = bx + bw * d.u + d.vx * sec;
       const life = clamp(sec / (2 * (d.vy / 700)), 0, 1); // 0 at launch, 1 when it lands
       const size = d.sz * 2.6;
-      const alpha = clamp((1 - life * 0.7) * 0.85, 0, 1);
-      ctx.globalAlpha = alpha;
-      ctx.drawImage(t.sprite!, x - size / 2, y - size / 2, size, size);
-      const core = size * 0.42;
+      const alpha = clamp((1 - life * 0.7) * (d.froth ? 0.7 : 0.85) * lineA, 0, 1);
+      // Froth is drawn as the crisp core ALONE. At two or three px the coloured halo under it is a
+      // smudge nobody can see, and skipping it halves the draw calls for two thirds of the swarm —
+      // which is what pays for a swarm this size in the first place.
+      if (!d.froth) {
+        ctx.globalAlpha = alpha;
+        ctx.drawImage(t.sprite!, x - size / 2, y - size / 2, size, size);
+      }
+      const core = d.froth ? size : size * 0.42;
       ctx.globalAlpha = clamp(alpha * 1.1, 0, 1);
       ctx.drawImage(t.core!, x - core / 2, y - core / 2, core, core);
     }
