@@ -824,6 +824,19 @@ if (DEMO) {
       level: 8,
       fragments: [{ type: 'text', text: 'зачекинься под звёздами на секунду' }],
     },
+    // The third JS entrance: a bolt lands and the pill is already there. Sat next to the other two so
+    // the contrast is visible — those two carry the block for their whole run, this one is a flash and
+    // an afterglow.
+    {
+      id: '19',
+      userId: 'u19',
+      name: 'stormcaller',
+      twitchColor: null,
+      cosmetics: { nickColor: '#ffd166', entrance: 'entrance-strike' },
+      isFounder: false,
+      level: 10,
+      fragments: [{ type: 'text', text: 'прилетело сверху' }],
+    },
     {
       id: '12',
       userId: 'u12',

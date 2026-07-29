@@ -1606,8 +1606,10 @@ function demoPayload(kind: MediaKind, st: DemoState): MediaPlayPayload {
     // Demo a non-default butterfly colour so the card-colour upgrade shows on the stage without a picker.
     senderCardEffectColor: st.cardEffect === 'card-butterflies' ? '#5ad1ff' : undefined,
     senderEntrance: st.entrance !== 'none' ? st.entrance : undefined,
-    // Demo a non-default portal tint so the colour upgrade is visible on the stage without a picker.
-    senderEntranceColor: st.entrance === 'entrance-portal' ? '#b57bff' : undefined,
+    // Demo a non-default tint so the colour upgrade is visible on the stage without a picker. Sent for
+    // ANY entrance, not just the portal: the upgrade tints whichever one is equipped (see
+    // entrance-portal-color), and a CSS entrance that has no colour simply ignores it.
+    senderEntranceColor: st.entrance !== 'none' ? '#b57bff' : undefined,
     senderBadges: st.sender && st.founder ? ['founder'] : undefined,
     tts: false,
     ttsText: false,
