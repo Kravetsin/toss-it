@@ -38,7 +38,12 @@ import type { EntranceModule } from '../types';
  * like the shop preview.
  */
 
-const DUR = 1250; // ms — strike → the message lands → the charge bleeds off
+// ms — strike → the message lands → the charge bleeds off. Only the TAIL scales with this: every phase
+// up to the impact is timed in absolute ms below, so lengthening the electrified part (1250 → 1700)
+// cannot accidentally slow down the strike itself, which is the one thing that must stay instant.
+const DUR = 1700;
+const HIT = 175; // ms from the start to the moment the bolt lands and the message is there
+const ARC_OUT = 620; // ms of fade the arcs get at the end of the run
 // Brand mint default. NOT --color-accent (a cosmetic belongs to the viewer and must look identical on
 // every surface); overridden per viewer by the entrance-colour upgrade.
 const DEFAULT_COLOR = '#8df0cc';
@@ -49,7 +54,7 @@ interface Spark {
   a: number; // launch angle, biased upward off the impact
   v: number; // launch speed, px per unit life
   sz: number; // base size
-  ph: number; // launch offset after the strike
+  ph: number; // ms of launch delay after the strike
 }
 interface Strike {
   el: HTMLElement;
@@ -57,6 +62,7 @@ interface Strike {
   clipTo: HTMLElement | null;
   color: string;
   sprite: HTMLCanvasElement | null; // glow sprite for `color`, built on the first laid-out frame
+  core: HTMLCanvasElement | null; // the white-hot centre stacked on top of the glow
   sparks: Spark[] | null;
   seed: number; // fixes this bolt's silhouette so redraws are variations, not new bolts
   bolt: [number, number][] | null; // current jagged path, regenerated every BOLT_REDRAW
@@ -120,6 +126,30 @@ function spriteFor(color: string): HTMLCanvasElement {
   spriteCache.set(color, s);
   return s;
 }
+/**
+ * The white-hot centre: white to ~55%, then a fast drop through the colour to nothing. Stacked ON TOP
+ * of the glow sprite, the pair reads as a spark that is genuinely incandescent rather than a coloured
+ * dot — the same two-sprite trick entrance-astral uses for its orbs, and the same reason the bolt is
+ * stroked twice. One gradient cannot do both jobs: widen it for the glow and the centre goes muddy.
+ */
+function coreSpriteFor(color: string): HTMLCanvasElement {
+  const key = 'c|' + color;
+  const cached = spriteCache.get(key);
+  if (cached) return cached;
+  const [r, g, b] = hexToRgb(color);
+  const s = document.createElement('canvas');
+  s.width = s.height = 32;
+  const c = s.getContext('2d')!;
+  const grad = c.createRadialGradient(16, 16, 0, 16, 16, 16);
+  grad.addColorStop(0, 'rgba(255,255,255,1)');
+  grad.addColorStop(0.55, 'rgba(255,255,255,0.95)');
+  grad.addColorStop(0.72, `rgba(${r},${g},${b},0.9)`);
+  grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
+  c.fillStyle = grad;
+  c.fillRect(0, 0, 32, 32);
+  spriteCache.set(key, s);
+  return s;
+}
 function resize(): void {
   if (!canvas || !ctx) return;
   dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -155,6 +185,13 @@ function ensureCanvas(mount: HTMLElement): void {
  * The bolt from `(x0, y0)` down to the impact. Sine-driven off `seed` rather than Math.random, so a
  * redraw keeps the same broad shape and only re-breaks it — random points every 45ms is a different
  * bolt each time, which reads as three strikes instead of one flickering.
+ *
+ * EVERYTHING SCALES WITH THE RUN, and it has to. A fixed segment count with a floored jitter tangles
+ * itself the moment the drop is short (the shop preview, an alert near the top of the stage): eleven
+ * segments over 40px advance ~4px each while the vertical jitter alone was ±4, so the path stepped
+ * BACKWARDS up the screen and coiled into a knot. Hence: fewer, longer segments when there is less
+ * room, and a vertical jitter capped to a fraction of the segment's own step so the bolt can never
+ * fold back on itself. A short bolt is now a clean 4-segment zigzag rather than a tangle.
  */
 function buildBolt(
   x0: number,
@@ -163,8 +200,11 @@ function buildBolt(
   y1: number,
   seed: number,
 ): [number, number][] {
-  const segs = 11;
-  const spread = Math.max(14, Math.abs(y1 - y0) * 0.14);
+  const len = Math.max(1, Math.abs(y1 - y0));
+  const segs = clamp(Math.round(len / 26), 4, 11);
+  const step = len / segs;
+  const spread = clamp(len * 0.14, 5, 60); // lateral zigzag, the bolt's whole character
+  const vJit = Math.min(spread * 0.3, step * 0.4); // < the step: descent stays monotonic
   const out: [number, number][] = [[x0, y0]];
   for (let i = 1; i < segs; i++) {
     const t = i / segs;
@@ -173,7 +213,7 @@ function buildBolt(
     const taper = Math.sin(t * Math.PI);
     out.push([
       x0 + (x1 - x0) * t + Math.sin(seed + i * 2.7) * spread * taper,
-      y0 + (y1 - y0) * t + Math.cos(seed + i * 1.9) * spread * 0.3,
+      y0 + (y1 - y0) * t + Math.cos(seed + i * 1.9) * vJit,
     ]);
   }
   out.push([x1, y1]);
@@ -196,7 +236,7 @@ function buildSparks(w: number): Spark[] {
       a: -Math.PI / 2 + (Math.random() - 0.5) * 2.7,
       v: 60 + Math.random() * 190,
       sz: 1 + Math.random() * 1.8,
-      ph: Math.random() * 0.1,
+      ph: Math.random() * 120,
     });
   }
   return out;
@@ -234,10 +274,13 @@ function frame(now: number): void {
       s.start = now;
       s.sparks = buildSparks(rect.width);
       s.sprite = spriteFor(s.color);
+      s.core = coreSpriteFor(s.color);
     }
-    const g = clamp((now - s.start) / DUR, 0, 1);
+    // Absolute ms, not a fraction of the run: see DUR. Every phase up to the impact is pinned to the
+    // clock so the tail can be lengthened without the strike itself getting lazier.
+    const ms = now - s.start;
     // Drop BEFORE drawing at the end, so the frame that ends the run leaves nothing on the canvas.
-    if (g >= 1) {
+    if (ms >= DUR) {
       drop(s, i);
       continue;
     }
@@ -263,8 +306,8 @@ function frame(now: number): void {
 
     // The message is simply THERE once the bolt lands, cooling out of white over a few frames. No
     // fade-in: a bolt that lands on a half-transparent card is a bolt that hit nothing.
-    const lit = clamp((g - 0.14) / 0.07, 0, 1);
-    s.el.style.opacity = g < 0.14 ? '0' : '1';
+    const lit = clamp((ms - HIT) / 90, 0, 1);
+    s.el.style.opacity = ms < HIT ? '0' : '1';
     s.el.style.filter = lit >= 1 ? '' : `brightness(${(1 + (1 - lit) * 2.8).toFixed(2)})`;
 
     ctx.lineCap = 'round';
@@ -273,10 +316,13 @@ function frame(now: number): void {
 
     // 1) THE BOLT. Ramps up over the first frames, then decays — and while it is bright the shape is
     //    regenerated, which is what makes it flicker instead of hanging there.
-    const boltA = g < 0.14 ? clamp(g / 0.05, 0, 1) : clamp(1 - (g - 0.14) / 0.16, 0, 1);
+    const boltA = ms < HIT ? clamp(ms / 60, 0, 1) : clamp(1 - (ms - HIT) / 200, 0, 1);
     if (boltA > 0.01) {
       if (!s.bolt || now - s.boltAt > BOLT_REDRAW) {
-        s.bolt = buildBolt(hitX + 30, skyY, hitX, by, s.seed + (now - s.start!) * 0.004);
+        // The lateral offset scales with the drop as well, or a short bolt is a near-horizontal streak
+        // rather than something falling.
+        const dx = Math.min(30, (by - skyY) * 0.5);
+        s.bolt = buildBolt(hitX + dx, skyY, hitX, by, s.seed + ms * 0.004);
         s.boltAt = now;
       }
       ctx.shadowBlur = 18;
@@ -293,7 +339,7 @@ function frame(now: number): void {
 
     // 2) IMPACT BLOOM — one big sprite at the point of contact, gone in a fifth of a second. This is
     //    what carries the "it hit HERE" over any stream; the bolt alone reads as a passing flicker.
-    const bloom = clamp(1 - Math.abs(g - 0.15) / 0.12, 0, 1);
+    const bloom = clamp(1 - Math.abs(ms - (HIT + 15)) / 150, 0, 1);
     if (bloom > 0.01) {
       const size = (40 + bh * 1.6) * bloom;
       ctx.globalAlpha = bloom * 0.85;
@@ -302,37 +348,50 @@ function frame(now: number): void {
 
     // 3) RESIDUAL ARCS crawling the contour. Three of them, each a short jagged run along the
     //    perimeter, travelling at their own offset so the charge circles the block rather than sitting.
-    const arcA = clamp((g - 0.16) / 0.1, 0, 1) * clamp(1 - (g - 0.55) / 0.4, 0, 1);
+    //    Stroked TWICE, like the bolt: a wide tinted halo and a thin white core over it, so an arc is
+    //    incandescent rather than a coloured thread. Same reason the sparks carry a core sprite.
+    const arcA = clamp((ms - 200) / 120, 0, 1) * clamp((DUR - ms) / ARC_OUT, 0, 1);
     if (arcA > 0.01) {
       const tot = 2 * (bw + bh);
-      ctx.globalAlpha = arcA;
-      ctx.strokeStyle = s.color;
-      ctx.shadowBlur = 8;
-      ctx.lineWidth = 1.3;
       for (let k = 0; k < 3; k++) {
-        const d0 = (g * 1.7 + k / 3) * tot;
+        const d0 = (ms * 0.00136 + k / 3) * tot;
         const path: [number, number][] = [];
         for (let p = 0; p <= 6; p++) {
           const pt = perim(d0 + p * 13, bx, by, bw, bh);
           // Per-frame jitter: see the header — an arc is noise, a smooth one reads as a worm.
           path.push([pt[0] + (Math.random() - 0.5) * 3, pt[1] + (Math.random() - 0.5) * 3]);
         }
+        ctx.shadowBlur = 8;
+        ctx.globalAlpha = arcA;
+        ctx.strokeStyle = s.color;
+        ctx.lineWidth = 2.6;
+        strokePath(path);
+        // The core rides at its own alpha so the arc dims to a coloured wire before it dies, rather
+        // than staying white to the last frame.
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = clamp(arcA * 0.9, 0, 1);
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1;
         strokePath(path);
       }
-      ctx.shadowBlur = 0;
     }
 
     // 4) SPARKS thrown back up the bolt's path, then pulled down. They outlive the arcs by a beat, so
-    //    the last thing the eye sees is debris settling, not an effect switching off.
+    //    the last thing the eye sees is debris settling, not an effect switching off. Two sprites each:
+    //    the coloured glow, then a small white-hot core on top.
     for (const sp of s.sparks!) {
-      const life = (g - 0.14 - sp.ph) / 0.55;
+      const life = (ms - HIT - sp.ph) / 690;
       if (life <= 0 || life >= 1) continue;
       const t = easeOut(life) * 0.55;
       const x = hitX + Math.cos(sp.a) * sp.v * t;
       const y = by + Math.sin(sp.a) * sp.v * t + 320 * t * t; // gravity wins over the launch
       const size = sp.sz * (1 - life * 0.5) * 3.2;
-      ctx.globalAlpha = clamp((1 - life) * 0.9, 0, 1);
+      const alpha = clamp((1 - life) * 0.9, 0, 1);
+      ctx.globalAlpha = alpha;
       ctx.drawImage(s.sprite!, x - size / 2, y - size / 2, size, size);
+      const core = size * 0.42;
+      ctx.globalAlpha = clamp(alpha * 1.1, 0, 1);
+      ctx.drawImage(s.core!, x - core / 2, y - core / 2, core, core);
     }
     ctx.restore();
   }
@@ -357,6 +416,7 @@ function play(
     // Only a full #rrggbb is honoured; anything else (absent, malformed) falls back to the brand mint.
     color: color && /^#[0-9a-f]{6}$/i.test(color) ? color.toLowerCase() : DEFAULT_COLOR,
     sprite: null,
+    core: null,
     sparks: null,
     seed: Math.random() * TAU,
     bolt: null,
