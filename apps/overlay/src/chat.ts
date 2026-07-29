@@ -757,6 +757,18 @@ if (DEMO) {
       level: 6,
       fragments: [{ type: 'text', text: 'сигнал нестабилен, но я тут' }],
     },
+    // The other CSS entrance, next to glitch on purpose: both are pure keyframes, and side by side it
+    // is obvious they are different arrivals rather than two flavours of the same jitter.
+    {
+      id: '17',
+      userId: 'u17',
+      name: 'lightline',
+      twitchColor: null,
+      cosmetics: { nickColor: '#8df0cc', entrance: 'entrance-warp' },
+      isFounder: false,
+      level: 4,
+      fragments: [{ type: 'text', text: 'приехал полосой света' }],
+    },
     // ...and stacked with a card effect, because they are different axes and must not fight: the
     // arrival glitches, then the swarm carries on as if nothing happened.
     {
