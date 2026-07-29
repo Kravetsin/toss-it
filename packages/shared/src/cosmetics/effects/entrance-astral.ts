@@ -48,6 +48,13 @@ interface Node {
 }
 interface Assembly {
   el: HTMLElement;
+  /**
+   * Surface the run may not draw outside of, or null on the body-level layer. The layer is `fixed`, so
+   * it fills the nearest transformed ancestor — in the shop that is the whole Drawer PANEL, not the row
+   * that hosted it, and the orbs stream in from up to twice the block's larger side away. Unclipped,
+   * they fly in across the neighbouring cards. See entrance-strike, where the same thing was loud.
+   */
+  clipTo: HTMLElement | null;
   color: string;
   /** A paler shade of `color`, sprinkled through the orbs for a two-tone glow. Derived, not fixed, so
    *  the two-tone still works whatever colour the viewer picks. */
@@ -234,6 +241,15 @@ function frame(now: number): void {
       drop(a, s);
       continue;
     }
+    // Confine the run to its host surface. save()/restore() wraps the WHOLE iteration, so the clip can
+    // never leak into the next assembly.
+    ctx.save();
+    if (a.clipTo) {
+      const m = a.clipTo.getBoundingClientRect();
+      ctx.beginPath();
+      ctx.rect(m.left - cRect.left, m.top - cRect.top, m.width, m.height);
+      ctx.clip();
+    }
 
     // The message resolves inside the web as it weaves. The block itself just fades up (a hair of blur)
     // the light it wears is an INNER glow painted on the canvas over the card (see below) that drains
@@ -355,6 +371,7 @@ function frame(now: number): void {
       ctx.globalAlpha = alpha;
       ctx.drawImage(coreSpriteFor(col), px - core / 2, py - core / 2, core, core);
     }
+    ctx.restore();
   }
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 1;
@@ -381,6 +398,7 @@ function play(
       .padStart(2, '0');
   const a: Assembly = {
     el,
+    clipTo: mount === document.body ? null : mount,
     color: base,
     accent: `#${pale(br)}${pale(bg)}${pale(bb)}`,
     rgb: `${br},${bg},${bb}`,

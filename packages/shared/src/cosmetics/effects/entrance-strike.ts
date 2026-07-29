@@ -24,6 +24,14 @@ import type { EntranceModule } from '../types';
  * noise, and the eye reads a smoothly moving one as a worm. Only the arcs get this; the sparks and the
  * bolt's own seed are stable, so nothing else flickers.
  *
+ * STAYING INSIDE A MOUNTED SURFACE. The layer is `fixed`, so it fills the nearest transformed ancestor
+ * — in the shop that is the whole Drawer PANEL, not the row that hosted it. Every other engine got
+ * away with that by drawing only within a block's own neighbourhood; a bolt starts at the TOP OF THE
+ * LAYER, so it flew down the length of the shop across every card. So: when `mount` is not the body,
+ * the run is clipped to the mount's rect and the bolt starts at ITS top edge instead of the layer's.
+ * The mount is the surface that asked for the effect, which makes it the honest bound. Nothing changes
+ * on the overlays (body mount, no clip) — there the bolt should come out of the top of the screen.
+ *
  * Reduced motion is honoured in applyEntrance (no data-fx, no play) and again here for direct callers
  * like the shop preview.
  */
@@ -43,6 +51,8 @@ interface Spark {
 }
 interface Strike {
   el: HTMLElement;
+  /** Surface the run may not draw outside of (see the header), or null on the body-level layer. */
+  clipTo: HTMLElement | null;
   color: string;
   sprite: HTMLCanvasElement | null; // glow sprite for `color`, built on the first laid-out frame
   sparks: Spark[] | null;
@@ -236,6 +246,20 @@ function frame(now: number): void {
     const bh = rect.height;
     const hitX = bx + bw * 0.62;
 
+    // Confine the run to its host surface, and give the bolt that surface's top edge to fall from.
+    // save()/restore() wraps the WHOLE iteration, so the clip can never leak into the next strike.
+    ctx.save();
+    let skyY = -8;
+    if (s.clipTo) {
+      const m = s.clipTo.getBoundingClientRect();
+      const mx = m.left - cRect.left;
+      const my = m.top - cRect.top;
+      ctx.beginPath();
+      ctx.rect(mx, my, m.width, m.height);
+      ctx.clip();
+      skyY = my - 8;
+    }
+
     // The message is simply THERE once the bolt lands, cooling out of white over a few frames. No
     // fade-in: a bolt that lands on a half-transparent card is a bolt that hit nothing.
     const lit = clamp((g - 0.14) / 0.07, 0, 1);
@@ -251,7 +275,7 @@ function frame(now: number): void {
     const boltA = g < 0.14 ? clamp(g / 0.05, 0, 1) : clamp(1 - (g - 0.14) / 0.16, 0, 1);
     if (boltA > 0.01) {
       if (!s.bolt || now - s.boltAt > BOLT_REDRAW) {
-        s.bolt = buildBolt(hitX + 30, -8, hitX, by, s.seed + (now - s.start!) * 0.004);
+        s.bolt = buildBolt(hitX + 30, skyY, hitX, by, s.seed + (now - s.start!) * 0.004);
         s.boltAt = now;
       }
       ctx.shadowBlur = 18;
@@ -309,7 +333,7 @@ function frame(now: number): void {
       ctx.globalAlpha = clamp((1 - life) * 0.9, 0, 1);
       ctx.drawImage(s.sprite!, x - size / 2, y - size / 2, size, size);
     }
-    ctx.globalAlpha = 1;
+    ctx.restore();
   }
   ctx.globalAlpha = 1;
   ctx.shadowBlur = 0;
@@ -328,6 +352,7 @@ function play(
   el.style.opacity = '0';
   const s: Strike = {
     el,
+    clipTo: mount === document.body ? null : mount,
     // Only a full #rrggbb is honoured; anything else (absent, malformed) falls back to the brand mint.
     color: color && /^#[0-9a-f]{6}$/i.test(color) ? color.toLowerCase() : DEFAULT_COLOR,
     sprite: null,
@@ -348,9 +373,10 @@ function play(
 export const entranceStrike: EntranceModule = {
   id: 'entrance-strike',
   type: 'entrance',
-  // Between astral (3000) and the portal (4000): a canvas showpiece like both, but its run is mostly
-  // one flash plus an afterglow, where those two carry the block for their whole duration.
-  costDust: 3200,
+  // Top of the category, above the portal. Not a "more expensive because newer" price: it is the only
+  // arrival that hits the block from OUTSIDE it, so it reads across the whole stage rather than around
+  // a pill, and it keeps paying out for a second after the message has landed.
+  costDust: 5000,
   since: '2026-07-29',
   fx: 'strike',
   labels: { name: 'shop.entranceStrike', desc: 'shop.entranceStrikeDesc' },
