@@ -155,10 +155,7 @@ function EntranceDemo({ id, label, color }: { id: string; label: string; color?:
   // rather than describing it. No unmount cleanup for the JS path: the engine drops orphaned effects.
   useEffect(play, [id, color]);
   return (
-    // py-8 is AIRSPACE, not padding for looks: this row is the surface a JS entrance is confined to
-    // (it clips to its mount), and a row the height of the block leaves an arrival nowhere to arrive
-    // from — the bolt of entrance-strike falls into the block from above it.
-    <div ref={rowRef} className="relative isolate flex items-center gap-2 py-8">
+    <div ref={rowRef} className="relative isolate flex items-center gap-2">
       <div
         ref={ref}
         // relative z-[1]: the JS entrance hosts its canvas in this isolated row at z-0, so the block

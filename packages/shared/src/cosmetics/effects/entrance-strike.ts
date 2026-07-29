@@ -24,13 +24,15 @@ import type { EntranceModule } from '../types';
  * noise, and the eye reads a smoothly moving one as a worm. Only the arcs get this; the sparks and the
  * bolt's own seed are stable, so nothing else flickers.
  *
- * STAYING INSIDE A MOUNTED SURFACE. The layer is `fixed`, so it fills the nearest transformed ancestor
- * — in the shop that is the whole Drawer PANEL, not the row that hosted it. Every other engine got
- * away with that by drawing only within a block's own neighbourhood; a bolt starts at the TOP OF THE
- * LAYER, so it flew down the length of the shop across every card. So: when `mount` is not the body,
- * the run is clipped to the mount's rect and the bolt starts at ITS top edge instead of the layer's.
- * The mount is the surface that asked for the effect, which makes it the honest bound. Nothing changes
- * on the overlays (body mount, no clip) — there the bolt should come out of the top of the screen.
+ * STAYING NEXT TO THE BLOCK IN A MOUNTED SURFACE. The layer is `fixed`, so it fills the nearest
+ * transformed ancestor — in the shop that is the whole Drawer PANEL, not the row that hosted it. Every
+ * other engine got away with that by drawing only within a block's own neighbourhood; a bolt starts at
+ * the TOP OF THE LAYER, so it flew down the length of the shop across every card. So when `mount` is
+ * not the body, the run is clipped to the BLOCK's box plus a block-height of air, and the bolt falls
+ * from the top of that — a short strike into its own message rather than a long one down the page.
+ * Deliberately NOT clipped to the mount: a demo row is only as tall as the block and its left edge is
+ * the block's own, so that bound cropped one side of an effect and left the other wide open. Nothing
+ * changes on the overlays (body mount, no clip) — there the bolt comes out of the top of the screen.
  *
  * Reduced motion is honoured in applyEntrance (no data-fx, no play) and again here for direct callers
  * like the shop preview.
@@ -246,18 +248,17 @@ function frame(now: number): void {
     const bh = rect.height;
     const hitX = bx + bw * 0.62;
 
-    // Confine the run to its host surface, and give the bolt that surface's top edge to fall from.
-    // save()/restore() wraps the WHOLE iteration, so the clip can never leak into the next strike.
+    // Confine the run to the BLOCK's own box plus a little air, and let the bolt fall from the top of
+    // that. save()/restore() wraps the WHOLE iteration, so the clip can never leak into the next strike.
     ctx.save();
     let skyY = -8;
     if (s.clipTo) {
-      const m = s.clipTo.getBoundingClientRect();
-      const mx = m.left - cRect.left;
-      const my = m.top - cRect.top;
+      const up = Math.max(36, bh); // the bolt's whole visible run
+      const pad = Math.max(18, bh * 0.5); // room for the bloom and the first sparks
       ctx.beginPath();
-      ctx.rect(mx, my, m.width, m.height);
+      ctx.rect(bx - pad, by - up, bw + pad * 2, bh + up + pad);
       ctx.clip();
-      skyY = my - 8;
+      skyY = by - up - 6;
     }
 
     // The message is simply THERE once the bolt lands, cooling out of white over a few frames. No
