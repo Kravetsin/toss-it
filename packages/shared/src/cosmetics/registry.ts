@@ -46,6 +46,7 @@ import { sealHourglassGlass, sealHourglass, sealHourglassColor } from './effects
 import { sealSwarmHandful, sealSwarm, sealSwarmColor } from './effects/seal-swarm';
 import { entranceGlitch } from './effects/entrance-glitch';
 import { entranceWarp } from './effects/entrance-warp';
+import { entranceEcho } from './effects/entrance-echo';
 import { entranceAstral } from './effects/entrance-astral';
 import { entrancePortal } from './effects/entrance-portal';
 import { entrancePortalColor } from './effects/entrance-portal-color';
@@ -257,6 +258,7 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   sealHourglassColor,
   entranceGlitch,
   entranceWarp,
+  entranceEcho,
   entranceAstral,
   entrancePortal,
   entrancePortalColor,

@@ -769,6 +769,20 @@ if (DEMO) {
       level: 4,
       fragments: [{ type: 'text', text: 'приехал полосой света' }],
     },
+    // Echo, with a wrapped multi-line message on purpose: the phantoms are drop-shadow silhouettes of
+    // the REAL pill, so a tall one is where a mis-sized ghost would show.
+    {
+      id: '18',
+      userId: 'u18',
+      name: 'twice_told',
+      twitchColor: null,
+      cosmetics: { nickColor: '#c9b6ff', entrance: 'entrance-echo' },
+      isFounder: false,
+      level: 5,
+      fragments: [
+        { type: 'text', text: 'кажется, я это уже писал, писал, писал — и вот дописал наконец' },
+      ],
+    },
     // ...and stacked with a card effect, because they are different axes and must not fight: the
     // arrival glitches, then the swarm carries on as if nothing happened.
     {
