@@ -291,15 +291,48 @@ function frame(now: number): void {
 
     // 2) RINGS spreading from where it broke through. Three, staggered, each flattening as it goes —
     //    an ellipse read at a glancing angle, not a circle on a wall.
+    //
+    //    Each ring is drawn as TWO ARCS, and this is what makes it a ring AROUND the message rather
+    //    than a hoop painted over it: seen at a glancing angle, the far side of a ripple rides UP the
+    //    screen and passes behind the thing in the water, while the near side runs in front. So the
+    //    far arc is drawn with the block punched out of the clip (evenodd) — it vanishes behind the
+    //    message — and the near arc is drawn normally, on top. The concept version got this for free
+    //    by putting its whole canvas behind the block, which would also have hidden the spray thrown
+    //    up in front; splitting the ring keeps both halves of the illusion.
+    const liveTop = by + ty;
+    const holeBottom = Math.min(by + bh + ty, surfY); // the block's VISIBLE bottom while it crosses
     for (let k = 0; k < 3; k++) {
       const rl = (ms - (RISE_IN + RISE_MS * 0.4) - k * 150) / 700;
       if (rl <= 0 || rl >= 1) continue;
       const e = easeOut(rl);
+      const rx = bw * 0.35 + e * (span * 0.9);
+      // Tall enough for the far side to actually reach up behind the message; a ring that only ever
+      // clears a few px below it has no far side to speak of.
+      const ry = 5 + e * 30;
       ctx.globalAlpha = clamp((1 - rl) * 0.4 * lineA, 0, 1);
       ctx.strokeStyle = t.color;
       ctx.lineWidth = 1;
+      if (holeBottom > liveTop) {
+        ctx.save();
+        ctx.beginPath();
+        // Outer bound first, then the block as a hole. The outer must cover everything we may draw:
+        // the clip region when mounted, the whole layer otherwise.
+        if (t.clipTo) {
+          const padX = Math.max(24, bh);
+          const padY = Math.max(20, bh * 0.6);
+          ctx.rect(bx - padX, by - padY, bw + padX * 2, bh + padY * 2 + 6);
+        } else {
+          ctx.rect(0, 0, cRect.width, cRect.height);
+        }
+        ctx.rect(bx, liveTop, bw, holeBottom - liveTop);
+        ctx.clip('evenodd');
+        ctx.beginPath();
+        ctx.ellipse(cx, surfY, rx, ry, 0, Math.PI, TAU); // the far side, riding up behind the block
+        ctx.stroke();
+        ctx.restore();
+      }
       ctx.beginPath();
-      ctx.ellipse(cx, surfY, bw * 0.35 + e * (span * 0.9), 4 + e * 13, 0, 0, TAU);
+      ctx.ellipse(cx, surfY, rx, ry, 0, 0, Math.PI); // the near side, in front
       ctx.stroke();
     }
 
