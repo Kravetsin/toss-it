@@ -158,45 +158,20 @@ describe('PlaybackManager', () => {
     expect(row?.status).toBe('played');
   });
 
-  it('resumes the current show where it was instead of rewinding it on reconnect', async () => {
+  it('restarts the current show from the top on reconnect, however far in it was', async () => {
     const song = await makeSubmission(channelId, youtubePatch({ durationMs: 240_000 }));
     playback.enqueue(song);
     await settle();
     tick(song.id, 50_000);
-    await advance(9_000); // the link is out for nine seconds
+    await advance(9_000); // fifty seconds in, then the link is out for nine
 
     const replayed = await reconnect();
 
-    // 50s played plus the 9s away: where the track would be had the link never dropped.
+    // Whole clip, clock restamped to now. Replaying it at the position it had reached was tried
+    // instead, and froze the YouTube player on the offset — see the note on onOverlayConnected.
     expect(replayed).toHaveLength(1);
-    expect(replayed[0]!.startAtMs).toBe(59_000);
-  });
-
-  it('restamps a resumed clip’s start so the rebuild cannot extend it', async () => {
-    const sub = await makeSubmission(channelId, { durationMs: 10_000 });
-    playback.enqueue(sub);
-    await settle();
-    tick(sub.id, 8_000);
-    await advance(1_000);
-
-    await reconnect();
-
-    // Startup recovery measures what is left from this stamp, so it must say "began 9s ago".
-    const row = await db.select().from(submissions).where(eq(submissions.id, sub.id)).get();
-    expect(Date.now() - row!.startedAt!.getTime()).toBe(9_000);
-  });
-
-  it('brings a paused show back at its pause position, not at the elapsed one', async () => {
-    const song = await makeSubmission(channelId, youtubePatch({ durationMs: 240_000 }));
-    playback.enqueue(song);
-    await settle();
-    tick(song.id, 30_000);
-    playback.pause(channelId, 'music');
-    await advance(20_000); // time passes, but a paused clip does not move
-
-    const replayed = await reconnect();
-
-    expect(replayed[0]!.startAtMs).toBe(30_000);
+    const row = await db.select().from(submissions).where(eq(submissions.id, song.id)).get();
+    expect(row!.startedAt!.getTime()).toBe(Date.now());
   });
 
   it('leaves the media slot alone when the chat overlay reconnects', async () => {
