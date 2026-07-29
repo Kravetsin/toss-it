@@ -39,20 +39,30 @@ import type { EntranceModule } from '../types';
  * like the shop preview.
  */
 
-const DUR = 1750; // ms — surfaces, then the water settles
+const DUR = 1550; // ms — surfaces, then the water settles
 const RISE_IN = 80; // ms before the block starts to move
-const RISE_MS = 860; // ms of rising; it is fully out well before the run ends
-/**
- * Fraction of the rise at which the block's TOP edge breaks the surface — before this nothing is
- * disturbed, because the whole block is still under water. Derived from the geometry rather than
- * guessed: the block starts `bh * 1.7` low and the line sits `bh + 6` above its resting place, so it
- * has covered ~38% of the distance by the time it pierces, which `easeOut` reaches at ~15% of the
- * time. Everything the water does — rings, foam — starts here, not at the start of the rise.
- */
-const PIERCE = 0.15;
-/** Fraction of the rise after which the block no longer touches the water, so nothing new is born. */
-const CLEAR = 0.95;
+const RISE_MS = 860; // ms of rising
 const RING_MS = 1000; // how long a ring travels before it is spent
+const GAP = 6; // px the waterline sits below the block's resting place
+const RISE_OF = 1.7; // how far below its place the block starts, in block heights
+
+/**
+ * The window during which the block is actually IN the water, as ms from the start of the run: from
+ * its top edge breaking the surface to its bottom edge leaving it. Everything the water does — rings,
+ * foam — is born inside this window and nowhere else.
+ *
+ * SOLVED, not guessed, and it has to be: the rise is eased, so the block covers most of the distance
+ * early and leaves the water FAR sooner than the rise ends. At a 40px block that is 55% of the rise,
+ * not 95% — a constant picked by eye put the last ring a tenth of a second after the message was
+ * already clear, which reads as the water reacting to nothing. Inverting easeOut (`1 − ∛(1 − e)`)
+ * gives the exact moment for any block height, so a tall alert and a one-line pill both stop
+ * disturbing the surface when they genuinely stop touching it.
+ */
+function crossingWindow(bh: number): [number, number] {
+  const rise = bh * RISE_OF;
+  const at = (ty: number) => RISE_IN + RISE_MS * (1 - Math.cbrt(clamp(ty / rise, 0, 1)));
+  return [at(bh + GAP), at(GAP)]; // top edge pierces → bottom edge clears
+}
 const DEFAULT_COLOR = '#8df0cc';
 const TAU = Math.PI * 2;
 
@@ -73,6 +83,9 @@ interface Tide {
   sprite: HTMLCanvasElement | null; // the coloured glow
   core: HTMLCanvasElement | null; // the white-hot centre stacked on it
   spray: Drop[] | null;
+  /** The crossing window in ms (see crossingWindow), resolved once the block's height is known. */
+  pierceMs: number;
+  clearMs: number;
   /** The translateY currently applied — used to recover the block's natural position (see the frame
    *  loop). Never the value we are about to apply: on the first frame nothing is applied yet. */
   lastTy: number;
@@ -189,7 +202,7 @@ function ensureCanvas(mount: HTMLElement): void {
  * catalog already learned that lesson on card-sakura's depth planes: independent draws let one bucket
  * take over a small swarm, and a run with no froth is exactly the sparse look this replaces.
  */
-function buildSpray(w: number): Drop[] {
+function buildSpray(w: number, pierceMs: number, clearMs: number): Drop[] {
   const n = clamp(Math.round(w * 0.42), 46, 130); // dense enough to read as foam, not as debris
   const out: Drop[] = [];
   for (let i = 0; i < n; i++) {
@@ -207,9 +220,7 @@ function buildSpray(w: number): Drop[] {
       // Nothing is thrown before the block breaks the surface or after it has left it — water only
       // reacts while it is actually being disturbed. The froth churns across that whole window; the
       // droplets are thrown around the pierce itself.
-      ph: froth
-        ? RISE_IN + RISE_MS * (PIERCE + Math.random() * (CLEAR - PIERCE))
-        : RISE_IN + RISE_MS * (PIERCE + Math.random() * 0.45),
+      ph: pierceMs + Math.random() * (clearMs - pierceMs) * (froth ? 1 : 0.55),
       // Squared, so the size distribution is mostly specks with a few fat drops — an even spread of
       // sizes reads as gravel.
       sz: froth ? 0.45 + Math.random() ** 2 * 0.9 : 1 + Math.random() ** 2 * 2.2,
@@ -248,7 +259,8 @@ function frame(now: number): void {
     if (rect.width < 1) continue; // not laid out yet — the block is held under water; wait
     if (t.start === null) {
       t.start = now;
-      t.spray = buildSpray(rect.width);
+      [t.pierceMs, t.clearMs] = crossingWindow(rect.height);
+      t.spray = buildSpray(rect.width, t.pierceMs, t.clearMs);
       t.sprite = spriteFor(t.color);
       t.core = coreSpriteFor(t.color);
     }
@@ -267,13 +279,13 @@ function frame(now: number): void {
     // on the first one nothing is applied yet — and the waterline would be drawn a rise away from the
     // block. This also tracks a chat reflow, exactly as entrance-portal does for its X.
     const by = rect.top - cRect.top - t.lastTy;
-    const rise = bh * 1.7;
+    const rise = bh * RISE_OF;
     const up = easeOut(clamp((ms - RISE_IN) / RISE_MS, 0, 1));
     const ty = rise * (1 - up);
     // The waterline: just under where the block comes to rest, so the block clears it completely (see
     // the header). Never drawn — it is where the rings are centred and where the foam is thrown from.
     // 6px, not 0: at exactly 0 the foam churns on the block's own border and reads as stuck to it.
-    const surfY = by + bh + 6;
+    const surfY = by + bh + GAP;
 
     t.el.style.transform = `translateY(${ty.toFixed(1)}px)`;
     t.lastTy = ty;
@@ -337,10 +349,10 @@ function frame(now: number): void {
       ctx!.shadowBlur = 0;
     };
     for (let k = 0; k < 3; k++) {
-      // Born only while the block is passing THROUGH the surface — the last one at 0.7 of the rise,
-      // well before it is clear. A ring appearing after the message has left the water is the tell
-      // that these are decoration on a timer rather than something the arrival caused.
-      const rl = (ms - (RISE_IN + RISE_MS * (PIERCE + k * 0.28))) / RING_MS;
+      // Spread across the crossing window and NOTHING outside it: the last one is born two thirds of
+      // the way through, so every ring exists before the block is clear of the water. A ring that
+      // appears afterwards is the tell that these run on a timer rather than on the arrival.
+      const rl = (ms - (t.pierceMs + ((t.clearMs - t.pierceMs) * k) / 3)) / RING_MS;
       if (rl <= 0 || rl >= 1) continue;
       // LINEAR, not eased. A ripple travels at a near-constant speed; easing it out fires the ring
       // away and then lets it crawl, which is the signature of a shockwave — the "sound wave, not
@@ -422,6 +434,8 @@ function play(
     sprite: null,
     core: null,
     spray: null,
+    pierceMs: 0,
+    clearMs: 0,
     lastTy: 0,
     start: null,
     // If the element never lays out (removed mid-flight, a throttled background tab), don't leave the
