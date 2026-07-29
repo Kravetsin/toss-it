@@ -17,9 +17,14 @@ import type { EntranceModule } from '../types';
  * smaller outline inset inside the first, which is what every drawn lotus does and what separates a
  * petal from a leaf (a leaf has a centre vein; a petal has an inner contour).
  *
- * EVERYTHING SCALES OFF THE BLOCK'S HEIGHT AND NOTHING OFF ITS WIDTH. A long post must get the same
- * flower as a one-word pill, just sitting above a wider block — feeding width in stretches it into an
- * oval, which is the mistake entrance-portal's ring is built to avoid.
+ * THE FLOWER IS A FIXED SIZE — it does not scale with the message at all, and both attempts to make it
+ * do so were wrong. Width was never allowed in (that stretches the flower into an oval, the mistake
+ * entrance-portal's ring is built to avoid). Height was, and on a four-line message that grew a crown
+ * tall enough to bury the rest of the chat: the effect belongs to ONE viewer and may not take the
+ * screen from everyone else. So the wreath is rooted just inside the TOP edge and the bud halves at the
+ * BOTTOM one, each a constant `UNIT` across — the flower is the same object on a one-word pill and on a
+ * wall of text, sitting on a taller card instead of growing to match it. The only thing the block's own
+ * size still moves is how far the doors travel apart, which is the message unrolling, not the flower.
  *
  * WHY THE ROWS FAN UPWARD rather than ringing the block: on a wide message the side petals of a full
  * ring are simply covered by it, so half the flower does no work. Aimed up, every tip clears the top
@@ -33,6 +38,13 @@ import type { EntranceModule } from '../types';
 const DUR = 1700; // ms — the bud parts, the flower lays out, the petals let go
 const DEFAULT_COLOR = '#8df0cc';
 const HALF_PI = Math.PI / 2;
+/**
+ * The petal unit, in px — every length in the flower is a multiple of it (see the header for why it is
+ * a constant and not a fraction of the block). Tuned against a chat pill, which is the surface the
+ * effect plays on most: the crown ends up standing ~46px above the message's top edge whatever the
+ * message is. Raising it enlarges the whole flower on every surface at once.
+ */
+const UNIT = 32;
 
 /**
  * The wreath behind the message, outer row first so the inner ones layer over it. `len` and `ratio` are
@@ -227,7 +239,6 @@ function frame(now: number): void {
     const bw = rect.width;
     const bh = rect.height;
     const cx = bx + bw / 2;
-    const cy = by + bh / 2;
 
     // The seam. Everything else keys off it, including the punch-out, so it is computed first.
     const open = easeIO(clamp((g - 0.12) / 0.5, 0, 1));
@@ -243,11 +254,12 @@ function frame(now: number): void {
     ctx.save();
     if (l.clipTo) {
       // Bounded to the flower's own reach, so a mounted surface (the shop row) never gets an effect
-      // running across its neighbours — the rule entrance-strike had to learn.
-      const up = bh * 2.6;
-      const side = bw * 0.55 + bh * 1.6;
+      // running across its neighbours — the rule entrance-strike had to learn. Height plays no part:
+      // the flower no longer grows with the block, only the doors' travel does (that is width).
+      const up = UNIT * 2.6;
+      const side = bw * 0.55 + UNIT * 2.4;
       ctx.beginPath();
-      ctx.rect(cx - side, by - up, side * 2, bh + up + bh * 1.2);
+      ctx.rect(cx - side, by - up, side * 2, bh + up + UNIT * 2.4);
       ctx.clip();
     }
     ctx.lineJoin = 'round';
@@ -263,12 +275,15 @@ function frame(now: number): void {
       ctx.rect(0, 0, cRect.width, cRect.height);
       if (visW > 1) ctx.rect(cx - visW / 2, by, visW, bh);
       ctx.clip('evenodd');
-      const baseY = cy + bh * 0.25; // the fan's root, low enough to stay hidden behind the message
+      // The fan is rooted just INSIDE the message's top edge, so the crown always stands the same
+      // amount above it: a wreath rooted at the block's centre climbs with the block, which is what
+      // buried a four-line message's neighbours.
+      const baseY = by + UNIT * 0.5;
       for (const row of ROWS) {
         for (let k = 0; k < row.n; k++) {
           const bearing = row.from + (row.to - row.from) * (row.n === 1 ? 0.5 : k / (row.n - 1));
           const ang = -HALF_PI + (bearing + HALF_PI) * spread;
-          const len = bh * (0.32 + (row.len - 0.32) * spread + back * 0.35);
+          const len = UNIT * (0.32 + (row.len - 0.32) * spread + back * 0.35);
           paintPetal(
             l.rgb,
             cx,
@@ -286,15 +301,17 @@ function frame(now: number): void {
     }
 
     // 2) THE BUD HALVES, in front. They swing aside and out, and the message unrolls between them.
+    //    Rooted at the BOTTOM edge and a fixed size, for the same reason as the wreath: sized off the
+    //    block they turned a tall message into a pair of petals the height of the chat.
     const budA = (1 - front) * clamp(g / 0.1, 0, 1);
     if (budA > 0.01) {
-      const L = bh * 1.4;
+      const L = UNIT * 2;
       const W = L * 0.5;
       for (const dir of [-1, 1]) {
         paintPetal(
           l.rgb,
           cx + dir * open * bw * 0.42,
-          cy + L * 0.42,
+          by + bh + L * 0.06,
           -HALF_PI + dir * (0.06 + open * 1.5),
           L * (1 - front * 0.15),
           W,
