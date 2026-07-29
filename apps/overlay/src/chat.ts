@@ -837,6 +837,19 @@ if (DEMO) {
       level: 10,
       fragments: [{ type: 'text', text: 'прилетело сверху' }],
     },
+    // Lotus, on a SHORT message on purpose: the flower is sized off the block's height, so a short one
+    // is where the crown is largest relative to the pill — and where it would crowd the text if the
+    // proportions were wrong.
+    {
+      id: '21',
+      userId: 'u21',
+      name: 'still_water',
+      twitchColor: null,
+      cosmetics: { nickColor: '#c9b6ff', entrance: 'entrance-lotus' },
+      isFounder: false,
+      level: 9,
+      fragments: [{ type: 'text', text: 'раскрылось' }],
+    },
     // Tide, on a two-line message on purpose: the block is held under water until it is ALL out, so a
     // tall one is where a clip that lets go early would show as the bottom half popping in.
     {
