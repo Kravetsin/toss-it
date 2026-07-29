@@ -16,8 +16,13 @@ import type { EntranceModule } from '../types';
  * WHY JS + A CANVAS IN FRONT:
  * - The clip has to track the block's REAL bottom edge against a fixed waterline every frame — a
  *   keyframe cannot know where the block will be laid out.
- * - Water is in FRONT of what comes out of it: the meniscus has to overlap the block's lower edge, or
- *   the block reads as sliding over a painted line rather than passing through a surface.
+ * - Water is in FRONT of what comes out of it: the line and the spray have to cross the block's lower
+ *   edge, or it reads as sliding over a painted line rather than passing through a surface.
+ *
+ * ONE LINE, AND IT IS THE WATER'S. An earlier version drew a second, white one along the block's
+ * clipped edge — surface tension gripping the thing coming through. It read as a hard highlight the
+ * message was riding out on rather than as water, and it drew the eye to the exact place the message
+ * is still incomplete. The wave already passes across that edge; the crossing needs nothing else.
  *
  * The block is READABLE EARLY on purpose: it clears the water in the first half of the run, and the
  * rest is the surface calming down. An entrance may borrow a moment of legibility, not spend the
@@ -284,31 +289,7 @@ function frame(now: number): void {
       ctx.shadowBlur = 0;
     }
 
-    // 2) THE MENISCUS — the water clinging to the block while it passes through, drawn only across the
-    //    block's own width and only while it is actually crossing. This is what sells "through the
-    //    surface" rather than "in front of a line".
-    if (cut > 0.5 && lineA > 0.01) {
-      // The waterline itself, NOT the element's live bottom edge: while the block is crossing, the
-      // clip cuts it exactly at surfY, so that is where the visible block meets the water.
-      const mY = surfY;
-      ctx.globalAlpha = clamp(lineA * 0.95, 0, 1);
-      ctx.strokeStyle = '#ffffff';
-      ctx.shadowBlur = 12;
-      ctx.lineWidth = 1.6;
-      ctx.beginPath();
-      for (let x = bx - 4; x <= bx + bw + 4; x += 5) {
-        // Pulled DOWN at the edges of the block and up in the middle: surface tension bending around
-        // the thing coming out of it.
-        const d = (x - cx) / (bw / 2 + 4);
-        const y = mY + Math.abs(d) * 3 - 2 + Math.sin(x * 0.06 + ms * 0.011) * 1.2;
-        if (x === bx - 4) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-    }
-
-    // 3) RINGS spreading from where it broke through. Three, staggered, each flattening as it goes —
+    // 2) RINGS spreading from where it broke through. Three, staggered, each flattening as it goes —
     //    an ellipse read at a glancing angle, not a circle on a wall.
     for (let k = 0; k < 3; k++) {
       const rl = (ms - (RISE_IN + RISE_MS * 0.4) - k * 150) / 700;
@@ -322,7 +303,7 @@ function frame(now: number): void {
       ctx.stroke();
     }
 
-    // 4) SPRAY thrown up off the meniscus and falling back in. Killed the moment it returns to the
+    // 3) SPRAY thrown up off the waterline and falling back in. Killed the moment it returns to the
     //    line — the whole point of a waterline is that nothing passes it unnoticed.
     for (const d of t.spray!) {
       const sec = (ms - d.ph) / 1000;
