@@ -300,29 +300,32 @@ function frame(now: number): void {
     //    by putting its whole canvas behind the block, which would also have hidden the spray thrown
     //    up in front; splitting the ring keeps both halves of the illusion.
     //
-    //    Each arc is stroked twice — a wide dim halo and a bright thin line over it, the same way the
-    //    bolt and the arcs are built in entrance-strike. Both passes are TINTED: a white core would
-    //    put back exactly the hard highlight the meniscus was removed for.
+    //    Each arc is stroked twice — a soft tinted halo with a HAIRLINE WHITE core inside it, the same
+    //    build as the bolt in entrance-strike. The brightness comes from that contrast, not from
+    //    weight: fat tinted strokes just made the rings loud. This white does not bring back the
+    //    meniscus problem — a highlight running along a curve reads as light on moving water, where a
+    //    straight white line across the block's edge read as a rail the message was riding out on.
     const liveTop = by + ty;
     const holeBottom = Math.min(by + bh + ty, surfY); // the block's VISIBLE bottom while it crosses
     const ringArc = (rx: number, ry: number, from: number, to: number, a: number): void => {
       ctx!.strokeStyle = t.color;
-      ctx!.shadowBlur = 12;
-      ctx!.globalAlpha = clamp(a * 0.45, 0, 1);
-      ctx!.lineWidth = 3.4;
+      ctx!.shadowBlur = 10;
+      ctx!.globalAlpha = clamp(a * 0.4, 0, 1);
+      ctx!.lineWidth = 2.2;
       ctx!.beginPath();
       ctx!.ellipse(cx, surfY, rx, ry, 0, from, to);
       ctx!.stroke();
-      ctx!.shadowBlur = 6;
-      ctx!.globalAlpha = clamp(a, 0, 1);
-      ctx!.lineWidth = 1.5;
+      ctx!.shadowBlur = 4;
+      ctx!.globalAlpha = clamp(a * 0.9, 0, 1);
+      ctx!.strokeStyle = '#ffffff';
+      ctx!.lineWidth = 0.9;
       ctx!.beginPath();
       ctx!.ellipse(cx, surfY, rx, ry, 0, from, to);
       ctx!.stroke();
       ctx!.shadowBlur = 0;
     };
-    for (let k = 0; k < 4; k++) {
-      const rl = (ms - (RISE_IN + RISE_MS * 0.35) - k * 130) / 700;
+    for (let k = 0; k < 3; k++) {
+      const rl = (ms - (RISE_IN + RISE_MS * 0.35) - k * 165) / 700;
       if (rl <= 0 || rl >= 1) continue;
       const e = easeOut(rl);
       const rx = bw * 0.35 + e * (span * 0.9);
