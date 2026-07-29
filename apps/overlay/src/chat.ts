@@ -837,6 +837,23 @@ if (DEMO) {
       level: 10,
       fragments: [{ type: 'text', text: 'прилетело сверху' }],
     },
+    // Tide, on a two-line message on purpose: the block is held under water until it is ALL out, so a
+    // tall one is where a clip that lets go early would show as the bottom half popping in.
+    {
+      id: '20',
+      userId: 'u20',
+      name: 'deep_end',
+      twitchColor: null,
+      cosmetics: { nickColor: '#7cc4ff', entrance: 'entrance-tide' },
+      isFounder: false,
+      level: 6,
+      fragments: [
+        {
+          type: 'text',
+          text: 'всплыл, отряхнулся, и вот я тут — с целым сообщением, а не половиной',
+        },
+      ],
+    },
     {
       id: '12',
       userId: 'u12',

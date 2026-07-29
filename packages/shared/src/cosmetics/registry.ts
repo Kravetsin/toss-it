@@ -48,6 +48,7 @@ import { entranceGlitch } from './effects/entrance-glitch';
 import { entranceWarp } from './effects/entrance-warp';
 import { entranceEcho } from './effects/entrance-echo';
 import { entranceStrike } from './effects/entrance-strike';
+import { entranceTide } from './effects/entrance-tide';
 import { entranceAstral } from './effects/entrance-astral';
 import { entrancePortal } from './effects/entrance-portal';
 import { entrancePortalColor } from './effects/entrance-portal-color';
@@ -261,6 +262,7 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   entranceWarp,
   entranceEcho,
   entranceAstral,
+  entranceTide,
   entranceStrike,
   entrancePortal,
   entrancePortalColor,

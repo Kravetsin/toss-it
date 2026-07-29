@@ -1,0 +1,391 @@
+import type { EntranceModule } from '../types';
+
+/**
+ * The message SURFACES. A line of water sits just below where the block will come to rest; the block
+ * rises through it from underneath, everything still below the line hidden, until it is entirely out.
+ * Then the water it broke keeps working for another beat — the line settles, rings spread from where
+ * it came through, and what it carried up runs off its bottom edge and falls back in.
+ *
+ * THE SURFACE SITS BELOW THE BLOCK'S RESTING PLACE, and that is the whole correctness of this effect.
+ * Put the line across the middle of the block (the first version did) and the block can never fully
+ * emerge — its own layout position leaves half of it under water forever, so the clip has to be
+ * dropped on a timer, and the lower half of the message appears in one frame. That pop is not a
+ * polish issue, it is the geometry being wrong. With the line below the rest position, the clip
+ * reaches zero on its own while the block is still moving, and nothing is ever revealed abruptly.
+ *
+ * WHY JS + A CANVAS IN FRONT:
+ * - The clip has to track the block's REAL bottom edge against a fixed waterline every frame — a
+ *   keyframe cannot know where the block will be laid out.
+ * - Water is in FRONT of what comes out of it: the meniscus has to overlap the block's lower edge, or
+ *   the block reads as sliding over a painted line rather than passing through a surface.
+ *
+ * The block is READABLE EARLY on purpose: it clears the water in the first half of the run, and the
+ * rest is the surface calming down. An entrance may borrow a moment of legibility, not spend the
+ * whole message on it — the chat overlay exists to be read, on someone else's stream.
+ *
+ * The wave is drawn over a bounded span around the block, with its amplitude dying at both ends,
+ * rather than across the whole layer: a full-width line is wrong on a stage (a waterline through the
+ * entire screen for one chat pill) and, in the shop, would run through every other card.
+ *
+ * Reduced motion is honoured in applyEntrance (no data-fx, no play) and again here for direct callers
+ * like the shop preview.
+ */
+
+const DUR = 1350; // ms — surfaces, then the water settles
+const RISE_IN = 80; // ms before the block starts to move
+const RISE_MS = 620; // ms of rising; it is fully out well before the run ends
+const DEFAULT_COLOR = '#8df0cc';
+const TAU = Math.PI * 2;
+
+interface Drop {
+  u: number; // where along the block's width it is thrown from, 0..1
+  vx: number; // outward speed, px/s — biased away from the centre
+  vy: number; // upward speed, px/s
+  ph: number; // ms it is thrown, clustered around the crossing
+  sz: number; // base size
+}
+interface Tide {
+  el: HTMLElement;
+  /** Surface the run may not draw outside of, or null on the body-level layer. See entrance-strike. */
+  clipTo: HTMLElement | null;
+  color: string;
+  sprite: HTMLCanvasElement | null; // the coloured glow
+  core: HTMLCanvasElement | null; // the white-hot centre stacked on it
+  spray: Drop[] | null;
+  /** The translateY currently applied — used to recover the block's natural position (see the frame
+   *  loop). Never the value we are about to apply: on the first frame nothing is applied yet. */
+  lastTy: number;
+  start: number | null;
+  safety: ReturnType<typeof setTimeout>;
+}
+
+function setClip(el: HTMLElement, v: string): void {
+  el.style.clipPath = v;
+  (el.style as unknown as Record<string, string>).webkitClipPath = v;
+}
+function reset(el: HTMLElement): void {
+  el.style.opacity = '';
+  el.style.transform = '';
+  el.style.clipPath = '';
+  (el.style as unknown as Record<string, string>).webkitClipPath = '';
+}
+function clamp(v: number, a: number, b: number): number {
+  return v < a ? a : v > b ? b : v;
+}
+function easeOut(t: number): number {
+  return 1 - Math.pow(1 - t, 3);
+}
+
+let canvas: HTMLCanvasElement | null = null;
+let ctx: CanvasRenderingContext2D | null = null;
+let raf = 0;
+let dpr = 1;
+let resizeBound = false;
+const active: Tide[] = [];
+const spriteCache = new Map<string, HTMLCanvasElement>();
+
+function hexToRgb(hex: string): [number, number, number] {
+  const h = hex.replace('#', '');
+  const s = h.length === 3 ? h[0]! + h[0]! + h[1]! + h[1]! + h[2]! + h[2]! : h;
+  const n = parseInt(s, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function spriteFor(color: string): HTMLCanvasElement {
+  const cached = spriteCache.get(color);
+  if (cached) return cached;
+  const [r, g, b] = hexToRgb(color);
+  const s = document.createElement('canvas');
+  s.width = s.height = 32;
+  const c = s.getContext('2d')!;
+  const grad = c.createRadialGradient(16, 16, 0, 16, 16, 16);
+  grad.addColorStop(0, 'rgba(255,255,255,1)');
+  grad.addColorStop(0.4, `rgba(${r},${g},${b},0.9)`);
+  grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
+  c.fillStyle = grad;
+  c.fillRect(0, 0, 32, 32);
+  spriteCache.set(color, s);
+  return s;
+}
+/** The white-hot centre, stacked on the glow — see entrance-strike, where the pair is documented. */
+function coreSpriteFor(color: string): HTMLCanvasElement {
+  const key = 'c|' + color;
+  const cached = spriteCache.get(key);
+  if (cached) return cached;
+  const [r, g, b] = hexToRgb(color);
+  const s = document.createElement('canvas');
+  s.width = s.height = 32;
+  const c = s.getContext('2d')!;
+  const grad = c.createRadialGradient(16, 16, 0, 16, 16, 16);
+  grad.addColorStop(0, 'rgba(255,255,255,1)');
+  grad.addColorStop(0.55, 'rgba(255,255,255,0.95)');
+  grad.addColorStop(0.72, `rgba(${r},${g},${b},0.9)`);
+  grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
+  c.fillStyle = grad;
+  c.fillRect(0, 0, 32, 32);
+  spriteCache.set(key, s);
+  return s;
+}
+function resize(): void {
+  if (!canvas || !ctx) return;
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = Math.max(1, Math.floor(canvas.clientWidth * dpr));
+  canvas.height = Math.max(1, Math.floor(canvas.clientHeight * dpr));
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+function ensureCanvas(mount: HTMLElement): void {
+  if (canvas && canvas.isConnected && canvas.parentNode === mount) return;
+  if (canvas) canvas.remove(); // mount changed (e.g. the shop drawer re-opened) — re-host the layer
+  canvas = document.createElement('canvas');
+  canvas.setAttribute('aria-hidden', 'true');
+  const st = canvas.style;
+  st.position = 'fixed';
+  st.left = '0';
+  st.top = '0';
+  st.width = '100%';
+  st.height = '100%';
+  st.pointerEvents = 'none';
+  // IN FRONT of the message (see the header): water is in front of what surfaces through it.
+  st.zIndex = mount === document.body ? '2147483000' : '2';
+  mount.appendChild(canvas);
+  ctx = canvas.getContext('2d');
+  resize();
+  if (!resizeBound) {
+    window.addEventListener('resize', resize);
+    resizeBound = true;
+  }
+}
+
+/**
+ * Water thrown up along the block as it breaks through, which then falls back into the line. NOT drips
+ * hanging off the bottom edge: the surface sits a few px under that edge, so a drip would have nothing
+ * to fall through and would blink out in one frame. Spray is thrown UP from the meniscus, so it has
+ * real travel — and it happens at the crossing, which is the moment the water is actually disturbed.
+ */
+function buildSpray(w: number): Drop[] {
+  const n = clamp(Math.round(w * 0.08), 8, 22); // scales with the width breaking the surface
+  const out: Drop[] = [];
+  for (let i = 0; i < n; i++) {
+    const u = 0.04 + Math.random() * 0.92;
+    out.push({
+      u,
+      vx: (u < 0.5 ? -1 : 1) * (10 + Math.random() * 55), // outward, away from the centre
+      vy: 120 + Math.random() * 140,
+      ph: RISE_IN + RISE_MS * 0.25 + Math.random() * RISE_MS * 0.6,
+      sz: 1.2 + Math.random() * 2,
+    });
+  }
+  return out;
+}
+
+function drop(t: Tide, index: number): void {
+  clearTimeout(t.safety);
+  reset(t.el);
+  active.splice(index, 1);
+}
+function remove(t: Tide): void {
+  const i = active.indexOf(t);
+  if (i >= 0) drop(t, i);
+}
+
+function frame(now: number): void {
+  raf = 0;
+  if (!ctx || !canvas) return;
+  // Clear with the transform RESET: clearRect takes USER coordinates, so clearing (0,0,canvas.width,
+  // canvas.height) under the dpr transform only wipes the top-left 1/dpr of the canvas, leaving the
+  // right and bottom strips to accumulate overdraw at any dpr ≠ 1 (browser zoom, display scaling).
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const cRect = canvas.getBoundingClientRect();
+  for (let i = active.length - 1; i >= 0; i--) {
+    const t = active[i]!;
+    if (!t.el.isConnected) {
+      drop(t, i);
+      continue;
+    }
+    const rect = t.el.getBoundingClientRect();
+    if (rect.width < 1) continue; // not laid out yet — the block is held under water; wait
+    if (t.start === null) {
+      t.start = now;
+      t.spray = buildSpray(rect.width);
+      t.sprite = spriteFor(t.color);
+      t.core = coreSpriteFor(t.color);
+    }
+    const ms = now - t.start;
+    // Drop BEFORE drawing at the end, so the frame that ends the run leaves nothing on the canvas.
+    if (ms >= DUR) {
+      drop(t, i);
+      continue;
+    }
+
+    const bx = rect.left - cRect.left;
+    const bw = rect.width;
+    const bh = rect.height;
+    // getBoundingClientRect() reflects the translateY ALREADY applied, so the natural top is
+    // rect.top − lastTy. Subtracting the ty we are about to apply would be wrong by a whole frame —
+    // on the first one nothing is applied yet — and the waterline would be drawn a rise away from the
+    // block. This also tracks a chat reflow, exactly as entrance-portal does for its X.
+    const by = rect.top - cRect.top - t.lastTy;
+    const rise = bh * 1.7;
+    const up = easeOut(clamp((ms - RISE_IN) / RISE_MS, 0, 1));
+    const ty = rise * (1 - up);
+    // The waterline: just under where the block comes to rest, so the block clears it completely (see
+    // the header). 6px, not 0 — at exactly 0 the meniscus and the block's own border fight.
+    const surfY = by + bh + 6;
+
+    t.el.style.transform = `translateY(${ty.toFixed(1)}px)`;
+    t.lastTy = ty;
+    // Hide whatever is still under water. Reaches 0 on its own before the rise ends — no timed
+    // removal, which is what used to make the bottom of the message appear in a single frame.
+    const cut = clamp(by + bh + ty - surfY, 0, bh);
+    setClip(t.el, cut > 0.5 ? `inset(0 0 ${Math.ceil(cut)}px 0)` : 'none');
+
+    const cx = bx + bw / 2;
+    const span = bw * 0.6 + 90; // half-width the surface is drawn over, decaying to nothing at the ends
+    const x0 = Math.round(cx - span);
+    const x1 = Math.round(cx + span);
+    // Amplitude peaks while the block is coming through and calms afterwards — the water is disturbed
+    // BY the arrival, so its loudest moment is the crossing, not the start.
+    const crossing = clamp(1 - Math.abs(ms - (RISE_IN + RISE_MS * 0.55)) / (RISE_MS * 0.8), 0, 1);
+    const amp = 2 + 8 * crossing;
+    const lineA = clamp(ms / 90, 0, 1) * clamp((DUR - ms) / 420, 0, 1);
+
+    ctx.save();
+    if (t.clipTo) {
+      const padX = Math.max(24, bh);
+      const padY = Math.max(20, bh * 0.6);
+      ctx.beginPath();
+      ctx.rect(bx - padX, by - padY, bw + padX * 2, bh + padY * 2 + 6);
+      ctx.clip();
+    }
+    ctx.lineCap = 'round';
+    ctx.shadowColor = t.color;
+
+    // 1) THE SURFACE. Two overlapping sines so it never reads as a single clean wave, with the
+    //    amplitude falling to zero at both ends of the span — the line dies out instead of being cut.
+    if (lineA > 0.01) {
+      ctx.globalAlpha = clamp(lineA * 0.75, 0, 1);
+      ctx.strokeStyle = t.color;
+      ctx.shadowBlur = 10;
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      for (let x = x0; x <= x1; x += 5) {
+        const d = (x - cx) / span;
+        const fall = Math.max(0, 1 - d * d);
+        const y =
+          surfY +
+          (Math.sin(x * 0.05 + ms * 0.009) * amp + Math.sin(x * 0.023 - ms * 0.006) * amp * 0.45) *
+            fall;
+        if (x === x0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+
+    // 2) THE MENISCUS — the water clinging to the block while it passes through, drawn only across the
+    //    block's own width and only while it is actually crossing. This is what sells "through the
+    //    surface" rather than "in front of a line".
+    if (cut > 0.5 && lineA > 0.01) {
+      // The waterline itself, NOT the element's live bottom edge: while the block is crossing, the
+      // clip cuts it exactly at surfY, so that is where the visible block meets the water.
+      const mY = surfY;
+      ctx.globalAlpha = clamp(lineA * 0.95, 0, 1);
+      ctx.strokeStyle = '#ffffff';
+      ctx.shadowBlur = 12;
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      for (let x = bx - 4; x <= bx + bw + 4; x += 5) {
+        // Pulled DOWN at the edges of the block and up in the middle: surface tension bending around
+        // the thing coming out of it.
+        const d = (x - cx) / (bw / 2 + 4);
+        const y = mY + Math.abs(d) * 3 - 2 + Math.sin(x * 0.06 + ms * 0.011) * 1.2;
+        if (x === bx - 4) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+
+    // 3) RINGS spreading from where it broke through. Three, staggered, each flattening as it goes —
+    //    an ellipse read at a glancing angle, not a circle on a wall.
+    for (let k = 0; k < 3; k++) {
+      const rl = (ms - (RISE_IN + RISE_MS * 0.4) - k * 150) / 700;
+      if (rl <= 0 || rl >= 1) continue;
+      const e = easeOut(rl);
+      ctx.globalAlpha = clamp((1 - rl) * 0.4 * lineA, 0, 1);
+      ctx.strokeStyle = t.color;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.ellipse(cx, surfY, bw * 0.35 + e * (span * 0.9), 4 + e * 13, 0, 0, TAU);
+      ctx.stroke();
+    }
+
+    // 4) SPRAY thrown up off the meniscus and falling back in. Killed the moment it returns to the
+    //    line — the whole point of a waterline is that nothing passes it unnoticed.
+    for (const d of t.spray!) {
+      const sec = (ms - d.ph) / 1000;
+      if (sec <= 0) continue;
+      const y = surfY - d.vy * sec + 700 * sec * sec; // up, then gravity takes it back
+      if (y >= surfY) continue; // back in the water
+      const x = bx + bw * d.u + d.vx * sec;
+      const life = clamp(sec / (2 * (d.vy / 700)), 0, 1); // 0 at launch, 1 when it lands
+      const size = d.sz * 2.6;
+      const alpha = clamp((1 - life * 0.7) * 0.85, 0, 1);
+      ctx.globalAlpha = alpha;
+      ctx.drawImage(t.sprite!, x - size / 2, y - size / 2, size, size);
+      const core = size * 0.42;
+      ctx.globalAlpha = clamp(alpha * 1.1, 0, 1);
+      ctx.drawImage(t.core!, x - core / 2, y - core / 2, core, core);
+    }
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+  ctx.shadowBlur = 0;
+  if (active.length) raf = requestAnimationFrame(frame);
+}
+
+function play(
+  el: HTMLElement,
+  mount: HTMLElement = document.body,
+  color?: string,
+): (() => void) | void {
+  if (typeof document === 'undefined') return; // server-safe: the module can be imported anywhere
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  ensureCanvas(mount);
+  // Hold the block hidden until the first laid-out frame puts it under the water (no height known yet,
+  // so a 100% inset rather than a px one). No flash: applyEntrance runs before it is painted.
+  setClip(el, 'inset(0 0 100% 0)');
+  const t: Tide = {
+    el,
+    clipTo: mount === document.body ? null : mount,
+    // Only a full #rrggbb is honoured; anything else (absent, malformed) falls back to the brand mint.
+    color: color && /^#[0-9a-f]{6}$/i.test(color) ? color.toLowerCase() : DEFAULT_COLOR,
+    sprite: null,
+    core: null,
+    spray: null,
+    lastTy: 0,
+    start: null,
+    // If the element never lays out (removed mid-flight, a throttled background tab), don't leave the
+    // message clipped away forever.
+    safety: setTimeout(() => remove(t), DUR + 1500),
+  };
+  active.push(t);
+  if (!raf) raf = requestAnimationFrame(frame);
+  return () => remove(t);
+}
+
+export const entranceTide: EntranceModule = {
+  id: 'entrance-tide',
+  type: 'entrance',
+  // Below the portal: a canvas showpiece, but a calm one — it holds the message under water for half a
+  // beat and then spends its tail on ripples, where the portal is spectacle from the first frame.
+  costDust: 3000,
+  since: '2026-07-29',
+  fx: 'tide',
+  labels: { name: 'shop.entranceTide', desc: 'shop.entranceTideDesc' },
+  play,
+  // No `css`: the whole effect is JS (transform + clip on the block, canvas for the water). data-fx
+  // only needs to EXIST so the surface's own default entrance (:not([data-fx])) stands down.
+};
