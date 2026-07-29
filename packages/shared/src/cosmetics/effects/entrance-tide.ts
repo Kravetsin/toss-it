@@ -39,9 +39,20 @@ import type { EntranceModule } from '../types';
  * like the shop preview.
  */
 
-const DUR = 1350; // ms — surfaces, then the water settles
+const DUR = 1750; // ms — surfaces, then the water settles
 const RISE_IN = 80; // ms before the block starts to move
-const RISE_MS = 620; // ms of rising; it is fully out well before the run ends
+const RISE_MS = 860; // ms of rising; it is fully out well before the run ends
+/**
+ * Fraction of the rise at which the block's TOP edge breaks the surface — before this nothing is
+ * disturbed, because the whole block is still under water. Derived from the geometry rather than
+ * guessed: the block starts `bh * 1.7` low and the line sits `bh + 6` above its resting place, so it
+ * has covered ~38% of the distance by the time it pierces, which `easeOut` reaches at ~15% of the
+ * time. Everything the water does — rings, foam — starts here, not at the start of the rise.
+ */
+const PIERCE = 0.15;
+/** Fraction of the rise after which the block no longer touches the water, so nothing new is born. */
+const CLEAR = 0.95;
+const RING_MS = 1000; // how long a ring travels before it is spent
 const DEFAULT_COLOR = '#8df0cc';
 const TAU = Math.PI * 2;
 
@@ -193,11 +204,12 @@ function buildSpray(w: number): Drop[] {
       vx: dir * (froth ? 4 + Math.random() * 26 : 20 + Math.random() * 75),
       // Froth barely leaves the water (apex a few px); a droplet arcs tens of px up.
       vy: froth ? 55 + Math.random() * 85 : 150 + Math.random() * 150,
-      // The froth churns across the whole crossing and keeps going after; the droplets are thrown at
-      // the moment of the pierce.
+      // Nothing is thrown before the block breaks the surface or after it has left it — water only
+      // reacts while it is actually being disturbed. The froth churns across that whole window; the
+      // droplets are thrown around the pierce itself.
       ph: froth
-        ? RISE_IN + Math.random() * RISE_MS * 1.3
-        : RISE_IN + RISE_MS * 0.2 + Math.random() * RISE_MS * 0.5,
+        ? RISE_IN + RISE_MS * (PIERCE + Math.random() * (CLEAR - PIERCE))
+        : RISE_IN + RISE_MS * (PIERCE + Math.random() * 0.45),
       // Squared, so the size distribution is mostly specks with a few fat drops — an even spread of
       // sizes reads as gravel.
       sz: froth ? 0.45 + Math.random() ** 2 * 0.9 : 1 + Math.random() ** 2 * 2.2,
@@ -325,16 +337,21 @@ function frame(now: number): void {
       ctx!.shadowBlur = 0;
     };
     for (let k = 0; k < 3; k++) {
-      const rl = (ms - (RISE_IN + RISE_MS * 0.35) - k * 165) / 700;
+      // Born only while the block is passing THROUGH the surface — the last one at 0.7 of the rise,
+      // well before it is clear. A ring appearing after the message has left the water is the tell
+      // that these are decoration on a timer rather than something the arrival caused.
+      const rl = (ms - (RISE_IN + RISE_MS * (PIERCE + k * 0.28))) / RING_MS;
       if (rl <= 0 || rl >= 1) continue;
-      const e = easeOut(rl);
-      const rx = bw * 0.35 + e * (span * 0.9);
+      // LINEAR, not eased. A ripple travels at a near-constant speed; easing it out fires the ring
+      // away and then lets it crawl, which is the signature of a shockwave — the "sound wave, not
+      // water" read. Nothing else in this effect is allowed to accelerate the surface either.
+      const rx = bw * 0.35 + rl * (span * 0.75);
       // Tall enough for the far side to actually reach up behind the message; a ring that only ever
       // clears a few px below it has no far side to speak of.
-      const ry = 5 + e * 30;
-      // Holds most of its brightness while it travels and drops off at the end, so the ring reads all
-      // the way out instead of dying two thirds of the way there.
-      const a = (1 - rl * 0.75) * waterA;
+      const ry = 5 + rl * 26;
+      // Amplitude bleeds off as the ring spreads its energy over a longer circumference — bright for
+      // most of the journey, then gone, rather than a linear dim.
+      const a = Math.pow(1 - rl, 0.7) * waterA;
       if (a > 0.01 && holeBottom > liveTop) {
         ctx.save();
         ctx.beginPath();
