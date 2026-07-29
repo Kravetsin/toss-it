@@ -37,6 +37,10 @@ export const entranceWarp: EntranceModule = {
   labels: { name: 'shop.entranceWarp', desc: 'shop.entranceWarpDesc' },
   css: `
 [data-fx='warp'] {
+  /* The viewer's entrance colour, set on the element by applyEntrance; the brand mint when they own no
+     colour upgrade. Aliased once because the keyframes below need it at four different strengths, and
+     color-mix wants a colour, not an rgba() the tint can't be substituted into. */
+  --warp-tint: var(--cos-fx-tint, var(--cos-mint, #8df0cc));
   animation: cosfx-warp-in 0.72s cubic-bezier(0.16, 0.84, 0.3, 1) backwards;
 }
 @keyframes cosfx-warp-in {
@@ -45,23 +49,23 @@ export const entranceWarp: EntranceModule = {
   0% {
     opacity: 0;
     transform: scaleX(0.04) scaleY(0.018);
-    filter: brightness(3.4) drop-shadow(0 0 14px rgba(141, 240, 204, 0.85));
+    filter: brightness(3.4) drop-shadow(0 0 14px color-mix(in srgb, var(--warp-tint) 85%, transparent));
   }
   /* The line snaps to width with a hair of overshoot — the only bit of elasticity in the run. */
   16% {
     opacity: 1;
     transform: scaleX(1.03) scaleY(0.018);
-    filter: brightness(2.6) drop-shadow(0 0 18px rgba(141, 240, 204, 0.7));
+    filter: brightness(2.6) drop-shadow(0 0 18px color-mix(in srgb, var(--warp-tint) 70%, transparent));
   }
   /* The hold. Without it the two axes read as one diagonal zoom and the line never registers. */
   32% {
     transform: scaleX(1) scaleY(0.018);
-    filter: brightness(2.4) drop-shadow(0 0 16px rgba(141, 240, 204, 0.6));
+    filter: brightness(2.4) drop-shadow(0 0 16px color-mix(in srgb, var(--warp-tint) 60%, transparent));
   }
   /* Unfolds past full height, so the settle is a bounce and not a stop. */
   64% {
     transform: scaleX(1) scaleY(1.09);
-    filter: brightness(1.3) drop-shadow(0 0 10px rgba(141, 240, 204, 0.3));
+    filter: brightness(1.3) drop-shadow(0 0 10px color-mix(in srgb, var(--warp-tint) 30%, transparent));
   }
   82% {
     transform: scaleY(0.97);

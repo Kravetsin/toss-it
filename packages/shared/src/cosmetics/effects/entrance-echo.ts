@@ -40,15 +40,19 @@ export const entranceEcho: EntranceModule = {
   labels: { name: 'shop.entranceEcho', desc: 'shop.entranceEchoDesc' },
   css: `
 [data-fx='echo'] {
+  /* The viewer's entrance colour, set on the element by applyEntrance; the brand mint when they own no
+     colour upgrade. Aliased once — the keyframes need it at nine different strengths, and color-mix
+     wants a colour, not an rgba() the tint can't be substituted into. */
+  --echo-tint: var(--cos-fx-tint, var(--cos-mint, #8df0cc));
   animation: cosfx-echo-in 0.8s cubic-bezier(0.12, 0.9, 0.2, 1) backwards;
 }
 @keyframes cosfx-echo-in {
   0% {
     opacity: 0;
     transform: translateX(96px);
-    filter: drop-shadow(-30px 0 0 rgba(141, 240, 204, 0.55))
-      drop-shadow(-62px 0 0 rgba(141, 240, 204, 0.3))
-      drop-shadow(-96px 0 0 rgba(141, 240, 204, 0.14));
+    filter: drop-shadow(-30px 0 0 color-mix(in srgb, var(--echo-tint) 55%, transparent))
+      drop-shadow(-62px 0 0 color-mix(in srgb, var(--echo-tint) 30%, transparent))
+      drop-shadow(-96px 0 0 color-mix(in srgb, var(--echo-tint) 14%, transparent));
   }
   /* Fade in fast: the block has to be solid while the phantoms are still spread, or the whole run
      reads as one blurry object sliding rather than four copies converging. */
@@ -57,25 +61,26 @@ export const entranceEcho: EntranceModule = {
   }
   58% {
     transform: translateX(18px);
-    filter: drop-shadow(-14px 0 0 rgba(141, 240, 204, 0.4))
-      drop-shadow(-30px 0 0 rgba(141, 240, 204, 0.2))
-      drop-shadow(-48px 0 0 rgba(141, 240, 204, 0.09));
+    filter: drop-shadow(-14px 0 0 color-mix(in srgb, var(--echo-tint) 40%, transparent))
+      drop-shadow(-30px 0 0 color-mix(in srgb, var(--echo-tint) 20%, transparent))
+      drop-shadow(-48px 0 0 color-mix(in srgb, var(--echo-tint) 9%, transparent));
   }
   /* Overshoots its place by a hair — the block passes THROUGH the last phantom rather than stopping
      politely behind it. */
   86% {
     transform: translateX(-4px);
-    filter: drop-shadow(-3px 0 0 rgba(141, 240, 204, 0.16))
-      drop-shadow(-7px 0 0 rgba(141, 240, 204, 0.07))
-      drop-shadow(-11px 0 0 rgba(141, 240, 204, 0.03));
+    filter: drop-shadow(-3px 0 0 color-mix(in srgb, var(--echo-tint) 16%, transparent))
+      drop-shadow(-7px 0 0 color-mix(in srgb, var(--echo-tint) 7%, transparent))
+      drop-shadow(-11px 0 0 color-mix(in srgb, var(--echo-tint) 3%, transparent));
   }
   /* Explicit zeroed shadows rather than the 'none' keyword: interpolating a filter list against it is
      engine-dependent, and one that gets it wrong drops the phantoms in a single frame. */
   100% {
     opacity: 1;
     transform: none;
-    filter: drop-shadow(0 0 0 rgba(141, 240, 204, 0)) drop-shadow(0 0 0 rgba(141, 240, 204, 0))
-      drop-shadow(0 0 0 rgba(141, 240, 204, 0));
+    filter: drop-shadow(0 0 0 color-mix(in srgb, var(--echo-tint) 0%, transparent))
+      drop-shadow(0 0 0 color-mix(in srgb, var(--echo-tint) 0%, transparent))
+      drop-shadow(0 0 0 color-mix(in srgb, var(--echo-tint) 0%, transparent));
   }
 }
 `,

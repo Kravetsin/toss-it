@@ -400,6 +400,12 @@ export function applyEntrance(
   // owns the animation itself (the fire-and-forget teardown is fine — the effect self-cleans). The
   // optional `color` (an equipped upgrade) is forwarded; mount stays the default body layer here.
   el.dataset.fx = m.fx;
+  // A CSS entrance has no `play` to be handed the colour, so it reads it off the ELEMENT instead: such
+  // a module paints from `var(--cos-fx-tint, var(--cos-mint))` and a viewer with no upgrade simply gets
+  // the fallback. Validated here rather than trusted: a malformed value inside color-mix invalidates
+  // the whole declaration, which would drop the effect's glow instead of just its colour. Set for JS
+  // entrances too and ignored by them — they take the colour through `play`.
+  if (color && /^#[0-9a-f]{6}$/i.test(color)) el.style.setProperty('--cos-fx-tint', color);
   m.play?.(el, undefined, color ?? undefined);
 }
 

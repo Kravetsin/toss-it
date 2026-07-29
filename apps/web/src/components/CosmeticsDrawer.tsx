@@ -146,6 +146,10 @@ function EntranceDemo({ id, label, color }: { id: string; label: string; color?:
     } else {
       // CSS entrance: retrigger by removing and re-adding data-fx. Force a reflow between the two,
       // or the browser coalesces them into one style change, sees no difference, and never restarts.
+      // The tint goes on as a custom property, the same way applyEntrance hands it to a CSS entrance
+      // on the overlays — a colourable one paints from it, and glitch (pure geometry) ignores it.
+      if (color) el.style.setProperty('--cos-fx-tint', color);
+      else el.style.removeProperty('--cos-fx-tint');
       delete el.dataset.fx;
       void el.offsetWidth;
       el.dataset.fx = mod.fx;
