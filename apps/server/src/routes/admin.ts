@@ -7,9 +7,11 @@ import type {
   AdminCosmeticRow,
   AdminExclusion,
   AdminLiveChannel,
+  AdminOverlayRow,
   AdminPromoCode,
   AdminPromoRedemption,
   AdminUserRow,
+  OverlayKind,
 } from '@tmw/shared';
 import { db } from '../db/index';
 import {
@@ -84,6 +86,75 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminRoutesDeps)
           overlays: live.get(r.id) ?? 0,
         }))
         .sort((a, b) => a.displayName.localeCompare(b.displayName));
+    },
+  );
+
+  /**
+   * Every connected OBS source, with what decides whether it is worth reloading: which bundle it
+   * runs, how it is transported, and whether a post is on screen right now.
+   */
+  app.get('/api/admin/overlays', async (req, reply): Promise<AdminOverlayRow[] | undefined> => {
+    const admin = await requireAdmin(req, reply);
+    if (!admin) return;
+    const sockets = deps.playback.overlaySockets();
+    if (sockets.length === 0) return [];
+    const rows = await db
+      .select({ id: channels.id, login: users.login, displayName: users.displayName })
+      .from(channels)
+      .innerJoin(users, eq(users.id, channels.ownerUserId))
+      .where(inArray(channels.id, [...new Set(sockets.map((s) => s.channelId))]))
+      .all();
+    const owner = new Map(rows.map((r) => [r.id, r]));
+    return sockets
+      .map((s) => ({
+        socketId: s.socketId,
+        login: owner.get(s.channelId)?.login ?? '',
+        displayName: owner.get(s.channelId)?.displayName ?? s.channelId.slice(0, 8),
+        kind: s.kind,
+        connectedAt: s.connectedAt,
+        transport: s.transport,
+        build: s.build,
+        playing: s.kind === 'media' && deps.playback.currentsOf(s.channelId).length > 0,
+      }))
+      .sort((a, b) => a.displayName.localeCompare(b.displayName) || a.kind.localeCompare(b.kind));
+  });
+
+  /** Reload one source. Reaches only a CONNECTED overlay — a dropped one revives itself instead. */
+  app.post<{ Params: { socketId: string } }>(
+    '/api/admin/overlays/:socketId/reload',
+    async (req, reply) => {
+      const admin = await requireAdmin(req, reply);
+      if (!admin) return;
+      if (!deps.playback.reloadOverlay(req.params.socketId)) {
+        return reply.code(404).send({ error: 'Оверлей уже отключился' });
+      }
+      return { ok: true };
+    },
+  );
+
+  /**
+   * Reload every source of a kind — the button for rolling out a new overlay bundle. Media overlays
+   * with a post on screen are skipped unless forced: a reload replays that post from the top.
+   */
+  app.post<{ Body: { kind?: OverlayKind | 'all'; force?: boolean } | null }>(
+    '/api/admin/overlays/reload',
+    async (req, reply) => {
+      const admin = await requireAdmin(req, reply);
+      if (!admin) return;
+      const kind = req.body?.kind ?? 'chat';
+      const force = req.body?.force === true;
+      let reloaded = 0;
+      let skipped = 0;
+      for (const s of deps.playback.overlaySockets()) {
+        if (kind !== 'all' && s.kind !== kind) continue;
+        if (!force && s.kind === 'media' && deps.playback.currentsOf(s.channelId).length > 0) {
+          skipped += 1;
+          continue;
+        }
+        if (deps.playback.reloadOverlay(s.socketId)) reloaded += 1;
+      }
+      app.log.info({ kind, force, reloaded, skipped }, 'admin reloaded overlays');
+      return { reloaded, skipped };
     },
   );
 

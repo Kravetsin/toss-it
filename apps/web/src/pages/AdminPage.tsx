@@ -13,6 +13,7 @@ import { AdminBotCard } from '@/features/admin/components/AdminBotCard';
 import { AdminUsersPanel } from '@/features/admin/components/AdminUsersPanel';
 import { AdminExclusionsPanel } from '@/features/admin/components/AdminExclusionsPanel';
 import { AdminLivePanel } from '@/features/admin/components/AdminLivePanel';
+import { AdminOverlaysPanel } from '@/features/admin/components/AdminOverlaysPanel';
 import { AdminCosmeticsPanel } from '@/features/admin/components/AdminCosmeticsPanel';
 
 /** Admin panel for promo codes (only for ADMIN_USER_IDS). */
@@ -69,6 +70,7 @@ export function AdminPage() {
       <div className="flex flex-col gap-3">
         <AdminBotCard />
         <AdminLivePanel />
+        <AdminOverlaysPanel />
       </div>
 
       <div className="mt-8 flex flex-col gap-3">

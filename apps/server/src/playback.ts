@@ -273,6 +273,16 @@ const PROGRESS_ALIVE_MS = 5_000;
 /** A submission's live spot in the play order — see PlaybackManager.queueState. */
 export type QueueState = { playing: true } | { playing: false; position: number };
 
+/** A live overlay socket as the admin panel sees it (see PlaybackManager.overlaySockets). */
+export interface ConnectedOverlay {
+  socketId: string;
+  channelId: string;
+  kind: OverlayKind;
+  connectedAt: number;
+  transport: string;
+  build: string | null;
+}
+
 /**
  * How much of a YouTube request must actually have played for it to count as aired. A clip the
  * player accepted and then dropped (some region locks end the video instead of erroring) reports a
@@ -937,6 +947,39 @@ export class PlaybackManager {
       out.set(room.slice(prefix.length), sockets.size);
     }
     return out;
+  }
+
+  /**
+   * Every connected overlay socket, for the admin panel's targeted reload. Identity is read off the
+   * socket itself (its kind room, its handshake) rather than a registry, so it cannot drift.
+   */
+  overlaySockets(): ConnectedOverlay[] {
+    const out: ConnectedOverlay[] = [];
+    for (const socket of this.io.sockets.sockets.values()) {
+      if (socket.handshake.query.role !== 'overlay') continue;
+      const room = [...socket.rooms].find((r) => r.startsWith('overlay:'));
+      if (!room) continue;
+      const [, kind, channelId] = room.split(':');
+      if (!channelId) continue;
+      const build = socket.handshake.query.v;
+      out.push({
+        socketId: socket.id,
+        channelId,
+        kind: kind === 'chat' ? 'chat' : 'media',
+        connectedAt: socket.handshake.issued,
+        transport: socket.conn.transport.name,
+        build: typeof build === 'string' && build ? build : null,
+      });
+    }
+    return out;
+  }
+
+  /** Tell one overlay to reload itself; false if that socket went away in the meantime. */
+  reloadOverlay(socketId: string): boolean {
+    const socket = this.io.sockets.sockets.get(socketId);
+    if (!socket || socket.handshake.query.role !== 'overlay') return false;
+    socket.emit('overlay:reload');
+    return true;
   }
 
   private async buildPayload(sub: SubmissionRow, slot: PlaybackSlot): Promise<MediaPlayPayload> {

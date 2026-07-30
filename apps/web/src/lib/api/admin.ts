@@ -4,13 +4,37 @@ import type {
   AdminCosmeticRow,
   AdminExclusion,
   AdminLiveChannel,
+  AdminOverlayRow,
   AdminUserRow,
   AdminUsersSort,
+  OverlayKind,
 } from '@tmw/shared';
 import { json } from './http';
 
 export function listLiveChannels(): Promise<AdminLiveChannel[]> {
   return fetch('/api/admin/live-channels').then((r) => json<AdminLiveChannel[]>(r));
+}
+
+export function listOverlays(): Promise<AdminOverlayRow[]> {
+  return fetch('/api/admin/overlays').then((r) => json<AdminOverlayRow[]>(r));
+}
+
+/** One socket, not a channel — that is what separates this from dashboard's reloadOverlay. */
+export function reloadOverlaySocket(socketId: string): Promise<{ ok: boolean }> {
+  return fetch(`/api/admin/overlays/${encodeURIComponent(socketId)}/reload`, {
+    method: 'POST',
+  }).then((r) => json<{ ok: boolean }>(r));
+}
+
+export function reloadOverlaysOfKind(
+  kind: OverlayKind | 'all',
+  force = false,
+): Promise<{ reloaded: number; skipped: number }> {
+  return fetch('/api/admin/overlays/reload', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ kind, force }),
+  }).then((r) => json<{ reloaded: number; skipped: number }>(r));
 }
 
 export function listExclusions(): Promise<AdminExclusion[]> {

@@ -678,6 +678,34 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
   if (pathname === '/api/admin/live-channels') {
     return [{ login: 'kravetsinside', displayName: 'Kravets', avatarUrl: null, overlays: 1 }];
   }
+  // Two sources of the same channel, deliberately on different builds: the stale one is what the
+  // panel exists to surface, and the media one is mid-show so its "reloading replays it" flag shows.
+  if (pathname === '/api/admin/overlays') {
+    if (init?.method === 'POST') return { reloaded: 1, skipped: 0 };
+    return [
+      {
+        socketId: 'sock_chat_1',
+        login: 'kravetsinside',
+        displayName: 'Kravets',
+        kind: 'chat',
+        connectedAt: Date.now() - 8_100_000,
+        transport: 'websocket',
+        build: '2026-07-30 11:26',
+        playing: false,
+      },
+      {
+        socketId: 'sock_media_1',
+        login: 'kravetsinside',
+        displayName: 'Kravets',
+        kind: 'media',
+        connectedAt: Date.now() - 240_000,
+        transport: 'polling',
+        build: '2026-07-29 19:04',
+        playing: true,
+      },
+    ];
+  }
+  if (pathname.startsWith('/api/admin/overlays/')) return { ok: true };
   if (pathname === '/api/admin/leaderboard-exclusions') {
     if (init?.method === 'POST') return { ok: true, login: 'wizebot' };
     if (init?.method === 'DELETE') return { ok: true };

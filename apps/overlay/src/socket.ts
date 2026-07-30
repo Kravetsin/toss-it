@@ -12,6 +12,10 @@ import {
 
 export type OverlaySocket = Socket<ServerToOverlayEvents, OverlayToServerEvents>;
 
+/** Build stamp injected by vite.config — travels in the handshake so the admin panel can spot
+ *  sources still running an old bundle. */
+declare const __OVERLAY_BUILD__: string;
+
 /** How often the keepalive checks the clocks below. */
 const TICK_MS = 5_000;
 
@@ -124,7 +128,7 @@ function takeReloadMark(): string | undefined {
 export function connectOverlay(serverUrl: string, token: string, kind: OverlayKind): OverlaySocket {
   const socket: OverlaySocket = io(serverUrl, {
     ...SOCKET_OPTIONS,
-    query: { role: 'overlay', token, kind },
+    query: { role: 'overlay', token, kind, v: __OVERLAY_BUILD__ },
   });
 
   let lastPacketAt = Date.now();

@@ -1044,6 +1044,26 @@ export interface AdminLiveChannel {
   overlays: number;
 }
 
+/**
+ * One connected OBS source in the admin panel. `build` is what lets an admin see who is still on an
+ * old overlay bundle — the reason the reload button exists at all (a reload only reaches a socket
+ * that is still connected; a dropped overlay revives itself, see the overlay's recovery ladder).
+ */
+export interface AdminOverlayRow {
+  socketId: string;
+  login: string;
+  displayName: string;
+  kind: OverlayKind;
+  /** epoch ms of the handshake */
+  connectedAt: number;
+  /** 'websocket' or 'polling' — a source stuck on polling is the fragile one. */
+  transport: string;
+  /** Overlay bundle build stamp; null for bundles built before we started sending it. */
+  build: string | null;
+  /** Media overlay with a post on screen: reloading it replays that post from the top. */
+  playing: boolean;
+}
+
 /** A twitch login excluded from every channel's leaderboard (bots). */
 export interface AdminExclusion {
   login: string;
