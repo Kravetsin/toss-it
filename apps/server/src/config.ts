@@ -119,14 +119,18 @@ export const config = {
   watchdogGraceMs: 10_000,
 
   /**
-   * Socket.io tuning for streamers on flaky links (most of ours are). Defaults (25s/20s) leave a
-   * half-open OBS source counted as connected for up to 45s — long enough for the queue to burn
-   * posts into a dead overlay.
+   * Socket.io tuning for streamers on flaky links (most of ours are). Tighter than the library's
+   * 25s/20s so a half-open source is not counted as connected while the queue burns posts into it —
+   * but not so tight that a live one gets killed (see the heartbeat budget below).
    */
   realtime: {
-    /** Heartbeat cadence and how long a missed beat is tolerated → a dead socket is seen in ~20s. */
-    pingIntervalMs: Number(process.env.SOCKET_PING_INTERVAL_MS ?? 10_000),
-    pingTimeoutMs: Number(process.env.SOCKET_PING_TIMEOUT_MS ?? 10_000),
+    /**
+     * Heartbeat cadence and missed-beat tolerance → a dead socket is seen in ~35s. Was 10s/10s, and
+     * prod logs showed sessions ending at exactly 19.82s: an OBS source starved of CPU by the
+     * encoder answers nothing for 20s, got killed, reconnected, and replayed the show from the top.
+     */
+    pingIntervalMs: Number(process.env.SOCKET_PING_INTERVAL_MS ?? 15_000),
+    pingTimeoutMs: Number(process.env.SOCKET_PING_TIMEOUT_MS ?? 20_000),
     /** Connection state recovery window: a return within this replays the events missed offline. */
     recoveryWindowMs: Number(process.env.SOCKET_RECOVERY_WINDOW_MS ?? 120_000),
     /** A started show the overlay never confirmed (no progress tick) within this is undelivered. */

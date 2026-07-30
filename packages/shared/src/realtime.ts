@@ -13,10 +13,10 @@ export const SOCKET_OPTIONS = {
 
 /**
  * No packet for this long while nominally connected = the link died without telling us (DPI resets
- * and NAT timeouts leave a half-open socket). Must exceed the server's ping interval + timeout,
- * which is what keeps a genuinely idle connection from being torn down.
+ * and NAT timeouts leave a half-open socket). MUST exceed the server's ping interval + timeout
+ * (15s + 20s = 35s), which is what keeps a genuinely idle connection from being torn down.
  */
-export const SOCKET_STALL_MS = 25_000;
+export const SOCKET_STALL_MS = 45_000;
 
 /** Offline this long = something the socket layer can no longer fix (a wedged OBS browser source). */
 export const SOCKET_RELOAD_AFTER_MS = 180_000;
