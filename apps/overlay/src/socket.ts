@@ -1,8 +1,10 @@
 import { io, type Socket } from 'socket.io-client';
 import {
+  SOCKET_BLIND_RELOAD_AFTER_MS,
   SOCKET_OPTIONS,
   SOCKET_RELOAD_AFTER_MS,
   SOCKET_STALL_MS,
+  type OverlayDiag,
   type OverlayKind,
   type OverlayToServerEvents,
   type ServerToOverlayEvents,
@@ -22,8 +24,21 @@ const DOT_AFTER_MS = 10_000;
 /** How long the "we're back" blink stays up. */
 const DOT_BACK_MS = 3_000;
 
-/** Gap between reload probes once we are past the offline threshold. */
-const RELOAD_PROBE_MS = 30_000;
+/** Gap between runs of the recovery ladder once we are past the offline threshold. */
+const RECOVERY_GAP_MS = 30_000;
+
+/**
+ * Attempts failing back-to-back = a handshake that never lands (a filtered domain looks exactly like
+ * this). Escalate on the count instead of waiting out the clock, which costs the streamer the outage.
+ */
+const FAILED_ATTEMPTS_ESCALATE = 6;
+
+/** Per-candidate probe budget: a throttled link answers late, a filtered one never answers at all. */
+const PROBE_TIMEOUT_MS = 5_000;
+
+/** Why the current page exists, when it is our own reload. sessionStorage survives it; localStorage
+ *  would also survive the streamer restarting OBS, and then the report would be a lie. */
+const RELOAD_MARK = 'tossit:overlayReloadedBy';
 
 /**
  * Where this overlay talks to. Normally wherever it was served from, but ?server= points it
@@ -37,13 +52,74 @@ export function overlayServerUrl(): string {
 }
 
 /**
+ * Hosts to fall back to when our own origin stops answering. Empty unless VITE_OVERLAY_MIRRORS is
+ * set at build time (comma-separated origins) — for streamers whose ISP filters the main domain.
+ */
+function mirrorUrls(): string[] {
+  const raw = (import.meta.env.VITE_OVERLAY_MIRRORS as string | undefined) ?? '';
+  return raw
+    .split(',')
+    .map((s) => s.trim().replace(/\/$/, ''))
+    .filter((s) => /^https?:\/\//i.test(s));
+}
+
+/** Does this host answer right now? Never throws — a failed probe is just a `false`. */
+async function reachable(base: string): Promise<boolean> {
+  const ctrl = new AbortController();
+  const timer = window.setTimeout(() => ctrl.abort(), PROBE_TIMEOUT_MS);
+  try {
+    const res = await fetch(`${base}/api/ping?_=${Date.now()}`, {
+      cache: 'no-store',
+      signal: ctrl.signal,
+    });
+    return res.ok;
+  } catch {
+    return false;
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
+/**
+ * Reload the way a streamer does it by hand — OBS's "refresh cache", which is what revives ~9 of 10
+ * dead sources. location.reload() only revalidates and can hand back the very document that wedged,
+ * so the cache-buster is the point. `origin` is passed only to move the page to a MIRROR; without it
+ * the page reloads from wherever it came, which in dev is Vite rather than the server.
+ */
+function hardReload(why: string, origin?: string): void {
+  const url = new URL(window.location.href);
+  if (origin) {
+    const target = new URL(origin);
+    url.protocol = target.protocol;
+    url.host = target.host;
+  }
+  url.searchParams.set('_r', String(Date.now()));
+  try {
+    sessionStorage.setItem(RELOAD_MARK, why);
+  } catch {
+    // Storage disabled: we lose the breadcrumb in the logs, not the reload.
+  }
+  window.location.replace(url.toString());
+}
+
+function takeReloadMark(): string | undefined {
+  try {
+    const mark = sessionStorage.getItem(RELOAD_MARK);
+    if (mark) sessionStorage.removeItem(RELOAD_MARK);
+    return mark ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * The overlay's connection to the server, with the recovery an OBS browser source cannot ask for
  * itself: nobody is watching this page, so anything it fails to fix stays broken until the streamer
  * happens to notice a dead overlay mid-stream.
  *
- * Three ladders, cheapest first: socket.io's own retries, a forced re-dial when the link went away
- * without closing (see SOCKET_STALL_MS), and finally a page reload for the states no socket can
- * recover from — a wedged browser source, a stale DNS answer.
+ * Four ladders, cheapest first: socket.io's own retries, a forced re-dial when the link went away
+ * without closing (see SOCKET_STALL_MS), a reload aimed at whichever host still answers, and finally
+ * a blind reload — because a page that has been retrying for minutes is not recovering.
  */
 export function connectOverlay(serverUrl: string, token: string, kind: OverlayKind): OverlaySocket {
   const socket: OverlaySocket = io(serverUrl, {
@@ -52,23 +128,56 @@ export function connectOverlay(serverUrl: string, token: string, kind: OverlayKi
   });
 
   let lastPacketAt = Date.now();
-  /** Last time we asked the server whether a reload would land anywhere (see the tick below). */
-  let lastReloadProbeAt = 0;
+  /** Previous keepalive tick — a late one means OUR timer was throttled, not that the link is quiet. */
+  let lastTickAt = Date.now();
+  /** Consecutive silent windows. One alone is too often a delayed ping to re-dial on. */
+  let stallStrikes = 0;
+  /** Last time the recovery ladder ran, so it doesn't probe on every tick. */
+  let lastRecoveryAt = 0;
   let offlineSince: number | null = null;
+  /** Failed connection attempts since the last successful connect. */
+  let failedAttempts = 0;
+  /** Re-dials this page made on a nominally-connected socket (stall detector), for the diag report. */
+  let stalls = 0;
+  let lastReason: string | null = null;
+  /** Read at start-up, so it can only describe a PREVIOUS page: the page that calls hardReload keeps
+   *  running until the navigation lands, and would otherwise claim its own mark on a late connect. */
+  let reloadedBy = takeReloadMark();
+  const candidates = [serverUrl, ...mirrorUrls().filter((m) => m !== serverUrl)];
   const seen = (): void => {
     lastPacketAt = Date.now();
   };
   const dot = mountConnectionDot();
 
+  /** Tell the server what this page went through — the drop reason it logs is only its own half. */
+  const report = (diag: OverlayDiag): void => {
+    // Nothing to report on a first clean connect; a reload mark alone is worth a line.
+    if (!reloadedBy && !diag.reason && diag.offlineMs === 0) return;
+    socket.emit('overlay:diag', { ...diag, reloadedBy });
+    reloadedBy = undefined; // it explains this page's birth, not every reconnect it later makes
+  };
+
   socket.on('connect', () => {
-    if (offlineSince !== null && Date.now() - offlineSince > DOT_AFTER_MS) dot('back');
+    const offlineMs = offlineSince === null ? 0 : Date.now() - offlineSince;
+    if (offlineMs > DOT_AFTER_MS) dot('back');
     offlineSince = null;
     seen();
     console.log(`[overlay:${kind}] connected`, socket.recovered ? '(recovered)' : '');
+    report({ reason: lastReason ?? '', offlineMs, attempts: failedAttempts, stalls });
+    failedAttempts = 0;
+    lastReason = null;
   });
   socket.on('disconnect', (reason) => {
     offlineSince ??= Date.now();
+    lastReason = reason;
     console.log(`[overlay:${kind}] disconnected:`, reason);
+  });
+  // A handshake that never lands never fires 'disconnect', so without this the ladder below would
+  // only ever see the clock — and a filtered domain fails exactly here.
+  socket.on('connect_error', (err) => {
+    offlineSince ??= Date.now();
+    failedAttempts += 1;
+    lastReason ??= `connect_error:${err.message}`;
   });
   // Both sources answer this: it is the dashboard's remote "refresh browser source".
   socket.on('overlay:reload', () => window.location.reload());
@@ -78,33 +187,45 @@ export function connectOverlay(serverUrl: string, token: string, kind: OverlayKi
 
   window.setInterval(() => {
     const now = Date.now();
+    const sinceTick = now - lastTickAt;
+    lastTickAt = now;
+    // A browser source on an inactive OBS scene is a hidden page, and Chromium throttles its timers
+    // to about once a minute. A late tick therefore measures our own freeze — resync, judge nothing.
+    if (sinceTick > TICK_MS * 3) {
+      lastPacketAt = now;
+      stallStrikes = 0;
+      return;
+    }
     if (socket.connected) {
-      // Nothing at all from the server, yet we still believe we are connected — a half-open socket
-      // (DPI reset, NAT timeout). Only a re-dial finds out; waiting on it never ends.
       if (now - lastPacketAt > SOCKET_STALL_MS) {
-        console.warn(`[overlay:${kind}] connection stalled — reconnecting`);
-        offlineSince = now;
-        socket.disconnect();
-        socket.connect();
+        stallStrikes += 1;
+        if (stallStrikes >= 2) {
+          // Half-open socket (DPI reset, NAT timeout): only a re-dial finds out. Close the ENGINE and
+          // let socket.io retry — socket.disconnect() sends a clean DISCONNECT, and the server then
+          // drops the recoverable session along with the events we missed.
+          console.warn(`[overlay:${kind}] connection stalled — reconnecting`);
+          stallStrikes = 0;
+          stalls += 1;
+          offlineSince = now;
+          socket.io.engine.close();
+        }
+      } else {
+        stallStrikes = 0;
       }
       return;
     }
     offlineSince ??= now;
-    if (now - offlineSince > DOT_AFTER_MS) dot('down');
-    if (now - offlineSince > SOCKET_RELOAD_AFTER_MS && now - lastReloadProbeAt > RELOAD_PROBE_MS) {
-      lastReloadProbeAt = now;
-      // Never reload blind. This page came from the server, so reloading while the server is down
-      // swaps a page that keeps retrying for a browser error page that never retries anything —
-      // the overlay would stay dead until someone refreshed the source by hand. Ask first.
-      void fetch(`${serverUrl}/api/ping`, { cache: 'no-store' })
-        .then((res) => {
-          if (!res.ok) return;
-          console.warn(`[overlay:${kind}] offline too long but the server answers — reloading`);
-          window.location.reload();
-        })
-        .catch(() => {
-          // Server still unreachable: stay on the page and let socket.io keep trying.
-        });
+    const offlineFor = now - offlineSince;
+    if (offlineFor > DOT_AFTER_MS) dot('down');
+    // The server turned us away (a rotated or revoked overlay token is the only way this happens):
+    // it is not coming back on a reload, and reloading anyway would loop the source forever.
+    if (lastReason === 'io server disconnect') return;
+    if (
+      (offlineFor > SOCKET_RELOAD_AFTER_MS || failedAttempts >= FAILED_ATTEMPTS_ESCALATE) &&
+      now - lastRecoveryAt > RECOVERY_GAP_MS
+    ) {
+      lastRecoveryAt = now;
+      void recover(candidates, serverUrl, kind, offlineFor);
     }
   }, TICK_MS);
 
@@ -117,6 +238,33 @@ export function connectOverlay(serverUrl: string, token: string, kind: OverlayKi
   });
 
   return socket;
+}
+
+/**
+ * Reload, preferring a host that answers right now. Blind reload is the last rung and deliberate: a
+ * source that stays dead until the streamer notices is worse than one showing an error page, which
+ * OBS itself refreshes away on the next scene activation.
+ */
+async function recover(
+  candidates: string[],
+  own: string,
+  kind: OverlayKind,
+  offlineFor: number,
+): Promise<void> {
+  const secs = Math.round(offlineFor / 1000);
+  for (const base of candidates) {
+    if (await reachable(base)) {
+      console.warn(`[overlay:${kind}] offline ${secs}s but ${base} answers — reloading`);
+      hardReload(`probe:${secs}s`, base === own ? undefined : base);
+      return;
+    }
+  }
+  // navigator.onLine is a weak signal, but it separates the two cases that matter here: a link that
+  // is down (a blind reload lands on an error page) from one that is up while our host is filtered.
+  if (offlineFor > SOCKET_BLIND_RELOAD_AFTER_MS && navigator.onLine) {
+    console.warn(`[overlay:${kind}] offline ${secs}s, nothing answers — reloading blind`);
+    hardReload(`blind:${secs}s`);
+  }
 }
 
 /**

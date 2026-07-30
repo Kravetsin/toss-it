@@ -554,6 +554,23 @@ export interface ServerToViewerEvents {
  */
 export type PlaybackDoneReason = 'ended' | 'error';
 
+/**
+ * The page's own account of an outage it just came back from. Server logs see a drop only as a
+ * transport code, which cannot tell "the link died" from "the source was wedged and reloaded itself".
+ */
+export interface OverlayDiag {
+  /** socket.io reason for the drop this connect ends (or `connect_error:<message>`). */
+  reason: string;
+  /** How long this page had no connection. */
+  offlineMs: number;
+  /** Connection attempts that failed back-to-back before this one landed. */
+  attempts: number;
+  /** Times the page re-dialled a nominally-connected socket during its life (stall detector). */
+  stalls: number;
+  /** Set when this page IS our own hard reload: what triggered it. */
+  reloadedBy?: string;
+}
+
 export interface OverlayToServerEvents {
   'playback:done': (submissionId: string, reason?: PlaybackDoneReason) => void;
   /** Overlay learned real clip duration (YouTube: only during playback). */
@@ -562,6 +579,8 @@ export interface OverlayToServerEvents {
   'playback:progress': (p: PlaybackProgress) => void;
   /** Background-music player state, relayed to the dashboard. */
   'music:state': (state: MusicState) => void;
+  /** Sent right after a reconnect that followed an outage — see OverlayDiag. */
+  'overlay:diag': (d: OverlayDiag) => void;
 }
 
 export interface SubmissionSummary {

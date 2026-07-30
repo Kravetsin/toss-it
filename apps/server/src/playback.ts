@@ -1257,6 +1257,23 @@ export function setupRealtime(io: RealtimeServer, app: FastifyInstance): Playbac
           socket.on('music:state', (state) => {
             io.to(dashboardRoomOf(channel.id)).emit('music:state', state);
           });
+          // What the PAGE went through, which our own disconnect log cannot know: whether it kept
+          // failing to hand-shake, re-dialled a half-open socket, or had to reload itself to come back.
+          socket.on('overlay:diag', (d) => {
+            if (!d || typeof d !== 'object') return;
+            app.log.info(
+              {
+                channelId: channel.id,
+                kind,
+                dropReason: String(d.reason ?? '').slice(0, 60),
+                offlineMs: Number(d.offlineMs) || 0,
+                attempts: Number(d.attempts) || 0,
+                stalls: Number(d.stalls) || 0,
+                reloadedBy: d.reloadedBy ? String(d.reloadedBy).slice(0, 40) : undefined,
+              },
+              'overlay diag',
+            );
+          });
           const connectedAt = Date.now();
           // Last overlay gone → rescue a paused show from stranding as `current` forever.
           // Rooms are left before this fires, so both calls already see the socket as gone.

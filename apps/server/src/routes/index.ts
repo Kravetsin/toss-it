@@ -22,8 +22,15 @@ export function registerRoutes(
     payouts: Payouts;
   },
 ): void {
-  /** Lightweight uptime-monitor ping; does not touch the DB. */
-  app.get('/api/ping', async () => ({ ok: true }));
+  /**
+   * Lightweight uptime-monitor ping; does not touch the DB. Open to any origin on purpose: a stuck
+   * overlay probes it cross-origin (a mirror host, or the dev overlay on Vite's port) to decide
+   * whether reloading would land anywhere, and a blocked probe reads as "server down".
+   */
+  app.get('/api/ping', async (_req, reply) => {
+    reply.header('access-control-allow-origin', '*');
+    return { ok: true };
+  });
 
   app.get('/api/health', async () => {
     const row = await db.select().from(appMeta).where(eq(appMeta.key, 'health_checks')).get();

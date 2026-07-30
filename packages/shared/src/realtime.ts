@@ -20,3 +20,9 @@ export const SOCKET_STALL_MS = 25_000;
 
 /** Offline this long = something the socket layer can no longer fix (a wedged OBS browser source). */
 export const SOCKET_RELOAD_AFTER_MS = 180_000;
+
+/**
+ * Offline this long with nothing reachable to reload from = reload anyway. Streamers revive ~9 of 10
+ * dead sources by hand with OBS's "refresh cache", so retrying in place demonstrably does not fix it.
+ */
+export const SOCKET_BLIND_RELOAD_AFTER_MS = 300_000;
