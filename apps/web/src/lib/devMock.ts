@@ -716,43 +716,53 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
   }
   if (pathname.startsWith('/api/admin/leaderboard-exclusions/')) return { ok: true };
   if (pathname === '/api/admin/users') {
+    // total is deliberately larger than the two rows below: it is what makes the pager appear.
+    return {
+      total: 137,
+      rows: [
+        {
+          id: 'twitch:u_dev',
+          login: 'kravetsinside',
+          displayName: 'Kravets',
+          avatarUrl: null,
+          stardust: 250,
+          isFounder: true,
+          createdAt: Date.now() - 86_400_000 * 20,
+          identities: ['twitch', 'google'],
+          hasChannel: true,
+          pendingDust: 0,
+          ownedCosmetics: 2,
+          accepted: 34,
+          rejected: 2,
+          whitelistedIn: 3,
+          bannedIn: 0,
+          isLive: true,
+        },
+        {
+          id: 'google:other3',
+          login: 'slava',
+          displayName: 'Слава Anfani',
+          avatarUrl: null,
+          stardust: 40,
+          isFounder: false,
+          createdAt: Date.now() - 86_400_000 * 3,
+          identities: ['google'],
+          hasChannel: false,
+          pendingDust: 17,
+          ownedCosmetics: 0,
+          accepted: 5,
+          rejected: 4,
+          whitelistedIn: 0,
+          bannedIn: 1,
+          isLive: false,
+        },
+      ],
+    };
+  }
+  if (pathname.endsWith('/cosmetics') && pathname.startsWith('/api/admin/users/')) {
     return [
-      {
-        id: 'twitch:u_dev',
-        login: 'kravetsinside',
-        displayName: 'Kravets',
-        avatarUrl: null,
-        stardust: 250,
-        isFounder: true,
-        createdAt: Date.now() - 86_400_000 * 20,
-        identities: ['twitch', 'google'],
-        hasChannel: true,
-        pendingDust: 0,
-        ownedCosmetics: 2,
-        accepted: 34,
-        rejected: 2,
-        whitelistedIn: 3,
-        bannedIn: 0,
-        isLive: true,
-      },
-      {
-        id: 'google:other3',
-        login: 'slava',
-        displayName: 'Слава Anfani',
-        avatarUrl: null,
-        stardust: 40,
-        isFounder: false,
-        createdAt: Date.now() - 86_400_000 * 3,
-        identities: ['google'],
-        hasChannel: false,
-        pendingDust: 17,
-        ownedCosmetics: 0,
-        accepted: 5,
-        rejected: 4,
-        whitelistedIn: 0,
-        bannedIn: 1,
-        isLive: false,
-      },
+      { itemId: 'nick-glow', ownedAt: Date.now() - 86_400_000 * 4, paidDust: 300 },
+      { itemId: 'card-stardust', ownedAt: Date.now() - 86_400_000 * 9, paidDust: 500 },
     ];
   }
   if (pathname.startsWith('/api/admin/users/')) return { ok: true, stardust: 999 };

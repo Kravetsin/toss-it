@@ -5,7 +5,8 @@ import type {
   AdminExclusion,
   AdminLiveChannel,
   AdminOverlayRow,
-  AdminUserRow,
+  AdminUserCosmetic,
+  AdminUsersPage,
   AdminUsersSort,
   OverlayKind,
 } from '@tmw/shared';
@@ -58,10 +59,18 @@ export function removeExclusion(login: string): Promise<{ ok: boolean }> {
 export function listAdminUsers(
   q: string,
   sort: AdminUsersSort = 'created',
-): Promise<AdminUserRow[]> {
-  const params = new URLSearchParams({ sort });
+  page = 1,
+): Promise<AdminUsersPage> {
+  const params = new URLSearchParams({ sort, page: String(page) });
   if (q) params.set('q', q);
-  return fetch(`/api/admin/users?${params}`).then((r) => json<AdminUserRow[]>(r));
+  return fetch(`/api/admin/users?${params}`).then((r) => json<AdminUsersPage>(r));
+}
+
+/** What one user owns — the panel loads it lazily, when their card is expanded. */
+export function listUserCosmetics(userId: string): Promise<AdminUserCosmetic[]> {
+  return fetch(`/api/admin/users/${encodeURIComponent(userId)}/cosmetics`).then((r) =>
+    json<AdminUserCosmetic[]>(r),
+  );
 }
 
 export function setUserStardust(

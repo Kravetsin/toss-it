@@ -10,9 +10,11 @@ import type {
   AdminOverlayRow,
   AdminPromoCode,
   AdminPromoRedemption,
-  AdminUserRow,
+  AdminUserCosmetic,
+  AdminUsersPage,
   OverlayKind,
 } from '@tmw/shared';
+import { ADMIN_USERS_PAGE_SIZE } from '@tmw/shared';
 import { db } from '../db/index';
 import {
   bans,
@@ -165,27 +167,37 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminRoutesDeps)
     return { connected: s.connected, login: s.login };
   });
 
-  /** Support view: recent/matching users with balances and account details. */
-  app.get<{ Querystring: { q?: string; sort?: string } }>(
+  /** Support view: one page of recent/matching users with balances and account details. */
+  app.get<{ Querystring: { q?: string; sort?: string; page?: string } }>(
     '/api/admin/users',
-    async (req, reply): Promise<AdminUserRow[] | undefined> => {
+    async (req, reply): Promise<AdminUsersPage | undefined> => {
       const admin = await requireAdmin(req, reply);
       if (!admin) return;
       const q = (req.query.q ?? '').trim();
       const pattern = `%${q}%`;
       const order = req.query.sort === 'stardust' ? desc(users.stardust) : desc(users.createdAt);
+      const where = q
+        ? or(like(users.login, pattern), like(users.displayName, pattern), eq(users.id, q))
+        : undefined;
+      const page = Math.max(1, Math.floor(Number(req.query.page) || 1));
+      // Counted with the same filter as the page itself, so the counter never disagrees with it.
+      const total =
+        (
+          await db
+            .select({ n: sql<number>`count(*)` })
+            .from(users)
+            .where(where)
+            .get()
+        )?.n ?? 0;
       const rows = await db
         .select()
         .from(users)
-        .where(
-          q
-            ? or(like(users.login, pattern), like(users.displayName, pattern), eq(users.id, q))
-            : undefined,
-        )
+        .where(where)
         .orderBy(order)
-        .limit(50)
+        .limit(ADMIN_USERS_PAGE_SIZE)
+        .offset((page - 1) * ADMIN_USERS_PAGE_SIZE)
         .all();
-      if (rows.length === 0) return [];
+      if (rows.length === 0) return { rows: [], total };
       const ids = rows.map((u) => u.id);
 
       const identityRows = await db
@@ -267,7 +279,7 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminRoutesDeps)
       const whitelistBy = new Map(whitelistRows.map((r) => [r.userId, r.n]));
       const bansBy = new Map(banRows.map((r) => [r.userId, r.n]));
 
-      return rows.map((u) => ({
+      const mapped = rows.map((u) => ({
         id: u.id,
         login: u.login,
         displayName: u.displayName,
@@ -284,6 +296,34 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminRoutesDeps)
         whitelistedIn: whitelistBy.get(u.id) ?? 0,
         bannedIn: bansBy.get(u.id) ?? 0,
         isLive: liveOwnerIds.has(u.id),
+      }));
+      return { rows: mapped, total };
+    },
+  );
+
+  /**
+   * What THIS user bought. The per-cosmetic owner list answers the refund question ("who owns X");
+   * support needs the inverse just as often, and walking every item to find one user is absurd.
+   */
+  app.get<{ Params: { id: string } }>(
+    '/api/admin/users/:id/cosmetics',
+    async (req, reply): Promise<AdminUserCosmetic[] | undefined> => {
+      const admin = await requireAdmin(req, reply);
+      if (!admin) return;
+      const rows = await db
+        .select({
+          itemId: userCosmetics.itemId,
+          paidDust: userCosmetics.paidDust,
+          createdAt: userCosmetics.createdAt,
+        })
+        .from(userCosmetics)
+        .where(eq(userCosmetics.userId, req.params.id))
+        .orderBy(desc(userCosmetics.createdAt))
+        .all();
+      return rows.map((r) => ({
+        itemId: r.itemId,
+        ownedAt: r.createdAt.getTime(),
+        paidDust: r.paidDust,
       }));
     },
   );

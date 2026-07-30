@@ -1017,6 +1017,25 @@ export interface AdminUserRow {
 
 export type AdminUsersSort = 'created' | 'stardust';
 
+/** One page of the admin user list. `total` drives both the counter and the page count. */
+export interface AdminUsersPage {
+  rows: AdminUserRow[];
+  /** Users matching the current query, across all pages. */
+  total: number;
+}
+
+/** Users per page in the admin list; shared so the panel can compute the page count itself. */
+export const ADMIN_USERS_PAGE_SIZE = 50;
+
+/** A cosmetic one user owns — the inverse of the per-item owner list, which is a refund tool. */
+export interface AdminUserCosmetic {
+  itemId: string;
+  /** epoch ms when bought. */
+  ownedAt: number;
+  /** Dust actually paid, frozen at purchase (0 for rows predating the column). */
+  paidDust: number;
+}
+
 /** One catalog id and how many users own it (for the admin ownership / refund view). itemId may no
  *  longer be in the live catalog if the cosmetic was removed — buyers are still owed a refund. */
 export interface AdminCosmeticRow {
