@@ -49,7 +49,7 @@ export function OverlayStatus({
   // The chip is a summary; the tooltip is where the two sources are named apart and — when
   // something is wrong — where the streamer is told what to do about it.
   const tip = (
-    <span className="flex w-max min-w-[13rem] flex-col gap-1.5">
+    <span className="flex min-w-[13rem] flex-col gap-1.5">
       <SourceLine
         label={t('dash.overlaySourceMedia')}
         on={presence.media > 0}
