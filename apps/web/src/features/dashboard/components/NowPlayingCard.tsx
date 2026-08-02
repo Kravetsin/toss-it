@@ -43,7 +43,8 @@ export function NowPlayingCard({
   isOwner: boolean;
   /** Content volume 0-100 (channel setting); the slider shows only when this + onVolumeChange are set. */
   volume?: number;
-  /** Commit a new content volume (persist + push live). Debounced by the card. */
+  /** Fires on every drag step — the page owns the value (both stage cards show the same slider)
+   *  and debounces the commit, so dragging one slider moves the other at once. */
   onVolumeChange?: (v: number) => void;
   /** Seek the current show to a position (seconds). Enables the scrub bar for video/audio/YouTube. */
   onSeek?: (seconds: number) => void;
@@ -55,20 +56,10 @@ export function NowPlayingCard({
 }) {
   const { t } = useI18n();
 
-  // Content volume: track locally while dragging; commit (persist + live push) debounced, so it
-  // applies once the streamer settles — same feel as the background-music slider.
+  // Content volume is one channel-wide value shown by both stage cards, so the slider is fully
+  // controlled: the page holds it (both move together) and debounces the commit.
   const showVolume = volume != null && !!onVolumeChange;
-  const [vol, setVol] = useState(volume ?? 100);
-  const volTimer = useRef(0);
-  useEffect(() => {
-    if (volume != null) setVol(volume);
-  }, [volume]);
-  useEffect(() => () => window.clearTimeout(volTimer.current), []);
-  const changeVolume = (v: number) => {
-    setVol(v);
-    window.clearTimeout(volTimer.current);
-    volTimer.current = window.setTimeout(() => onVolumeChange?.(v), 300);
-  };
+  const vol = volume ?? 100;
 
   // Scrub the current show (video/audio/YouTube only — image/gif/text run on a fixed timer). Local
   // position while dragging; commit on release, then hold it briefly so the bar doesn't snap back
@@ -210,7 +201,7 @@ export function NowPlayingCard({
                 <VolumeSlider
                   volume={vol / 100}
                   muted={false}
-                  onChange={(v) => changeVolume(Math.round(v * 100))}
+                  onChange={(v) => onVolumeChange?.(Math.round(v * 100))}
                   label={t('dash.contentVolume')}
                 />
               </div>

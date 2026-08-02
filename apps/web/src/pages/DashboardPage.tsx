@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { ChannelSettings } from '@tmw/shared';
 import {
@@ -48,18 +48,24 @@ export function DashboardPage() {
     refreshLists: data.refreshLists,
   });
 
-  // Now-playing content-volume slider (owner + mods): persist + push live, and keep both copies of
-  // the value in sync. Trust the echoed volume only if it is a number — a response without one must
-  // not blank the slider (it reads `null` as "no value yet" and hides).
+  // Now-playing content-volume slider (owner + mods). One channel-wide value drives both stage
+  // cards, so it lives here: every drag step updates it at once (both sliders follow), while the
+  // commit (persist + live push) is debounced until the streamer settles. The echoed volume only
+  // syncs settings — writing it back to the slider would fight a drag still in progress.
+  const volTimer = useRef(0);
+  useEffect(() => () => window.clearTimeout(volTimer.current), []);
   const onContentVolume = (v: number) => {
     if (!channelId) return;
-    void setContentVolume(channelId, v)
-      .then((r) => {
-        const applied = typeof r.volume === 'number' ? r.volume : v;
-        data.setContentVolume(applied);
-        data.setSettings((s) => (s ? { ...s, volume: applied } : s));
-      })
-      .catch(() => {});
+    data.setContentVolume(v);
+    window.clearTimeout(volTimer.current);
+    volTimer.current = window.setTimeout(() => {
+      void setContentVolume(channelId, v)
+        .then((r) => {
+          const applied = typeof r.volume === 'number' ? r.volume : v;
+          data.setSettings((s) => (s ? { ...s, volume: applied } : s));
+        })
+        .catch(() => {});
+    }, 300);
   };
   // Now-playing scrub (owner + mods): push the seek to the overlay's current show.
   const onSeek = (seconds: number) => {
@@ -155,7 +161,9 @@ export function DashboardPage() {
           progress={data.musicProgress}
           live={data.musicProgress !== null}
           isOwner={isOwner}
-          // No volume slider here: one slider drives both stages (see the plan).
+          // Same channel-wide volume as the media card — both sliders move together.
+          volume={data.contentVolume ?? undefined}
+          onVolumeChange={onContentVolume}
           onSeek={(seconds) =>
             channelId && void seekPlayback(channelId, seconds, 'music').catch(() => {})
           }
