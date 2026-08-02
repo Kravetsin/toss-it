@@ -856,7 +856,15 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
       case 'pending':
         return new URLSearchParams(window.location.search).has('empty') ? [] : MOCK_PENDING;
       case 'now':
-        return { now: MOCK_NOW, queue: MOCK_PENDING };
+        return { now: MOCK_NOW, nowMusic: null, queue: MOCK_PENDING, volume: MOCK_SETTINGS.volume };
+      case 'volume': {
+        // Echo the posted value like the server does — an empty reply would blank the slider.
+        if (init?.body) {
+          const b = JSON.parse(String(init.body)) as { volume?: number };
+          if (typeof b.volume === 'number') MOCK_SETTINGS.volume = b.volume;
+        }
+        return { volume: MOCK_SETTINGS.volume };
+      }
       case 'stats':
         return MOCK_STATS;
       case 'live':

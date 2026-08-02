@@ -151,12 +151,15 @@ export function getNowPlaying(channelId: string): Promise<{
   /** The compact player's show, when parallel slots are on. */
   nowMusic: SubmissionSummary | null;
   queue: SubmissionSummary[];
+  /** Content volume 0-100 — here (not in settings) so moderators get the slider too. */
+  volume: number;
 }> {
   return fetch(`${dash(channelId)}/now`).then((r) =>
     json<{
       now: SubmissionSummary | null;
       nowMusic: SubmissionSummary | null;
       queue: SubmissionSummary[];
+      volume: number;
     }>(r),
   );
 }

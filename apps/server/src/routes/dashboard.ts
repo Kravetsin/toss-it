@@ -339,6 +339,9 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         now: media ? await summaryOf(media) : null,
         nowMusic: music ? await summaryOf(music) : null,
         queue: await playback.queueSummaries(channel.id),
+        // The now-playing slider is mod-accessible (like pause/skip/seek), but settings are not —
+        // so the current volume rides along here instead of coming from the owner-only settings.
+        volume: channel.volume,
       };
     },
   );

@@ -48,11 +48,17 @@ export function DashboardPage() {
     refreshLists: data.refreshLists,
   });
 
-  // Now-playing content-volume slider (owner): persist + push live, and keep settings in sync.
+  // Now-playing content-volume slider (owner + mods): persist + push live, and keep both copies of
+  // the value in sync. Trust the echoed volume only if it is a number — a response without one must
+  // not blank the slider (it reads `null` as "no value yet" and hides).
   const onContentVolume = (v: number) => {
     if (!channelId) return;
     void setContentVolume(channelId, v)
-      .then((r) => data.setSettings((s) => (s ? { ...s, volume: r.volume } : s)))
+      .then((r) => {
+        const applied = typeof r.volume === 'number' ? r.volume : v;
+        data.setContentVolume(applied);
+        data.setSettings((s) => (s ? { ...s, volume: applied } : s));
+      })
       .catch(() => {});
   };
   // Now-playing scrub (owner + mods): push the seek to the overlay's current show.
@@ -136,8 +142,8 @@ export function DashboardPage() {
         progress={data.progress}
         live={data.progress !== null}
         isOwner={isOwner}
-        volume={isOwner ? data.settings?.volume : undefined}
-        onVolumeChange={isOwner ? onContentVolume : undefined}
+        volume={data.contentVolume ?? undefined}
+        onVolumeChange={onContentVolume}
         onSeek={onSeek}
         onSkip={() => actions.skip('media')}
         onPauseResume={(paused) => actions.pauseResume(paused, 'media')}

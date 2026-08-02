@@ -173,28 +173,34 @@ export function NowPlayingCard({
           </p>
         )}
 
-        {now && (
+        {/* The volume is a channel setting driving both stages, so it stays put even while this
+            stage is idle — otherwise a song in the other stage leaves no slider anywhere. */}
+        {(now || showVolume) && (
           <div className="mt-3 flex items-center gap-2">
-            <SeekBar
-              current={shownSec}
-              duration={durationSec}
-              onSeek={handleSeek}
-              onScrubStart={() => {
-                scrubbing.current = true;
-              }}
-              onScrubEnd={() => {
-                scrubbing.current = false;
-                commitSeek(lastSeek.current);
-              }}
-              label={t('dash.seek')}
-              disabled={!seekable}
-            />
-            <span className="label-mono shrink-0 text-xs text-faint">
-              {clock(shownSec * 1000)}
-              {durationSec ? ` / ${clock(durationSec * 1000)}` : ''}
-            </span>
+            {now && (
+              <>
+                <SeekBar
+                  current={shownSec}
+                  duration={durationSec}
+                  onSeek={handleSeek}
+                  onScrubStart={() => {
+                    scrubbing.current = true;
+                  }}
+                  onScrubEnd={() => {
+                    scrubbing.current = false;
+                    commitSeek(lastSeek.current);
+                  }}
+                  label={t('dash.seek')}
+                  disabled={!seekable}
+                />
+                <span className="label-mono shrink-0 text-xs text-faint">
+                  {clock(shownSec * 1000)}
+                  {durationSec ? ` / ${clock(durationSec * 1000)}` : ''}
+                </span>
+              </>
+            )}
             {showVolume && (
-              <div className="flex shrink-0 items-center gap-1.5">
+              <div className={`flex shrink-0 items-center gap-1.5 ${now ? '' : 'ml-auto'}`}>
                 <Icon
                   name={volumeIcon(false, vol / 100)}
                   size={14}

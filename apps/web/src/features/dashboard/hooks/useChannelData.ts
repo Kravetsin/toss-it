@@ -41,6 +41,8 @@ export function useChannelData(
   const [progress, setProgress] = useState<PlaybackProgress | null>(null);
   const [musicProgress, setMusicProgress] = useState<PlaybackProgress | null>(null);
   const [settings, setSettings] = useState<ChannelSettings | null>(null);
+  /** Content volume 0-100, from /now — moderators get it too, unlike the owner-only settings. */
+  const [contentVolume, setContentVolume] = useState<number | null>(null);
   const [allowed, setAllowed] = useState<ListedUser[]>([]);
   const [banned, setBanned] = useState<ListedUser[]>([]);
   const [musicState, setMusicState] = useState<MusicState>({ videoId: null, playing: false });
@@ -113,6 +115,7 @@ export function useChannelData(
     setProgress(null);
     setMusicProgress(null);
     setSettings(null);
+    setContentVolume(null);
     setAllowed([]);
     setBanned([]);
     setReputation({});
@@ -128,6 +131,7 @@ export function useChannelData(
         setNow(r.now);
         setNowMusic(r.nowMusic);
         setQueue(r.queue);
+        if (typeof r.volume === 'number') setContentVolume(r.volume);
       })
       .catch(() => {});
     // Settings accessible to owner only.
@@ -191,6 +195,8 @@ export function useChannelData(
     progress,
     settings,
     setSettings,
+    contentVolume,
+    setContentVolume,
     allowed,
     banned,
     reputation,
