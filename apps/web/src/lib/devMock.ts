@@ -411,6 +411,17 @@ const MOCK_PENDING: SubmissionSummary[] = [
     text: 'не оборачивайся',
     createdAt: t - 50 * min,
   }),
+  sub({
+    id: 's14',
+    kind: 'text',
+    senderUserId: 'twitch:v17',
+    senderName: 'wickkeeper',
+    senderLevel: 5,
+    senderColor: '#ffca7a',
+    senderCardEffect: 'card-candles',
+    text: 'пока горят — можно просить',
+    createdAt: t - 54 * min,
+  }),
 ];
 
 const MOCK_NOW: SubmissionSummary | null = sub({

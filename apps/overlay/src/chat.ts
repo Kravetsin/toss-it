@@ -943,6 +943,16 @@ if (DEMO) {
       level: 7,
       fragments: [{ type: 'text', text: 'не оборачивайся' }],
     },
+    {
+      id: '22',
+      userId: 'u22',
+      name: 'wickkeeper',
+      twitchColor: '#ffca7a',
+      cosmetics: { cardEffect: 'card-candles' },
+      isFounder: false,
+      level: 5,
+      fragments: [{ type: 'text', text: 'пока горят — можно просить' }],
+    },
     // Notices: the three shapes the row has to survive — event + text, event alone, and an
     // anonymous actor (no cosmetics, no level, nothing to look up).
     {

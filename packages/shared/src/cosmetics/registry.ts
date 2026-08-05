@@ -26,6 +26,7 @@ import { cardSnow } from './effects/card-snow';
 import { cardConstellation } from './effects/card-constellation';
 import { cardBubbles } from './effects/card-bubbles';
 import { cardWisp } from './effects/card-wisp';
+import { cardCandles } from './effects/card-candles';
 import { cardButterflies } from './effects/card-butterflies';
 import { cardButterfliesColor } from './effects/card-butterflies-color';
 import { cardRunes } from './effects/card-runes';
@@ -230,6 +231,7 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   cardWeb,
   cardEyes,
   cardEyesColor,
+  cardCandles,
   // Frames group by the metric that earns them, each family in ladder order: chat messages first,
   // then watch time. A rung is a separate item, so the shop shows what the next one looks like.
   frameRunner,

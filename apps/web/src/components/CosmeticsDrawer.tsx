@@ -88,7 +88,7 @@ const CARD_GROUPS = [
   { key: 'cosmic', ids: ['card-stardust', 'card-constellation', 'card-levitation'] },
   { key: 'elements', ids: ['card-rain', 'card-snow', 'card-lightning', 'card-embers'] },
   { key: 'nature', ids: ['card-sakura', 'card-bubbles', 'card-butterflies'] },
-  { key: 'arcane', ids: ['card-wisp', 'card-runes', 'card-web', 'card-eyes'] },
+  { key: 'arcane', ids: ['card-wisp', 'card-runes', 'card-web', 'card-eyes', 'card-candles'] },
 ] as const;
 type CardGroupKey = (typeof CARD_GROUPS)[number]['key'];
 const GROUP_LABEL: Record<CardGroupKey, string> = {
