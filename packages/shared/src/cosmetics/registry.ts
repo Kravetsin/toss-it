@@ -33,6 +33,10 @@ import { cardRunes } from './effects/card-runes';
 import { cardWeb } from './effects/card-web';
 import { cardEyes } from './effects/card-eyes';
 import { cardEyesColor } from './effects/card-eyes-color';
+import { cardHextech } from './effects/card-hextech';
+import { cardHextechColor } from './effects/card-hextech-color';
+import { cardClaws } from './effects/card-claws';
+import { cardClawsColor } from './effects/card-claws-color';
 import { frameRunner } from './effects/frame-runner';
 import { frameRunnerDouble } from './effects/frame-runner-double';
 import { frameDragonBreath } from './effects/frame-dragon-breath';
@@ -232,6 +236,10 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   cardEyes,
   cardEyesColor,
   cardCandles,
+  cardClaws,
+  cardClawsColor,
+  cardHextech,
+  cardHextechColor,
   // Frames group by the metric that earns them, each family in ladder order: chat messages first,
   // then watch time. A rung is a separate item, so the shop shows what the next one looks like.
   frameRunner,
@@ -486,6 +494,14 @@ export function fillCardEffect(
   compact: boolean,
   color?: string,
 ): () => void {
+  // The chosen colour, on the LAYER as well as on each particle: an effect whose look partly lives on
+  // the layer's own pseudo-elements (card-hextech's etched lattice) cannot be reached by a per-particle
+  // property, since custom properties inherit down and never up. Same name as the entrances use, so
+  // there is one tint vocabulary. Validated, not trusted: a malformed value inside color-mix() kills
+  // the whole declaration, which would drop an effect's paint rather than just its colour. Cleared
+  // when unset, so switching back to no upgrade doesn't leave the old tint on a reused React node.
+  if (color && /^#[0-9a-f]{6}$/i.test(color)) layer.style.setProperty('--cos-fx-tint', color);
+  else layer.style.removeProperty('--cos-fx-tint');
   // A JS-rendered effect (a canvas web, not a particle swarm) owns the whole layer itself.
   const m = asCardEffect(id);
   if (m?.render && typeof window !== 'undefined') {

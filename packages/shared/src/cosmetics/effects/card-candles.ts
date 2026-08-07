@@ -1,4 +1,5 @@
 import type { CardEffectModule } from '../types';
+import { vdc } from '../spread';
 
 /**
  * A row of ritual candles left burning in a graveyard: each flame breathes on its own phase, every 9
@@ -33,23 +34,9 @@ import type { CardEffectModule } from '../types';
  *
  * WHY THE SPACING IS A SEQUENCE, NOT A GRID. `particle()` knows its own index but never the swarm's
  * size, so "spread N candles evenly" cannot be computed — a fixed step tuned for 5 would huddle 3 of
- * them at one end. The van der Corput sequence (below) is even for EVERY prefix length, so the same
- * rule lays out a 3-candle pill and a 5-candle card equally well.
+ * them at one end. The van der Corput sequence (see ../spread) is even for EVERY prefix length, so the
+ * same rule lays out a 3-candle pill and a 5-candle card equally well.
  */
-
-/**
- * Van der Corput (base 2): 0.5, 0.25, 0.75, 0.125, 0.625, … — bit-reversed index in [0, 1). Each new
- * point lands in the largest remaining gap, so any prefix of it is evenly spread.
- */
-function vdc(index: number): number {
-  let denom = 2;
-  let out = 0;
-  for (let n = index + 1; n > 0; n = Math.floor(n / 2)) {
-    if (n % 2) out += 1 / denom;
-    denom *= 2;
-  }
-  return out;
-}
 
 export const cardCandles: CardEffectModule = {
   id: 'card-candles',

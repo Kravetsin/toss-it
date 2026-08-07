@@ -422,6 +422,32 @@ const MOCK_PENDING: SubmissionSummary[] = [
     text: 'пока горят — можно просить',
     createdAt: t - 54 * min,
   }),
+  sub({
+    id: 's15',
+    kind: 'text',
+    senderUserId: 'twitch:v18',
+    senderName: 'seamripper',
+    senderLevel: 8,
+    senderColor: '#b9a7ff',
+    senderCardEffect: 'card-claws',
+    // Showcase the claw colour upgrade — the wound bleeds crimson instead of the default violet.
+    senderCardEffectColor: '#ff4d6a',
+    text: 'она рвётся, если долго смотреть',
+    createdAt: t - 58 * min,
+  }),
+  sub({
+    id: 's16',
+    kind: 'text',
+    senderUserId: 'twitch:v19',
+    senderName: 'piltover',
+    senderLevel: 9,
+    senderColor: '#6fd8ff',
+    senderCardEffect: 'card-hextech',
+    // Showcase the lattice colour upgrade — gold instead of the default hextech blue.
+    senderCardEffectColor: '#ffb43c',
+    text: 'заряд пошёл',
+    createdAt: t - 62 * min,
+  }),
 ];
 
 const MOCK_NOW: SubmissionSummary | null = sub({

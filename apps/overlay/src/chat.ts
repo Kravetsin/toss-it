@@ -953,6 +953,31 @@ if (DEMO) {
       level: 5,
       fragments: [{ type: 'text', text: 'пока горят — можно просить' }],
     },
+    {
+      id: '23',
+      userId: 'u23',
+      name: 'seamripper',
+      twitchColor: '#b9a7ff',
+      // The claw colour upgrade — crimson instead of the default violet.
+      cosmetics: { cardEffect: 'card-claws', cardEffectColors: { 'card-claws': '#ff4d6a' } },
+      isFounder: false,
+      level: 8,
+      fragments: [{ type: 'text', text: 'она рвётся, если долго смотреть' }],
+    },
+    {
+      id: '24',
+      userId: 'u24',
+      name: 'piltover',
+      twitchColor: '#6fd8ff',
+      // The lattice colour upgrade — gold instead of the default hextech blue.
+      cosmetics: {
+        cardEffect: 'card-hextech',
+        cardEffectColors: { 'card-hextech': '#ffb43c' },
+      },
+      isFounder: false,
+      level: 9,
+      fragments: [{ type: 'text', text: 'заряд пошёл' }],
+    },
     // Notices: the three shapes the row has to survive — event + text, event alone, and an
     // anonymous actor (no cosmetics, no level, nothing to look up).
     {

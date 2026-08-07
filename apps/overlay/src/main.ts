@@ -1564,6 +1564,13 @@ const SEAL_DEMO_COLORS: Record<string, string | undefined> = {
   'seal-swarm': '#c9b6ff',
 };
 
+/** Same, for the colourable card effects — a non-default tint so the upgrade shows without a picker. */
+const CARD_FX_DEMO_COLORS: Record<string, string | undefined> = {
+  'card-butterflies': '#5ad1ff',
+  'card-hextech': '#ffb43c',
+  'card-claws': '#ff4d6a',
+};
+
 function demoPayload(kind: MediaKind, st: DemoState): MediaPlayPayload {
   const base: MediaPlayPayload = {
     submissionId: `demo-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
@@ -1586,8 +1593,7 @@ function demoPayload(kind: MediaKind, st: DemoState): MediaPlayPayload {
     // Demo the seal colour upgrade on the colourable seals, without a picker. A table rather than a
     // ternary chain, so the next colourable seal is one line.
     senderSealColor: st.sender ? SEAL_DEMO_COLORS[st.seal] : undefined,
-    // Demo a non-default butterfly colour so the card-colour upgrade shows on the stage without a picker.
-    senderCardEffectColor: st.cardEffect === 'card-butterflies' ? '#5ad1ff' : undefined,
+    senderCardEffectColor: CARD_FX_DEMO_COLORS[st.cardEffect],
     senderEntrance: st.entrance !== 'none' ? st.entrance : undefined,
     // Demo a non-default tint so the colour upgrade is visible on the stage without a picker. Sent for
     // ANY entrance, not just the portal: the upgrade tints whichever one is equipped (see
