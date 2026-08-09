@@ -37,6 +37,7 @@ import { cardHextech } from './effects/card-hextech';
 import { cardHextechColor } from './effects/card-hextech-color';
 import { cardClaws } from './effects/card-claws';
 import { cardClawsColor } from './effects/card-claws-color';
+import { cardJelly } from './effects/card-jelly';
 import { frameRunner } from './effects/frame-runner';
 import { frameRunnerDouble } from './effects/frame-runner-double';
 import { frameDragonBreath } from './effects/frame-dragon-breath';
@@ -238,6 +239,7 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   cardCandles,
   cardClaws,
   cardClawsColor,
+  cardJelly,
   cardHextech,
   cardHextechColor,
   // Frames group by the metric that earns them, each family in ladder order: chat messages first,

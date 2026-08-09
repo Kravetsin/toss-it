@@ -87,7 +87,7 @@ for (const c of COSMETICS) CATEGORY_IDS[CATEGORY_OF[c.type]].push(c.id);
 const CARD_GROUPS = [
   { key: 'cosmic', ids: ['card-stardust', 'card-constellation', 'card-levitation', 'card-claws'] },
   { key: 'elements', ids: ['card-rain', 'card-snow', 'card-lightning', 'card-embers'] },
-  { key: 'nature', ids: ['card-sakura', 'card-bubbles', 'card-butterflies'] },
+  { key: 'nature', ids: ['card-sakura', 'card-bubbles', 'card-butterflies', 'card-jelly'] },
   {
     key: 'arcane',
     ids: ['card-wisp', 'card-runes', 'card-web', 'card-eyes', 'card-candles', 'card-hextech'],

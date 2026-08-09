@@ -448,6 +448,17 @@ const MOCK_PENDING: SubmissionSummary[] = [
     text: 'заряд пошёл',
     createdAt: t - 62 * min,
   }),
+  sub({
+    id: 's17',
+    kind: 'text',
+    senderUserId: 'twitch:v20',
+    senderName: 'deepcurrent',
+    senderLevel: 6,
+    senderColor: '#9db8ff',
+    senderCardEffect: 'card-jelly',
+    text: 'тут глубоко',
+    createdAt: t - 66 * min,
+  }),
 ];
 
 const MOCK_NOW: SubmissionSummary | null = sub({
