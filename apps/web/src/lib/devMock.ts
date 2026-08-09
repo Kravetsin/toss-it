@@ -463,6 +463,17 @@ const MOCK_PENDING: SubmissionSummary[] = [
     text: 'тут глубоко',
     createdAt: t - 66 * min,
   }),
+  sub({
+    id: 's18',
+    kind: 'text',
+    senderUserId: 'twitch:v21',
+    senderName: 'glasstapper',
+    senderLevel: 5,
+    senderColor: '#dcf2ff',
+    senderCardEffect: 'card-handprints',
+    text: 'оно снова подошло к стеклу',
+    createdAt: t - 70 * min,
+  }),
 ];
 
 const MOCK_NOW: SubmissionSummary | null = sub({

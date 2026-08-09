@@ -989,6 +989,18 @@ if (DEMO) {
       fragments: [{ type: 'text', text: 'тут глубоко' }],
     },
     {
+      id: '27',
+      userId: 'u27',
+      name: 'glasstapper',
+      twitchColor: '#dcf2ff',
+      // A JS-free print swarm whose whole read is the ENVELOPE — worth having on the smallest
+      // surface, where the hand is mostly clipped and only the press timing carries it.
+      cosmetics: { cardEffect: 'card-handprints' },
+      isFounder: false,
+      level: 5,
+      fragments: [{ type: 'text', text: 'оно снова подошло к стеклу' }],
+    },
+    {
       id: '26',
       userId: 'u26',
       name: 'starweaver',
