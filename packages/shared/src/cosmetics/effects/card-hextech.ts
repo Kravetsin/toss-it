@@ -9,10 +9,12 @@ import type { CardEffectModule } from '../types';
  * Here the figure is FIXED and the swarm only lights parts of it, so the card reads as a machine
  * rather than as a card someone poured particles over.
  *
- * IT BREATHES. One pulse gathers at the centre, swells outward as a ring, and dies at the edge; then
- * the card is quiet until the next breath. The whole layer runs on that ONE clock (WAVE seconds, every
- * element `delay: 0` apart from the cells' distance offset), which is what makes it read as a single
- * organism rather than as parts that happen to be animated — the same trick as the candles' gust.
+ * IT BREATHES, AND IT HAS A SOURCE. A single hexagon sits on the lattice's centre node and fills up
+ * over the whole breath; at its brightest it lets go, and that release IS the ring leaving the middle
+ * of the card. The pulse then swells outward and dies at the edge, and the core starts filling again.
+ * The whole layer runs on that ONE clock (WAVE seconds, every element `delay: 0` apart from the cells'
+ * distance offset), which is what makes it read as a single organism rather than as parts that happen
+ * to be animated — the same trick as the candles' gust.
  *
  * THE CELLS ANSWER THE WAVE. A cell's `--delay` is derived from its DISTANCE to the centre, so it
  * discharges exactly as the ring passes over it and the flashes ripple outward in order. That is also
@@ -98,21 +100,46 @@ export const cardHextech: CardEffectModule = {
   costDust: 5000,
   since: '2026-08-07',
   className: 'card-fx-hextech',
-  counts: { web: 5, overlayCard: 4, overlayChat: 3 },
+  // One more than the ring cells: index 0 is spent on the CORE (see particle), so raising these keeps
+  // the same number of cells answering the wave.
+  counts: { web: 6, overlayCard: 5, overlayChat: 4 },
   colorUpgrade: 'card-hextech-color',
   labels: { name: 'shop.cardHextech', desc: 'shop.cardHextechDesc' },
   // No `color` here: this effect is tinted at the LAYER (--cos-fx-tint, set by fillCardEffect), because
   // its lattice and charge live on the layer's own pseudo-elements, which a per-particle property can
   // never reach — custom properties inherit down, not up.
-  particle: (rnd, compact) => {
+  particle: (rnd, compact, index) => {
     const s = compact ? S_COMPACT : S_CARD;
+    // THE CORE. Index 0 is always the cell on the centre node, and it does not answer the wave — it
+    // CAUSES it: it charges through the whole breath and lets go at the moment the ring is born. An
+    // index rather than a roll, because a swarm with two cores (or none) is a different effect; and
+    // the centre is the one node the lattice guarantees exists on any surface (see the header).
+    // It picks up its own keyframes through --cell, the way card-candles swaps in its snuff.
+    if (index === 0) {
+      const core: Record<string, string> = {
+        left: '50%',
+        top: '50%',
+        '--dx': '0px',
+        '--dy': '0px',
+        // Zero, not a phase: the core and the wave are the same event and must share a clock exactly.
+        '--delay': '0s',
+        '--cell': 'cardfx-hex-core',
+      };
+      return core;
+    }
     const cols = compact ? COLS.compact : COLS.card;
     const rows = compact ? ROWS.compact : ROWS.card;
     // The two honeycomb sublattices — the offset one is shifted by half a step on both axes.
     const odd = rnd(0, 1) < 0.5;
     const step = (n: number) => Math.floor(rnd(-n, n + 1));
-    const dx = (odd ? 1.5 * s : 0) + 3 * s * step(cols);
-    const dy = (odd ? 0.866 * s : 0) + 1.732 * s * step(rows);
+    let dx = (odd ? 1.5 * s : 0) + 3 * s * step(cols);
+    let dy = (odd ? 0.866 * s : 0) + 1.732 * s * step(rows);
+    // The centre node belongs to the core. A ring cell landing on it (about one roll in ninety) would
+    // blink on top of the thing that is supposed to be driving it, so it steps to its neighbour.
+    if (dx === 0 && dy === 0) {
+      dx = 3 * s;
+      dy = 0;
+    }
     // WHEN THE WAVE GETS HERE. The farthest node is the yardstick — the ring is sized to land on it
     // exactly at REACH (see reachSize), so a distance normalises to 0…1 without anyone knowing the
     // container. The delay is then whatever puts this cell's FLASH on that instant — negative, and
@@ -219,30 +246,56 @@ export const cardHextech: CardEffectModule = {
     background-size: calc(var(--hex-reach) * 0.05) calc(var(--hex-reach) * 0.05);
     opacity: 1;
   }
+  /* The fade is a CURVE, not two straight runs. It used to hold near half brightness all the way out
+     and then drop to nothing over the last fifth, and a kink like that is seen as the ring winking out
+     rather than dying away — the eye reads the change of rate, not the value. These stops ease off
+     continuously instead, and the ring is still travelling while the last of it goes. */
+  34% {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 0.62;
+  }
   /* crossing at a steady rate, arriving on the outermost node exactly here (REACH) */
   58% {
     background-size: var(--hex-reach) var(--hex-reach);
-    opacity: 0.5;
+    opacity: 0.46;
   }
-  /* past the last node, still spreading at the same rate, dissipating as it leaves */
-  78%,
+  70% {
+    opacity: 0.22;
+  }
+  /* Gone — and only now does it stop. A ripple that keeps its size while it fades reads as a decal
+     being turned down; this one is still spreading at the same rate as it leaves. */
+  82%,
   100% {
-    background-size: calc(var(--hex-reach) * 1.4) calc(var(--hex-reach) * 1.4);
+    background-size: calc(var(--hex-reach) * 1.48) calc(var(--hex-reach) * 1.48);
     opacity: 0;
   }
 }
-/* The lattice swells with the intake and settles as the ring leaves — the breath you feel rather than
-   watch. Small numbers on purpose: the etching brightening is a mood, not a second effect. */
+/* The lattice fills WITH the core and empties WITH it, so the two are one charge rather than two
+   animations that happen to overlap.
+   THE SHAPE MATTERS MORE THAN THE RANGE. This used to jump from its dimmest to its brightest inside
+   the first 8% and then sag back over the following half of the cycle — two very different rates, so
+   the lattice looked plainly lighter before the pulse and darker after it, which reads as a colour
+   change rather than as breathing. Now the rise takes the whole cycle (imperceptible, as a refill
+   should be) and the only quick move is the discharge itself, which is meant to be felt. Small numbers
+   on purpose: the etching brightening is a mood, not a second effect. */
 @keyframes cardfx-hex-breath {
-  0%,
+  /* carried over from 100%: the etching has been filling all breath long, with the core */
+  0% {
+    opacity: 0.36;
+  }
+  /* peak, on the same frame the core lets go */
+  7% {
+    opacity: 0.4;
+  }
+  /* spent */
+  13% {
+    opacity: 0.29;
+  }
+  /* and the same long refill the core runs */
   100% {
-    opacity: 0.26;
-  }
-  8% {
-    opacity: 0.44;
-  }
-  58% {
-    opacity: 0.3;
+    opacity: 0.36;
   }
 }
 /* THE CELL — a hexagon sitting exactly on a node: 50%/50% is the anchored centre, --dx/--dy step out
@@ -259,7 +312,52 @@ export const cardHextech: CardEffectModule = {
     var(--cos-fx-tint, #6fd8ff) 46%,
     color-mix(in srgb, var(--cos-fx-tint, #6fd8ff) 25%, transparent) 100%
   );
-  animation: cardfx-hex-cell ${WAVE}s ease-in-out var(--delay, 0s) infinite;
+  /* Per-property, not the shorthand: the NAME comes from --cell, so the centre node can run the core's
+     keyframes instead of a ring cell's without needing an element of its own (card-candles swaps its
+     snuff in the same way). */
+  animation-name: var(--cell, cardfx-hex-cell);
+  animation-duration: ${WAVE}s;
+  animation-timing-function: ease-in-out;
+  animation-delay: var(--delay, 0s);
+  animation-iteration-count: infinite;
+}
+/* THE CORE — the cell on the centre node, and the only one that is never dark. It is the SOURCE: it
+   spends the whole breath filling up, goes off at the instant the ring is born (BORN), and drops back
+   to a low ember to start again. Because the wave carries no delay either, the release and the ring
+   leaving the centre are the same frame — the light does not merely coincide with the wave, it looks
+   like what caused it.
+   The drop-shadow is on the filter list at every stop: an animated filter interpolates only between
+   matching function lists, so leaving it out of one keyframe would make the glow snap instead of
+   swell. */
+@keyframes cardfx-hex-core {
+  /* carried over from 100% — nearly full, and still climbing */
+  0% {
+    opacity: 0.62;
+    filter: brightness(1.2) drop-shadow(0 0 3px var(--cos-fx-tint, #6fd8ff));
+  }
+  4% {
+    opacity: 0.86;
+    filter: brightness(1.7) drop-shadow(0 0 6px var(--cos-fx-tint, #6fd8ff));
+  }
+  /* the peak, and the ring leaves here */
+  7% {
+    opacity: 1;
+    filter: brightness(2.8) drop-shadow(0 0 12px var(--cos-fx-tint, #6fd8ff));
+  }
+  /* spent */
+  11% {
+    opacity: 0.3;
+    filter: brightness(0.85) drop-shadow(0 0 2px var(--cos-fx-tint, #6fd8ff));
+  }
+  18% {
+    opacity: 0.26;
+    filter: brightness(0.8) drop-shadow(0 0 1px var(--cos-fx-tint, #6fd8ff));
+  }
+  /* and the long, slow refill that makes the next release feel earned */
+  100% {
+    opacity: 0.62;
+    filter: brightness(1.2) drop-shadow(0 0 3px var(--cos-fx-tint, #6fd8ff));
+  }
 }
 /* Charge, DISCHARGE, afterglow — with the discharge pinned to FLASH (50%), the instant the ring
    arrives. The stumble right after it is the discharge itself: without that drop the cell just fades
