@@ -988,6 +988,17 @@ if (DEMO) {
       level: 6,
       fragments: [{ type: 'text', text: 'тут глубоко' }],
     },
+    {
+      id: '26',
+      userId: 'u26',
+      name: 'starweaver',
+      twitchColor: '#ff8fd4',
+      // The web colour upgrade — pink instead of the default mint.
+      cosmetics: { cardEffect: 'card-web', cardEffectColors: { 'card-web': '#ff8fd4' } },
+      isFounder: false,
+      level: 8,
+      fragments: [{ type: 'text', text: 'сплетено заново' }],
+    },
     // Notices: the three shapes the row has to survive — event + text, event alone, and an
     // anonymous actor (no cosmetics, no level, nothing to look up).
     {

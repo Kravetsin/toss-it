@@ -1569,6 +1569,7 @@ const CARD_FX_DEMO_COLORS: Record<string, string | undefined> = {
   'card-butterflies': '#5ad1ff',
   'card-hextech': '#ffb43c',
   'card-claws': '#ff4d6a',
+  'card-web': '#ff8fd4',
 };
 
 function demoPayload(kind: MediaKind, st: DemoState): MediaPlayPayload {

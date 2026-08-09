@@ -31,6 +31,7 @@ import { cardButterflies } from './effects/card-butterflies';
 import { cardButterfliesColor } from './effects/card-butterflies-color';
 import { cardRunes } from './effects/card-runes';
 import { cardWeb } from './effects/card-web';
+import { cardWebColor } from './effects/card-web-color';
 import { cardEyes } from './effects/card-eyes';
 import { cardEyesColor } from './effects/card-eyes-color';
 import { cardHextech } from './effects/card-hextech';
@@ -234,6 +235,7 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   cardButterfliesColor,
   cardRunes,
   cardWeb,
+  cardWebColor,
   cardEyes,
   cardEyesColor,
   cardCandles,

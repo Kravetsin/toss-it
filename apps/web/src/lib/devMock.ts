@@ -90,7 +90,11 @@ const MOCK_ME: MeResponse = {
       cardEffect: 'card-web',
       // Per-effect saved colours — the picker inside each effect's card shows these; owned via
       // ownedCosmetics = every catalog id (so both colour upgrades are owned).
-      cardEffectColors: { 'card-butterflies': '#5ad1ff', 'card-eyes': '#7cff4f' },
+      cardEffectColors: {
+        'card-butterflies': '#5ad1ff',
+        'card-eyes': '#7cff4f',
+        'card-web': '#ff8fd4',
+      },
       // Saved per-seal colours — the picker inside each colourable seal's row seeds from these.
       sealColors: {
         'seal-core': '#5ad1ff',

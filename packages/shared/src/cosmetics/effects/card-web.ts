@@ -43,6 +43,13 @@ function hexToRgb(hex: string): [number, number, number] {
   const n = parseInt(h.length === 3 ? h[0]! + h[0]! + h[1]! + h[1]! + h[2]! + h[2]! : h, 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
+// The accent isn't a second stored colour — it's the equipped colour lightened, so a custom hue still
+// gets the two-tone sprinkle instead of clashing with the fixed mint ACCENT.
+function lighten(hex: string, t: number): string {
+  const [r, g, b] = hexToRgb(hex);
+  const c = (v: number) => Math.round(v + (255 - v) * t);
+  return `#${[c(r), c(g), c(b)].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+}
 
 const spriteCache = new Map<string, HTMLCanvasElement>();
 // Soft mint halo (the wisp's box-shadow).
@@ -105,8 +112,15 @@ interface Node {
   link: number;
 }
 
-function render(layer: HTMLElement, _surface: string, compact: boolean): (() => void) | void {
+function render(
+  layer: HTMLElement,
+  _surface: string,
+  compact: boolean,
+  color?: string,
+): (() => void) | void {
   if (typeof window === 'undefined') return;
+  const col = color ?? COLOR;
+  const accent = color ? lighten(color, 0.55) : ACCENT;
   const cv = document.createElement('canvas');
   const st = cv.style;
   st.position = 'absolute';
@@ -202,7 +216,7 @@ function render(layer: HTMLElement, _surface: string, compact: boolean): (() => 
     for (let i = 0; i < n; i++) pts.push(perim(i, n, rx, ry, rw, rh));
 
     ctx!.globalCompositeOperation = 'source-over';
-    ctx!.strokeStyle = COLOR;
+    ctx!.strokeStyle = col;
     ctx!.lineCap = 'round';
 
     // 1) STATIC contour: the inset rectangle itself. Two-pass glow (wide faint + thin bright), NOT
@@ -252,13 +266,13 @@ function render(layer: HTMLElement, _surface: string, compact: boolean): (() => 
       const p = pts[i]!;
       const tw = still ? 0.9 : 0.72 + 0.28 * Math.sin(now * 0.007 + nd.tw);
       const alpha = clamp(weave * tw, 0, 1);
-      const col = nd.accent ? ACCENT : COLOR;
+      const nodeCol = nd.accent ? accent : col;
       const halo = (compact ? 10 : 14) + (compact ? 7 : 10) * nd.sz;
       ctx!.globalAlpha = alpha * 0.5;
-      ctx!.drawImage(glowSprite(col), p[0] - halo / 2, p[1] - halo / 2, halo, halo);
+      ctx!.drawImage(glowSprite(nodeCol), p[0] - halo / 2, p[1] - halo / 2, halo, halo);
       const core = (compact ? 2.4 : 3) + 2.2 * nd.sz;
       ctx!.globalAlpha = alpha;
-      ctx!.drawImage(coreSprite(col), p[0] - core / 2, p[1] - core / 2, core, core);
+      ctx!.drawImage(coreSprite(nodeCol), p[0] - core / 2, p[1] - core / 2, core, core);
     }
     ctx!.globalAlpha = 1;
   }
@@ -370,6 +384,7 @@ export const cardWeb: CardEffectModule = {
   // Nominal only: a render effect owns the whole layer, but counts must be non-zero for the layer to
   // be created at all (see CardEffectModule.render / cardEffectLayerClass).
   counts: { web: 1, overlayCard: 1, overlayChat: 1 },
+  colorUpgrade: 'card-web-color',
   labels: { name: 'shop.cardWeb', desc: 'shop.cardWebDesc' },
   render,
   // No css: the whole effect is the JS canvas; the shared `.card-fx` base already clips the layer.
