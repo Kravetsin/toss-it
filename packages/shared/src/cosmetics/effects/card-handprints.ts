@@ -459,10 +459,14 @@ ${streakVars}
   mask-repeat: repeat, no-repeat, no-repeat;
   -webkit-mask-composite: source-in, source-out, source-over;
   mask-composite: intersect, subtract, add;
+  /* WELL BELOW THE HAND'S OWN STRENGTH — about a quarter of it. At closer values the streak matched
+     the finger it came from in both width and brightness, and the two read as ONE shape: fingers
+     that stretched as the hand slid, rather than a hand leaving marks behind. What separates a trace
+     from an extension here is the drop in weight at the junction, not the geometry. */
   background: linear-gradient(
     to bottom,
-    color-mix(in srgb, var(--cos-fx-tint, #dcf2ff) 20%, transparent) 0%,
-    color-mix(in srgb, var(--cos-fx-tint, #dcf2ff) 28%, transparent) 100%
+    color-mix(in srgb, var(--cos-fx-tint, #dcf2ff) 12%, transparent) 0%,
+    color-mix(in srgb, var(--cos-fx-tint, #dcf2ff) 17%, transparent) 100%
   );
   filter: blur(0.9px);
   /* Identical easing to the slip above — see the note there. */
