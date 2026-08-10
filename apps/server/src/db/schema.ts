@@ -12,6 +12,7 @@ import type {
   ChannelLink,
   EquippedCosmetics,
   MediaKind,
+  MusicDisplay,
   MusicTrack,
   OverlayPosition,
   SubmissionStatus,
@@ -170,7 +171,10 @@ export const channels = sqliteTable('channels', {
     .default(sql`'[]'`),
   bgMusicShuffle: integer('bg_music_shuffle', { mode: 'boolean' }).notNull().default(false),
   bgMusicVolume: integer('bg_music_volume').notNull().default(50),
+  /** Deprecated: folded into bgMusicDisplay. Kept so the column isn't dropped from existing DBs. */
   bgMusicHidden: integer('bg_music_hidden', { mode: 'boolean' }).notNull().default(false),
+  /** How much of the background player OBS shows: video card, a title-only strip, or nothing. */
+  bgMusicDisplay: text('bg_music_display').$type<MusicDisplay>().notNull().default('full'),
   /** Deprecated: superseded by pageBackground. Kept so the column isn't dropped from existing DBs. */
   nebulaHidden: integer('nebula_hidden', { mode: 'boolean' }).notNull().default(false),
   /** Chosen page background id ('' = none). Renders only if the channel has earned it (played count). */

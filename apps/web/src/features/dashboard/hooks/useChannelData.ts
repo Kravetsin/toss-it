@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import type {
   ChannelSettings,
   ListedUser,
+  MusicDisplay,
   MusicState,
   MusicTrack,
   OverlayPresence,
@@ -47,8 +48,12 @@ export function useChannelData(
   const [banned, setBanned] = useState<ListedUser[]>([]);
   const [musicState, setMusicState] = useState<MusicState>({ videoId: null, playing: false });
   const [musicTracks, setMusicTracks] = useState<MusicTrack[]>([]);
-  // DJ knobs (shuffle/volume/hidden) — separate from owner-only settings so moderators get them too.
-  const [musicConfig, setMusicConfig] = useState({ shuffle: false, volume: 50, hidden: false });
+  // DJ knobs (shuffle/volume/display) — separate from owner-only settings so moderators get them too.
+  const [musicConfig, setMusicConfig] = useState<{
+    shuffle: boolean;
+    volume: number;
+    display: MusicDisplay;
+  }>({ shuffle: false, volume: 50, display: 'full' });
   const [musicLoading, setMusicLoading] = useState(false);
   // Overlay sources connected right now, and whether we can still be told about it: a dashboard that
   // lost the server knows nothing about the overlay and must say so instead of showing stale green.
@@ -94,7 +99,7 @@ export function useChannelData(
       .then((r) => {
         if (cancelled) return;
         setMusicTracks(r.tracks);
-        setMusicConfig({ shuffle: r.shuffle, volume: r.volume, hidden: r.hidden });
+        setMusicConfig({ shuffle: r.shuffle, volume: r.volume, display: r.display });
       })
       .catch(() => {})
       .finally(() => {

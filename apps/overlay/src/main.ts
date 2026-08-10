@@ -26,6 +26,7 @@ import {
   type MediaPlayPayload,
   type MusicCommand,
   type MusicConfig,
+  type MusicDisplay,
   type OverlayLayout,
   type OverlayPosition,
   type PlaybackDoneReason,
@@ -56,6 +57,9 @@ interface YTPlayer {
   getVideoData(): { video_id?: string; title?: string; author?: string };
   /** Toggle a player module (e.g. 'captions'/'cc') — used to force closed captions off. */
   unloadModule(module: string): void;
+  /** Resolution YouTube picked ('tiny'…'hd1080'). Read-only signal: it follows the player's size,
+   *  which is how compact mode ends up decoding less. */
+  getPlaybackQuality?(): string;
   destroy(): void;
 }
 interface YTPlayerOptions {
@@ -82,9 +86,6 @@ declare global {
 }
 
 // Inline lucide-style glyphs (no React icon set in the overlay; stroke = 2, matches the web).
-const GIFT_SVG =
-  '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"/></svg>';
-
 // Badge id -> inline SVG, rendered in mint after the name. Founder = sparkles (matches web UserBadges).
 const BADGE_SVG: Record<string, string> = {
   founder:
@@ -136,6 +137,8 @@ interface ShowState {
   isYoutube: boolean;
   /** An uploaded audio file — always the compact player, switch or not. */
   isAudio: boolean;
+  /** This post is riding the music anchor, so the music display mode governs it too. */
+  onMusicAnchor: boolean;
   mediaEl: HTMLVideoElement | HTMLAudioElement | null;
   /** Image/gif/text have no player — we track their display window so it can be frozen. */
   timedDurationMs: number;
@@ -168,6 +171,7 @@ const newShow = (el: HTMLElement): ShowState => ({
   kind: null,
   isYoutube: false,
   isAudio: false,
+  onMusicAnchor: false,
   mediaEl: null,
   timedDurationMs: 0,
   timedElapsedMs: 0,
@@ -235,8 +239,12 @@ socket.on('media:layout', (layouts) => {
   for (const sh of [shows.media, shows.music]) {
     if (!sh.currentId) continue;
     const music = sh.isYoutube ? layouts.youtubeAsMusic : sh.isAudio;
+    sh.onMusicAnchor = music; // the switch can move a post onto (or off) the music anchor mid-show
     const card = sh.el.querySelector<HTMLElement>('.player');
-    animateLayoutMove(card, () => applyStageLayout(sh, music ? layouts.music : layouts.media));
+    animateLayoutMove(card, () => {
+      applyStageLayout(sh, music ? layouts.music : layouts.media);
+      applyShowCompact(sh);
+    });
   }
 });
 
@@ -256,6 +264,9 @@ function show(sh: ShowState, payload: MediaPlayPayload): void {
   // re-decide without waiting for the next post.
   sh.isYoutube = payload.kind === 'youtube';
   sh.isAudio = payload.kind === 'audio';
+  // A YouTube post follows the channel's switch (the server already applied it here); audio always
+  // rides the music anchor. Both are "music" as far as the compact display mode is concerned.
+  sh.onMusicAnchor = sh.isYoutube ? !!payload.youtubeMusic : sh.isAudio;
   applyStageLayout(sh, payload);
 
   const url = resolveMediaUrl(payload.url);
@@ -268,6 +279,7 @@ function show(sh: ShowState, payload: MediaPlayPayload): void {
   const media = createMediaElement(sh, payload, url);
   alert.appendChild(buildCard(payload, media));
   sh.el.appendChild(alert);
+  applyShowCompact(sh);
 
   if (payload.sound) playChime(payload.volume);
   scheduleSpeech(sh, payload);
@@ -293,15 +305,11 @@ function show(sh: ShowState, payload: MediaPlayPayload): void {
 
 /**
  * Fill a sender container — the `.sender` banner (image/video) or the music player's `.player-meta`
- * footer — with the gift glyph, level rail + numeral, the cosmetic-tinted name, and badges. Shared
- * so both surfaces stay identical. The card effect belongs to the sender, so it plays here, on the
- * short name row, not over the media the viewer sent.
+ * footer — with the level rail + numeral, the earned seal, the cosmetic-tinted name, and badges.
+ * Shared so both surfaces stay identical. The card effect belongs to the sender, so it plays here,
+ * on the short name row, not over the media the viewer sent.
  */
 function decorateSender(el: HTMLElement, payload: MediaPlayPayload): void {
-  const glyph = document.createElement('span');
-  glyph.className = 'glyph';
-  glyph.innerHTML = GIFT_SVG;
-  el.appendChild(glyph);
   // Level: rarity rail on the left edge + Roman numeral rank before the name (glow from lvl 6).
   const tier = payload.senderLevel ? levelTier(payload.senderLevel) : null;
   if (tier) {
@@ -317,7 +325,18 @@ function decorateSender(el: HTMLElement, payload: MediaPlayPayload): void {
     ln.textContent = toRoman(payload.senderLevel!);
     el.appendChild(ln);
   }
-  // Wrap the name so an equipped nick color tints only the name, not the glyph/badges.
+  // Seal: earned mark, read as a rank insignia — so it leads the name, right after the level.
+  const sealCls = sealEffectClass(payload.senderSeal);
+  if (sealCls) {
+    const seal = document.createElement('span');
+    seal.className = `sender-seal ${sealCls}`;
+    // Constant markup from the cosmetics registry — not user input.
+    seal.innerHTML = sealMarkup(payload.senderSeal);
+    // Colourable seals read their tint from --seal-tint; a plain seal ignores it.
+    if (payload.senderSealColor) seal.style.setProperty('--seal-tint', payload.senderSealColor);
+    el.appendChild(seal);
+  }
+  // Wrap the name so an equipped nick color tints only the name, not the seal/badges.
   const nameEl = document.createElement('span');
   nameEl.className = 'name';
   nameEl.textContent = payload.senderName ?? '';
@@ -341,17 +360,6 @@ function decorateSender(el: HTMLElement, payload: MediaPlayPayload): void {
     badges.className = 'badges';
     badges.innerHTML = badgeSvgs.map((svg) => `<span class="badge">${svg}</span>`).join('');
     el.appendChild(badges);
-  }
-  // Seal sits with the badges — it IS an earned mark, and the name row is where marks live.
-  const sealCls = sealEffectClass(payload.senderSeal);
-  if (sealCls) {
-    const seal = document.createElement('span');
-    seal.className = `sender-seal ${sealCls}`;
-    // Constant markup from the cosmetics registry — not user input.
-    seal.innerHTML = sealMarkup(payload.senderSeal);
-    // Colourable seals read their tint from --seal-tint; a plain seal ignores it.
-    if (payload.senderSealColor) seal.style.setProperty('--seal-tint', payload.senderSealColor);
-    el.appendChild(seal);
   }
   if (payload.senderCardEffect)
     mountCardEffect(
@@ -392,7 +400,30 @@ function buildCard(payload: MediaPlayPayload, media: HTMLElement): HTMLElement {
     if (caption) appendCaptionMarquee(meta, caption, !!payload.senderName);
     player.appendChild(meta);
   }
+  // A requested song can be shown compact (video clipped away, see .music-compact) — the strip is
+  // what's left telling the room something is playing, so it ships with every such card.
+  if (payload.kind === 'youtube' && payload.youtubeMusic) {
+    const progress = document.createElement('div');
+    progress.className = 'music-progress';
+    progress.style.display = 'none'; // applyShowCompact turns it on when the mode says so
+    progress.style.setProperty('--tick', '0.35s'); // matches the show's progress interval
+    progress.appendChild(Object.assign(document.createElement('div'), { className: 'fill' }));
+    player.appendChild(progress);
+  }
   return player;
+}
+
+/** Put the current post in (or out of) compact music mode. Only a requested song qualifies: an
+ *  uploaded audio post has no video to drop, and an image/video post isn't music at all.
+ *  'hidden' lands here as compact too — the axis is monotonic (less video the further right), and a
+ *  paid request must never vanish outright: the song plays on, so an empty screen would read as a bug. */
+function applyShowCompact(sh: ShowState): void {
+  const card = sh.el.querySelector<HTMLElement>('.player');
+  if (!card) return;
+  const compact = sh.isYoutube && sh.onMusicAnchor && musicDisplay !== 'full';
+  card.classList.toggle('music-compact', compact);
+  const bar = card.querySelector<HTMLElement>('.music-progress');
+  if (bar) bar.style.display = compact ? '' : 'none';
 }
 
 /** Append the submission text to a meta row as a clipped, ping-pong marquee. A leading separator is
@@ -484,6 +515,9 @@ function emitProgress(sh: ShowState): void {
     positionMs = sh.timedElapsedMs + (sh.paused ? 0 : Date.now() - sh.timedStartTs);
     durationMs = sh.timedDurationMs;
   }
+  // The compact strip rides this same tick rather than a timer of its own.
+  const fill = sh.el.querySelector<HTMLElement>('.music-progress .fill');
+  if (fill) setFillWidth(fill, durationMs > 0 ? (positionMs / durationMs) * 100 : 0);
   socket.emit('playback:progress', {
     submissionId: sh.currentId,
     positionMs,
@@ -743,6 +777,9 @@ let musicCard: HTMLElement | null = null;
 let musicMetaEl: HTMLElement | null = null;
 let musicTitleCap: HTMLElement | null = null;
 let musicTitleTrack: HTMLElement | null = null;
+// Compact mode only: the progress strip standing in for the hidden video.
+let musicProgressEl: HTMLElement | null = null;
+let musicProgressFill: HTMLElement | null = null;
 // Player layout — the music block, shared with (optionally) song-request cards. Bottom-left compact
 // by default so it matches the old hard-coded corner before the first config arrives.
 let musicPosition: OverlayPosition = 'bottom-left';
@@ -755,7 +792,7 @@ let musicHistory: string[] = []; // recently played stack, so prev works under s
 let musicPlaylistId: string | null = null; // fallback source (playlist mode)
 let musicShuffle = false;
 let musicVolume = 50;
-let musicHidden = false;
+let musicDisplay: MusicDisplay = 'full';
 let musicSuspended = false; // a post is on screen → music faded out + paused + hidden
 /**
  * The streamer pressed pause themselves. Kept apart from musicSuspended (our automatic ducking)
@@ -952,12 +989,17 @@ function setMusicTicker(on: boolean): void {
     clearInterval(musicTicker);
     musicTicker = null;
   }
-  if (on) musicTicker = setInterval(() => reportMusicState(true), 1000);
+  if (on)
+    musicTicker = setInterval(() => {
+      reportMusicState(true);
+      updateMusicProgress();
+    }, 1000);
 }
 
 function applyMusicConfig(cfg: MusicConfig): void {
   musicVolume = Math.min(100, Math.max(0, Math.round(cfg.volume)));
-  musicHidden = !!cfg.hidden;
+  const displayChanged = musicDisplay !== cfg.display;
+  musicDisplay = cfg.display;
   musicShuffle = !!cfg.shuffle;
   musicPosition = cfg.position;
   musicSize = cfg.size;
@@ -1002,8 +1044,18 @@ function applyMusicConfig(cfg: MusicConfig): void {
   musicMode = mode;
   // The layout knobs may have moved with this config — glide the player there rather than teleport
   // it. Hidden or suspended, there is nothing on screen to measure, so those just apply.
-  if (musicHidden || musicSuspended) updateMusicVisibility();
+  if (musicDisplay === 'hidden' || musicSuspended) updateMusicVisibility();
   else animateLayoutMove(musicCard, updateMusicVisibility);
+  if (!displayChanged) return;
+  // The mode governs requested songs too, live: the streamer flips it mid-clip to drop a video they
+  // don't want on screen, and the song keeps playing.
+  for (const sh of [shows.media, shows.music]) if (sh.currentId) applyShowCompact(sh);
+  // Switching to/from compact resizes the caption viewport, so the marquee has to be re-measured for
+  // the width it now has — updateMusicTitle alone would bail out on the unchanged title.
+  if (musicTitleCap && musicTitleTrack) {
+    musicTitleTrack.style.animation = '';
+    applyMarquee(musicTitleCap, musicTitleTrack);
+  }
 }
 
 /** Hidden = clipped to 1px and transparent, but still rendered so audio keeps playing
@@ -1012,7 +1064,7 @@ function updateMusicVisibility(): void {
   if (!musicWrap) return;
   // Hidden by the OBS setting, or while suspended (a post is up) — clipped to 1px but still rendered
   // so audio isn't killed (display:none would stop playback).
-  if (musicHidden || musicSuspended) {
+  if (musicDisplay === 'hidden' || musicSuspended) {
     musicWrap.style.cssText =
       'position:fixed;left:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;overflow:hidden;z-index:0';
     return;
@@ -1024,6 +1076,36 @@ function updateMusicVisibility(): void {
     `position:fixed;inset:0;display:flex;justify-content:${justify};align-items:${align};` +
     `padding:${musicMargin}vh ${musicMargin}vw;pointer-events:none;z-index:5`;
   musicCard?.style.setProperty('--overlay-size', String(musicSize));
+  // Compact drops the video to a strip: the class clips the iframe (still rendered, so audio lives)
+  // and the progress bar takes over as the sign that something is playing.
+  const compact = musicDisplay === 'compact';
+  musicCard?.classList.toggle('music-compact', compact);
+  if (musicProgressEl) musicProgressEl.style.display = compact ? '' : 'none';
+  updateMusicTitle(); // the row's titleless visibility depends on the mode
+  if (compact) updateMusicProgress();
+}
+
+/** Advance a progress strip. The CSS transition smooths the tick into motion, but a jump back (new
+ *  track, seek, replay) must land instantly instead of gliding backwards. */
+function setFillWidth(fill: HTMLElement, pct: number): void {
+  const next = Math.min(100, Math.max(0, pct));
+  const prev = parseFloat(fill.style.width) || 0;
+  if (next < prev) {
+    fill.style.transition = 'none';
+    fill.style.width = `${next}%`;
+    void fill.offsetWidth; // flush, so the restored transition doesn't animate the jump
+    fill.style.transition = '';
+    return;
+  }
+  fill.style.width = `${next}%`;
+}
+
+/** Compact mode: advance the background player's strip, on the same 1s ticker that reports state. */
+function updateMusicProgress(): void {
+  if (!musicProgressFill || musicDisplay !== 'compact') return;
+  const dur = musicPlayer?.getDuration() ?? 0;
+  const pos = musicPlayer?.getCurrentTime() ?? 0;
+  setFillWidth(musicProgressFill, dur > 0 ? (pos / dur) * 100 : 0);
 }
 
 /** Pull the current track's title from the player (works without a YouTube API key) into the
@@ -1036,20 +1118,43 @@ function updateMusicTitle(): void {
   } catch {
     /* player API not ready yet */
   }
-  if (!title) {
-    musicMetaEl.style.display = 'none';
-    return;
-  }
-  if (musicTitleTrack.textContent === title) return; // unchanged — don't restart the marquee
+  // Compact keeps the row even titleless: with the video gone, the note is all that says "music".
+  musicMetaEl.style.display = title || musicDisplay === 'compact' ? '' : 'none';
+  if (!title || musicTitleTrack.textContent === title) return; // unchanged — don't restart the marquee
   musicTitleTrack.textContent = title;
   musicTitleTrack.style.animation = '';
-  musicMetaEl.style.display = '';
   applyMarquee(musicTitleCap, musicTitleTrack);
+}
+
+// applyMarquee measures inside rAF, which a hidden page never runs (an OBS source on an inactive
+// scene) — so the title would come back visible but unscrolled. Re-measure when it's shown again.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden || !musicTitleCap || !musicTitleTrack) return;
+  musicTitleTrack.style.animation = '';
+  applyMarquee(musicTitleCap, musicTitleTrack);
+});
+
+let musicTitleProbe: number | undefined;
+/** The player reports an empty title for a moment after onReady — and for as long as playback hasn't
+ *  been allowed to start. Keep asking until it answers, otherwise the compact strip stays nameless. */
+function probeMusicTitle(): void {
+  window.clearInterval(musicTitleProbe);
+  const before = musicTitleTrack?.textContent ?? '';
+  let tries = 0;
+  musicTitleProbe = window.setInterval(() => {
+    updateMusicTitle();
+    if (++tries >= 25 || (musicTitleTrack?.textContent ?? '') !== before) {
+      window.clearInterval(musicTitleProbe);
+      musicTitleProbe = undefined;
+    }
+  }, 400);
 }
 
 function teardownMusic(): void {
   musicEpoch++;
   setMusicTicker(false);
+  window.clearInterval(musicTitleProbe);
+  musicTitleProbe = undefined;
   if (musicFadeTimer !== undefined) {
     window.clearInterval(musicFadeTimer);
     musicFadeTimer = undefined;
@@ -1067,6 +1172,8 @@ function teardownMusic(): void {
   musicMetaEl = null;
   musicTitleCap = null;
   musicTitleTrack = null;
+  musicProgressEl = null;
+  musicProgressFill = null;
   musicCurrentId = null;
   musicHistory = [];
   // A teardown means the source itself changed (new queue/playlist, or music switched off). The old
@@ -1101,13 +1208,25 @@ async function createMusicPlayer(init: MusicPlayerInit): Promise<void> {
   const meta = document.createElement('div');
   meta.className = 'player-meta';
   meta.style.display = 'none'; // shown once a title is known
+  // The note marks the strip as a music player at a glance once the video is gone (compact mode).
+  const glyph = document.createElement('span');
+  glyph.className = 'glyph music-note';
+  glyph.textContent = '♪';
   const cap = document.createElement('span');
   cap.className = 'player-caption';
   const track = document.createElement('span');
   track.className = 'marq-track';
   cap.appendChild(track);
-  meta.appendChild(cap);
+  meta.append(glyph, cap);
   card.appendChild(meta);
+  // Compact mode's stand-in for the video: the same progress strip audio submissions use.
+  const progress = document.createElement('div');
+  progress.className = 'music-progress';
+  progress.style.display = 'none';
+  const fill = document.createElement('div');
+  fill.className = 'fill';
+  progress.appendChild(fill);
+  card.appendChild(progress);
   wrap.appendChild(card);
   document.body.appendChild(wrap);
   musicWrap = wrap;
@@ -1115,6 +1234,8 @@ async function createMusicPlayer(init: MusicPlayerInit): Promise<void> {
   musicMetaEl = meta;
   musicTitleCap = cap;
   musicTitleTrack = track;
+  musicProgressEl = progress;
+  musicProgressFill = fill;
   updateMusicVisibility();
   if (init.mode === 'list') musicCurrentId = init.videoId ?? null;
   musicPlayer = new window.YT.Player(mount, {
@@ -1154,7 +1275,7 @@ async function createMusicPlayer(init: MusicPlayerInit): Promise<void> {
         const f = e.target.getIframe();
         f.style.width = '100%';
         f.style.height = '100%';
-        updateMusicTitle();
+        probeMusicTitle();
       },
       onStateChange: (e) => {
         if (!window.YT) return;
@@ -1163,7 +1284,8 @@ async function createMusicPlayer(init: MusicPlayerInit): Promise<void> {
           reportMusicState(true);
           setMusicTicker(true);
           disableCaptions(e.target); // captions can re-arm on each new track
-          updateMusicTitle(); // a new track may have started — refresh the marquee
+          probeMusicTitle(); // a new track may have started — refresh the marquee
+          updateMusicProgress();
         } else if (e.data === window.YT.PlayerState.PAUSED) {
           reportMusicState(false);
           setMusicTicker(false);
@@ -1831,7 +1953,7 @@ function mountDemoPanel(): void {
 }
 
 if (DEMO) mountDemoPanel();
-// Demo the background music without a server: ?demo&music=<playlistId or URL>&mvol=40&mhide=1
+// Demo the background music without a server: ?demo&music=<playlistId or URL>&mvol=40&mhide=1&mcompact=1
 // or a raw track list: ?demo&musicIds=<id,id,id>&mvol=40
 if (DEMO) {
   const q = new URLSearchParams(window.location.search);
@@ -1843,13 +1965,21 @@ if (DEMO) {
       playlistId: ids.length ? null : youtubePlaylistId(raw ?? ''),
       shuffle: q.has('mshuffle'),
       volume: Number(q.get('mvol')) || 40,
-      hidden: q.has('mhide'),
+      display: q.has('mhide') ? 'hidden' : q.has('mcompact') ? 'compact' : 'full',
       // Layout — overridable via URL for look-and-feel checks (?mpos=…&msize=…&mmargin=…).
       position: (q.get('mpos') as OverlayPosition | null) ?? 'bottom-left',
       size: Number(q.get('msize')) || 20,
       margin: Number(q.get('mmargin')) || 2,
     });
   }
+  // OBS autoplays; a browser tab won't until the page has been clicked. Kick the demo off on the
+  // first click so the strip has something to actually play.
+  const kick = (): void => {
+    if (!musicPlayer) return;
+    musicPlayer.playVideo();
+    document.removeEventListener('click', kick);
+  };
+  document.addEventListener('click', kick);
   // Debug probe + reorder/command drivers for verification (demo only).
   (window as unknown as { __music: () => unknown }).__music = () => ({
     mode: musicMode,
@@ -1860,7 +1990,8 @@ if (DEMO) {
     effective: effectiveMusicVolume(),
     suspended: musicSuspended,
     userPaused: musicUserPaused,
-    hidden: musicHidden,
+    display: musicDisplay,
+    quality: musicPlayer?.getPlaybackQuality?.() ?? null,
     hasPlayer: !!musicPlayer,
     currentId: currentMusicVideoId(),
     currentTime: musicPlayer?.getCurrentTime() ?? 0,

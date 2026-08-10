@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { ChannelSettings } from '@tmw/shared';
+import type { ChannelSettings, MusicDisplay } from '@tmw/shared';
 import {
   reloadOverlay,
   removeBan,
@@ -81,10 +81,16 @@ export function DashboardPage() {
 
   // DJ knobs (owner + mods): persist via the mod-accessible music endpoint (not the owner-only
   // settings PATCH), then sync local state; the server re-emits music:config to the overlay.
-  const applyMusicConfig = (cfg: { shuffle?: boolean; volume?: number; hidden?: boolean }) => {
+  const applyMusicConfig = (cfg: {
+    shuffle?: boolean;
+    volume?: number;
+    display?: MusicDisplay;
+  }) => {
     if (!channelId) return;
     void saveMusicConfig(channelId, cfg)
-      .then((r) => data.setMusicConfig({ shuffle: r.shuffle, volume: r.volume, hidden: r.hidden }))
+      .then((r) =>
+        data.setMusicConfig({ shuffle: r.shuffle, volume: r.volume, display: r.display }),
+      )
       .catch(() => {});
   };
 
@@ -98,8 +104,8 @@ export function DashboardPage() {
       musicState={data.musicState}
       shuffle={data.musicConfig.shuffle}
       onToggleShuffle={(v) => applyMusicConfig({ shuffle: v })}
-      hidden={data.musicConfig.hidden}
-      onToggleHidden={(v) => applyMusicConfig({ hidden: v })}
+      display={data.musicConfig.display}
+      onDisplayChange={(v) => applyMusicConfig({ display: v })}
       volume={data.musicConfig.volume}
       onVolumeChange={(v) => applyMusicConfig({ volume: v })}
     />

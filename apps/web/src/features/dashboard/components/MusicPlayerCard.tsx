@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { MusicCommand, MusicState, MusicTrack } from '@tmw/shared';
+import type { MusicCommand, MusicDisplay, MusicState, MusicTrack } from '@tmw/shared';
 import { sendMusicCommand } from '@/lib/api';
 import { clock } from '@/lib/format';
 import { useI18n } from '@/i18n';
@@ -23,8 +23,8 @@ export function MusicPlayerCard({
   musicState = { videoId: null, playing: false },
   shuffle,
   onToggleShuffle,
-  hidden,
-  onToggleHidden,
+  display,
+  onDisplayChange,
   volume,
   onVolumeChange,
 }: {
@@ -35,9 +35,9 @@ export function MusicPlayerCard({
   musicState: MusicState;
   shuffle: boolean;
   onToggleShuffle: (v: boolean) => void;
-  /** Hide the compact player in OBS (audio keeps playing). */
-  hidden: boolean;
-  onToggleHidden: (v: boolean) => void;
+  /** How much of the player OBS shows (audio keeps playing in every mode). */
+  display: MusicDisplay;
+  onDisplayChange: (v: MusicDisplay) => void;
   /** Overlay music volume 0-100 (persisted in settings, pushed live via music:config). */
   volume: number;
   onVolumeChange: (v: number) => void;
@@ -224,8 +224,8 @@ export function MusicPlayerCard({
         onTracksChange={onTracksChange}
         shuffle={shuffle}
         onToggleShuffle={onToggleShuffle}
-        hidden={hidden}
-        onToggleHidden={onToggleHidden}
+        display={display}
+        onDisplayChange={onDisplayChange}
       />
     </Card>
   );

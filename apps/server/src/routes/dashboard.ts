@@ -8,6 +8,7 @@ import {
   CHANNEL_LINK_URL_MAX_LEN,
   earnedBackgroundIds,
   musicConfigFrom,
+  MUSIC_DISPLAYS,
   OVERLAY_POSITIONS,
   PAGE_BACKGROUNDS,
   SOCIAL_PLATFORMS,
@@ -24,6 +25,7 @@ import {
   type ModInviteInfo,
   type MusicCommand,
   type MusicDashboard,
+  type MusicDisplay,
   type MusicTrack,
   type OnboardingStatus,
   type ReputationStats,
@@ -242,7 +244,7 @@ function toSettings(
     bgMusicTracks: ch.bgMusicTracks,
     bgMusicShuffle: ch.bgMusicShuffle,
     bgMusicVolume: ch.bgMusicVolume,
-    bgMusicHidden: ch.bgMusicHidden,
+    bgMusicDisplay: ch.bgMusicDisplay,
     pageBackground: ch.pageBackground,
     description: ch.description,
     links: ch.links,
@@ -767,8 +769,9 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
           typeof b.bgMusicVolume === 'number'
             ? clamp(Math.round(b.bgMusicVolume), 0, 100)
             : channel.bgMusicVolume,
-        bgMusicHidden:
-          typeof b.bgMusicHidden === 'boolean' ? b.bgMusicHidden : channel.bgMusicHidden,
+        bgMusicDisplay: MUSIC_DISPLAYS.includes(b.bgMusicDisplay as MusicDisplay)
+          ? (b.bgMusicDisplay as MusicDisplay)
+          : channel.bgMusicDisplay,
         // Store any known background id or '' (none); the render gate still checks it's earned, so an
         // un-earned id here is harmless. Unknown strings fall back to the current value.
         pageBackground:
@@ -845,7 +848,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         tracks,
         shuffle: channel.bgMusicShuffle,
         volume: channel.bgMusicVolume,
-        hidden: channel.bgMusicHidden,
+        display: channel.bgMusicDisplay,
       };
     },
   );
@@ -961,11 +964,11 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
     },
   );
 
-  /** DJ knobs (shuffle / volume / hidden) — owner OR moderator. Separate from the owner-only settings
+  /** DJ knobs (shuffle / volume / display) — owner OR moderator. Separate from the owner-only settings
    *  PATCH so a mod can run the music without touching the channel's settings or token. */
   app.patch<{
     Params: { channelId: string };
-    Body: { shuffle?: unknown; volume?: unknown; hidden?: unknown } | null;
+    Body: { shuffle?: unknown; volume?: unknown; display?: unknown } | null;
   }>(
     '/api/dashboard/:channelId/music/config',
     async (req, reply): Promise<MusicDashboard | undefined> => {
@@ -975,7 +978,8 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
       const patch: Partial<typeof channels.$inferInsert> = {};
       if (typeof b.shuffle === 'boolean') patch.bgMusicShuffle = b.shuffle;
       if (typeof b.volume === 'number') patch.bgMusicVolume = clamp(Math.round(b.volume), 0, 100);
-      if (typeof b.hidden === 'boolean') patch.bgMusicHidden = b.hidden;
+      if (MUSIC_DISPLAYS.includes(b.display as MusicDisplay))
+        patch.bgMusicDisplay = b.display as MusicDisplay;
       const merged = { ...channel, ...patch };
       if (Object.keys(patch).length > 0) {
         await db.update(channels).set(patch).where(eq(channels.id, channel.id));
@@ -985,7 +989,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         tracks: merged.bgMusicTracks,
         shuffle: merged.bgMusicShuffle,
         volume: merged.bgMusicVolume,
-        hidden: merged.bgMusicHidden,
+        display: merged.bgMusicDisplay,
       };
     },
   );

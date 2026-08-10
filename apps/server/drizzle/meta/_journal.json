@@ -414,6 +414,13 @@
       "when": 1785257845875,
       "tag": "0058_dusty_vanisher",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "6",
+      "when": 1786377849340,
+      "tag": "0059_boring_agent_zero",
+      "breakpoints": true
     }
   ]
 }

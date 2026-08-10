@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { ChannelSettings, OverlayPosition } from '@tmw/shared';
+import type { ChannelSettings, MusicDisplay, OverlayPosition } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { Switch } from '@/ui';
 import { Icon } from '@/ui/icons';
 import { LayoutPreview, PositionGrid, SaveRow, Slider } from './controls';
 import { ChatBurstButton } from './ChatBurstButton';
+import { MusicDisplayChoice } from '../MusicDisplayChoice';
 
 type Save = (patch: Partial<ChannelSettings>) => void;
 
@@ -104,6 +105,8 @@ export function MusicSettings({ settings, onSave }: { settings: ChannelSettings;
   const [musicPos, setMusicPos] = useState<OverlayPosition>(settings.musicPosition);
   const [musicSize, setMusicSize] = useState(settings.musicSize);
   const [musicMargin, setMusicMargin] = useState(settings.musicMargin);
+  // The same knob the music manager carries — streamers look for it in both places.
+  const [display, setDisplay] = useState<MusicDisplay>(settings.bgMusicDisplay);
   return (
     <div className="flex flex-col gap-4">
       <p className="text-xs text-muted">{t('dash.musicLayoutNote')}</p>
@@ -144,6 +147,7 @@ export function MusicSettings({ settings, onSave }: { settings: ChannelSettings;
         checked={separate}
         onChange={setSeparate}
       />
+      <MusicDisplayChoice value={display} onChange={setDisplay} />
       <SaveRow
         onClick={() =>
           onSave({
@@ -151,6 +155,7 @@ export function MusicSettings({ settings, onSave }: { settings: ChannelSettings;
             musicPosition: musicPos,
             musicSize,
             musicMargin,
+            bgMusicDisplay: display,
           })
         }
       />

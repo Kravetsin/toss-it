@@ -16,6 +16,7 @@ export * from './Chip';
 export * from './Input';
 export * from './Select';
 export * from './Switch';
+export * from './TogglePill';
 export * from './PageShell';
 export * from './CopyableLinkBox';
 export * from './LinkedText';

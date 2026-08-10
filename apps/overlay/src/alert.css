@@ -71,8 +71,8 @@
 /* One unified submission card: media (or text) on top, a single meta row below. Every kind — image,
    gif, video, YouTube, audio, text — shares this glass frame; width follows --overlay-size (% of
    viewport), clamped so it never overflows a small source. */
-/* Seal: rides the name row with the badges. Bigger than a web badge because this is read from a
-   couch — .seal-fx sizes in em, so the font-size here is its scale knob on this surface. */
+/* Seal: leads the name, right after the level rank. Bigger than a web badge because this is read
+   from a couch — .seal-fx sizes in em, so the font-size here is its scale knob on this surface. */
 .sender-seal {
   font-size: 30px;
   flex: none;
@@ -136,7 +136,7 @@
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
-/* One-line meta row: gift glyph, level rail + numeral, name, badges, then the caption marquee.
+/* One-line meta row: level rail + numeral, seal, name, badges, then the caption marquee.
    width:0 keeps the row (and its long caption) out of the card's content-based width; min-width:100%
    then stretches it back to the card, so the caption clips to the media width instead of widening it. */
 .player-meta {
@@ -218,6 +218,52 @@
   display: inline-block;
   white-space: nowrap;
   will-change: transform;
+}
+/* Compact background player: no video, just the title strip. The iframe stays rendered (clipped to
+   1px) — display:none would stop playback — and the progress bar becomes the sign it's playing. */
+.player.music-compact {
+  gap: 8px;
+  padding: 10px 14px;
+}
+.player.music-compact .player-media,
+.player.is-youtube.music-compact .player-media {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  padding-top: 0;
+  opacity: 0;
+  overflow: hidden;
+}
+.player.music-compact .player-meta {
+  font-size: 18px;
+}
+/* The note only earns its place once the video is gone; the full card is already self-evident. */
+.player-meta .music-note {
+  display: none;
+}
+.player.music-compact .player-meta .music-note {
+  display: flex;
+}
+.music-progress {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+.music-progress .fill {
+  height: 100%;
+  width: 0;
+  background: #8df0cc;
+  /* Position arrives in ticks — glide across the gap so the bar reads as motion, not a stutter. The
+     tick differs per surface (1s for the background player, 350ms for a post), hence --tick. */
+  transition: width var(--tick, 0.95s) linear;
+}
+@media (prefers-reduced-motion: reduce) {
+  .music-progress .fill {
+    transition: none;
+  }
 }
 @keyframes overlay-marquee {
   from {

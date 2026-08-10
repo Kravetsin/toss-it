@@ -12,6 +12,7 @@ import {
   type ListedUser,
   type LivePresence,
   type MeResponse,
+  type MusicDisplay,
   type OnboardingStatus,
   type PublicChannelInfo,
   type ReputationStats,
@@ -182,7 +183,7 @@ const MOCK_SETTINGS: ChannelSettings = {
   ],
   bgMusicShuffle: false,
   bgMusicVolume: 50,
-  bgMusicHidden: false,
+  bgMusicDisplay: 'compact',
   // Preview the background picker with both earned so the black hole can be selected/viewed.
   pageBackground: 'blackhole',
   earnedBackgrounds: ['nebula', 'blackhole'],
@@ -979,26 +980,26 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
           tracks: MOCK_SETTINGS.bgMusicTracks,
           shuffle: MOCK_SETTINGS.bgMusicShuffle,
           volume: MOCK_SETTINGS.bgMusicVolume,
-          hidden: MOCK_SETTINGS.bgMusicHidden,
+          display: MOCK_SETTINGS.bgMusicDisplay,
         };
       }
       case 'music/config': {
-        // DJ knobs (shuffle/volume/hidden) — owner or moderator.
+        // DJ knobs (shuffle/volume/display) — owner or moderator.
         if (init?.body) {
           const b = JSON.parse(String(init.body)) as {
             shuffle?: boolean;
             volume?: number;
-            hidden?: boolean;
+            display?: MusicDisplay;
           };
           if (typeof b.shuffle === 'boolean') MOCK_SETTINGS.bgMusicShuffle = b.shuffle;
           if (typeof b.volume === 'number') MOCK_SETTINGS.bgMusicVolume = b.volume;
-          if (typeof b.hidden === 'boolean') MOCK_SETTINGS.bgMusicHidden = b.hidden;
+          if (b.display) MOCK_SETTINGS.bgMusicDisplay = b.display;
         }
         return {
           tracks: MOCK_SETTINGS.bgMusicTracks,
           shuffle: MOCK_SETTINGS.bgMusicShuffle,
           volume: MOCK_SETTINGS.bgMusicVolume,
-          hidden: MOCK_SETTINGS.bgMusicHidden,
+          display: MOCK_SETTINGS.bgMusicDisplay,
         };
       }
       case 'integrations':

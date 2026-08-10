@@ -6,6 +6,7 @@ import type {
   LivePresence,
   MusicCommand,
   MusicDashboard,
+  MusicDisplay,
   MusicTrack,
   PlaybackSlot,
   OnboardingStatus,
@@ -33,7 +34,7 @@ export function getOnboarding(channelId: string): Promise<OnboardingStatus> {
   return fetch(`${dash(channelId)}/onboarding`).then((r) => json<OnboardingStatus>(r));
 }
 
-/** The owned track list + DJ knobs (shuffle/volume/hidden). Owner and moderators both see it. */
+/** The owned track list + DJ knobs (shuffle/volume/display). Owner and moderators both see it. */
 export function getMusic(channelId: string): Promise<MusicDashboard> {
   return fetch(`${dash(channelId)}/music/tracks`).then((r) => json<MusicDashboard>(r));
 }
@@ -41,7 +42,7 @@ export function getMusic(channelId: string): Promise<MusicDashboard> {
 /** Set the DJ knobs (any subset) — owner or moderator; re-emits music:config to the overlay. */
 export function setMusicConfig(
   channelId: string,
-  cfg: { shuffle?: boolean; volume?: number; hidden?: boolean },
+  cfg: { shuffle?: boolean; volume?: number; display?: MusicDisplay },
 ): Promise<MusicDashboard> {
   return fetch(`${dash(channelId)}/music/config`, {
     method: 'PATCH',

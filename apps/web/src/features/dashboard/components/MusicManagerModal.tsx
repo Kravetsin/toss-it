@@ -1,20 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { MusicTrack } from '@tmw/shared';
+import type { MusicDisplay, MusicTrack } from '@tmw/shared';
 import { addMusic, clearMusic, setMusicOrder } from '@/lib/api';
 import { clock } from '@/lib/format';
 import { useI18n } from '@/i18n';
 import { useToast } from '@/providers/ToastProvider';
-import { Button, IconButton } from '@/ui';
-import { Icon, type IconName } from '@/ui/icons';
+import { Button, IconButton, TogglePill } from '@/ui';
+import { Icon } from '@/ui/icons';
 import { useReorderList } from '../hooks/useReorderList';
+import { MusicDisplayChoice } from './MusicDisplayChoice';
 
 // Keep in sync with the server cap (dashboard.ts MAX_TRACKS).
 const MAX_TRACKS = 300;
 
 /**
  * Manage the owned background-music list: add a playlist or a single track from one link (both
- * append, deduped), drag to reorder, delete, clear all, toggle shuffle, and hide the OBS player.
+ * append, deduped), drag to reorder, delete, clear all, toggle shuffle, and pick how much of the
+ * player OBS shows.
  * Edits hit the server and lift the new list up (the overlay reloads live via music:config).
  */
 export function MusicManagerModal({
@@ -25,8 +27,8 @@ export function MusicManagerModal({
   onTracksChange,
   shuffle,
   onToggleShuffle,
-  hidden,
-  onToggleHidden,
+  display,
+  onDisplayChange,
 }: {
   open: boolean;
   onClose: () => void;
@@ -35,9 +37,9 @@ export function MusicManagerModal({
   onTracksChange: (tracks: MusicTrack[]) => void;
   shuffle: boolean;
   onToggleShuffle: (v: boolean) => void;
-  /** Hide the compact player in OBS (audio keeps playing). */
-  hidden: boolean;
-  onToggleHidden: (v: boolean) => void;
+  /** How much of the player OBS shows (audio keeps playing in every mode). */
+  display: MusicDisplay;
+  onDisplayChange: (v: MusicDisplay) => void;
 }) {
   const { t } = useI18n();
   const toast = useToast();
@@ -178,19 +180,15 @@ export function MusicManagerModal({
         </div>
 
         <div className="mt-3 flex flex-wrap gap-2">
-          <Pill
+          <TogglePill
             active={shuffle}
             icon="shuffle"
             label={t('music.shuffle')}
             onClick={() => onToggleShuffle(!shuffle)}
           />
-          <Pill
-            active={hidden}
-            icon={hidden ? 'eye-off' : 'eye'}
-            label={t('music.hidePlayer')}
-            onClick={() => onToggleHidden(!hidden)}
-          />
         </div>
+
+        <MusicDisplayChoice className="mt-3" value={display} onChange={onDisplayChange} />
 
         {/* Editable list — drag the handle to reorder, × to remove. */}
         <div className="mt-4 flex min-h-0 flex-1 flex-col border-t border-border pt-3">
@@ -265,34 +263,5 @@ export function MusicManagerModal({
       </div>
     </div>,
     document.body,
-  );
-}
-
-/** Toggleable outlined pill (shuffle / hide player). */
-function Pill({
-  active,
-  icon,
-  label,
-  onClick,
-}: {
-  active: boolean;
-  icon: IconName;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={`inline-flex w-max cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 label-mono outline-none transition-colors focus-visible:[box-shadow:var(--shadow-focus)] ${
-        active
-          ? 'border-accent bg-accent-soft text-accent'
-          : 'border-border text-muted hover:text-text'
-      }`}
-    >
-      <Icon name={icon} size={15} />
-      {label}
-    </button>
   );
 }

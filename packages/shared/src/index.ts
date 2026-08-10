@@ -413,6 +413,12 @@ export interface ChatOverlayConfig {
   roleBorders: boolean;
 }
 
+/** How much of the background player OBS shows. One axis: 'compact' drops the video and keeps a
+ *  title strip, 'hidden' keeps only the audio. */
+export type MusicDisplay = 'full' | 'compact' | 'hidden';
+
+export const MUSIC_DISPLAYS: readonly MusicDisplay[] = ['full', 'compact', 'hidden'];
+
 /** Background-music config for the media overlay (a YouTube playlist played between posts). */
 export interface MusicConfig {
   /** Owned, ordered track ids to play (preferred). Empty → fall back to playlistId. */
@@ -423,8 +429,8 @@ export interface MusicConfig {
   shuffle: boolean;
   /** Music volume 0-100 (independent of the submission overlay volume). */
   volume: number;
-  /** Hide the player in OBS (audio-only) — it keeps playing, just not visible. */
-  hidden: boolean;
+  /** How visible the player is in OBS — it keeps playing in every mode. */
+  display: MusicDisplay;
   /** Player anchor/size/margin — the music layout block (same fields song requests can share). */
   position: OverlayPosition;
   size: number;
@@ -439,13 +445,13 @@ export interface MusicTrack {
   durationSec?: number;
 }
 
-/** Background-music dashboard payload: the owned track list plus the DJ knobs (shuffle/volume/hidden).
+/** Background-music dashboard payload: the owned track list plus the DJ knobs (shuffle/volume/display).
  *  Accessible to the owner AND moderators, so a mod can run the music without settings/token access. */
 export interface MusicDashboard {
   tracks: MusicTrack[];
   shuffle: boolean;
   volume: number;
-  hidden: boolean;
+  display: MusicDisplay;
 }
 
 /** Build the overlay's music config from a channel's stored background-music fields. The background
@@ -456,7 +462,7 @@ export function musicConfigFrom(ch: {
   bgMusicPlaylist: string | null;
   bgMusicShuffle: boolean;
   bgMusicVolume: number;
-  bgMusicHidden: boolean;
+  bgMusicDisplay: MusicDisplay;
   musicPosition: OverlayPosition;
   musicSize: number;
   musicMargin: number;
@@ -466,7 +472,7 @@ export function musicConfigFrom(ch: {
     playlistId: ch.bgMusicPlaylist,
     shuffle: ch.bgMusicShuffle,
     volume: ch.bgMusicVolume,
-    hidden: ch.bgMusicHidden,
+    display: ch.bgMusicDisplay,
     position: ch.musicPosition,
     size: ch.musicSize,
     margin: ch.musicMargin,
@@ -734,8 +740,9 @@ export interface ChannelSettings {
   /** Play the list in random order. */
   bgMusicShuffle: boolean;
   bgMusicVolume: number;
-  /** Hide the background-music player in OBS (audio keeps playing). */
-  bgMusicHidden: boolean;
+  /** How much of the music player OBS shows — also reachable from the dashboard's music manager,
+   *  which writes it through the mod-accessible music endpoint instead. */
+  bgMusicDisplay: MusicDisplay;
   /** The streamer's chosen page background id ('' = none). Only renders if it's also earned. */
   pageBackground: string;
   /** Derived (read-only): the background ids this channel has unlocked, for the settings picker —
