@@ -107,13 +107,53 @@ const HAND_PARTS = [
  * The palm is deliberately left out: it is the fingers that draw legible streaks, and including the
  * palm's broad band brought back the smeared-hand look this was meant to replace.
  */
+/**
+ * WHAT ACTUALLY DRAWS A STREAK: the pad at the end of a finger, not the finger. `[HAND_PARTS index,
+ * band top, band depth]` — each entry keeps a horizontal slice off the TOP of that path.
+ *
+ * Slicing the real path rather than authoring a pad shape is what keeps this honest: the pad is
+ * wherever the finger already is, including its lean, so it cannot drift out from under the finger
+ * the way hand-placed columns did.
+ *
+ * Smearing whole fingers was the earlier mistake, and it showed worst on the diagonal ones — a
+ * finger that travels 236 units sideways from tip to base casts a 236-unit-wide shadow, so the
+ * pinky, ring and thumb came out as slabs rather than lines.
+ *
+ * The thumb gets TWO bands because it has two phalanges and was reading as one long blob.
+ */
+const PADS: [number, number, number, number, number][] = [
+  // The upright fingers are cut by height alone — a horizontal slice of a roughly vertical shape is
+  // already just the pad. x/width span everything.
+  [1, 0, 98, 1400, 118], // index
+  [3, 0, 16, 1400, 118], // middle
+  [6, 0, 132, 1400, 118], // ring
+  [8, 0, 392, 1400, 118], // pinky
+  // The thumb needs cutting in BOTH axes. It lies diagonally and is the fattest part of the hand, so
+  // a full-width band across it stayed 270 units wide — barely narrower than smearing the whole
+  // thumb — and the two bands overlapped horizontally, merging back into a single slab instead of
+  // reading as two phalanges. Boxing each pad separates them along the thumb's own axis.
+  // The x ranges must not touch: at 20-140 and 130-260 the two shadows overlapped by ten units and
+  // merged straight back into one column, which is the thing being fixed. The gap is what makes the
+  // thumb read as two phalanges rather than one slab.
+  [0, 15, 762, 112, 118], // thumb, distal pad
+  [0, 150, 872, 122, 126], // thumb, proximal pad
+];
+
+/** How far below the print the shadow keeps going — see STREAK_SPAN in the CSS. */
+const SHADOW_SPAN = 2860;
+
 function streakMask(flip: boolean): string {
   const outer = flip ? " transform='translate(1400,0) scale(-1,1)'" : '';
-  // Everything except the palm, which is the last entry in HAND_PARTS.
-  const paths = HAND_PARTS.slice(0, -1)
-    .map((d) => `%3Cpath d='${d}'/%3E`)
-    .join('');
-  const steps = [60, 120, 240, 480, 960];
+  const clips = PADS.map(
+    ([, x, y, w, h], i) =>
+      `%3CclipPath id='k${i}'%3E%3Crect x='${x}' y='${y}' width='${w}' height='${h}'/%3E%3C/clipPath%3E`,
+  ).join('');
+  const pads = PADS.map(
+    ([part], i) => `%3Cg clip-path='url(%23k${i})'%3E%3Cpath d='${HAND_PARTS[part]}'/%3E%3C/g%3E`,
+  ).join('');
+  // Doubling offsets: six passes reach 60+120+240+480+960+1920 = 3780 units, more than enough to
+  // carry the highest pad past the bottom of the (double-height) box.
+  const steps = [60, 120, 240, 480, 960, 1920];
   let src = 'SourceGraphic';
   const stages = steps
     .map((dy, i) => {
@@ -127,13 +167,17 @@ function streakMask(flip: boolean): string {
     })
     .join('');
   const filter =
-    `%3Cfilter id='e' filterUnits='userSpaceOnUse' x='0' y='0' width='1400' height='3400'%3E` +
+    `%3Cfilter id='e' filterUnits='userSpaceOnUse' x='0' y='0' width='1400' height='${SHADOW_SPAN}'%3E` +
     stages +
     `%3C/filter%3E`;
+  // The box is DOUBLE the hand's height: the hand keeps sliding after a streak has reached the
+  // bottom of the print, and a shadow that stopped at 1430 left the trail visibly cut off, no longer
+  // touching the hand that was drawing it.
   return (
-    `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1400 1430'%3E` +
+    `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1400 ${SHADOW_SPAN}'%3E` +
     filter +
-    `%3Cg${outer}%3E%3Cg fill='%23fff' filter='url(%23e)'%3E${paths}%3C/g%3E%3C/g%3E%3C/svg%3E")`
+    clips +
+    `%3Cg${outer}%3E%3Cg fill='%23fff' filter='url(%23e)'%3E${pads}%3C/g%3E%3C/g%3E%3C/svg%3E")`
   );
 }
 
@@ -366,6 +410,12 @@ ${streakVars}
    Nearly flat fill on purpose: the streak's own variation comes from the ink layer, and a strong
    gradient over the box would light the columns by where they sit rather than by how old they are. */
 .card-fx-handprints .p::after {
+  /* DOUBLE HEIGHT, and it is a fix rather than slack. A streak has to keep growing after it reaches
+     the bottom of the print — the hand is still sliding — and while this box was the hand's own
+     height the trail stopped dead at that edge and sat there, severed, as the hand carried on. The
+     shadow image is the same 1:2 box (see SHADOW_SPAN), so nothing is stretched by the change. */
+  bottom: auto;
+  height: calc(var(--h) * 2);
   -webkit-mask-image: var(--ink), var(--streak), var(--streak);
   mask-image: var(--ink), var(--streak), var(--streak);
   -webkit-mask-size: ${INK_TILE_PX}px ${INK_TILE_PX}px, 100% 100%, 100% 100%;
