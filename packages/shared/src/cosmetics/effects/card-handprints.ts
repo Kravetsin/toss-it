@@ -352,6 +352,9 @@ export const cardHandprints: CardEffectModule = {
 ${maskVars}
   --ink: ${INK_TILE};
 ${streakVars}
+  /* The eraser's edge. Soft rather than a hard line, so the trail thins out from the top instead of
+     being cut. Declared once here because nothing about it varies per print. */
+  --erase: linear-gradient(to bottom, transparent 0 38%, #000 52%, #000 100%);
 }
 /* THE CONDENSATION FILM — deliberately near-invisible. It exists only so the prints have something
    to be prints IN; any heavier and this becomes the frosting-window read that sank the ink effect.
@@ -451,14 +454,19 @@ ${streakVars}
      shadow image is the same 1:2 box (see SHADOW_SPAN), so nothing is stretched by the change. */
   bottom: auto;
   height: calc(var(--h) * 2);
-  -webkit-mask-image: var(--ink), var(--streak), var(--streak-wide);
-  mask-image: var(--ink), var(--streak), var(--streak-wide);
-  -webkit-mask-size: ${INK_TILE_PX}px ${INK_TILE_PX}px, 100% 100%, 100% 100%;
-  mask-size: ${INK_TILE_PX}px ${INK_TILE_PX}px, 100% 100%, 100% 100%;
-  -webkit-mask-repeat: repeat, no-repeat, no-repeat;
-  mask-repeat: repeat, no-repeat, no-repeat;
-  -webkit-mask-composite: source-in, source-out, source-over;
-  mask-composite: intersect, subtract, add;
+  /* A FOURTH LAYER ON TOP: the eraser. It is a gradient three times the box's height, transparent
+     across its own top and solid below, so sliding it DOWN sweeps a soft edge through the trail and
+     takes the oldest ink first. Its travel (see the keyframes) runs from -3.2 x --h, where the box
+     sits entirely in the solid part, to 0, where the box sits entirely in the clear part. The image
+     always overhangs the box at both ends, so \`no-repeat\` never exposes an empty region by accident. */
+  -webkit-mask-image: var(--erase), var(--ink), var(--streak), var(--streak-wide);
+  mask-image: var(--erase), var(--ink), var(--streak), var(--streak-wide);
+  -webkit-mask-size: 100% 300%, ${INK_TILE_PX}px ${INK_TILE_PX}px, 100% 100%, 100% 100%;
+  mask-size: 100% 300%, ${INK_TILE_PX}px ${INK_TILE_PX}px, 100% 100%, 100% 100%;
+  -webkit-mask-repeat: no-repeat, repeat, no-repeat, no-repeat;
+  mask-repeat: no-repeat, repeat, no-repeat, no-repeat;
+  -webkit-mask-composite: source-in, source-in, source-out, source-over;
+  mask-composite: intersect, intersect, subtract, add;
   /* WELL BELOW THE HAND'S OWN STRENGTH — about a quarter of it. At closer values the streak matched
      the finger it came from in both width and brightness, and the two read as ONE shape: fingers
      that stretched as the hand slid, rather than a hand leaving marks behind. What separates a trace
@@ -496,54 +504,70 @@ ${streakVars}
   6% {
     scale: 1;
   }
-  /* THE PLATEAU RUNS THROUGH THE SLIDE, and that is the difference between an effect with a trail
-     and an effect that appears to have none. The envelope inherited from the press-and-fade version
-     was down to 0.4 by 55% and all but gone by 82% — but the particle's opacity multiplies into BOTH
-     pseudo-elements, so the hand dimmed through the whole journey, taking its own smear with it. Nothing
-     was left to see by the time there was any trail to look at. The hand now stays strong until the
-     slip is most of the way done and only lets go over the last third. */
-  64% {
-    opacity: 0.94;
-  }
-  82% {
-    opacity: 0.68;
-  }
-  94% {
-    opacity: 0.2;
-  }
+  /* THIS ENVELOPE NO LONGER FADES ANYTHING OUT, and that is the point. A particle's opacity multiplies
+     into BOTH pseudo-elements, so anything it does happens to the hand and its trail at once — which
+     is why they used to vanish together. It now only covers the blind lead-in and the press, then
+     holds; the hand and the trail each own their exit, and they leave at different times. */
   100% {
-    opacity: 0;
+    opacity: 1;
   }
 }
 /* THE SLIP. It holds for the first third — that pause is the whole point, because a hand that starts
    moving on contact reads as a shape drifting past, while one that stays put and THEN gives way
-   reads as weight losing its grip. ease-in for the same reason: it must not set off at speed. */
+   reads as weight losing its grip.
+
+   THE HAND ALSO LEAVES HERE, not on the particle, so that it can go while its trail stays. It comes
+   to rest at 78% and is gone by 84% — the travel finishes BEFORE the fade so a streak is never seen
+   lengthening with nothing at its end to draw it. */
 @keyframes cardfx-hand-slip {
   0%,
   30% {
     translate: 0 0;
+    opacity: 1;
   }
-  100% {
+  62% {
+    opacity: 1;
+  }
+  78% {
     translate: 0 var(--slide, 0px);
   }
+  84%,
+  100% {
+    translate: 0 var(--slide, 0px);
+    opacity: 0;
+  }
 }
-/* The streaks grow by moving the SUBTRACTED copy of the columns down by exactly the distance the
-   hand has travelled — same duration, delay and easing as the slip, so a streak's far end cannot
-   drift away from the finger drawing it. At rest the two copies sit on top of each other and cancel
-   out completely, which is what makes "hasn't moved" and "no streak" the same state. */
+/* Everything the trail does happens on ONE property, because all four mask layers share
+   \`mask-position\` and a keyframe has to restate the whole list. Read the four values as: eraser,
+   ink window, anchored columns, offset columns.
+
+   30% -> 78%: the last value walks down by the distance travelled, which is what grows the streaks.
+   Same stops and same easing as the slip above, so the far end stays welded to the finger.
+
+   78% -> 100%: the FIRST value walks down instead, sweeping the eraser through the trail so it
+   dissolves from the top — the oldest ink first. The hand has already gone by 84%, so the order the
+   eye gets is: hand lets go, then the marks it left thin out from the top down.
+   Both phases are on one property, so they cannot overlap: while one value moves the other is
+   pinned by the surrounding keyframes. */
 @keyframes cardfx-hand-smear {
   0%,
   30% {
-    -webkit-mask-position: var(--ink-pos, 0 0), 0 0, 0 0;
-    mask-position: var(--ink-pos, 0 0), 0 0, 0 0;
+    -webkit-mask-position: 0 calc(var(--h) * -3.2), var(--ink-pos, 0 0), 0 0, 0 0;
+    mask-position: 0 calc(var(--h) * -3.2), var(--ink-pos, 0 0), 0 0, 0 0;
     opacity: 0;
   }
   40% {
     opacity: 1;
   }
+  78% {
+    -webkit-mask-position: 0 calc(var(--h) * -3.2), var(--ink-pos, 0 0), 0 0, 0 var(--slide, 0px);
+    mask-position: 0 calc(var(--h) * -3.2), var(--ink-pos, 0 0), 0 0, 0 var(--slide, 0px);
+    /* Its own easing: the erase should hang for a beat after the hand goes, then clear. */
+    animation-timing-function: ease-in;
+  }
   100% {
-    -webkit-mask-position: var(--ink-pos, 0 0), 0 0, 0 var(--slide, 0px);
-    mask-position: var(--ink-pos, 0 0), 0 0, 0 var(--slide, 0px);
+    -webkit-mask-position: 0 0, var(--ink-pos, 0 0), 0 0, 0 var(--slide, 0px);
+    mask-position: 0 0, var(--ink-pos, 0 0), 0 0, 0 var(--slide, 0px);
     opacity: 1;
   }
 }
