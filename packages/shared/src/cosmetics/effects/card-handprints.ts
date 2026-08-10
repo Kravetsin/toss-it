@@ -17,8 +17,13 @@ import { vdc } from '../spread';
  * THEN IT GIVES WAY. After holding a third of the cycle the hand slides down the glass, dragging a
  * smear out of its own fingers. The pause before it moves is doing the work: a print that starts
  * sliding on contact is just a shape drifting past, while one that lands, stays, and only then slips
- * says something is holding on out there and losing its grip. A third of them barely move at all, so
- * a card is never uniformly sliding.
+ * says something is holding on out there and losing its grip. A quarter of them barely move at all,
+ * so a card is never uniformly sliding.
+ *
+ * THE HAND OUTLIVES ITS OWN JOURNEY. Its opacity has to stay up until the slip is nearly finished,
+ * because `.p` owns the envelope and that envelope multiplies into the smear as well — fade the hand
+ * early and the trail it is drawing fades with it, leaving an effect that technically has a smear
+ * and visibly does not.
  *
  * THE ANATOMY IS AUTHORED, NOT GENERATED, and three discarded attempts paid for that line. Building
  * the hand from primitives — first tapered bars, then a column of contact pads — produced a glove
@@ -168,10 +173,15 @@ export const cardHandprints: CardEffectModule = {
     // Not every hand slips: a quarter of them only creep, which stops a card from looking like
     // everything on it is sliding in formation. A quarter and not a third because a card carries
     // just four prints — at one in three, a fifth of all cards would show barely any movement at all.
-    const slide = rnd(0, 1) < 0.25 ? rnd(3, 8) : rnd(13, 32);
+    //
+    // The travel is roughly a third to two thirds of the print's own height. Shorter than this and
+    // the smear never grows long enough to read as a streak rather than a soft edge under the hand.
+    const slide = rnd(0, 1) < 0.25 ? rnd(7, 15) : rnd(26, 60);
     return {
       left: `${rnd(12, 88).toFixed(1)}%`,
-      top: `${rnd(22, 80).toFixed(1)}%`,
+      // Biased toward the upper half so the slip has somewhere to go: a print that starts low spends
+      // its whole journey being clipped by the card's bottom edge, trail and all.
+      top: `${rnd(16, 66).toFixed(1)}%`,
       '--w': `${w.toFixed(1)}px`,
       '--h': `${h.toFixed(1)}px`,
       '--slide': `${slide.toFixed(1)}px`,
@@ -275,7 +285,12 @@ ${maskVars}
   /* Only a breath of softness: the ragged edge comes from the mask's own displacement, and blurring
      harder sands off exactly the detail that makes it read as grease rather than a cut silhouette. */
   filter: blur(0.5px);
-  animation: cardfx-hand-slip var(--dur, 8s) ease-in var(--delay, 0s) infinite;
+  /* The S-curve is load-bearing twice over. It grips, gives way, then settles — but it also has to
+     put half the travel in the first half of the slip, because the hand starts dimming at 64% and a
+     back-loaded ease-in spent the bright half of the journey barely moving (18% of the distance) and
+     then covered the rest while fading. The smear below MUST carry the identical easing or its
+     trailing edge parts company with the hand. */
+  animation: cardfx-hand-slip var(--dur, 8s) cubic-bezier(0.45, 0, 0.55, 1) var(--delay, 0s) infinite;
 }
 /* THE SMEAR — the same masked hand STRETCHED downward from where it landed, which is the cheap way
    to sweep a shape along its own path: the fingers draw out into streaks, the palm into a band, and
@@ -294,7 +309,8 @@ ${maskVars}
     color-mix(in srgb, var(--cos-fx-tint, #dcf2ff) 30%, transparent) 100%
   );
   filter: blur(1.3px);
-  animation: cardfx-hand-smear var(--dur, 8s) ease-in var(--delay, 0s) infinite;
+  /* Identical easing to the slip above — see the note there. */
+  animation: cardfx-hand-smear var(--dur, 8s) cubic-bezier(0.45, 0, 0.55, 1) var(--delay, 0s) infinite;
 }
 /* Fast in, slow out — see the note at the top. The scale settle is the glass flexing under the push;
    it is over almost as soon as it starts, which is what sells the press as an impact.
@@ -320,14 +336,20 @@ ${maskVars}
   6% {
     scale: 1;
   }
-  22% {
-    opacity: 0.92;
-  }
-  55% {
-    opacity: 0.4;
+  /* THE PLATEAU RUNS THROUGH THE SLIDE, and that is the difference between an effect with a trail
+     and an effect that appears to have none. The envelope inherited from the press-and-fade version
+     was down to 0.4 by 55% and all but gone by 82% — but the particle's opacity multiplies into BOTH
+     pseudo-elements, so the hand dimmed through the whole journey, taking its own smear with it. Nothing
+     was left to see by the time there was any trail to look at. The hand now stays strong until the
+     slip is most of the way done and only lets go over the last third. */
+  64% {
+    opacity: 0.94;
   }
   82% {
-    opacity: 0.12;
+    opacity: 0.68;
+  }
+  94% {
+    opacity: 0.2;
   }
   100% {
     opacity: 0;
