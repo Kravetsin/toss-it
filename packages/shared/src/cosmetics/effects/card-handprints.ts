@@ -86,44 +86,56 @@ const HAND_PARTS = [
 ];
 
 /**
- * THE DRAG STREAKS — one column per finger: `[centreX, width, tipY]` in the same 1400-wide space as
- * the hand, so a streak sits under the finger that drew it and starts at that finger's own tip.
+ * THE FINGERS' DOWNWARD SHADOW — every finger path smeared straight down, and nothing hand-placed.
  *
- * Each bar runs from its tip to the BOTTOM of the box. That length is not what gets drawn — see
- * STREAK_MASK for how a bar is cut down to just the part the finger has actually vacated.
+ * WHY IT IS BUILT FROM THE PATHS AND NOT FROM AUTHORED COLUMNS. The previous version approximated
+ * each finger with a rectangle at a guessed centre and width. Two things went wrong and both were
+ * invisible in the numbers: the columns never matched the diagonal fingers (the pinky leans by most
+ * of its own width from tip to base), and — far worse — the column image was a single constant while
+ * half the hands are MIRRORED, so on those the thumb's column sat under the pinky. That is what read
+ * as a second, invisible hand leaving marks beside the real one. Deriving the shadow from the same
+ * paths, under the same mirror, makes misalignment impossible rather than merely unlikely.
+ *
+ * HOW THE SMEAR IS BUILT. Five doubling passes of offset-and-union (60 + 120 + 240 + 480 + 960 =
+ * 1860 units of reach, comfortably more than any slide) turn each finger into a column running from
+ * its own tip to well past the bottom of the print. Doubling rather than stepping keeps it to five
+ * filter primitives instead of thirty.
+ *
+ * The mirror is applied on an OUTER group, so the shadow is grown in unflipped space and only then
+ * reflected — reflecting across X cannot change which way "down" is.
+ *
+ * The palm is deliberately left out: it is the fingers that draw legible streaks, and including the
+ * palm's broad band brought back the smeared-hand look this was meant to replace.
  */
-const STREAKS: [number, number, number][] = [
-  [180, 130, 790], // thumb — widest contact, set low and off to the side
-  [535, 126, 110], // index
-  [815, 116, 25], // middle — the longest finger, so the highest start
-  [1012, 104, 140], // ring
-  [1270, 100, 400], // pinky — shortest, and its tip sits well down the hand
-];
-
-/**
- * The streak columns. Plain bars, no fade: the reveal is not done by this image.
- *
- * HOW A STREAK GETS ITS LENGTH. This mask is applied TWICE — once anchored, once offset downward by
- * however far the hand has slid — and the two are combined with `mask-composite: subtract`. What
- * survives is the anchored copy minus the offset copy, which is exactly the strip each column has
- * been vacated by: nothing at all before the hand moves, and a bar growing from that finger's tip
- * as it slides.
- *
- * This replaces two earlier attempts that both failed on the same point — having no way to be zero
- * length at the start. Stretching the hand mask read as a squashed palm once the travel got long;
- * stretching full-height BARS was worse, because at rest they already covered the whole print and
- * the effect flashed up a set of stripes the moment the slide began. Subtracting a shifted copy is
- * the one formulation where "hasn't moved yet" and "no streak yet" are the same state.
- *
- * `preserveAspectRatio='none'` so the columns track the element's box rather than being letterboxed.
- */
-const STREAK_MASK =
-  `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1400 1430' preserveAspectRatio='none'%3E` +
-  STREAKS.map(
-    ([cx, w, tip]) =>
-      `%3Crect x='${(cx - w / 2).toFixed(0)}' y='${tip}' width='${w}' height='${1430 - tip}' fill='%23fff'/%3E`,
-  ).join('') +
-  `%3C/svg%3E")`;
+function streakMask(flip: boolean): string {
+  const outer = flip ? " transform='translate(1400,0) scale(-1,1)'" : '';
+  // Everything except the palm, which is the last entry in HAND_PARTS.
+  const paths = HAND_PARTS.slice(0, -1)
+    .map((d) => `%3Cpath d='${d}'/%3E`)
+    .join('');
+  const steps = [60, 120, 240, 480, 960];
+  let src = 'SourceGraphic';
+  const stages = steps
+    .map((dy, i) => {
+      const off = `o${i}`;
+      const out = i === steps.length - 1 ? '' : ` result='s${i}'`;
+      const stage =
+        `%3CfeOffset in='${src}' dy='${dy}' result='${off}'/%3E` +
+        `%3CfeComposite in='${src}' in2='${off}' operator='over'${out}/%3E`;
+      src = `s${i}`;
+      return stage;
+    })
+    .join('');
+  const filter =
+    `%3Cfilter id='e' filterUnits='userSpaceOnUse' x='0' y='0' width='1400' height='3400'%3E` +
+    stages +
+    `%3C/filter%3E`;
+  return (
+    `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1400 1430'%3E` +
+    filter +
+    `%3Cg${outer}%3E%3Cg fill='%23fff' filter='url(%23e)'%3E${paths}%3C/g%3E%3C/g%3E%3C/svg%3E")`
+  );
+}
 
 /** Print aspect — the mask's own box. Height follows width so a hand never squashes. */
 const ASPECT = 1430 / 1400;
@@ -153,11 +165,19 @@ function handMask(seed: number, flip: boolean): string {
 }
 
 const SEEDS = [7, 29, 61];
+// --hand-N: odd N is unflipped, even N is mirrored. particle() relies on that parity to hand the
+// matching shadow to the streaks, so the two can never disagree about which way the hand faces.
 const maskVars = SEEDS.map((seed, i) =>
   [handMask(seed, false), handMask(seed, true)]
     .map((url, f) => `  --hand-${i * 2 + f + 1}: ${url};`)
     .join('\n'),
 ).join('\n');
+// Only two are needed: the shadow's ragged edge is not load-bearing (it is blurred and cut by the
+// ink layer anyway), but its MIRROR is, so there is one per facing rather than one per hand.
+const streakVars = [
+  `  --streak-1: ${streakMask(false)};`,
+  `  --streak-2: ${streakMask(true)};`,
+].join('\n');
 
 /**
  * Side of the ink tile, in px. Every print samples a random window of it (see INK_TILE), so how many
@@ -216,7 +236,8 @@ export const cardHandprints: CardEffectModule = {
     //
     // The travel is roughly a third to two thirds of the print's own height. Shorter than this and
     // the smear never grows long enough to read as a streak rather than a soft edge under the hand.
-    const slide = rnd(0, 1) < 0.25 ? rnd(7, 15) : rnd(26, 60);
+    const slide = rnd(0, 1) < 0.25 ? rnd(7, 15) : rnd(24, 50);
+    const hand = 1 + Math.floor(rnd(0, MASK_COUNT));
     return {
       left: `${rnd(12, 88).toFixed(1)}%`,
       // Biased toward the upper half so the slip has somewhere to go: a print that starts low spends
@@ -228,7 +249,11 @@ export const cardHandprints: CardEffectModule = {
       // Barely tilted: a hand pressed flat on glass stays roughly upright, and steep angles were
       // one of the things that made early passes read as stickers dropped onto the card.
       '--rot': `${rnd(-14, 14).toFixed(1)}deg`,
-      '--hand': `var(--hand-${1 + Math.floor(rnd(0, MASK_COUNT))})`,
+      '--hand': `var(--hand-${hand})`,
+      // The shadow that matches this hand's facing. Chosen from the SAME number, not rolled again:
+      // half the silhouettes are mirrored, and a streak set that disagreed put the thumb's marks
+      // under the pinky — which read as a second, invisible hand smearing the glass alongside.
+      '--streak': `var(--streak-${hand % 2 === 1 ? 1 : 2})`,
       // Where this print reads the shared ink field. A continuous offset rather than a pick from a
       // list, so two prints sharing a silhouette still carry different blotches.
       '--ink-pos': `${rnd(0, INK_TILE_PX).toFixed(0)}px ${rnd(0, INK_TILE_PX).toFixed(0)}px`,
@@ -242,12 +267,12 @@ export const cardHandprints: CardEffectModule = {
   // Everything about WHERE, WHICH hand and HOW FAR it slips is re-rolled each cycle; `--dur` is not
   // (it may not change under a running animation). `--slide` is safe despite setting the slip's
   // speed, because it only ever changes at a cycle boundary, where the slip restarts anyway.
-  respawnKeys: ['top', '--w', '--h', '--rot', '--hand', '--ink-pos', '--slide'],
+  respawnKeys: ['top', '--w', '--h', '--rot', '--hand', '--streak', '--ink-pos', '--slide'],
   css: `
 .card-fx-handprints {
 ${maskVars}
   --ink: ${INK_TILE};
-  --streak: ${STREAK_MASK};
+${streakVars}
 }
 /* THE CONDENSATION FILM — deliberately near-invisible. It exists only so the prints have something
    to be prints IN; any heavier and this becomes the frosting-window read that sank the ink effect.
