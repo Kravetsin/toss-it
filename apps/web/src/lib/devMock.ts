@@ -471,7 +471,7 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderName: 'glasstapper',
     senderLevel: 5,
     senderColor: '#dcf2ff',
-    senderCardEffect: 'card-handprints',
+    senderCardEffect: 'card-hextech',
     text: 'оно снова подошло к стеклу',
     createdAt: t - 70 * min,
   }),

@@ -993,9 +993,7 @@ if (DEMO) {
       userId: 'u27',
       name: 'glasstapper',
       twitchColor: '#dcf2ff',
-      // A JS-free print swarm whose whole read is the ENVELOPE — worth having on the smallest
-      // surface, where the hand is mostly clipped and only the press timing carries it.
-      cosmetics: { cardEffect: 'card-handprints' },
+      cosmetics: { cardEffect: 'card-hextech' },
       isFounder: false,
       level: 5,
       fragments: [{ type: 'text', text: 'оно снова подошло к стеклу' }],

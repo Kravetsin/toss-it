@@ -90,15 +90,7 @@ const CARD_GROUPS = [
   { key: 'nature', ids: ['card-sakura', 'card-bubbles', 'card-butterflies', 'card-jelly'] },
   {
     key: 'arcane',
-    ids: [
-      'card-wisp',
-      'card-runes',
-      'card-web',
-      'card-eyes',
-      'card-candles',
-      'card-hextech',
-      'card-handprints',
-    ],
+    ids: ['card-wisp', 'card-runes', 'card-web', 'card-eyes', 'card-candles', 'card-hextech'],
   },
 ] as const;
 type CardGroupKey = (typeof CARD_GROUPS)[number]['key'];

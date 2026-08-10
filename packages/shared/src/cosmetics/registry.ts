@@ -36,7 +36,6 @@ import { cardEyes } from './effects/card-eyes';
 import { cardEyesColor } from './effects/card-eyes-color';
 import { cardHextech } from './effects/card-hextech';
 import { cardHextechColor } from './effects/card-hextech-color';
-import { cardHandprints } from './effects/card-handprints';
 import { cardClaws } from './effects/card-claws';
 import { cardClawsColor } from './effects/card-claws-color';
 import { cardJelly } from './effects/card-jelly';
@@ -245,7 +244,6 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   cardJelly,
   cardHextech,
   cardHextechColor,
-  cardHandprints,
   // Frames group by the metric that earns them, each family in ladder order: chat messages first,
   // then watch time. A rung is a separate item, so the shop shows what the next one looks like.
   frameRunner,
