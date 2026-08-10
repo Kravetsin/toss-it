@@ -14,6 +14,12 @@ import { vdc } from '../spread';
  * That speed is also why the cycle opens with a blind 2% at opacity 0 — an instant entrance is the
  * one case where the respawn's timing shows. See the keyframes for the full reasoning.
  *
+ * THEN IT GIVES WAY. After holding a third of the cycle the hand slides down the glass, dragging a
+ * smear out of its own fingers. The pause before it moves is doing the work: a print that starts
+ * sliding on contact is just a shape drifting past, while one that lands, stays, and only then slips
+ * says something is holding on out there and losing its grip. A third of them barely move at all, so
+ * a card is never uniformly sliding.
+ *
  * THE ANATOMY IS AUTHORED, NOT GENERATED, and three discarded attempts paid for that line. Building
  * the hand from primitives — first tapered bars, then a column of contact pads — produced a glove
  * and then a scatter of ovals, because a hand is not a shape a formula finds: the fingers taper and
@@ -157,12 +163,20 @@ export const cardHandprints: CardEffectModule = {
   // colour upgrade later is a new catalog entry and nothing else — no change in here.
   particle: (rnd, _compact, index) => {
     const w = rnd(52, 74);
+    const h = w * ASPECT;
     const dur = rnd(6.5, 9.5);
+    // Not every hand slips: a quarter of them only creep, which stops a card from looking like
+    // everything on it is sliding in formation. A quarter and not a third because a card carries
+    // just four prints — at one in three, a fifth of all cards would show barely any movement at all.
+    const slide = rnd(0, 1) < 0.25 ? rnd(3, 8) : rnd(13, 32);
     return {
       left: `${rnd(12, 88).toFixed(1)}%`,
       top: `${rnd(22, 80).toFixed(1)}%`,
       '--w': `${w.toFixed(1)}px`,
-      '--h': `${(w * ASPECT).toFixed(1)}px`,
+      '--h': `${h.toFixed(1)}px`,
+      '--slide': `${slide.toFixed(1)}px`,
+      // How far the smear has to stretch to keep its trailing edge on the hand.
+      '--stretch': ((h + slide) / h).toFixed(3),
       // Barely tilted: a hand pressed flat on glass stays roughly upright, and steep angles were
       // one of the things that made early passes read as stickers dropped onto the card.
       '--rot': `${rnd(-14, 14).toFixed(1)}deg`,
@@ -177,10 +191,11 @@ export const cardHandprints: CardEffectModule = {
       '--delay': `${(-vdc(index) * dur).toFixed(2)}s`,
     };
   },
-  // Everything about WHERE and WHICH hand is re-rolled each cycle; `--dur` is not (it may not change
-  // under a running animation) and neither is anything tied to it. Size is safe here precisely
-  // because a print does not travel — nothing about its speed follows from how big it is.
-  respawnKeys: ['top', '--w', '--h', '--rot', '--hand', '--ink-pos'],
+  // Everything about WHERE, WHICH hand and HOW FAR it slips is re-rolled each cycle; `--dur` is not
+  // (it may not change under a running animation). `--slide` is safe despite setting the slip's
+  // speed, because it only ever changes at a cycle boundary, where the slip restarts anyway — and
+  // `--stretch` MUST travel with it or the smear would stop meeting the hand.
+  respawnKeys: ['top', '--w', '--h', '--rot', '--hand', '--ink-pos', '--slide', '--stretch'],
   css: `
 .card-fx-handprints {
 ${maskVars}
@@ -215,10 +230,35 @@ ${maskVars}
   rotate: var(--rot);
   animation: cardfx-hand-press var(--dur, 8s) linear var(--delay, 0s) infinite;
 }
-.card-fx-handprints .p::before {
+/* Both pseudos are the SAME hand through the SAME pair of masks — ::before is the hand itself,
+   ::after is the smear it drags. Sharing the mask is what keeps the trail believably the product of
+   THIS hand: same silhouette, same ink window, so the streaks line up with the fingers that made
+   them instead of being a generic gradient underneath.
+
+   TWO MASK LAYERS, INTERSECTED: the hand says WHERE, the ink tile says HOW MUCH. The second layer
+   repeats and is offset per print (--ink-pos), which is what makes the patchiness continuous instead
+   of one of six baked-in textures — and it costs a single decoded image for the whole catalog. */
+.card-fx-handprints .p::before,
+.card-fx-handprints .p::after {
   content: '';
   position: absolute;
   inset: 0;
+  -webkit-mask-image: var(--hand), var(--ink);
+  mask-image: var(--hand), var(--ink);
+  -webkit-mask-size: 100% 100%, ${INK_TILE_PX}px ${INK_TILE_PX}px;
+  mask-size: 100% 100%, ${INK_TILE_PX}px ${INK_TILE_PX}px;
+  -webkit-mask-position: 0 0, var(--ink-pos, 0 0);
+  mask-position: 0 0, var(--ink-pos, 0 0);
+  -webkit-mask-repeat: no-repeat, repeat;
+  mask-repeat: no-repeat, repeat;
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+}
+/* THE HAND. It holds where it landed, then gives way and slides. */
+.card-fx-handprints .p::before {
+  /* Above its own smear: the trail is something the hand LEFT, so it cannot paint over it. Both
+     pseudos sit in the stacking context .p already creates by animating opacity. */
+  z-index: 1;
   /* The hollow palm lives in the mask's own geometry, so this only varies pressure gently. A print
      is a greasy film: nothing here goes near full alpha.
 
@@ -232,23 +272,29 @@ ${maskVars}
     color-mix(in srgb, var(--cos-fx-tint, #dcf2ff) 59%, transparent) 55%,
     color-mix(in srgb, var(--cos-fx-tint, #dcf2ff) 42%, transparent) 100%
   );
-  /* TWO MASK LAYERS, INTERSECTED: the hand says WHERE, the ink tile says HOW MUCH. The second layer
-     repeats and is offset per print (--ink-pos), which is what makes the patchiness continuous
-     instead of one of six baked-in textures — and it costs a single decoded image for the whole
-     catalog, since every print samples the same tile. */
-  -webkit-mask-image: var(--hand), var(--ink);
-  mask-image: var(--hand), var(--ink);
-  -webkit-mask-size: 100% 100%, ${INK_TILE_PX}px ${INK_TILE_PX}px;
-  mask-size: 100% 100%, ${INK_TILE_PX}px ${INK_TILE_PX}px;
-  -webkit-mask-position: 0 0, var(--ink-pos, 0 0);
-  mask-position: 0 0, var(--ink-pos, 0 0);
-  -webkit-mask-repeat: no-repeat, repeat;
-  mask-repeat: no-repeat, repeat;
-  -webkit-mask-composite: source-in;
-  mask-composite: intersect;
   /* Only a breath of softness: the ragged edge comes from the mask's own displacement, and blurring
      harder sands off exactly the detail that makes it read as grease rather than a cut silhouette. */
   filter: blur(0.5px);
+  animation: cardfx-hand-slip var(--dur, 8s) ease-in var(--delay, 0s) infinite;
+}
+/* THE SMEAR — the same masked hand STRETCHED downward from where it landed, which is the cheap way
+   to sweep a shape along its own path: the fingers draw out into streaks, the palm into a band, and
+   the dry gaps between the phalanx pads stretch too, so the streaks come out broken rather than as
+   clean bars. Anchored at the top, so the fingertips stay where they first touched and only the
+   trailing edge follows the hand down.
+
+   Fainter at the top than the bottom because that is the ink that has been dragged longest, and
+   blurred harder than the hand: a smear has no edge left to speak of. */
+.card-fx-handprints .p::after {
+  transform-origin: top center;
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--cos-fx-tint, #dcf2ff) 10%, transparent) 0%,
+    color-mix(in srgb, var(--cos-fx-tint, #dcf2ff) 22%, transparent) 60%,
+    color-mix(in srgb, var(--cos-fx-tint, #dcf2ff) 30%, transparent) 100%
+  );
+  filter: blur(1.3px);
+  animation: cardfx-hand-smear var(--dur, 8s) ease-in var(--delay, 0s) infinite;
 }
 /* Fast in, slow out — see the note at the top. The scale settle is the glass flexing under the push;
    it is over almost as soon as it starts, which is what sells the press as an impact.
@@ -285,6 +331,35 @@ ${maskVars}
   }
   100% {
     opacity: 0;
+  }
+}
+/* THE SLIP. It holds for the first third — that pause is the whole point, because a hand that starts
+   moving on contact reads as a shape drifting past, while one that stays put and THEN gives way
+   reads as weight losing its grip. ease-in for the same reason: it must not set off at speed. */
+@keyframes cardfx-hand-slip {
+  0%,
+  30% {
+    translate: 0 0;
+  }
+  100% {
+    translate: 0 var(--slide, 0px);
+  }
+}
+/* The smear grows in lockstep with the slip: same duration, same delay, same easing, so its trailing
+   edge cannot drift away from the hand that is drawing it. --stretch is (h + slide) / h, computed in
+   particle() because CSS calc() cannot divide a length by a length. */
+@keyframes cardfx-hand-smear {
+  0%,
+  30% {
+    scale: 1 1;
+    opacity: 0;
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    scale: 1 var(--stretch, 1);
+    opacity: 1;
   }
 }
 `,
