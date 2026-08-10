@@ -29,10 +29,13 @@ import { vdc } from '../spread';
  * evenodd`, not something the fill gradient fakes: a gradient can only dim the middle, and a dimmed
  * middle still reads as a solid palm. A real hand does not touch glass there at all.
  *
- * THE MASKS LIVE IN THE STYLESHEET, not in `particle()`'s output. Each silhouette is ~1.5KB of path
- * data; emitted per particle it would be inlined onto every `.p` of every card, which in the OBS
- * chat worst case is the same kilobytes copied hundreds of times. Six are declared once here and a
- * particle just picks one by name.
+ * SHAPE AND TEXTURE ARE TWO SEPARATE MASK LAYERS, and splitting them is what buys variety cheaply.
+ * The silhouettes are six fixed masks in the stylesheet (a particle picks one by name) because each
+ * is ~1.5KB of path data and a per-particle data-URI would be both inlined onto every `.p` AND
+ * rasterised separately — hundreds of turbulence passes in an OBS chat. The ink texture is one
+ * repeating tile every print shares, sampled at its own random `mask-position`, so patchiness varies
+ * CONTINUOUSLY while the browser still decodes exactly one noise image. Intersecting the two gives
+ * "same hand, different ink" without paying for a unique mask per print.
  *
  * SIZE IS ABSOLUTE, never a fraction of the container: a chat pill gets the same hand as a tall card
  * and simply clips it (the rule the catalog already settled on — an effect shrunk to fit a short row
@@ -55,13 +58,20 @@ const HAND_PARTS = [
   'M 960,560 C 958,530 985,510 1018,515 C 1050,520 1062,548 1058,580 C 1054,612 1040,632 1020,638 C 998,644 975,630 967,608 C 960,588 960,570 960,560 Z',
   // Pinky — shortest, set lowest, angled hardest away from the hand.
   'M 1160,760 C 1145,720 1175,655 1215,590 C 1258,520 1300,450 1330,415 C 1358,382 1390,395 1392,435 C 1394,478 1360,545 1320,615 C 1282,682 1245,745 1215,775 C 1188,802 1172,795 1160,760 Z',
-  // Palm — the second subpath is the hollow (see the note above on fill-rule).
+  // Palm — the subpaths after the outline are the parts that never touch (see the note on fill-rule).
   //
   // THE LEFT EDGE NARROWS AS IT RISES, and that is anatomy, not styling. Above the thumb sits the
   // thumb web, so the palm is at its WIDEST low down at the heel and gets steadily narrower toward
   // the index base. The first cut had the outline bulging out to x=362 at y=850 — its widest point
   // was up in the web — which put a lump on the silhouette exactly above the thumb.
-  'M 540,660 C 585,642 645,655 690,688 C 730,718 775,738 830,742 C 890,746 945,762 995,795 C 1050,830 1100,872 1122,925 C 1145,982 1138,1048 1120,1112 C 1100,1180 1082,1245 1055,1300 C 1028,1358 988,1405 935,1420 C 878,1436 812,1428 752,1405 C 685,1380 620,1340 565,1292 C 505,1240 445,1180 410,1108 C 392,1070 380,1025 386,978 C 396,916 420,862 458,812 C 488,772 520,715 540,660 Z M 705,935 C 750,918 808,925 848,952 C 882,975 895,1018 878,1062 C 862,1105 820,1135 775,1133 C 728,1131 690,1104 676,1058 C 662,1012 672,958 705,935 Z',
+  //
+  // THE CUP IS A TAPERED WEDGE, NOT A RING. It began as five arcs of what was effectively an
+  // ellipse, and a round hole in the middle of a solid shape reads as a doughnut no matter how the
+  // edge is roughened. A palm's untouched area is bounded by the thenar, the hypothenar, the finger
+  // pads and the heel, so it is broad at the top and closes to about half that at the bottom — that
+  // 2:1 taper is what stops the eye calling it a hole. The small second void along the thumb mound
+  // finishes the job: two unequal gaps read as skin that missed, one centred gap reads as a ring.
+  'M 540,660 C 585,642 645,655 690,688 C 730,718 775,738 830,742 C 890,746 945,762 995,795 C 1050,830 1100,872 1122,925 C 1145,982 1138,1048 1120,1112 C 1100,1180 1082,1245 1055,1300 C 1028,1358 988,1405 935,1420 C 878,1436 812,1428 752,1405 C 685,1380 620,1340 565,1292 C 505,1240 445,1180 410,1108 C 392,1070 380,1025 386,978 C 396,916 420,862 458,812 C 488,772 520,715 540,660 Z M 690,900 C 748,880 818,896 862,936 C 882,956 884,992 876,1024 C 866,1060 846,1094 812,1112 C 786,1126 750,1128 726,1116 C 714,1110 710,1080 712,1040 C 714,1006 700,988 682,976 C 664,962 662,922 690,900 Z M 520,1010 C 542,1002 560,1022 562,1054 C 564,1084 556,1108 540,1114 C 524,1120 510,1104 506,1076 C 502,1048 504,1018 520,1010 Z',
 ];
 
 /** Print aspect — the mask's own box. Height follows width so a hand never squashes. */
@@ -81,24 +91,7 @@ function handMask(seed: number, flip: boolean): string {
     `%3Cfilter id='r' filterUnits='userSpaceOnUse' x='-60' y='-60' width='1520' height='1550'%3E` +
     // 1) The ragged ink edge: warp the authored outline so no border is a drawn curve.
     `%3CfeTurbulence type='fractalNoise' baseFrequency='0.011' numOctaves='3' seed='${seed}' result='warp'/%3E` +
-    `%3CfeDisplacementMap in='SourceGraphic' in2='warp' scale='30' xChannelSelector='R' yChannelSelector='G' result='shape'/%3E` +
-    // 2) INK DENSITY. A palm never meets a surface evenly — it beds down in patches, skips over the
-    //    creases and misses entirely in places. A second, finer noise becomes that patchiness: its
-    //    red channel is moved into alpha, curved so most of the print stays near solid while the
-    //    thin spots drop away, and multiplied into the silhouette. Without this the fill is
-    //    perfectly even, which is what reads as printed artwork rather than a hand.
-    //    baseFrequency is the load-bearing number, and it is about PATCH SIZE, not grain: at 0.009 a
-    //    blotch is ~5px on a print rendered at ~64px, which reads as an area the hand missed. Ten
-    //    times finer and the same maths gives 1.5px speckle — that reads as dither on a flat fill,
-    //    which is how the first version of this managed to change the numbers and not the look.
-    //    The table is steep on purpose: fractalNoise crowds around 0.5, so a gentle curve produced
-    //    a print with literally zero voids. This one holds the bottom third at zero.
-    `%3CfeTurbulence type='fractalNoise' baseFrequency='0.009' numOctaves='3' seed='${seed + 13}' result='grain'/%3E` +
-    `%3CfeColorMatrix in='grain' type='matrix' values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 1 0 0 0 0' result='grainA'/%3E` +
-    `%3CfeComponentTransfer in='grainA' result='ink'%3E` +
-    `%3CfeFuncA type='table' tableValues='0 0 0 0.08 0.48 0.82 1 1 1 1 1'/%3E` +
-    `%3C/feComponentTransfer%3E` +
-    `%3CfeComposite in='shape' in2='ink' operator='in'/%3E` +
+    `%3CfeDisplacementMap in='SourceGraphic' in2='warp' scale='30' xChannelSelector='R' yChannelSelector='G'/%3E` +
     `%3C/filter%3E`;
   const paths = HAND_PARTS.map((d) => `%3Cpath d='${d}'/%3E`).join('');
   return (
@@ -114,6 +107,41 @@ const maskVars = SEEDS.map((seed, i) =>
     .map((url, f) => `  --hand-${i * 2 + f + 1}: ${url};`)
     .join('\n'),
 ).join('\n');
+
+/**
+ * Side of the ink tile, in px. Every print samples a random window of it (see INK_TILE), so how many
+ * visibly different textures exist is (TILE/print)^2 rather than a count of pre-baked variants.
+ */
+const INK_TILE_PX = 400;
+
+/**
+ * THE INK TEXTURE, as ONE tile every print shares.
+ *
+ * Ink density used to be baked into each hand mask, which meant patchiness could only vary as far as
+ * the pre-baked silhouettes did — six textures, forever. Emitting a unique mask per particle would
+ * fix the variety and wreck the cost: every distinct data-URI is its own rasterisation, and each one
+ * runs a turbulence pass, so an OBS chat would be decoding hundreds of them.
+ *
+ * Splitting the texture off solves both. It is a SECOND MASK LAYER intersected with the hand, so the
+ * browser decodes exactly one noise image no matter how many prints exist, while each print picks
+ * its own `mask-position` into it — a continuous offset, not a choice from a list.
+ *
+ * `stitchTiles='stitch'` is what makes that legal: it forces the noise to meet itself seamlessly at
+ * the tile edge, so `mask-repeat: repeat` can run the field on forever and no offset lands on a seam.
+ *
+ * 1 tile unit = 1 device px (mask-size below matches the viewBox), so baseFrequency reads directly as
+ * patch size: 0.2 puts a blotch every ~5px, which is the scale that reads as skin that missed rather
+ * than as dither. The table is steep because fractalNoise crowds around 0.5 — a gentle curve left the
+ * print with literally zero voids.
+ */
+const INK_TILE =
+  `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 ${INK_TILE_PX} ${INK_TILE_PX}'%3E` +
+  `%3Cfilter id='i' filterUnits='userSpaceOnUse' x='0' y='0' width='${INK_TILE_PX}' height='${INK_TILE_PX}'%3E` +
+  `%3CfeTurbulence type='fractalNoise' baseFrequency='0.2' numOctaves='3' seed='23' stitchTiles='stitch' result='g'/%3E` +
+  `%3CfeColorMatrix in='g' type='matrix' values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 1 0 0 0 0' result='ga'/%3E` +
+  `%3CfeComponentTransfer in='ga'%3E%3CfeFuncA type='table' tableValues='0 0 0 0.08 0.48 0.82 1 1 1 1 1'/%3E%3C/feComponentTransfer%3E` +
+  `%3C/filter%3E` +
+  `%3Crect width='${INK_TILE_PX}' height='${INK_TILE_PX}' fill='%23fff' filter='url(%23i)'/%3E%3C/svg%3E")`;
 
 export const cardHandprints: CardEffectModule = {
   id: 'card-handprints',
@@ -139,6 +167,9 @@ export const cardHandprints: CardEffectModule = {
       // one of the things that made early passes read as stickers dropped onto the card.
       '--rot': `${rnd(-14, 14).toFixed(1)}deg`,
       '--hand': `var(--hand-${1 + Math.floor(rnd(0, MASK_COUNT))})`,
+      // Where this print reads the shared ink field. A continuous offset rather than a pick from a
+      // list, so two prints sharing a silhouette still carry different blotches.
+      '--ink-pos': `${rnd(0, INK_TILE_PX).toFixed(0)}px ${rnd(0, INK_TILE_PX).toFixed(0)}px`,
       '--dur': `${dur.toFixed(2)}s`,
       // Phase from vdc(index), not a roll: independent draws clump, and two prints landing together
       // by accident reads as one event stuttering rather than two hands. vdc spreads evenly for ANY
@@ -149,9 +180,12 @@ export const cardHandprints: CardEffectModule = {
   // Everything about WHERE and WHICH hand is re-rolled each cycle; `--dur` is not (it may not change
   // under a running animation) and neither is anything tied to it. Size is safe here precisely
   // because a print does not travel — nothing about its speed follows from how big it is.
-  respawnKeys: ['top', '--w', '--h', '--rot', '--hand'],
+  respawnKeys: ['top', '--w', '--h', '--rot', '--hand', '--ink-pos'],
   css: `
-${maskVars.length ? `.card-fx-handprints {\n${maskVars}\n}` : ''}
+.card-fx-handprints {
+${maskVars}
+  --ink: ${INK_TILE};
+}
 /* THE CONDENSATION FILM — deliberately near-invisible. It exists only so the prints have something
    to be prints IN; any heavier and this becomes the frosting-window read that sank the ink effect.
    Carries no animation, so it survives as a still layer rather than leaving a bare card. */
@@ -198,12 +232,20 @@ ${maskVars.length ? `.card-fx-handprints {\n${maskVars}\n}` : ''}
     color-mix(in srgb, var(--cos-fx-tint, #dcf2ff) 59%, transparent) 55%,
     color-mix(in srgb, var(--cos-fx-tint, #dcf2ff) 42%, transparent) 100%
   );
-  -webkit-mask-image: var(--hand);
-  mask-image: var(--hand);
-  -webkit-mask-size: 100% 100%;
-  mask-size: 100% 100%;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
+  /* TWO MASK LAYERS, INTERSECTED: the hand says WHERE, the ink tile says HOW MUCH. The second layer
+     repeats and is offset per print (--ink-pos), which is what makes the patchiness continuous
+     instead of one of six baked-in textures — and it costs a single decoded image for the whole
+     catalog, since every print samples the same tile. */
+  -webkit-mask-image: var(--hand), var(--ink);
+  mask-image: var(--hand), var(--ink);
+  -webkit-mask-size: 100% 100%, ${INK_TILE_PX}px ${INK_TILE_PX}px;
+  mask-size: 100% 100%, ${INK_TILE_PX}px ${INK_TILE_PX}px;
+  -webkit-mask-position: 0 0, var(--ink-pos, 0 0);
+  mask-position: 0 0, var(--ink-pos, 0 0);
+  -webkit-mask-repeat: no-repeat, repeat;
+  mask-repeat: no-repeat, repeat;
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
   /* Only a breath of softness: the ragged edge comes from the mask's own displacement, and blurring
      harder sands off exactly the detail that makes it read as grease rather than a cut silhouette. */
   filter: blur(0.5px);
