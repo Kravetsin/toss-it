@@ -504,10 +504,15 @@ export function fillCardEffect(
   // the layer's own pseudo-elements (card-hextech's etched lattice) cannot be reached by a per-particle
   // property, since custom properties inherit down and never up. Same name as the entrances use, so
   // there is one tint vocabulary. Validated, not trusted: a malformed value inside color-mix() kills
-  // the whole declaration, which would drop an effect's paint rather than just its colour. Cleared
-  // when unset, so switching back to no upgrade doesn't leave the old tint on a reused React node.
-  if (color && /^#[0-9a-f]{6}$/i.test(color)) layer.style.setProperty('--cos-fx-tint', color);
-  else layer.style.removeProperty('--cos-fx-tint');
+  // the whole declaration, which would drop an effect's paint rather than just its colour. Without an
+  // upgrade the tint is pinned to `initial` rather than removed: custom properties INHERIT, and this
+  // layer sits inside the element the entrance tinted — removing it would let an equipped entrance
+  // colour repaint a card effect that has no colour upgrade at all. `initial` makes var() fall back
+  // to each effect's own default, and also clears a stale value on a reused React node.
+  layer.style.setProperty(
+    '--cos-fx-tint',
+    color && /^#[0-9a-f]{6}$/i.test(color) ? color : 'initial',
+  );
   // A JS-rendered effect (a canvas web, not a particle swarm) owns the whole layer itself.
   const m = asCardEffect(id);
   if (m?.render && typeof window !== 'undefined') {
