@@ -158,17 +158,25 @@ function streakMask(flip: boolean): string {
   const stages = steps
     .map((dy, i) => {
       const off = `o${i}`;
-      const out = i === steps.length - 1 ? '' : ` result='s${i}'`;
       const stage =
         `%3CfeOffset in='${src}' dy='${dy}' result='${off}'/%3E` +
-        `%3CfeComposite in='${src}' in2='${off}' operator='over'${out}/%3E`;
+        `%3CfeComposite in='${src}' in2='${off}' operator='over' result='s${i}'/%3E`;
       src = `s${i}`;
       return stage;
     })
     .join('');
+  // THE ALPHA MUST BE BINARY, and this is not tidiness — it is what makes the subtract cancel.
+  // Two copies of this mask are subtracted from each other, and subtract computes a*(1-b). Wherever
+  // an edge is antialiased the two copies hold the SAME fractional alpha, and a*(1-a) is never zero
+  // — it peaks at 0.25 halfway. Every column therefore kept a bright rim down its whole length, so
+  // the trail appeared at full extent the instant it faded in, with only its middle cut away.
+  // Thresholding at 0.5 leaves nothing partial for the subtraction to fail on: at rest the two
+  // copies now cancel to exactly nothing.
+  const threshold = `%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='0 1'/%3E%3C/feComponentTransfer%3E`;
   const filter =
     `%3Cfilter id='e' filterUnits='userSpaceOnUse' x='0' y='0' width='1400' height='${SHADOW_SPAN}'%3E` +
     stages +
+    threshold +
     `%3C/filter%3E`;
   // The box is DOUBLE the hand's height: the hand keeps sliding after a streak has reached the
   // bottom of the print, and a shadow that stopped at 1430 left the trail visibly cut off, no longer
