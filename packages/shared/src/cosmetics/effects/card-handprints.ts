@@ -86,43 +86,42 @@ const HAND_PARTS = [
 ];
 
 /**
- * THE DRAG STREAKS — one per finger, at that finger's own contact column and roughly its width.
- * `[centreX, width]` in the same 1400-wide space as the hand, so a streak lines up with the finger
- * that drew it.
+ * THE DRAG STREAKS — one column per finger: `[centreX, width, tipY]` in the same 1400-wide space as
+ * the hand, so a streak sits under the finger that drew it and starts at that finger's own tip.
+ *
+ * Each bar runs from its tip to the BOTTOM of the box. That length is not what gets drawn — see
+ * STREAK_MASK for how a bar is cut down to just the part the finger has actually vacated.
  */
-const STREAKS: [number, number][] = [
-  [215, 118], // thumb — the widest contact, and the one furthest off to the side
-  [535, 126], // index
-  [815, 116], // middle
-  [1012, 104], // ring
-  [1215, 96], // pinky
+const STREAKS: [number, number, number][] = [
+  [180, 130, 790], // thumb — widest contact, set low and off to the side
+  [535, 126, 110], // index
+  [815, 116, 25], // middle — the longest finger, so the highest start
+  [1012, 104, 140], // ring
+  [1270, 100, 400], // pinky — shortest, and its tip sits well down the hand
 ];
 
 /**
- * The streak mask. EVERY BAR RUNS THE FULL HEIGHT OF THE BOX, and that is the entire trick: the
- * smear grows by being scaled vertically, and scaling a full-height uniform bar only makes it
- * longer. The first version of the trail reused the HAND mask this way, which worked while the slide
- * was short and fell apart once it got long — what stretched was the palm and the gaps between the
- * phalanx pads, so the trail read as a smeared hand rather than as streaks. Bars have nothing in
- * them to deform.
+ * The streak columns. Plain bars, no fade: the reveal is not done by this image.
  *
- * The short fade at the top keeps a bar from starting on a hard edge. It is deliberately brief (6%)
- * because it stretches along with everything else — at a near-double stretch a generous fade would
- * turn into a long ramp and the streaks would lose their start.
+ * HOW A STREAK GETS ITS LENGTH. This mask is applied TWICE — once anchored, once offset downward by
+ * however far the hand has slid — and the two are combined with `mask-composite: subtract`. What
+ * survives is the anchored copy minus the offset copy, which is exactly the strip each column has
+ * been vacated by: nothing at all before the hand moves, and a bar growing from that finger's tip
+ * as it slides.
  *
- * `preserveAspectRatio='none'` so the bars track the element's box exactly rather than being letter-
- * boxed into it.
+ * This replaces two earlier attempts that both failed on the same point — having no way to be zero
+ * length at the start. Stretching the hand mask read as a squashed palm once the travel got long;
+ * stretching full-height BARS was worse, because at rest they already covered the whole print and
+ * the effect flashed up a set of stripes the moment the slide began. Subtracting a shifted copy is
+ * the one formulation where "hasn't moved yet" and "no streak yet" are the same state.
+ *
+ * `preserveAspectRatio='none'` so the columns track the element's box rather than being letterboxed.
  */
 const STREAK_MASK =
   `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1400 1430' preserveAspectRatio='none'%3E` +
-  `%3ClinearGradient id='f' x1='0' y1='0' x2='0' y2='1'%3E` +
-  `%3Cstop offset='0' stop-color='%23fff' stop-opacity='0'/%3E` +
-  `%3Cstop offset='0.06' stop-color='%23fff' stop-opacity='1'/%3E` +
-  `%3Cstop offset='1' stop-color='%23fff' stop-opacity='1'/%3E` +
-  `%3C/linearGradient%3E` +
   STREAKS.map(
-    ([cx, w]) =>
-      `%3Crect x='${(cx - w / 2).toFixed(0)}' y='0' width='${w}' height='1430' fill='url(%23f)'/%3E`,
+    ([cx, w, tip]) =>
+      `%3Crect x='${(cx - w / 2).toFixed(0)}' y='${tip}' width='${w}' height='${1430 - tip}' fill='%23fff'/%3E`,
   ).join('') +
   `%3C/svg%3E")`;
 
@@ -226,8 +225,6 @@ export const cardHandprints: CardEffectModule = {
       '--w': `${w.toFixed(1)}px`,
       '--h': `${h.toFixed(1)}px`,
       '--slide': `${slide.toFixed(1)}px`,
-      // How far the smear has to stretch to keep its trailing edge on the hand.
-      '--stretch': ((h + slide) / h).toFixed(3),
       // Barely tilted: a hand pressed flat on glass stays roughly upright, and steep angles were
       // one of the things that made early passes read as stickers dropped onto the card.
       '--rot': `${rnd(-14, 14).toFixed(1)}deg`,
@@ -244,9 +241,8 @@ export const cardHandprints: CardEffectModule = {
   },
   // Everything about WHERE, WHICH hand and HOW FAR it slips is re-rolled each cycle; `--dur` is not
   // (it may not change under a running animation). `--slide` is safe despite setting the slip's
-  // speed, because it only ever changes at a cycle boundary, where the slip restarts anyway — and
-  // `--stretch` MUST travel with it or the smear would stop meeting the hand.
-  respawnKeys: ['top', '--w', '--h', '--rot', '--hand', '--ink-pos', '--slide', '--stretch'],
+  // speed, because it only ever changes at a cycle boundary, where the slip restarts anyway.
+  respawnKeys: ['top', '--w', '--h', '--rot', '--hand', '--ink-pos', '--slide'],
   css: `
 .card-fx-handprints {
 ${maskVars}
@@ -282,23 +278,21 @@ ${maskVars}
   rotate: var(--rot);
   animation: cardfx-hand-press var(--dur, 8s) linear var(--delay, 0s) infinite;
 }
-/* Both pseudos are the SAME hand through the SAME pair of masks — ::before is the hand itself,
-   ::after is the smear it drags. Sharing the mask is what keeps the trail believably the product of
-   THIS hand: same silhouette, same ink window, so the streaks line up with the fingers that made
-   them instead of being a generic gradient underneath.
-
-   TWO MASK LAYERS, INTERSECTED: the hand says WHERE, the ink tile says HOW MUCH. The second layer
-   repeats and is offset per print (--ink-pos), which is what makes the patchiness continuous instead
-   of one of six baked-in textures — and it costs a single decoded image for the whole catalog. */
 .card-fx-handprints .p::before,
 .card-fx-handprints .p::after {
   content: '';
   position: absolute;
   inset: 0;
-  /* Each pseudo names its own shape through --mask-shape; everything below is identical for both,
-     which is what keeps the trail's ink window locked to the hand's. */
-  -webkit-mask-image: var(--mask-shape), var(--ink);
-  mask-image: var(--mask-shape), var(--ink);
+}
+/* THE HAND. It holds where it landed, then gives way and slides.
+
+   TWO MASK LAYERS, INTERSECTED: the hand says WHERE, the ink tile says HOW MUCH. The second layer
+   repeats and is offset per print (--ink-pos), which is what makes the patchiness continuous instead
+   of one of six baked-in textures — and it costs a single decoded image for the whole catalog. The
+   streaks below read the SAME ink window, so a trail carries the same grain as the hand that left it. */
+.card-fx-handprints .p::before {
+  -webkit-mask-image: var(--hand), var(--ink);
+  mask-image: var(--hand), var(--ink);
   -webkit-mask-size: 100% 100%, ${INK_TILE_PX}px ${INK_TILE_PX}px;
   mask-size: 100% 100%, ${INK_TILE_PX}px ${INK_TILE_PX}px;
   -webkit-mask-position: 0 0, var(--ink-pos, 0 0);
@@ -307,11 +301,7 @@ ${maskVars}
   mask-repeat: no-repeat, repeat;
   -webkit-mask-composite: source-in;
   mask-composite: intersect;
-}
-/* THE HAND. It holds where it landed, then gives way and slides. */
-.card-fx-handprints .p::before {
-  --mask-shape: var(--hand);
-  /* Above its own smear: the trail is something the hand LEFT, so it cannot paint over it. Both
+  /* Above its own streaks: the trail is something the hand LEFT, so it cannot paint over it. Both
      pseudos sit in the stacking context .p already creates by animating opacity. */
   z-index: 1;
   /* The hollow palm lives in the mask's own geometry, so this only varies pressure gently. A print
@@ -337,24 +327,32 @@ ${maskVars}
      trailing edge parts company with the hand. */
   animation: cardfx-hand-slip var(--dur, 8s) cubic-bezier(0.45, 0, 0.55, 1) var(--delay, 0s) infinite;
 }
-/* THE DRAG STREAKS — one bar per finger, growing downward as the hand slips. Anchored at the top, so
-   a streak starts where the finger first touched and only its far end follows the hand down.
+/* THE DRAG STREAKS — one per finger, growing out from under it as the hand slips.
 
-   This used to be the hand's own mask stretched vertically, which was a neat way to sweep a shape
-   along its path and looked right only while the slide was short. Once the travel grew, what the eye
-   saw was a stretched PALM — the trail was recognisably a squashed hand rather than the marks five
-   fingers leave. Bars carry no shape to distort, so they survive any length of slide.
+   THREE MASK LAYERS, and the middle pair is the whole mechanism. Listed top-first, they are:
+     ink       intersect  — the shared grain, so a streak is textured like the hand that left it
+     streaks   subtract   — the columns, anchored
+     streaks   (base)     — the same columns, offset down by however far the hand has slid
+   Subtract keeps the part of the anchored copy that the offset copy does NOT cover, which is exactly
+   the strip each finger has vacated: empty while the hand is still, growing from the fingertip once
+   it moves. No scaling anywhere, so nothing can deform, and the streak simply cannot exist before
+   there is travel to justify it.
 
-   Fainter at the top than the bottom: that is the ink that has been dragged longest. Blurred less
-   than the old smear, because a 4-5px bar washes out where a hand-sized blob did not. */
+   Nearly flat fill on purpose: the streak's own variation comes from the ink layer, and a strong
+   gradient over the box would light the columns by where they sit rather than by how old they are. */
 .card-fx-handprints .p::after {
-  --mask-shape: var(--streak);
-  transform-origin: top center;
+  -webkit-mask-image: var(--ink), var(--streak), var(--streak);
+  mask-image: var(--ink), var(--streak), var(--streak);
+  -webkit-mask-size: ${INK_TILE_PX}px ${INK_TILE_PX}px, 100% 100%, 100% 100%;
+  mask-size: ${INK_TILE_PX}px ${INK_TILE_PX}px, 100% 100%, 100% 100%;
+  -webkit-mask-repeat: repeat, no-repeat, no-repeat;
+  mask-repeat: repeat, no-repeat, no-repeat;
+  -webkit-mask-composite: source-in, source-out, source-over;
+  mask-composite: intersect, subtract, add;
   background: linear-gradient(
     to bottom,
-    color-mix(in srgb, var(--cos-fx-tint, #dcf2ff) 10%, transparent) 0%,
-    color-mix(in srgb, var(--cos-fx-tint, #dcf2ff) 22%, transparent) 60%,
-    color-mix(in srgb, var(--cos-fx-tint, #dcf2ff) 30%, transparent) 100%
+    color-mix(in srgb, var(--cos-fx-tint, #dcf2ff) 20%, transparent) 0%,
+    color-mix(in srgb, var(--cos-fx-tint, #dcf2ff) 28%, transparent) 100%
   );
   filter: blur(0.9px);
   /* Identical easing to the slip above — see the note there. */
@@ -415,20 +413,23 @@ ${maskVars}
     translate: 0 var(--slide, 0px);
   }
 }
-/* The smear grows in lockstep with the slip: same duration, same delay, same easing, so its trailing
-   edge cannot drift away from the hand that is drawing it. --stretch is (h + slide) / h, computed in
-   particle() because CSS calc() cannot divide a length by a length. */
+/* The streaks grow by moving the SUBTRACTED copy of the columns down by exactly the distance the
+   hand has travelled — same duration, delay and easing as the slip, so a streak's far end cannot
+   drift away from the finger drawing it. At rest the two copies sit on top of each other and cancel
+   out completely, which is what makes "hasn't moved" and "no streak" the same state. */
 @keyframes cardfx-hand-smear {
   0%,
   30% {
-    scale: 1 1;
+    -webkit-mask-position: var(--ink-pos, 0 0), 0 0, 0 0;
+    mask-position: var(--ink-pos, 0 0), 0 0, 0 0;
     opacity: 0;
   }
   40% {
     opacity: 1;
   }
   100% {
-    scale: 1 var(--stretch, 1);
+    -webkit-mask-position: var(--ink-pos, 0 0), 0 0, 0 var(--slide, 0px);
+    mask-position: var(--ink-pos, 0 0), 0 0, 0 var(--slide, 0px);
     opacity: 1;
   }
 }
