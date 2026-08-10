@@ -195,10 +195,12 @@ function streakMask(flip: boolean, widen: boolean): string {
   // It costs no width. Within the vacated band the shifted copy is absent altogether, so the streak
   // keeps the full column; the widening only ever bites where the two copies overlap, which is
   // exactly the region meant to cancel.
-  const dilate = widen
-    ? `%3CfeMorphology operator='dilate' radius='${STREAK_WIDEN} 0'/%3E` +
-      `%3CfeGaussianBlur stdDeviation='0 ${STREAK_FEATHER}'/%3E`
-    : '';
+  // The feather is on BOTH copies now, because both of their top edges end up cutting the trail: the
+  // leading copy closes its far end, and the lagging copy eats its near end as the oldest ink goes.
+  // The widening stays exclusive to the subtrahend — see above.
+  const dilate =
+    (widen ? `%3CfeMorphology operator='dilate' radius='${STREAK_WIDEN} 0'/%3E` : '') +
+    `%3CfeGaussianBlur stdDeviation='0 ${STREAK_FEATHER}'/%3E`;
   // The region opens ABOVE the box so the feather has room to fall off; clipped at y=0 it would
   // simply reinstate the hard edge it exists to remove.
   const top = STREAK_FEATHER * 5;
@@ -368,9 +370,21 @@ export const cardHandprints: CardEffectModule = {
 ${maskVars}
   --ink: ${INK_TILE};
 ${streakVars}
-  /* The eraser's edge. Soft rather than a hard line, so the trail thins out from the top instead of
-     being cut. Declared once here because nothing about it varies per print. */
-  --erase: linear-gradient(to bottom, transparent 0 38%, #000 52%, #000 100%);
+}
+/* THE TWO ENDS OF THE TRAIL, each its own animatable length. Registering them is what lets the near
+   end and the far end move on SEPARATE clocks: they both feed one \`mask-position\`, and a list
+   property can only be animated as a whole, so plain keyframes would have forced the dissolve to
+   wait for the growth to finish. That queueing is exactly what made the trail look like it only
+   started going once the hand had already left. */
+@property --streak-lead {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+@property --streak-lag {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
 }
 /* THE CONDENSATION FILM — deliberately near-invisible. It exists only so the prints have something
    to be prints IN; any heavier and this becomes the frosting-window read that sank the ink effect.
@@ -470,19 +484,23 @@ ${streakVars}
      shadow image is the same 1:2 box (see SHADOW_SPAN), so nothing is stretched by the change. */
   bottom: auto;
   height: calc(var(--h) * 2);
-  /* A FOURTH LAYER ON TOP: the eraser. It is a gradient three times the box's height, transparent
-     across its own top and solid below, so sliding it DOWN sweeps a soft edge through the trail and
-     takes the oldest ink first. Its travel (see the keyframes) runs from -3.2 x --h, where the box
-     sits entirely in the solid part, to 0, where the box sits entirely in the clear part. The image
-     always overhangs the box at both ends, so \`no-repeat\` never exposes an empty region by accident. */
-  -webkit-mask-image: var(--erase), var(--ink), var(--streak), var(--streak-wide);
-  mask-image: var(--erase), var(--ink), var(--streak), var(--streak-wide);
-  -webkit-mask-size: 100% 300%, ${INK_TILE_PX}px ${INK_TILE_PX}px, 100% 100%, 100% 100%;
-  mask-size: 100% 300%, ${INK_TILE_PX}px ${INK_TILE_PX}px, 100% 100%, 100% 100%;
-  -webkit-mask-repeat: no-repeat, repeat, no-repeat, no-repeat;
-  mask-repeat: no-repeat, repeat, no-repeat, no-repeat;
-  -webkit-mask-composite: source-in, source-in, source-out, source-over;
-  mask-composite: intersect, intersect, subtract, add;
+  /* BOTH COPIES TRAVEL, and that is what makes the trail a strand rather than a bar that only ever
+     grows. The subtrahend rides at --streak-lead, pinned to the hand, so it closes the far end. The
+     anchored copy rides at --streak-lag, which sets off later and slower, so it eats the near end —
+     the ink laid down first is the ink that goes first. What survives between them is a band of
+     bounded length being drawn at one end and dissolving at the other.
+
+     Both edges are feathered (see streakMask), so neither end of the strand is a cut. */
+  -webkit-mask-image: var(--ink), var(--streak), var(--streak-wide);
+  mask-image: var(--ink), var(--streak), var(--streak-wide);
+  -webkit-mask-size: ${INK_TILE_PX}px ${INK_TILE_PX}px, 100% 100%, 100% 100%;
+  mask-size: ${INK_TILE_PX}px ${INK_TILE_PX}px, 100% 100%, 100% 100%;
+  -webkit-mask-position: var(--ink-pos, 0 0), 0 var(--streak-lag), 0 var(--streak-lead);
+  mask-position: var(--ink-pos, 0 0), 0 var(--streak-lag), 0 var(--streak-lead);
+  -webkit-mask-repeat: repeat, no-repeat, no-repeat;
+  mask-repeat: repeat, no-repeat, no-repeat;
+  -webkit-mask-composite: source-in, source-out, source-over;
+  mask-composite: intersect, subtract, add;
   /* WELL BELOW THE HAND'S OWN STRENGTH — about a quarter of it. At closer values the streak matched
      the finger it came from in both width and brightness, and the two read as ONE shape: fingers
      that stretched as the hand slid, rather than a hand leaving marks behind. What separates a trace
@@ -493,8 +511,12 @@ ${streakVars}
     color-mix(in srgb, var(--cos-fx-tint, #dcf2ff) 17%, transparent) 100%
   );
   filter: blur(0.9px);
-  /* Identical easing to the slip above — see the note there. */
-  animation: cardfx-hand-smear var(--dur, 8s) cubic-bezier(0.45, 0, 0.55, 1) var(--delay, 0s) infinite;
+  /* TWO ANIMATIONS, one per end. The far end must carry the slip's exact easing or it comes unstuck
+     from the finger; the near end wants a plain linear crawl. One animation could not give them
+     different clocks — see the @property note above. */
+  animation:
+    cardfx-hand-smear var(--dur, 8s) cubic-bezier(0.45, 0, 0.55, 1) var(--delay, 0s) infinite,
+    cardfx-hand-dissolve var(--dur, 8s) linear var(--delay, 0s) infinite;
 }
 /* Fast in, slow out — see the note at the top. The scale settle is the glass flexing under the push;
    it is over almost as soon as it starts, which is what sells the press as an impact.
@@ -533,17 +555,16 @@ ${streakVars}
    reads as weight losing its grip.
 
    THE HAND ALSO LEAVES HERE, not on the particle, so that it can go while its trail stays. It comes
-   to rest at 72% and is gone by 80% — the travel finishes BEFORE the fade completes, so a streak is
-   never seen lengthening with nothing at its end to draw it. The fade STARTS at 58%, well before the
-   hand stops, because the erase downstream begins at 72% and the two are meant to overlap: the trail
-   should already be going while the hand is still faintly there, not queue up behind it. */
+   to rest at 72% and is gone by 80%. The fade starts at 62% — AFTER the trail has already begun
+   dissolving at 55% — so the order the eye gets is: the strand starts thinning at the top while the
+   hand is still pressed and moving, and only then does the hand itself let go. */
 @keyframes cardfx-hand-slip {
   0%,
   30% {
     translate: 0 0;
     opacity: 1;
   }
-  58% {
+  62% {
     opacity: 1;
   }
   72% {
@@ -555,42 +576,36 @@ ${streakVars}
     opacity: 0;
   }
 }
-/* Everything the trail does happens on ONE property, because all four mask layers share
-   \`mask-position\` and a keyframe has to restate the whole list. Read the four values as: eraser,
-   ink window, anchored columns, offset columns.
-
-   30% -> 72%: the last value walks down by the distance travelled, which is what grows the streaks.
-   Same stops and same easing as the slip above, so the far end stays welded to the finger.
-
-   72% -> 100%: the FIRST value walks down instead, sweeping the eraser through the trail so it
-   dissolves from the top — the oldest ink first. It starts while the hand is still mid-fade (that
-   runs 58% -> 80%) rather than waiting for it to clear, so the two overlap, and it takes the whole
-   remaining quarter of the cycle: a slow thinning, not a cut.
-
-   These two phases share ONE property and therefore cannot both move at once — while either value
-   is travelling the other is pinned by the surrounding keyframes, which is exactly why the handover
-   lands at a single stop rather than needing to be kept in sync. */
+/* THE FAR END — welded to the finger. Same stops (30% -> 72%) and same easing as the slip above, so
+   the end of the strand is wherever the fingertip is. */
 @keyframes cardfx-hand-smear {
   0%,
   30% {
-    -webkit-mask-position: 0 calc(var(--h) * -3.2), var(--ink-pos, 0 0), 0 0, 0 0;
-    mask-position: 0 calc(var(--h) * -3.2), var(--ink-pos, 0 0), 0 0, 0 0;
+    --streak-lead: 0px;
     opacity: 0;
   }
   40% {
     opacity: 1;
   }
-  72% {
-    -webkit-mask-position: 0 calc(var(--h) * -3.2), var(--ink-pos, 0 0), 0 0, 0 var(--slide, 0px);
-    mask-position: 0 calc(var(--h) * -3.2), var(--ink-pos, 0 0), 0 0, 0 var(--slide, 0px);
-    /* Steady, not eased: the erase is a slow wipe down the trail, and any ease would either lurch
-       at the handover or stall at the end with ink still showing when the cycle restarts. */
-    animation-timing-function: linear;
+  72%,
+  100% {
+    --streak-lead: var(--slide, 0px);
+    opacity: 1;
+  }
+}
+/* THE NEAR END — the dissolve. It sets off at 55%, while the hand is still at full strength and has
+   another 17% of travel left, so the trail is visibly thinning from the top the whole time the hand
+   is still on the glass. That was the point of the change: waiting until the hand had gone read as
+   two separate events rather than one thing being drawn out.
+   It closes on exactly --slide at 100%, meeting the far end, so the strand shuts to nothing right as
+   the cycle turns over and nothing is left to reappear at the top of the next one. */
+@keyframes cardfx-hand-dissolve {
+  0%,
+  55% {
+    --streak-lag: 0px;
   }
   100% {
-    -webkit-mask-position: 0 0, var(--ink-pos, 0 0), 0 0, 0 var(--slide, 0px);
-    mask-position: 0 0, var(--ink-pos, 0 0), 0 0, 0 var(--slide, 0px);
-    opacity: 1;
+    --streak-lag: var(--slide, 0px);
   }
 }
 `,
