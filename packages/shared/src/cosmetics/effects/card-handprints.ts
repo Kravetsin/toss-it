@@ -149,6 +149,16 @@ const SHADOW_SPAN = 2860;
  */
 const STREAK_WIDEN = 55;
 
+/**
+ * How softly the subtrahend's TOP edge is feathered, in design units (~1.5px at render).
+ *
+ * That edge is what cuts the far end of every streak, so while it was hard the trail ended on a
+ * straight line — invisible while the hand covered it, and a blunt chop the moment the hand faded.
+ * Blurred VERTICALLY only: the horizontal over-cover from STREAK_WIDEN is what keeps the subtract
+ * from leaving a rim, and softening the sides would hand that problem straight back.
+ */
+const STREAK_FEATHER = 34;
+
 function streakMask(flip: boolean, widen: boolean): string {
   const outer = flip ? " transform='translate(1400,0) scale(-1,1)'" : '';
   const clips = PADS.map(
@@ -185,9 +195,15 @@ function streakMask(flip: boolean, widen: boolean): string {
   // It costs no width. Within the vacated band the shifted copy is absent altogether, so the streak
   // keeps the full column; the widening only ever bites where the two copies overlap, which is
   // exactly the region meant to cancel.
-  const dilate = widen ? `%3CfeMorphology operator='dilate' radius='${STREAK_WIDEN} 0'/%3E` : '';
+  const dilate = widen
+    ? `%3CfeMorphology operator='dilate' radius='${STREAK_WIDEN} 0'/%3E` +
+      `%3CfeGaussianBlur stdDeviation='0 ${STREAK_FEATHER}'/%3E`
+    : '';
+  // The region opens ABOVE the box so the feather has room to fall off; clipped at y=0 it would
+  // simply reinstate the hard edge it exists to remove.
+  const top = STREAK_FEATHER * 5;
   const filter =
-    `%3Cfilter id='e' filterUnits='userSpaceOnUse' x='-${STREAK_WIDEN * 2}' y='0' width='${1400 + STREAK_WIDEN * 4}' height='${SHADOW_SPAN}'%3E` +
+    `%3Cfilter id='e' filterUnits='userSpaceOnUse' x='-${STREAK_WIDEN * 2}' y='-${top}' width='${1400 + STREAK_WIDEN * 4}' height='${SHADOW_SPAN + top * 2}'%3E` +
     stages +
     dilate +
     `%3C/filter%3E`;
@@ -517,21 +533,23 @@ ${streakVars}
    reads as weight losing its grip.
 
    THE HAND ALSO LEAVES HERE, not on the particle, so that it can go while its trail stays. It comes
-   to rest at 78% and is gone by 84% — the travel finishes BEFORE the fade so a streak is never seen
-   lengthening with nothing at its end to draw it. */
+   to rest at 72% and is gone by 80% — the travel finishes BEFORE the fade completes, so a streak is
+   never seen lengthening with nothing at its end to draw it. The fade STARTS at 58%, well before the
+   hand stops, because the erase downstream begins at 72% and the two are meant to overlap: the trail
+   should already be going while the hand is still faintly there, not queue up behind it. */
 @keyframes cardfx-hand-slip {
   0%,
   30% {
     translate: 0 0;
     opacity: 1;
   }
-  62% {
+  58% {
     opacity: 1;
   }
-  78% {
+  72% {
     translate: 0 var(--slide, 0px);
   }
-  84%,
+  80%,
   100% {
     translate: 0 var(--slide, 0px);
     opacity: 0;
@@ -541,14 +559,17 @@ ${streakVars}
    \`mask-position\` and a keyframe has to restate the whole list. Read the four values as: eraser,
    ink window, anchored columns, offset columns.
 
-   30% -> 78%: the last value walks down by the distance travelled, which is what grows the streaks.
+   30% -> 72%: the last value walks down by the distance travelled, which is what grows the streaks.
    Same stops and same easing as the slip above, so the far end stays welded to the finger.
 
-   78% -> 100%: the FIRST value walks down instead, sweeping the eraser through the trail so it
-   dissolves from the top — the oldest ink first. The hand has already gone by 84%, so the order the
-   eye gets is: hand lets go, then the marks it left thin out from the top down.
-   Both phases are on one property, so they cannot overlap: while one value moves the other is
-   pinned by the surrounding keyframes. */
+   72% -> 100%: the FIRST value walks down instead, sweeping the eraser through the trail so it
+   dissolves from the top — the oldest ink first. It starts while the hand is still mid-fade (that
+   runs 58% -> 80%) rather than waiting for it to clear, so the two overlap, and it takes the whole
+   remaining quarter of the cycle: a slow thinning, not a cut.
+
+   These two phases share ONE property and therefore cannot both move at once — while either value
+   is travelling the other is pinned by the surrounding keyframes, which is exactly why the handover
+   lands at a single stop rather than needing to be kept in sync. */
 @keyframes cardfx-hand-smear {
   0%,
   30% {
@@ -559,11 +580,12 @@ ${streakVars}
   40% {
     opacity: 1;
   }
-  78% {
+  72% {
     -webkit-mask-position: 0 calc(var(--h) * -3.2), var(--ink-pos, 0 0), 0 0, 0 var(--slide, 0px);
     mask-position: 0 calc(var(--h) * -3.2), var(--ink-pos, 0 0), 0 0, 0 var(--slide, 0px);
-    /* Its own easing: the erase should hang for a beat after the hand goes, then clear. */
-    animation-timing-function: ease-in;
+    /* Steady, not eased: the erase is a slow wipe down the trail, and any ease would either lurch
+       at the handover or stall at the end with ink still showing when the cycle restarts. */
+    animation-timing-function: linear;
   }
   100% {
     -webkit-mask-position: 0 0, var(--ink-pos, 0 0), 0 0, 0 var(--slide, 0px);
