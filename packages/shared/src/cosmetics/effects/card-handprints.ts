@@ -122,12 +122,13 @@ const HAND_PARTS = [
  * The thumb gets TWO bands because it has two phalanges and was reading as one long blob.
  */
 const PADS: [number, number, number, number, number][] = [
-  // The upright fingers are cut by height alone — a horizontal slice of a roughly vertical shape is
-  // already just the pad. x/width span everything.
-  [1, 0, 98, 1400, 118], // index
-  [3, 0, 16, 1400, 118], // middle
-  [6, 0, 132, 1400, 118], // ring
-  [8, 0, 392, 1400, 118], // pinky
+  // Boxed to each finger's own bounds rather than run full width. It changes no pixel — a clip only
+  // ever meets the one path it is applied to — but it states where a pad is meant to be, so a wrong
+  // number shows up as a wrong box instead of hiding inside 1400 units of empty space.
+  [1, 395, 98, 190, 118], // index
+  [3, 735, 16, 170, 118], // middle
+  [6, 975, 132, 200, 118], // ring
+  [8, 1150, 392, 255, 118], // pinky
   // The thumb needs cutting in BOTH axes. It lies diagonally and is the fattest part of the hand, so
   // a full-width band across it stayed 270 units wide — barely narrower than smearing the whole
   // thumb — and the two bands overlapped horizontally, merging back into a single slab instead of
@@ -142,7 +143,13 @@ const PADS: [number, number, number, number, number][] = [
 /** How far below the print the shadow keeps going — see STREAK_SPAN in the CSS. */
 const SHADOW_SPAN = 2860;
 
-function streakMask(flip: boolean): string {
+/**
+ * How far the SUBTRAHEND copy is widened, in design units (~1.2 device px at the size a print
+ * renders). See streakMask's `widen` note for what it is protecting against.
+ */
+const STREAK_WIDEN = 55;
+
+function streakMask(flip: boolean, widen: boolean): string {
   const outer = flip ? " transform='translate(1400,0) scale(-1,1)'" : '';
   const clips = PADS.map(
     ([, x, y, w, h], i) =>
@@ -165,18 +172,24 @@ function streakMask(flip: boolean): string {
       return stage;
     })
     .join('');
-  // THE ALPHA MUST BE BINARY, and this is not tidiness — it is what makes the subtract cancel.
-  // Two copies of this mask are subtracted from each other, and subtract computes a*(1-b). Wherever
-  // an edge is antialiased the two copies hold the SAME fractional alpha, and a*(1-a) is never zero
-  // — it peaks at 0.25 halfway. Every column therefore kept a bright rim down its whole length, so
-  // the trail appeared at full extent the instant it faded in, with only its middle cut away.
-  // Thresholding at 0.5 leaves nothing partial for the subtraction to fail on: at rest the two
-  // copies now cancel to exactly nothing.
-  const threshold = `%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='0 1'/%3E%3C/feComponentTransfer%3E`;
+  // WHY ONE COPY IS WIDENED. The trail is this shadow minus a shifted copy of itself, and subtract
+  // computes a*(1-b). Where an edge is antialiased both copies hold the SAME fraction, and a*(1-a)
+  // is never zero — it peaks at 0.25 halfway — so every column kept a bright rim down its full
+  // length and the trail looked like it arrived at full extent with only its middle cut away.
+  //
+  // Thresholding the alpha to 0/1 fixed that inside this image and NOT on screen: mask-position is
+  // animated through fractional pixels, and resampling the mask to a subpixel offset hands the soft
+  // edges straight back. Widening the subtrahend is immune to that — its solid interior now reaches
+  // past where the other copy's edge can land, however the browser resamples it.
+  //
+  // It costs no width. Within the vacated band the shifted copy is absent altogether, so the streak
+  // keeps the full column; the widening only ever bites where the two copies overlap, which is
+  // exactly the region meant to cancel.
+  const dilate = widen ? `%3CfeMorphology operator='dilate' radius='${STREAK_WIDEN} 0'/%3E` : '';
   const filter =
-    `%3Cfilter id='e' filterUnits='userSpaceOnUse' x='0' y='0' width='1400' height='${SHADOW_SPAN}'%3E` +
+    `%3Cfilter id='e' filterUnits='userSpaceOnUse' x='-${STREAK_WIDEN * 2}' y='0' width='${1400 + STREAK_WIDEN * 4}' height='${SHADOW_SPAN}'%3E` +
     stages +
-    threshold +
+    dilate +
     `%3C/filter%3E`;
   // The box is DOUBLE the hand's height: the hand keeps sliding after a streak has reached the
   // bottom of the print, and a shadow that stopped at 1430 left the trail visibly cut off, no longer
@@ -224,11 +237,14 @@ const maskVars = SEEDS.map((seed, i) =>
     .map((url, f) => `  --hand-${i * 2 + f + 1}: ${url};`)
     .join('\n'),
 ).join('\n');
-// Only two are needed: the shadow's ragged edge is not load-bearing (it is blurred and cut by the
-// ink layer anyway), but its MIRROR is, so there is one per facing rather than one per hand.
+// Two per facing: the shadow itself, and a horizontally widened twin used only as the thing being
+// subtracted (see streakMask). The mirror is the part that must match the hand — the ragged edge is
+// not load-bearing, since the ink layer and a blur both sit on top of it.
 const streakVars = [
-  `  --streak-1: ${streakMask(false)};`,
-  `  --streak-2: ${streakMask(true)};`,
+  `  --streak-1: ${streakMask(false, false)};`,
+  `  --streak-2: ${streakMask(true, false)};`,
+  `  --streak-w1: ${streakMask(false, true)};`,
+  `  --streak-w2: ${streakMask(true, true)};`,
 ].join('\n');
 
 /**
@@ -306,6 +322,7 @@ export const cardHandprints: CardEffectModule = {
       // half the silhouettes are mirrored, and a streak set that disagreed put the thumb's marks
       // under the pinky — which read as a second, invisible hand smearing the glass alongside.
       '--streak': `var(--streak-${hand % 2 === 1 ? 1 : 2})`,
+      '--streak-wide': `var(--streak-w${hand % 2 === 1 ? 1 : 2})`,
       // Where this print reads the shared ink field. A continuous offset rather than a pick from a
       // list, so two prints sharing a silhouette still carry different blotches.
       '--ink-pos': `${rnd(0, INK_TILE_PX).toFixed(0)}px ${rnd(0, INK_TILE_PX).toFixed(0)}px`,
@@ -319,7 +336,17 @@ export const cardHandprints: CardEffectModule = {
   // Everything about WHERE, WHICH hand and HOW FAR it slips is re-rolled each cycle; `--dur` is not
   // (it may not change under a running animation). `--slide` is safe despite setting the slip's
   // speed, because it only ever changes at a cycle boundary, where the slip restarts anyway.
-  respawnKeys: ['top', '--w', '--h', '--rot', '--hand', '--streak', '--ink-pos', '--slide'],
+  respawnKeys: [
+    'top',
+    '--w',
+    '--h',
+    '--rot',
+    '--hand',
+    '--streak',
+    '--streak-wide',
+    '--ink-pos',
+    '--slide',
+  ],
   css: `
 .card-fx-handprints {
 ${maskVars}
@@ -424,8 +451,8 @@ ${streakVars}
      shadow image is the same 1:2 box (see SHADOW_SPAN), so nothing is stretched by the change. */
   bottom: auto;
   height: calc(var(--h) * 2);
-  -webkit-mask-image: var(--ink), var(--streak), var(--streak);
-  mask-image: var(--ink), var(--streak), var(--streak);
+  -webkit-mask-image: var(--ink), var(--streak), var(--streak-wide);
+  mask-image: var(--ink), var(--streak), var(--streak-wide);
   -webkit-mask-size: ${INK_TILE_PX}px ${INK_TILE_PX}px, 100% 100%, 100% 100%;
   mask-size: ${INK_TILE_PX}px ${INK_TILE_PX}px, 100% 100%, 100% 100%;
   -webkit-mask-repeat: repeat, no-repeat, no-repeat;
