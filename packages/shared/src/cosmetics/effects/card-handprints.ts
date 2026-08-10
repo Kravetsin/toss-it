@@ -79,8 +79,26 @@ function handMask(seed: number, flip: boolean): string {
   const g = flip ? " transform='translate(1400,0) scale(-1,1)'" : '';
   const filter =
     `%3Cfilter id='r' filterUnits='userSpaceOnUse' x='-60' y='-60' width='1520' height='1550'%3E` +
-    `%3CfeTurbulence type='fractalNoise' baseFrequency='0.011' numOctaves='3' seed='${seed}' result='n'/%3E` +
-    `%3CfeDisplacementMap in='SourceGraphic' in2='n' scale='30' xChannelSelector='R' yChannelSelector='G'/%3E` +
+    // 1) The ragged ink edge: warp the authored outline so no border is a drawn curve.
+    `%3CfeTurbulence type='fractalNoise' baseFrequency='0.011' numOctaves='3' seed='${seed}' result='warp'/%3E` +
+    `%3CfeDisplacementMap in='SourceGraphic' in2='warp' scale='30' xChannelSelector='R' yChannelSelector='G' result='shape'/%3E` +
+    // 2) INK DENSITY. A palm never meets a surface evenly — it beds down in patches, skips over the
+    //    creases and misses entirely in places. A second, finer noise becomes that patchiness: its
+    //    red channel is moved into alpha, curved so most of the print stays near solid while the
+    //    thin spots drop away, and multiplied into the silhouette. Without this the fill is
+    //    perfectly even, which is what reads as printed artwork rather than a hand.
+    //    baseFrequency is the load-bearing number, and it is about PATCH SIZE, not grain: at 0.009 a
+    //    blotch is ~5px on a print rendered at ~64px, which reads as an area the hand missed. Ten
+    //    times finer and the same maths gives 1.5px speckle — that reads as dither on a flat fill,
+    //    which is how the first version of this managed to change the numbers and not the look.
+    //    The table is steep on purpose: fractalNoise crowds around 0.5, so a gentle curve produced
+    //    a print with literally zero voids. This one holds the bottom third at zero.
+    `%3CfeTurbulence type='fractalNoise' baseFrequency='0.009' numOctaves='3' seed='${seed + 13}' result='grain'/%3E` +
+    `%3CfeColorMatrix in='grain' type='matrix' values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 1 0 0 0 0' result='grainA'/%3E` +
+    `%3CfeComponentTransfer in='grainA' result='ink'%3E` +
+    `%3CfeFuncA type='table' tableValues='0 0 0 0.08 0.48 0.82 1 1 1 1 1'/%3E` +
+    `%3C/feComponentTransfer%3E` +
+    `%3CfeComposite in='shape' in2='ink' operator='in'/%3E` +
     `%3C/filter%3E`;
   const paths = HAND_PARTS.map((d) => `%3Cpath d='${d}'/%3E`).join('');
   return (
@@ -168,12 +186,17 @@ ${maskVars.length ? `.card-fx-handprints {\n${maskVars}\n}` : ''}
   position: absolute;
   inset: 0;
   /* The hollow palm lives in the mask's own geometry, so this only varies pressure gently. A print
-     is a greasy film: nothing here goes near full alpha. */
+     is a greasy film: nothing here goes near full alpha.
+
+     These numbers are ~1.25x what they were before the mask gained its ink-density stage. That stage
+     cut mean coverage from 0.80 to 0.64, which would otherwise have shipped as "the effect got
+     weaker" rather than "the effect got texture" — the point was to trade evenness for patchiness at
+     the same overall presence, not to fade the print. */
   background: radial-gradient(
     ellipse 62% 54% at 52% 78%,
-    color-mix(in srgb, var(--cos-fx-tint, #dcf2ff) 54%, transparent) 0%,
-    color-mix(in srgb, var(--cos-fx-tint, #dcf2ff) 47%, transparent) 55%,
-    color-mix(in srgb, var(--cos-fx-tint, #dcf2ff) 34%, transparent) 100%
+    color-mix(in srgb, var(--cos-fx-tint, #dcf2ff) 67%, transparent) 0%,
+    color-mix(in srgb, var(--cos-fx-tint, #dcf2ff) 59%, transparent) 55%,
+    color-mix(in srgb, var(--cos-fx-tint, #dcf2ff) 42%, transparent) 100%
   );
   -webkit-mask-image: var(--hand);
   mask-image: var(--hand);
