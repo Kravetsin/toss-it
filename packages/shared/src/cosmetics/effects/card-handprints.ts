@@ -6,10 +6,13 @@ import { vdc } from '../spread';
  * A print lands instantly, holds, and is slowly reclaimed by the condensation. Then another, else-
  * where. Whoever is doing it is never shown — only that they are still there.
  *
- * THE ENVELOPE IS THE WHOLE EFFECT, and it is the one thing that must not be softened. A print
- * reaches full strength in 1.5% of its cycle (~100ms): a press is an IMPACT. Fade it in over even
- * half a second and the effect instantly reads as "the window is fogging up" — which is exactly the
- * note that killed the earlier ink attempt. Only the LEAVING is slow. Fast in, slow out.
+ * THE ENVELOPE IS THE WHOLE EFFECT, and it is the one thing that must not be softened. A print goes
+ * from nothing to full strength in 1.5% of its cycle (~100ms): a press is an IMPACT. Fade it in over
+ * even half a second and the effect instantly reads as "the window is fogging up" — which is exactly
+ * the note that killed the earlier ink attempt. Only the LEAVING is slow. Fast in, slow out.
+ *
+ * That speed is also why the cycle opens with a blind 2% at opacity 0 — an instant entrance is the
+ * one case where the respawn's timing shows. See the keyframes for the full reasoning.
  *
  * THE ANATOMY IS AUTHORED, NOT GENERATED, and three discarded attempts paid for that line. Building
  * the hand from primitives — first tapered bars, then a column of contact pads — produced a glove
@@ -177,18 +180,28 @@ ${maskVars.length ? `.card-fx-handprints {\n${maskVars}\n}` : ''}
      harder sands off exactly the detail that makes it read as grease rather than a cut silhouette. */
   filter: blur(0.5px);
 }
-/* Fast in, slow out — see the note at the top. The scale settle is the glass flexing under the
-   push; it is over almost as soon as it starts, which is what sells the press as an impact. */
+/* Fast in, slow out — see the note at the top. The scale settle is the glass flexing under the push;
+   it is over almost as soon as it starts, which is what sells the press as an impact.
+
+   THE DEAD 2% AT THE START IS NOT SPARE TIME. bindRespawn moves a print to its next place on the
+   \`animationiteration\` event, which is dispatched a frame or two AFTER the new cycle has already
+   begun drawing. Most effects open at opacity 0 and fade in slowly, so that gap never shows — but
+   this one goes to full strength in ~100ms, and card-claws (the only other instant entrance here)
+   already paid for the lesson: without a blind head start the print lands at the OLD position,
+   THEN snaps to the new one, and a fast two-position jump reads as the hand flying into place.
+   Worse here than for claws, because respawn re-rolls the size and rotation too. 2% is 130-190ms
+   at these durations — a dozen frames of cover for an event that needs one. */
 @keyframes cardfx-hand-press {
-  0% {
+  0%,
+  2% {
     opacity: 0;
     scale: 1.07;
   }
-  1.5% {
+  3.5% {
     opacity: 1;
     scale: 1.01;
   }
-  4% {
+  6% {
     scale: 1;
   }
   22% {
