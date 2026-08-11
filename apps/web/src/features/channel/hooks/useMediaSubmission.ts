@@ -12,6 +12,7 @@ import { useMe } from '@/hooks/useMe';
 import { useI18n } from '@/i18n';
 import { mb } from '@/lib/format';
 import { useFilePreview } from './useFilePreview';
+import { useNaturalSize } from './useNaturalSize';
 import { useSubmissionStatus } from './useSubmissionStatus';
 
 export type Phase =
@@ -67,6 +68,7 @@ export function useMediaSubmission(
   // Full cooldown window — lets the Vessel fill render at the right fraction on refresh.
   const [cooldownWindowSec, setCooldownWindowSec] = useState(0);
   const previewUrl = useFilePreview(file);
+  const naturalSize = useNaturalSize(file, previewUrl);
 
   // On load/refresh, surface any remaining cooldown proactively (server knows the last send),
   // instead of only revealing it when the next send is rejected. Re-synced when the tab comes
@@ -185,6 +187,7 @@ export function useMediaSubmission(
     availableVoices,
     layout,
     setLayout,
+    naturalSize,
     phase,
     previewUrl,
     cooldownSec,

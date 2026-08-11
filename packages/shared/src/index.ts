@@ -34,6 +34,39 @@ export type OverlayPosition =
   | 'bottom'
   | 'bottom-right';
 
+/**
+ * How far the overlay will scale media UP past its own pixels. The size setting used to be a
+ * ceiling only, so a 600px screenshot stayed 600px on a 1920 stage however big the streamer went.
+ * Two is where an upscale still reads as "bigger" rather than as mush.
+ * Enforced in CSS (see .player.has-media img[data-nat]); mirrored here for the send-time preview.
+ */
+export const MEDIA_UPSCALE_MAX = 2;
+
+/** Canvas the preview assumes the overlay runs at — OBS's default, and what the vw/vh units in
+ *  the overlay resolve against for nearly everyone. */
+export const OVERLAY_STAGE = { width: 1920, height: 1080 };
+
+/** The card's horizontal padding + border, which the media has to fit inside (see .player). */
+const CARD_INSET_PX = 34;
+
+/**
+ * How much of the stage a piece of media will actually cover, as a % of each axis — the answer the
+ * size slider alone cannot give, because media smaller than the chosen size only grows to the
+ * upscale cap. Keep in step with the CSS rule named above.
+ */
+export function renderedMediaPct(
+  natural: { width: number; height: number },
+  size: number,
+): { width: number; height: number } {
+  const capW = (size / 100) * OVERLAY_STAGE.width - CARD_INSET_PX;
+  const capH = (size / 100) * OVERLAY_STAGE.height;
+  const scale = Math.min(capW / natural.width, capH / natural.height, MEDIA_UPSCALE_MAX);
+  return {
+    width: ((natural.width * scale) / OVERLAY_STAGE.width) * 100,
+    height: ((natural.height * scale) / OVERLAY_STAGE.height) * 100,
+  };
+}
+
 /** UI grid order (left-to-right, top-to-bottom). */
 export const OVERLAY_POSITIONS: OverlayPosition[] = [
   'top-left',

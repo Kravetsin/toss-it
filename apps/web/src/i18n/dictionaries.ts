@@ -378,6 +378,8 @@ export const en: Dict = {
   'channel.placementNote':
     "Pick a corner and a size, or leave them and it lands the way the streamer's overlay does.",
   'channel.placementYou': 'your post',
+  'channel.placementSmallMedia':
+    'This file is {w}×{h}, so it covers about {n}% of the screen — it is stretched as far as it can go without turning to mush.',
   'channel.placementSize': 'Size: {n}%',
   'channel.placementMargin': 'Edge margin: {n}%',
   'channel.placementReset': "Streamer's choice",
@@ -1183,6 +1185,8 @@ export const ru: Dict = {
   'channel.placementNote':
     'Выбери угол и размер — или не трогай, и отправка появится так, как решил стример.',
   'channel.placementYou': 'твоя отправка',
+  'channel.placementSmallMedia':
+    'Файл {w}×{h}, поэтому займёт около {n}% экрана — он растянут настолько, насколько можно без каши из пикселей.',
   'channel.placementSize': 'Размер: {n}%',
   'channel.placementMargin': 'Отступ от края: {n}%',
   'channel.placementReset': 'Как у стримера',
@@ -1990,6 +1994,8 @@ export const uk: Dict = {
   'channel.placementNote':
     'Обери кут і розмір — або не чіпай, і відправка з’явиться так, як вирішив стример.',
   'channel.placementYou': 'твоя відправка',
+  'channel.placementSmallMedia':
+    'Файл {w}×{h}, тому займе близько {n}% екрана — його розтягнуто настільки, наскільки можна без каші з пікселів.',
   'channel.placementSize': 'Розмір: {n}%',
   'channel.placementMargin': 'Відступ від краю: {n}%',
   'channel.placementReset': 'Як у стримера',

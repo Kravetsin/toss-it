@@ -124,6 +124,23 @@
   max-height: calc(var(--overlay-size, 80) * 1vh);
   border-radius: 6px;
 }
+/* Small media used to stay small: the size setting was a ceiling only, so a 600px screenshot sat at
+   600px on a 1920 stage no matter what the streamer chose. Scale it up to the chosen size instead —
+   capped at ×2 of its own pixels, past which an upscale stops reading as "bigger" and starts reading
+   as mush. Sized in vw/vh rather than % because the card is fit-content: a percentage would resolve
+   against the card that is itself sizing to this element, and collapse back to the natural width.
+   Natural size arrives from JS (markNaturalSize); until it does, the ceiling-only rules above hold. */
+.player.has-media img[data-nat],
+.player.has-media video[data-nat] {
+  width: min(
+    calc(var(--nat-w) * 2px),
+    calc(var(--overlay-size, 80) * 1vw - 34px),
+    calc(var(--overlay-size, 80) * 1vh * var(--nat-ratio)),
+    calc(92vw - 34px)
+  );
+  height: auto;
+  max-height: none;
+}
 /* Text-only: the message is the card body; the frame is the card itself (no inner box). */
 .player.is-text .text-body {
   font-family: 'JetBrains Mono', monospace;

@@ -579,6 +579,27 @@ function stopProgress(sh: ShowState): void {
   sh.timedDurationMs = 0;
 }
 
+/**
+ * Hand the media's own pixel size to CSS, which scales it up to the chosen size within the ×2 cap
+ * (see .player.has-media img[data-nat]). Custom properties rather than a computed width, so a live
+ * size change from the dashboard still lands without recomputing anything here.
+ */
+function markNaturalSize(el: HTMLImageElement | HTMLVideoElement): void {
+  const isVideo = el instanceof HTMLVideoElement;
+  el.addEventListener(
+    isVideo ? 'loadedmetadata' : 'load',
+    () => {
+      const w = isVideo ? el.videoWidth : el.naturalWidth;
+      const h = isVideo ? el.videoHeight : el.naturalHeight;
+      if (!w || !h) return; // a broken file keeps the ceiling-only rules rather than width: 0
+      el.style.setProperty('--nat-w', String(w));
+      el.style.setProperty('--nat-ratio', String(w / h));
+      el.dataset.nat = '';
+    },
+    { once: true },
+  );
+}
+
 function createMediaElement(sh: ShowState, payload: MediaPlayPayload, url: string): HTMLElement {
   const volume = Math.min(100, Math.max(0, payload.volume ?? 100)) / 100;
 
@@ -593,6 +614,7 @@ function createMediaElement(sh: ShowState, payload: MediaPlayPayload, url: strin
 
   if (payload.kind === 'image') {
     const img = document.createElement('img');
+    markNaturalSize(img);
     img.src = url;
     return img;
   }
@@ -600,12 +622,14 @@ function createMediaElement(sh: ShowState, payload: MediaPlayPayload, url: strin
   if (payload.kind === 'gif') {
     // No stored file: render the looping GIF straight from Giphy's CDN.
     const img = document.createElement('img');
+    markNaturalSize(img);
     if (payload.giphyId) img.src = giphyGifUrl(payload.giphyId);
     return img;
   }
 
   if (payload.kind === 'video') {
     const video = document.createElement('video');
+    markNaturalSize(video);
     video.src = url;
     video.autoplay = true;
     video.volume = volume;

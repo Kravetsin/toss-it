@@ -189,6 +189,7 @@ export function ChannelPage() {
                 onVoiceChange={sub.setVoice}
                 layout={sub.layout}
                 channelLayout={channel.overlayLayout}
+                naturalSize={sub.naturalSize}
                 onLayoutChange={channel.allowViewerPosition ? sub.setLayout : undefined}
                 onPickFile={sub.pickFile}
                 onRemoveFile={sub.removeFile}

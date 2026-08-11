@@ -1,4 +1,9 @@
-import { TEXT_MAX_LEN, type OverlayLayout, type TtsVoiceModule } from '@tmw/shared';
+import {
+  renderedMediaPct,
+  TEXT_MAX_LEN,
+  type OverlayLayout,
+  type TtsVoiceModule,
+} from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { clock } from '@/lib/format';
 import { playVoicePreview } from '@/lib/voicePreview';
@@ -39,6 +44,7 @@ export function ComposeForm({
   onVoiceChange,
   layout = {},
   channelLayout,
+  naturalSize = null,
   onLayoutChange,
   onPickFile,
   onRemoveFile,
@@ -70,6 +76,8 @@ export function ComposeForm({
   layout?: Partial<OverlayLayout>;
   /** The channel's own layout — where the sliders start when the sender hasn't moved them. */
   channelLayout?: OverlayLayout;
+  /** Pixel size of the selected file, when it has one — makes the preview show real coverage. */
+  naturalSize?: { width: number; height: number } | null;
   onLayoutChange?: (next: Partial<OverlayLayout>) => void;
   onPickFile: (file: File | null) => void;
   onRemoveFile: () => void;
@@ -90,6 +98,11 @@ export function ComposeForm({
   const anchor = layout.position ?? channelLayout?.position;
   const size = layout.size ?? channelLayout?.size ?? 80;
   const margin = layout.margin ?? channelLayout?.margin ?? 0;
+  // What the file will really cover: the slider is a ceiling, and media smaller than it only grows
+  // to the upscale cap. Unknown for a Giphy pick or audio — there the slider is the best we know.
+  const cover = naturalSize ? renderedMediaPct(naturalSize, size) : null;
+  // Flag it only when the gap is worth a sentence; a few percent of rounding is not.
+  const undersized = !!cover && cover.width < size - 5;
   // The server drops the caption when the media would air instantly but the words wouldn't — say so
   // now, because afterwards they are simply gone and it reads as the streamer ignoring them.
   const captionWillDrop =
@@ -229,6 +242,7 @@ export function ComposeForm({
                   size={size}
                   margin={margin}
                   label={t('channel.placementYou')}
+                  cover={cover ?? undefined}
                 />
               </div>
             </div>
@@ -251,6 +265,16 @@ export function ComposeForm({
                 value={margin}
                 onChange={(n) => onLayoutChange({ ...layout, margin: n })}
               />
+            )}
+            {/* Say why the slider looks ignored: the file is simply too few pixels to fill it. */}
+            {undersized && naturalSize && (
+              <span className="text-xs text-warn">
+                {t('channel.placementSmallMedia', {
+                  w: naturalSize.width,
+                  h: naturalSize.height,
+                  n: Math.round(cover.width),
+                })}
+              </span>
             )}
             {touched && (
               <Button variant="ghost" className="self-start" onClick={() => onLayoutChange({})}>

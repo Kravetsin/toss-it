@@ -11,6 +11,7 @@ export function LayoutPreview({
   margin,
   label,
   caption,
+  cover,
 }: {
   position: OverlayPosition;
   size: number;
@@ -19,6 +20,9 @@ export function LayoutPreview({
   label: string;
   /** Heading above the frame; omit where the surrounding UI already says what this is. */
   caption?: string;
+  /** Real coverage of each axis, when the caller knows the media's own pixels — the size setting
+   *  is only a ceiling, so a small file covers less than it. Defaults to a square of `size`. */
+  cover?: { width: number; height: number };
 }) {
   const { justify, align } = positionToFlex(position);
   return (
@@ -32,8 +36,8 @@ export function LayoutPreview({
           // overflow-hidden: at the smallest sizes the block is narrower than its own label.
           className="flex shrink-0 items-center justify-center overflow-hidden border border-accent bg-accent-soft text-center text-[10px] leading-tight text-accent"
           style={{
-            width: `${size}%`,
-            height: `${size}%`,
+            width: `${cover?.width ?? size}%`,
+            height: `${cover?.height ?? size}%`,
             marginInline: `${margin}%`,
             // The frame is 16:9, so an equal margin in % would be visibly deeper left/right.
             marginBlock: `${(margin * 9) / 16}%`,
