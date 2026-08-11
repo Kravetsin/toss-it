@@ -634,20 +634,22 @@ function createMediaElement(sh: ShowState, payload: MediaPlayPayload, url: strin
     video.autoplay = true;
     video.volume = volume;
     video.addEventListener('ended', () => finish(sh));
-    const start = () => {
-      // OBS allows autoplay with sound; browsers may block it — retry muted.
-      video.play().catch(() => {
-        video.muted = true;
-        void video.play();
-      });
-    };
     // A Giphy clip has no stored file: it streams from Giphy's CDN, and which rendition exists
     // varies per clip (see GIPHY_CLIP_RENDITIONS), so walk down the list on error before giving up.
     const sources = payload.giphyId ? giphyClipUrls(payload.giphyId) : [url];
     let next = 0;
     const load = () => {
+      // Every source starts out with its sound: switching src aborts the previous play(), and that
+      // rejection must not be mistaken for a blocked autoplay (it silenced the whole clip).
+      video.muted = false;
       video.src = sources[next++]!;
-      start();
+      // OBS allows autoplay with sound; a browser may block it — only THAT deserves a muted retry.
+      video.play().catch((err: unknown) => {
+        if (err instanceof DOMException && err.name === 'NotAllowedError') {
+          video.muted = true;
+          void video.play();
+        }
+      });
     };
     video.addEventListener('error', () => {
       if (next < sources.length) return load();
