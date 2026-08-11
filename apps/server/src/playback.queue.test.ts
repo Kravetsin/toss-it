@@ -158,6 +158,51 @@ describe('PlaybackManager', () => {
     expect(row?.status).toBe('played');
   });
 
+  it('advances the queue when a show keeps ticking but stops advancing (a frozen clip)', async () => {
+    // The incident: a Giphy clip played ~2s, froze, and the overlay went on ticking the same
+    // position — which read as alive, so the watchdog deferred itself over and over and the
+    // streamer had to skip dead air by hand.
+    const sub = await makeSubmission(channelId, { durationMs: 0 });
+    playback.enqueue(sub);
+    await settle();
+
+    // Well before the blind load grace (60s) that would otherwise reap it: only the stall rule can
+    // end it this early, which is what the test is here to prove.
+    for (let elapsed = 0; elapsed < 20_000; elapsed += 2_000) {
+      tick(sub.id, 2_000); // same position every time: stuck, not playing
+      await advance(2_000);
+    }
+
+    expect(config.stallMs).toBeLessThan(20_000);
+    expect(playback.getCurrent(channelId, 'media')).toBeNull();
+  });
+
+  it('leaves a stalled YouTube request alone — its position stands still through an ad', async () => {
+    const song = await makeSubmission(channelId, youtubePatch({ durationMs: 240_000 }));
+    playback.enqueue(song);
+    await settle();
+
+    for (let elapsed = 0; elapsed < 60_000; elapsed += 2_000) {
+      tick(song.id, 0); // pre-roll: the player reports the main video at zero
+      await advance(2_000);
+    }
+
+    expect(playback.getCurrent(channelId, 'music')?.id).toBe(song.id);
+  });
+
+  it('adopts a clip’s real length off the progress tick, so it is not bounded by a blind grace', async () => {
+    const sub = await makeSubmission(channelId, { durationMs: 0 });
+    playback.enqueue(sub);
+    await settle();
+
+    playback.noteDuration(channelId, sub.id, 6_000);
+    expect(playback.getCurrent(channelId, 'media')?.durationMs).toBe(6_000);
+
+    // Watchdog now runs on the real length instead of the YouTube load grace.
+    await advance(6_000 + config.watchdogGraceMs + 500);
+    expect(playback.getCurrent(channelId, 'media')).toBeNull();
+  });
+
   it('restarts the current show from the top on reconnect, however far in it was', async () => {
     const song = await makeSubmission(channelId, youtubePatch({ durationMs: 240_000 }));
     playback.enqueue(song);

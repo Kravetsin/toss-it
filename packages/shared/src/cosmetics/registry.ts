@@ -36,6 +36,7 @@ import { cardEyes } from './effects/card-eyes';
 import { cardEyesColor } from './effects/card-eyes-color';
 import { cardHextech } from './effects/card-hextech';
 import { cardHextechColor } from './effects/card-hextech-color';
+import { cardBladeDuel } from './effects/card-blade-duel';
 import { cardClaws } from './effects/card-claws';
 import { cardClawsColor } from './effects/card-claws-color';
 import { cardJelly } from './effects/card-jelly';
@@ -244,6 +245,9 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   cardJelly,
   cardHextech,
   cardHextechColor,
+  // First entry of the "games/movies" shop group — a self-contained choreographed scene rather than
+  // a themed particle swarm, see card-blade-duel's header.
+  cardBladeDuel,
   // Frames group by the metric that earns them, each family in ladder order: chat messages first,
   // then watch time. A rung is a separate item, so the shop shows what the next one looks like.
   frameRunner,

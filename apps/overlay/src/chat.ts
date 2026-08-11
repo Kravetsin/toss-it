@@ -999,6 +999,16 @@ if (DEMO) {
       fragments: [{ type: 'text', text: 'оно снова подошло к стеклу' }],
     },
     {
+      id: '28',
+      userId: 'u28',
+      name: 'holocron',
+      twitchColor: '#5ac8ff',
+      cosmetics: { cardEffect: 'card-blade-duel' },
+      isFounder: false,
+      level: 7,
+      fragments: [{ type: 'text', text: 'держи блок' }],
+    },
+    {
       id: '26',
       userId: 'u26',
       name: 'starweaver',

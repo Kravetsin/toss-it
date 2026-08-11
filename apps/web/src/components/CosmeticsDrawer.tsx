@@ -92,6 +92,7 @@ const CARD_GROUPS = [
     key: 'arcane',
     ids: ['card-wisp', 'card-runes', 'card-web', 'card-eyes', 'card-candles', 'card-hextech'],
   },
+  { key: 'pop', ids: ['card-blade-duel'] },
 ] as const;
 type CardGroupKey = (typeof CARD_GROUPS)[number]['key'];
 const GROUP_LABEL: Record<CardGroupKey, string> = {
@@ -99,6 +100,7 @@ const GROUP_LABEL: Record<CardGroupKey, string> = {
   elements: 'shop.groupElements',
   nature: 'shop.groupNature',
   arcane: 'shop.groupArcane',
+  pop: 'shop.groupPop',
 };
 
 /** Demo for a frame: a stand-in message card wearing the frame, so the border effect shows on a

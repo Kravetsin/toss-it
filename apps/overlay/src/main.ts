@@ -295,19 +295,31 @@ function show(sh: ShowState, payload: MediaPlayPayload): void {
   if (payload.sound) playChime(payload.volume);
   scheduleSpeech(sh, payload);
 
-  // Hard cap: leaves screen no later than server-issued durationMs.
-  // YouTube uses durationMs=0 (no cap) — finishes on the player's 'ended' event.
-  if (payload.durationMs > 0) {
-    sh.hideTimer = window.setTimeout(() => finish(sh), payload.durationMs);
-  }
-
   // Progress/pause plumbing. video/audio play through a media element; image/gif/text run on the
-  // hide timer above, whose window we mirror here so pause can freeze it.
+  // hide timer below, whose window we mirror here so pause can freeze it.
   sh.mediaEl = alert.querySelector<HTMLVideoElement | HTMLAudioElement>('video, audio');
-  if (!sh.mediaEl && payload.durationMs > 0) {
-    sh.timedDurationMs = payload.durationMs;
-    sh.timedElapsedMs = 0;
-    sh.timedStartTs = Date.now();
+  const startClock = () => {
+    // Hard cap: leaves screen no later than server-issued durationMs.
+    // YouTube uses durationMs=0 (no cap) — finishes on the player's 'ended' event.
+    if (payload.durationMs <= 0) return;
+    sh.hideTimer = window.setTimeout(() => finish(sh), payload.durationMs);
+    if (!sh.mediaEl) {
+      sh.timedDurationMs = payload.durationMs;
+      sh.timedElapsedMs = 0;
+      sh.timedStartTs = Date.now();
+    }
+  };
+  // A still gets its window from the moment it actually has pixels. Starting the clock at insert
+  // time meant a slow picture spent its airtime loading — and a card whose image never arrived stood
+  // there empty for the full window. Until it loads no clock runs, so the position stays at zero and
+  // the server's stall guard reaps it if it never comes at all.
+  // The media element itself rather than a query into the card: whatever decoration the card grows
+  // later must not be able to become the thing the clock waits on.
+  const still = media instanceof HTMLImageElement ? media : null;
+  if (still && still.getAttribute('src') && !still.complete) {
+    still.addEventListener('load', startClock, { once: true });
+  } else {
+    startClock();
   }
   sh.progressTimer = window.setInterval(() => emitProgress(sh), 350);
   // A sounded post must not fight the song in the other slot.
@@ -601,6 +613,32 @@ function markNaturalSize(el: HTMLImageElement | HTMLVideoElement): void {
   );
 }
 
+/** Attempts a still gets before we admit it is not coming. Delays grow: 0.4s, 0.8s. */
+const STILL_RETRIES = 2;
+const STILL_RETRY_MS = 400;
+
+/**
+ * Fetch a still, and push it if it does not arrive. An <img> that fails fires 'error' and, with
+ * nobody listening, left an empty card standing for its whole window — which is why the same picture
+ * could air fine on the next try: the failure was a transient fetch, and nothing ever retried it.
+ * The retry carries a cache-buster, or a negative cache in the browser source would hand back the
+ * same failure; out of attempts we end the show instead of holding an empty frame.
+ */
+function loadStill(sh: ShowState, img: HTMLImageElement, src: string): void {
+  let attempt = 0;
+  const fetchIt = () => {
+    img.src = attempt === 0 ? src : `${src}${src.includes('?') ? '&' : '?'}retry=${attempt}`;
+  };
+  img.addEventListener('error', () => {
+    if (attempt++ < STILL_RETRIES) {
+      window.setTimeout(fetchIt, STILL_RETRY_MS * attempt);
+      return;
+    }
+    finish(sh, 'error');
+  });
+  fetchIt();
+}
+
 function createMediaElement(sh: ShowState, payload: MediaPlayPayload, url: string): HTMLElement {
   const volume = Math.min(100, Math.max(0, payload.volume ?? 100)) / 100;
 
@@ -616,7 +654,7 @@ function createMediaElement(sh: ShowState, payload: MediaPlayPayload, url: strin
   if (payload.kind === 'image') {
     const img = document.createElement('img');
     markNaturalSize(img);
-    img.src = url;
+    loadStill(sh, img, url);
     return img;
   }
 
@@ -624,7 +662,7 @@ function createMediaElement(sh: ShowState, payload: MediaPlayPayload, url: strin
     // No stored file: render the looping GIF straight from Giphy's CDN.
     const img = document.createElement('img');
     markNaturalSize(img);
-    if (payload.giphyId) img.src = giphyGifUrl(payload.giphyId);
+    if (payload.giphyId) loadStill(sh, img, giphyGifUrl(payload.giphyId));
     return img;
   }
 

@@ -477,6 +477,17 @@ const MOCK_PENDING: SubmissionSummary[] = [
     text: 'оно снова подошло к стеклу',
     createdAt: t - 70 * min,
   }),
+  sub({
+    id: 's19',
+    kind: 'text',
+    senderUserId: 'twitch:v22',
+    senderName: 'holocron',
+    senderLevel: 7,
+    senderColor: '#5ac8ff',
+    senderCardEffect: 'card-blade-duel',
+    text: 'держи блок',
+    createdAt: t - 74 * min,
+  }),
 ];
 
 const MOCK_NOW: SubmissionSummary | null = sub({

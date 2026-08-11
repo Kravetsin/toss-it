@@ -119,6 +119,13 @@ export const config = {
   watchdogGraceMs: 10_000,
 
   /**
+   * How long a show may sit at the same position before it counts as stuck rather than playing (see
+   * `stallable`). Tunable without a deploy because the honest value is a trade: too low cuts a slow
+   * buffer, too high leaves dead air on stream.
+   */
+  stallMs: Number(process.env.PLAYBACK_STALL_MS ?? 15_000),
+
+  /**
    * Socket.io tuning for streamers on flaky links (most of ours are). Tighter than the library's
    * 25s/20s so a half-open source is not counted as connected while the queue burns posts into it —
    * but not so tight that a live one gets killed (see the heartbeat budget below).

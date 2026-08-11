@@ -220,8 +220,12 @@ interface SlotState {
   watchdog: NodeJS.Timeout | null;
   /** Streamer paused the current show — the auto-advance watchdog is off while true. */
   paused: boolean;
-  /** Last playback:progress from the overlay for `current` — proof it is genuinely still playing. */
-  progress: { at: number; positionMs: number; submissionId: string } | null;
+  /**
+   * Last playback:progress from the overlay for `current` — proof it is genuinely still playing.
+   * `at` is when the tick arrived, `movedAt` when the position last actually ADVANCED: the overlay
+   * keeps ticking a frozen element at the same spot, so only the second one means "still playing".
+   */
+  progress: { at: number; movedAt: number; positionMs: number; submissionId: string } | null;
   /** Armed when a show starts; disarmed by the overlay's first tick. See onDeliveryUnconfirmed. */
   deliveryProbe: NodeJS.Timeout | null;
   /** Consecutive shows the overlay never confirmed — bounds retrying into a black hole. */
@@ -269,6 +273,17 @@ export function slotOf(
  * overlay ticks once a second, so this tolerates a few missed ticks.
  */
 const PROGRESS_ALIVE_MS = 5_000;
+
+/**
+ * A show whose position stopped ADVANCING is stuck, not playing: a Giphy clip that froze on their
+ * CDN, an upload the source cannot buffer. Nothing else reaps it — the overlay keeps ticking the
+ * frozen element, which reads as alive and made the watchdog defer forever, so the streamer had to
+ * skip dead air by hand.
+ *
+ * Deliberately NOT applied to YouTube: its player reports the MAIN video's time, which legitimately
+ * sits still through an ad, and cutting a request for that would be worse than the stall.
+ */
+const stallable = (sub: SubmissionRow): boolean => sub.kind !== 'youtube';
 
 /**
  * Per-channel playback queue, strictly one at a time: next item goes to the
@@ -743,11 +758,40 @@ export class PlaybackManager {
   noteProgress(channelId: string, submissionId: string, positionMs: number): void {
     const slot = this.slotShowing(channelId, submissionId);
     if (!slot || !Number.isFinite(positionMs)) return;
-    this.state(channelId).slots[slot].progress = {
-      at: Date.now(),
-      positionMs: Math.max(0, positionMs),
-      submissionId,
-    };
+    const sl = this.state(channelId).slots[slot];
+    const prev = sl.progress;
+    const now = Date.now();
+    const pos = Math.max(0, positionMs);
+    // A tick proves the overlay is alive; only a MOVED position proves the show is. The margin
+    // absorbs the rounding of a ~350ms tick without accepting a frozen frame as progress.
+    const moved = !prev || prev.submissionId !== submissionId || pos > prev.positionMs + 250;
+    sl.progress = { at: now, movedAt: moved ? now : prev.movedAt, positionMs: pos, submissionId };
+    if (
+      !sl.paused &&
+      sl.current &&
+      stallable(sl.current) &&
+      now - sl.progress.movedAt > config.stallMs
+    ) {
+      this.log?.warn(
+        { channelId, slot, submissionId, positionMs: pos, stalledMs: now - sl.progress.movedAt },
+        'playback: show stopped advancing — treating it as stalled',
+      );
+      void this.onDone(channelId, submissionId, 'stalled');
+    }
+  }
+
+  /**
+   * A media element's own length, riding the progress tick. Adopted once, while the row still says
+   * 0: a Giphy clip has no length in the Clips API, so the server had nothing but a blind load grace
+   * to bound it with. Guarded because reportDuration re-arms the watchdog and pokes the dashboard —
+   * neither belongs on every tick.
+   */
+  noteDuration(channelId: string, submissionId: string, durationMs: number): void {
+    const slot = this.slotShowing(channelId, submissionId);
+    if (!slot) return;
+    const sl = this.state(channelId).slots[slot];
+    if (!sl.current || sl.current.durationMs > 0) return;
+    this.reportDuration(channelId, submissionId, durationMs);
   }
 
   async onDone(channelId: string, submissionId: string, cause = 'overlay-done'): Promise<void> {
@@ -760,10 +804,15 @@ export class PlaybackManager {
     // restart entirely) — so if the overlay is still ticking progress, defer and re-arm from its
     // REAL position. Every "track skipped mid-play by itself" incident traces back to this cut.
     const p = sl.progress;
+    // Alive means the position is still MOVING. Deferring on the mere arrival of ticks is what let a
+    // frozen show re-arm its own watchdog forever, since a stuck element keeps ticking in place.
+    // YouTube keeps the looser rule: its position legitimately stands still through an ad.
+    const aliveSince = sl.current && stallable(sl.current) ? p?.movedAt : p?.at;
     if (
       cause.startsWith('watchdog') &&
       p?.submissionId === submissionId &&
-      Date.now() - p.at < PROGRESS_ALIVE_MS &&
+      aliveSince !== undefined &&
+      Date.now() - aliveSince < PROGRESS_ALIVE_MS &&
       !sl.paused
     ) {
       const left =
@@ -1326,6 +1375,10 @@ export function setupRealtime(io: RealtimeServer, app: FastifyInstance): Playbac
             if (p && typeof p.submissionId === 'string') {
               // Even a paused tick proves the post reached a live overlay.
               playback.confirmDelivery(channel.id, p.submissionId);
+              // The element knows its own length even when we never did (a Giphy clip).
+              if (typeof p.durationMs === 'number' && p.durationMs > 0) {
+                playback.noteDuration(channel.id, p.submissionId, p.durationMs);
+              }
               if (typeof p.positionMs === 'number' && !p.paused) {
                 playback.noteProgress(channel.id, p.submissionId, p.positionMs);
               }
