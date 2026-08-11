@@ -154,27 +154,30 @@ export function ComposeForm({
             </Alert>
           )}
         </div>
-      ) : (
-        <>
-          <FileDropzone onPick={onPickFile} />
-          {onPickGif && (
-            <Accordion
-              title={t('channel.gifButton')}
-              icon="gift"
-              // Required Giphy attribution — the picker uses hideAttribution, so we surface it here.
-              titleAccessory={
-                <img
-                  src="/powered-by-giphy.png"
-                  alt="Powered by GIPHY"
-                  className="ml-1 h-3.5 w-auto opacity-90"
-                />
-              }
-            >
-              <GifPicker autoApprove={gifAutoApprove} onPick={onPickGif} />
-            </Accordion>
-          )}
-        </>
-      )}
+      ) : null}
+
+      {/* Hidden while something is selected, never unmounted: taking it out of the tree would throw
+          away the picker's warm grid — its open tab, decoded images and scroll — on every single
+          send, and the accordion would come back closed. Also keeps it open across a send. */}
+      <div className={file || gif ? 'hidden' : 'flex flex-col gap-4'}>
+        <FileDropzone onPick={onPickFile} />
+        {onPickGif && (
+          <Accordion
+            title={t('channel.gifButton')}
+            icon="gift"
+            // Required Giphy attribution — the picker uses hideAttribution, so we surface it here.
+            titleAccessory={
+              <img
+                src="/powered-by-giphy.png"
+                alt="Powered by GIPHY"
+                className="ml-1 h-3.5 w-auto opacity-90"
+              />
+            }
+          >
+            <GifPicker autoApprove={gifAutoApprove} onPick={onPickGif} />
+          </Accordion>
+        )}
+      </div>
 
       {ytId && <YouTubePreview ytId={ytId} />}
 
