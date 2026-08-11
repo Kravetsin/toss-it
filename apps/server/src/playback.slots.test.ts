@@ -62,14 +62,27 @@ describe('resolveLayout agrees with slotOf', () => {
     });
   }
 
+  it('never lets a sender outgrow the size the streamer set', () => {
+    // Without this one troll takes the whole screen; the channel's own size is the ceiling.
+    const channel = {
+      ...anchors,
+      allowViewerPosition: true,
+      youtubeAsMusic: true,
+      overlaySize: 40,
+    };
+    const layout = resolveLayout('image', channel, false, { size: 100 });
+    expect(layout.size).toBe(40);
+    expect(layout.viewerLayout).toEqual({ size: 40 });
+  });
+
   it("honours the sender's own layout, but only on the media side", () => {
     const channel = { ...anchors, allowViewerPosition: true, youtubeAsMusic: true };
     const image = resolveLayout('image', channel, false, { position: 'top-left', size: 100 });
     expect(image.position).toBe('top-left');
-    expect(image.size).toBe(100);
+    expect(image.size).toBe(anchors.overlaySize); // capped at the channel's own (80)
     // A knob the sender left alone keeps following the channel.
     expect(image.margin).toBe(anchors.overlayMargin);
-    expect(image.viewerLayout).toEqual({ position: 'top-left', size: 100 });
+    expect(image.viewerLayout).toEqual({ position: 'top-left', size: anchors.overlaySize });
     // The compact player is the streamer's alone — a song ignores whatever the sender asked for.
     for (const kind of ['audio', 'youtube'] as const) {
       const music = resolveLayout(kind, channel, false, { position: 'top-left', size: 100 });

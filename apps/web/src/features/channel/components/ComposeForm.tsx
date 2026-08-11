@@ -246,14 +246,19 @@ export function ComposeForm({
                 />
               </div>
             </div>
-            <Slider
-              icon="image"
-              label={t('channel.placementSize', { n: size })}
-              min={10}
-              max={100}
-              value={size}
-              onChange={(n) => onLayoutChange({ ...layout, size: n })}
-            />
+            {/* The streamer's size is the ceiling — the server caps to it anyway, and a slider
+                that promises more than it can give is worse than one that stops. Their own size
+                being the minimum leaves nothing to choose, so the slider goes away entirely. */}
+            {channelLayout.size > 10 && (
+              <Slider
+                icon="image"
+                label={t('channel.placementSize', { n: size })}
+                min={10}
+                max={channelLayout.size}
+                value={Math.min(size, channelLayout.size)}
+                onChange={(n) => onLayoutChange({ ...layout, size: n })}
+              />
+            )}
             {/* Margin is padding on the anchor's flex container, so on a centred anchor it moves
                 nothing — hide the slider rather than hand over a knob that does nothing. */}
             {anchor !== 'center' && (

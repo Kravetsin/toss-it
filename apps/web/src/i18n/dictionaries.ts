@@ -228,7 +228,7 @@ export const en: Dict = {
   'settings.sameAnchorNote':
     'Both stages point at the same corner, so the music card will sit under the media one. Give music its own position below if you want them side by side.',
   'settings.allowViewerPositionNote':
-    'A sender may choose the corner, the edge margin and the size of their own post — up to the full screen. The music player stays where you put it, and the choice is shown in the queue before you approve.',
+    'A sender may choose the corner, the edge margin and the size of their own post — never bigger than the size you set above. The music player stays where you put it, and the choice is shown in the queue before you approve.',
   'settings.musicSeparateNote': 'Otherwise a request appears where media does',
   'settings.youtubeAsMusicNote':
     'Most requests are songs, and YouTube data cannot reliably tell a music video from a video. Off = YouTube plays full-size.',
@@ -1034,7 +1034,7 @@ export const ru: Dict = {
   'settings.sameAnchorNote':
     'Оба плеера смотрят в один угол — музыкальная карточка окажется под медийной. Дай музыке своё положение ниже, если нужно рядом.',
   'settings.allowViewerPositionNote':
-    'Зритель сможет выбрать для своей отправки угол, отступ и размер — вплоть до полного экрана. Музыкальный плеер останется там, где ты его поставил, а выбор видно в очереди ещё до одобрения.',
+    'Зритель сможет выбрать для своей отправки угол, отступ и размер — но не крупнее размера, который ты задал выше. Музыкальный плеер останется там, где ты его поставил, а выбор видно в очереди ещё до одобрения.',
   'settings.musicSeparateNote': 'Иначе заявка появляется там же, где медиа',
   'settings.youtubeAsMusicNote':
     'Чаще всего заказывают музыку, а данные YouTube не отличают клип от видео надёжно. Выключи — YouTube будет играть в большом плеере.',
@@ -1841,7 +1841,7 @@ export const uk: Dict = {
   'settings.sameAnchorNote':
     'Обидва плеєри дивляться в один кут — музична картка опиниться під медійною. Дай музиці своє положення нижче, якщо потрібно поруч.',
   'settings.allowViewerPositionNote':
-    'Глядач зможе обрати для своєї відправки кут, відступ і розмір — аж до повного екрана. Музичний плеєр залишиться там, де ти його поставив, а вибір видно в черзі ще до схвалення.',
+    'Глядач зможе обрати для своєї відправки кут, відступ і розмір — але не більший за розмір, який ти задав вище. Музичний плеєр залишиться там, де ти його поставив, а вибір видно в черзі ще до схвалення.',
   'settings.musicSeparateNote': 'Інакше заявка буде там, де медіа',
   'settings.youtubeAsMusicNote':
     'Найчастіше замовляють музику, а дані YouTube не відрізняють кліп від відео надійно. Вимкни — YouTube гратиме у великому плеєрі.',

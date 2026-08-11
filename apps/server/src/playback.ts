@@ -1141,7 +1141,10 @@ export function resolveLayout(
     const chosen: Partial<OverlayLayout> = {};
     if (channel.allowViewerPosition && viewer) {
       if (viewer.position != null) chosen.position = viewer.position;
-      if (viewer.size != null) chosen.size = viewer.size;
+      // The streamer's size is a hard ceiling, not a default: a corner is a nuisance at worst, but
+      // an unbounded size lets one sender paint over the whole stream. Capped here rather than at
+      // submit time, so lowering it also shrinks whatever is already waiting in the queue.
+      if (viewer.size != null) chosen.size = Math.min(viewer.size, channel.overlaySize);
       if (viewer.margin != null) chosen.margin = viewer.margin;
     }
     const own = {

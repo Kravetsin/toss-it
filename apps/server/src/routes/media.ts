@@ -235,8 +235,10 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
           mayPlace && OVERLAY_POSITIONS.includes(positionField as OverlayPosition)
             ? (positionField as OverlayPosition)
             : null;
-        // Same bounds the streamer's own sliders clamp to (see the settings PATCH).
-        const overlaySize = mayPlace ? clampField(sizeField, 10, 100) : null;
+        // Never bigger than the streamer's own size — one sender must not be able to paint over
+        // the whole stream. resolveLayout caps again at play time, which is what makes lowering
+        // the channel's size apply to the queue that is already waiting.
+        const overlaySize = mayPlace ? clampField(sizeField, 10, channel.overlaySize) : null;
         const overlayMargin = mayPlace ? clampField(marginField, 0, 25) : null;
 
         // Keep full text to detect a YouTube link BEFORE truncating (a long
