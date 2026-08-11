@@ -7,6 +7,7 @@ import {
   COSMETICS,
   type AccessibleChannel,
   type ChannelSettings,
+  type DirectoryChannel,
   type EquippedCosmetics,
   type LeaderboardEntry,
   type ListedUser,
@@ -729,6 +730,117 @@ const MOCK_LIVE: LivePresence = {
   ],
 };
 
+/** Limits every card shows the same way; only the interesting fields differ per mock row. */
+const DIR_LIMITS = {
+  maxDurationMs: 15_000,
+  maxAudioDurationMs: 60_000,
+  maxFileSizeBytes: 50 * 1024 * 1024,
+};
+
+/**
+ * Every state a directory card has: with and without nick/card cosmetics, no description, no stream
+ * link, all opt-ins on and all off, both groups.
+ */
+const MOCK_DIRECTORY: DirectoryChannel[] = [
+  {
+    login: 'kravetsinside',
+    displayName: 'Kravets',
+    avatarUrl: null,
+    description: 'Шли мемы — лучшее окажется на стриме 🎬',
+    streamUrl: 'https://www.twitch.tv/kravetsinside',
+    streamPlatform: 'twitch',
+    live: true,
+    lastLiveAt: null,
+    isFounder: true,
+    aired: 1248,
+    ...DIR_LIMITS,
+    autoApproveGifs: true,
+    autoApproveText: true,
+    autoApproveYoutube: true,
+    ttsEnabled: true,
+    allowViewerPosition: true,
+    nickColor: '#8df0cc',
+    nickColor2: '#ff9ed8',
+    nickFlow: true,
+    nickEffect: 'nick-glow',
+    cardEffect: 'card-stardust',
+    cardEffectColor: null,
+  },
+  {
+    login: 'pixel_witch',
+    displayName: 'Pixel Witch',
+    avatarUrl: null,
+    description: null,
+    streamUrl: 'https://www.youtube.com/@pixelwitch',
+    streamPlatform: 'youtube',
+    live: true,
+    lastLiveAt: null,
+    isFounder: false,
+    aired: 37,
+    ...DIR_LIMITS,
+    autoApproveGifs: false,
+    autoApproveText: false,
+    autoApproveYoutube: false,
+    ttsEnabled: false,
+    allowViewerPosition: false,
+    nickColor: null,
+    nickColor2: null,
+    nickFlow: false,
+    nickEffect: null,
+    cardEffect: null,
+    cardEffectColor: null,
+  },
+  {
+    login: 'dj_summer',
+    displayName: 'DJ Summer',
+    avatarUrl: null,
+    description: 'Только музыка, без видео',
+    streamUrl: null,
+    streamPlatform: null,
+    live: false,
+    lastLiveAt: t - 42 * 60_000,
+    isFounder: false,
+    aired: 402,
+    ...DIR_LIMITS,
+    maxAudioDurationMs: 180_000,
+    autoApproveGifs: true,
+    autoApproveText: false,
+    autoApproveYoutube: true,
+    ttsEnabled: false,
+    allowViewerPosition: false,
+    nickColor: '#ffcc66',
+    nickColor2: null,
+    nickFlow: false,
+    nickEffect: null,
+    cardEffect: 'card-butterflies',
+    cardEffectColor: '#ff2e9a',
+  },
+  {
+    login: 'clip_gremlin',
+    displayName: 'clip_gremlin',
+    avatarUrl: null,
+    description: 'Присылай клипы, разбираем в эфире',
+    streamUrl: 'https://www.twitch.tv/clip_gremlin',
+    streamPlatform: 'twitch',
+    live: false,
+    lastLiveAt: t - 7 * 3_600_000,
+    isFounder: false,
+    aired: 0,
+    ...DIR_LIMITS,
+    autoApproveGifs: false,
+    autoApproveText: false,
+    autoApproveYoutube: false,
+    ttsEnabled: true,
+    allowViewerPosition: false,
+    nickColor: null,
+    nickColor2: null,
+    nickFlow: false,
+    nickEffect: null,
+    cardEffect: null,
+    cardEffectColor: null,
+  },
+];
+
 function cosmeticState() {
   const u = MOCK_ME.user!;
   return { stardust: u.stardust, ownedCosmetics: u.ownedCosmetics, equipped: u.equipped };
@@ -745,6 +857,7 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
     return {};
   }
   if (pathname === '/api/me/channels') return MOCK_CHANNELS;
+  if (pathname === '/api/directory') return MOCK_DIRECTORY;
   if (pathname === '/api/admin/bot') return { connected: true, login: 'tossitbot' };
   if (pathname === '/api/admin/live-channels') {
     return [{ login: 'kravetsinside', displayName: 'Kravets', avatarUrl: null, overlays: 1 }];

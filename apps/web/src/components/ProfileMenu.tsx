@@ -5,6 +5,7 @@ import { logout } from '@/lib/api';
 import { useMe } from '@/hooks/useMe';
 import { useI18n } from '@/i18n';
 import { useShop } from '@/providers/ShopProvider';
+import { useStreamers } from '@/providers/StreamersProvider';
 import { useApiAction } from '@/hooks/useApiAction';
 import { registerStardustWallet } from '@/lib/stardustFx';
 import { nickProps } from '@/lib/nick';
@@ -67,6 +68,7 @@ export function ProfileMenu({
   const { me, refresh } = useMe();
   const { t } = useI18n();
   const { openShop } = useShop();
+  const { openStreamers } = useStreamers();
   const act = useApiAction();
   const navigate = useNavigate();
   const user = me?.user;
@@ -213,6 +215,14 @@ export function ProfileMenu({
             onClick={() => {
               setOpen(false);
               openShop();
+            }}
+          />
+          <Row
+            icon="users"
+            label={t('dir.title')}
+            onClick={() => {
+              setOpen(false);
+              openStreamers();
             }}
           />
           {me.channel && (

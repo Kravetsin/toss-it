@@ -1254,6 +1254,48 @@ export interface LivePresence {
   updatedAt: number | null;
 }
 
+/** Platforms a channel can be watched on — the subset of SOCIAL_PLATFORMS that carries a stream. */
+export const STREAM_PLATFORMS = ['twitch', 'youtube'] as const;
+export type StreamPlatform = (typeof STREAM_PLATFORMS)[number];
+
+/**
+ * One channel in the directory of channels taking sends. `live` means an overlay is connected,
+ * which is the closest platform-agnostic signal we have — never a promise that the stream is up,
+ * so the UI says "taking sends" rather than "streaming".
+ */
+export interface DirectoryChannel {
+  login: string;
+  displayName: string;
+  avatarUrl: string | null;
+  description: string | null;
+  /** Where to watch them: a stream link they listed, else derived from a Twitch login. */
+  streamUrl: string | null;
+  streamPlatform: StreamPlatform | null;
+  live: boolean;
+  /** When their last overlay left (epoch ms); null while live, or if it left before we tracked it. */
+  lastLiveAt: number | null;
+  isFounder: boolean;
+  /** Submissions that actually aired here, minus the streamer's own test sends (same rule as the
+   *  'sends' board): the one number that says whether this channel really plays what it gets. */
+  aired: number;
+  /** The limits and opt-ins the expanded card lists — same fields the channel's own header shows. */
+  maxDurationMs: number;
+  maxAudioDurationMs: number;
+  maxFileSizeBytes: number;
+  autoApproveGifs: boolean;
+  autoApproveText: boolean;
+  autoApproveYoutube: boolean;
+  ttsEnabled: boolean;
+  allowViewerPosition: boolean;
+  /** Their equipped cosmetics, so the card shows the same name and effect the chat overlay does. */
+  nickColor: string | null;
+  nickColor2: string | null;
+  nickFlow: boolean;
+  nickEffect: string | null;
+  cardEffect: string | null;
+  cardEffectColor: string | null;
+}
+
 /** Cross-channel user reputation — aggregates across all channels. */
 export interface ReputationStats {
   /** Submissions actually shown on streams (status='played'). */

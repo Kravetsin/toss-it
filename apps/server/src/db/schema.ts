@@ -198,6 +198,9 @@ export const channels = sqliteTable('channels', {
   accentHue: integer('accent_hue'),
   bgHue: integer('bg_hue'),
   bgTint: integer('bg_tint').notNull().default(0),
+  /** When this channel's last overlay left, so the directory can show "was live 2 h ago" once the
+   *  overlay is gone. Written on overlay disconnect only; while one is connected, presence is live. */
+  lastLiveAt: integer('last_live_at', { mode: 'timestamp_ms' }),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 });
 

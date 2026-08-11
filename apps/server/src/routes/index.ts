@@ -7,6 +7,7 @@ import { registerAuthRoutes } from './auth';
 import { registerChannelRoutes } from './channels';
 import { registerCosmeticsRoutes } from './cosmetics';
 import { registerDashboardRoutes } from './dashboard';
+import { registerDirectoryRoutes } from './directory';
 import { registerMediaRoutes, type MediaRoutesDeps } from './media';
 import { registerPromoRoutes } from './promo';
 import { registerDonationRoutes } from './donations';
@@ -45,6 +46,7 @@ export function registerRoutes(
   registerAuthRoutes(app, { twitchChat: deps.twitchChat, channelPoints: deps.channelPoints });
   registerChannelRoutes(app);
   registerCosmeticsRoutes(app);
+  registerDirectoryRoutes(app, { playback: deps.playback });
   registerMediaRoutes(app, deps);
   registerDashboardRoutes(app, {
     playback: deps.playback,

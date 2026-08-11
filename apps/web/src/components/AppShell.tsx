@@ -14,6 +14,7 @@ import { DustMark } from '@/components/DustMark';
 import { NewDotGroup } from '@/components/NewDot';
 import { ProfileCard } from '@/components/ProfileCard';
 import { useShop } from '@/providers/ShopProvider';
+import { useStreamers } from '@/providers/StreamersProvider';
 import { NotificationBell } from '@/components/NotificationBell';
 
 function Brand({ compact = false }: { compact?: boolean }) {
@@ -80,6 +81,58 @@ function NavItem({
     </Tooltip>
   ) : (
     link
+  );
+}
+
+/** Same rail slot as NavItem, but it opens a drawer instead of navigating — hence no active state. */
+function NavButton({
+  icon,
+  label,
+  collapsed = false,
+  onClick,
+}: {
+  icon: IconName;
+  label: string;
+  collapsed?: boolean;
+  onClick: () => void;
+}) {
+  const { fillRef, handlers } = useFillEffect();
+  const button = (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className={`relative flex w-full cursor-pointer items-center overflow-hidden px-3 py-2.5 text-left label-mono text-muted outline-none hover:text-text focus-visible:[box-shadow:var(--shadow-focus)] ${
+        collapsed ? 'justify-center' : 'justify-start'
+      }`}
+      style={{
+        gap: collapsed ? 0 : '0.75rem',
+        transition: 'gap var(--dur) ease-out, color var(--dur-fast) ease-out',
+      }}
+      {...handlers}
+    >
+      <span
+        ref={fillRef}
+        aria-hidden
+        className="pointer-events-none absolute inset-0 z-0"
+        style={{ backgroundColor: 'rgba(255,255,255,0.08)', clipPath: 'circle(0% at 50% 50%)' }}
+      />
+      <Icon name={icon} size={18} className="relative z-[1] shrink-0" />
+      <span
+        className="relative z-[1] overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-[var(--dur)] ease-out"
+        style={{ maxWidth: collapsed ? 0 : '10rem', opacity: collapsed ? 0 : 1 }}
+      >
+        {label}
+      </span>
+    </button>
+  );
+
+  return collapsed ? (
+    <Tooltip content={label} placement="right" focusable={false} className="w-full">
+      {button}
+    </Tooltip>
+  ) : (
+    button
   );
 }
 
@@ -283,6 +336,7 @@ function Sidebar({
 }) {
   const { t } = useI18n();
   const { openShop } = useShop();
+  const { openStreamers } = useStreamers();
   return (
     <aside
       className="relative sticky top-0 hidden h-screen shrink-0 flex-col border-r border-border bg-surface md:flex overflow-visible"
@@ -346,6 +400,12 @@ function Sidebar({
           icon="trophy"
           label={t('nav.achievements')}
           collapsed={collapsed}
+        />
+        <NavButton
+          icon="users"
+          label={t('dir.title')}
+          collapsed={collapsed}
+          onClick={openStreamers}
         />
         <NotificationBell variant="sidebar" collapsed={collapsed} />
       </nav>
@@ -411,6 +471,7 @@ function MobileSidebar({
   onFeedback: () => void;
 }) {
   const { t } = useI18n();
+  const { openStreamers } = useStreamers();
 
   useEffect(() => {
     if (!open) return;
@@ -468,6 +529,14 @@ function MobileSidebar({
             icon="trophy"
             label={t('nav.achievements')}
             onClick={onClose}
+          />
+          <NavButton
+            icon="users"
+            label={t('dir.title')}
+            onClick={() => {
+              onClose();
+              openStreamers();
+            }}
           />
         </nav>
 

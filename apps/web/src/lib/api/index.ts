@@ -3,6 +3,7 @@ export * from './admin';
 export * from './auth';
 export * from './channels';
 export * from './dashboard';
+export * from './directory';
 export * from './invites';
 export * from './link';
 export * from './promo';

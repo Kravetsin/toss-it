@@ -1,0 +1,1 @@
+ALTER TABLE `channels` ADD `last_live_at` integer;

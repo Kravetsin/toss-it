@@ -1353,6 +1353,15 @@ export function setupRealtime(io: RealtimeServer, app: FastifyInstance): Playbac
           // Rooms are left before this fires, so both calls already see the socket as gone.
           socket.on('disconnect', (reason) => {
             lastSeen.set(seenKey(channel.id, kind), Date.now());
+            // Persisted twin of lastSeen, for the directory's "was live N ago" — that one must
+            // survive a restart, and a write per source leaving is nothing next to chat traffic.
+            void db
+              .update(channels)
+              .set({ lastLiveAt: new Date() })
+              .where(eq(channels.id, channel.id))
+              .catch((err: unknown) =>
+                app.log.warn({ err, channelId: channel.id }, 'last-live stamp failed'),
+              );
             // The one thing the logs could never answer after a "it started over by itself" report:
             // whether the link died (transport error/ping timeout) or the source was reloaded
             // (transport close on a short session) — the two look identical at the next connect.
