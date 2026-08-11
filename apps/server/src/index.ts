@@ -42,8 +42,10 @@ await app.register(fastifyRateLimit, {
 await app.register(fastifyCookie, { secret: config.cookieSecret });
 await app.register(fastifyMultipart, {
   // fieldSize caps the raw text field in memory before it's clamped to TEXT_MAX_LEN (280);
-  // 4 KB is ample for a UTF-8 caption + a link. fields caps non-file parts (we read text + giphyId).
-  limits: { fileSize: config.maxFileSizeBytes, files: 1, fields: 4, fieldSize: 4096 },
+  // 4 KB is ample for a UTF-8 caption + a link. fields caps non-file parts — an upload sends up to
+  // six (text, giphyId, voice, position, size, margin), and going over surfaces as a 413 on a
+  // request that is nowhere near too large, so keep this ahead of what /upload can send.
+  limits: { fileSize: config.maxFileSizeBytes, files: 1, fields: 8, fieldSize: 4096 },
 });
 // serve:false — media served only via GET /api/media/:id (reply.sendFile).
 await app.register(fastifyStatic, { root: storage.root, serve: false });
