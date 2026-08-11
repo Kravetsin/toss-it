@@ -234,6 +234,7 @@ function toSettings(
     overlayPosition: ch.overlayPosition,
     overlaySize: ch.overlaySize,
     overlayMargin: ch.overlayMargin,
+    allowViewerPosition: ch.allowViewerPosition,
     youtubeAsMusic: ch.youtubeAsMusic,
     parallelSlots: ch.parallelSlots,
     musicSeparate: ch.musicSeparate,
@@ -739,6 +740,10 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
           typeof b.overlayMargin === 'number'
             ? clamp(Math.round(b.overlayMargin), 0, 25)
             : channel.overlayMargin,
+        allowViewerPosition:
+          typeof b.allowViewerPosition === 'boolean'
+            ? b.allowViewerPosition
+            : channel.allowViewerPosition,
         youtubeAsMusic:
           typeof b.youtubeAsMusic === 'boolean' ? b.youtubeAsMusic : channel.youtubeAsMusic,
         parallelSlots:

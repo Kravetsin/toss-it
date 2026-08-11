@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ttsVoices,
   type LiveStatus,
+  type OverlayLayout,
   type PublicChannelInfo,
   type UploadResponse,
 } from '@tmw/shared';
@@ -42,6 +43,9 @@ export function useMediaSubmission(
   const [text, setText] = useState('');
   // TTS voice is a sticky preference, not per-send state ('auto' = server picks by language).
   const [rawVoice, setVoiceState] = useState(() => localStorage.getItem(VOICE_KEY) ?? 'auto');
+  // Placement is deliberately NOT sticky: a corner (or a size) chosen once shouldn't silently
+  // claim every later send. Empty = the channel's own layout, where an untouched send lands.
+  const [layout, setLayout] = useState<Partial<OverlayLayout>>({});
   const { me } = useMe();
   // Admins get the paid voices without buying them — the same catalog-wide bypass the shop and
   // /api/media use, so a voice can be reviewed on a real send.
@@ -120,8 +124,12 @@ export function useMediaSubmission(
         file,
         text,
         (progress) => setPhase({ name: 'uploading', progress }),
-        gif?.id,
-        voice === 'auto' ? null : voice,
+        {
+          giphyId: gif?.id,
+          voice: voice === 'auto' ? null : voice,
+          // Dropped server-side if the channel stopped allowing it — no reason to check here too.
+          layout: channel?.allowViewerPosition ? layout : {},
+        },
       );
       setLiveStatus(result.status);
       setPhase({ name: 'done', result });
@@ -133,6 +141,7 @@ export function useMediaSubmission(
       setFile(null);
       setGif(null);
       setText('');
+      setLayout({});
     } catch (err) {
       if (err instanceof ApiRequestError && err.code === 'cooldown' && err.retryAfterSec) {
         setCooldownSec(err.retryAfterSec);
@@ -149,6 +158,7 @@ export function useMediaSubmission(
     setFile(null);
     setGif(null);
     setText('');
+    setLayout({});
   }
 
   // Live status via socket keyed to submission id when done.
@@ -173,6 +183,8 @@ export function useMediaSubmission(
     voice,
     setVoice,
     availableVoices,
+    layout,
+    setLayout,
     phase,
     previewUrl,
     cooldownSec,

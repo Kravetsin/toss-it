@@ -11,8 +11,7 @@ import {
 } from '@/lib/api';
 import { useI18n, type TFn } from '@/i18n';
 import { Icon, type IconName } from '@/ui/icons';
-import { Slider } from '@/features/dashboard/components/settings/controls';
-import { Button, Card } from '@/ui';
+import { Button, Card, Slider } from '@/ui';
 import { DustMark } from '@/components/DustMark';
 
 /** Which status flag a reward kind owns, as a patch — one place to add the next kind. */

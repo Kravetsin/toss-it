@@ -7,6 +7,7 @@ import {
   type LiveStatus,
   type MediaPlayPayload,
   type OverlayKind,
+  type OverlayLayout,
   type OverlayLayouts,
   type OverlayPresence,
   type PlaybackSlot,
@@ -151,6 +152,9 @@ export function toSummary(
     url: `/api/media/${sub.id}`,
     youtubeId: sub.youtubeId,
     giphyId: sub.giphyId,
+    overlayPosition: sub.overlayPosition,
+    overlaySize: sub.overlaySize,
+    overlayMargin: sub.overlayMargin,
   };
 }
 
@@ -993,6 +997,7 @@ export class PlaybackManager {
         overlayPosition: channels.overlayPosition,
         overlaySize: channels.overlaySize,
         overlayMargin: channels.overlayMargin,
+        allowViewerPosition: channels.allowViewerPosition,
         youtubeAsMusic: channels.youtubeAsMusic,
         musicSeparate: channels.musicSeparate,
         musicPosition: channels.musicPosition,
@@ -1035,7 +1040,11 @@ export class PlaybackManager {
       slot,
       // Music may use its own layout; the server picks it by media type, so the
       // overlay just applies position/size/margin from the payload.
-      ...resolveLayout(sub.kind, channel, sub.mime === 'audio/youtube'),
+      ...resolveLayout(sub.kind, channel, sub.mime === 'audio/youtube', {
+        position: sub.overlayPosition,
+        size: sub.overlaySize,
+        margin: sub.overlayMargin,
+      }),
       youtubeId: sub.youtubeId ?? undefined,
       youtubeStartSeconds: sub.youtubeStart,
       youtubeMusic: sub.mime === 'audio/youtube',
@@ -1102,6 +1111,7 @@ export function resolveLayout(
         overlayPosition: MediaPlayPayload['position'];
         overlaySize: number;
         overlayMargin: number;
+        allowViewerPosition: boolean;
         youtubeAsMusic: boolean;
         musicSeparate: boolean;
         musicPosition: MediaPlayPayload['position'];
@@ -1111,7 +1121,13 @@ export function resolveLayout(
     | null
     | undefined,
   isMusic = false,
-): Pick<MediaPlayPayload, 'position' | 'size' | 'margin'> {
+  /** What the sender asked for, knob by knob; nulls mean "whatever the channel says". */
+  viewer: {
+    position?: MediaPlayPayload['position'] | null;
+    size?: number | null;
+    margin?: number | null;
+  } | null = null,
+): Pick<MediaPlayPayload, 'position' | 'size' | 'margin' | 'viewerLayout'> {
   if (!channel) return { position: 'center', size: 80, margin: 0 };
   // Uploaded audio has no picture, so it is always the compact player. Everything from YouTube
   // follows the channel's switch — deliberately overriding what we guessed the link was. Metadata
@@ -1120,11 +1136,23 @@ export function resolveLayout(
   // guess still matters elsewhere — auto-approve treats songs and videos differently.)
   const isMusicKind = kind === 'audio' || (kind === 'youtube' ? channel.youtubeAsMusic : isMusic);
   if (!isMusicKind) {
-    return {
+    // The permission is read here, at play time, rather than trusted from the moment of the send:
+    // a streamer who switches it off wants the queue that already piled up to come home too.
+    const chosen: Partial<OverlayLayout> = {};
+    if (channel.allowViewerPosition && viewer) {
+      if (viewer.position != null) chosen.position = viewer.position;
+      if (viewer.size != null) chosen.size = viewer.size;
+      if (viewer.margin != null) chosen.margin = viewer.margin;
+    }
+    const own = {
       position: channel.overlayPosition,
       size: channel.overlaySize,
       margin: channel.overlayMargin,
     };
+    // Knob by knob: what the sender left alone keeps following the channel, here and on every
+    // later layout change.
+    const hasChoice = Object.keys(chosen).length > 0;
+    return { ...own, ...chosen, viewerLayout: hasChoice ? chosen : undefined };
   }
   // Music size is always the compact music-player size — never the media's (which can be 80% of the
   // screen). Only position/margin follow musicSeparate: shared with media, or the music block.

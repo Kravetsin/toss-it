@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import type { ChannelSettings } from '@tmw/shared';
 import { useI18n } from '@/i18n';
-import { Card, Switch } from '@/ui';
-import { Slider } from './controls';
+import { Card, Slider, Switch } from '@/ui';
 
 /**
  * Overlay display on/off flags as switches, saved instantly (no Save button) — the simple

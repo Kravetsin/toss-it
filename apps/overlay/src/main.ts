@@ -139,6 +139,10 @@ interface ShowState {
   isAudio: boolean;
   /** This post is riding the music anchor, so the music display mode governs it too. */
   onMusicAnchor: boolean;
+  /** Whatever of the layout this post's own sender picked. Survives a live layout change: the
+   *  streamer moving their defaults mid-show must not undo the corner (or size) it was sent with,
+   *  while the knobs the sender left alone still follow along. */
+  viewerLayout: Partial<OverlayLayout> | null;
   mediaEl: HTMLVideoElement | HTMLAudioElement | null;
   /** Image/gif/text have no player — we track their display window so it can be frozen. */
   timedDurationMs: number;
@@ -172,6 +176,7 @@ const newShow = (el: HTMLElement): ShowState => ({
   isYoutube: false,
   isAudio: false,
   onMusicAnchor: false,
+  viewerLayout: null,
   mediaEl: null,
   timedDurationMs: 0,
   timedElapsedMs: 0,
@@ -241,8 +246,11 @@ socket.on('media:layout', (layouts) => {
     const music = sh.isYoutube ? layouts.youtubeAsMusic : sh.isAudio;
     sh.onMusicAnchor = music; // the switch can move a post onto (or off) the music anchor mid-show
     const card = sh.el.querySelector<HTMLElement>('.player');
+    // A sender's own choices outlive the settings change, but only on the media side — a post the
+    // switch just moved to the music player takes the music anchor like any other song.
+    const layout = music ? layouts.music : { ...layouts.media, ...sh.viewerLayout };
     animateLayoutMove(card, () => {
-      applyStageLayout(sh, music ? layouts.music : layouts.media);
+      applyStageLayout(sh, layout);
       applyShowCompact(sh);
     });
   }
@@ -267,6 +275,8 @@ function show(sh: ShowState, payload: MediaPlayPayload): void {
   // A YouTube post follows the channel's switch (the server already applied it here); audio always
   // rides the music anchor. Both are "music" as far as the compact display mode is concerned.
   sh.onMusicAnchor = sh.isYoutube ? !!payload.youtubeMusic : sh.isAudio;
+  // Already folded into the payload by the server; kept so a live layout change can re-apply it.
+  sh.viewerLayout = payload.viewerLayout ?? null;
   applyStageLayout(sh, payload);
 
   const url = resolveMediaUrl(payload.url);

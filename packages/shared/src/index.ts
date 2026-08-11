@@ -144,6 +144,14 @@ export interface MediaPlayPayload {
   /** Which stage to render on. Absent in bundles older than parallel slots — they only have one. */
   slot?: PlaybackSlot;
   position: OverlayPosition;
+  /**
+   * Whatever of the layout the sender chose themselves — already folded into position/size/margin
+   * above. Sent separately because the overlay has to re-apply it on top of a live layout change:
+   * a settings tweak mid-show must not drag the card out of the corner its sender picked, while
+   * the knobs they left alone should still follow the streamer. Media anchor only — the music
+   * player stays the streamer's.
+   */
+  viewerLayout?: Partial<OverlayLayout>;
   /** Max media size, % of viewport (channel setting). */
   size: number;
   /** Edge margin, % of viewport — for edge-anchored positions. */
@@ -625,6 +633,12 @@ export interface SubmissionSummary {
   youtubeId?: string | null;
   /** Giphy id for preview (kind='gif'), else null/absent. */
   giphyId?: string | null;
+  /** What the sender chose of the layout, null where they left the channel's own. Shown in
+   *  moderation so the streamer approves the placement together with the content, rather than
+   *  finding out about it on stream — which matters most when a post asks for the whole screen. */
+  overlayPosition?: OverlayPosition | null;
+  overlaySize?: number | null;
+  overlayMargin?: number | null;
 }
 
 /** Live position of whatever is currently on the overlay — drives the dashboard's progress bar. */
@@ -717,6 +731,12 @@ export interface ChannelSettings {
   overlaySize: number;
   /** Edge margin, % of viewport (0-25) — for edge-anchored positions. */
   overlayMargin: number;
+  /**
+   * Let a sender pick which of the 9 anchors their own post lands on (media only — the music
+   * player stays put). Off by default: it hands part of the screen to the viewer, so the streamer
+   * has to say yes. Turning it back off also re-homes posts already waiting in the queue.
+   */
+  allowViewerPosition: boolean;
   /**
    * true = every YouTube post lands in the compact music player, false = the full-size media
    * anchor. Overrides what we guessed the link was: metadata cannot be trusted to tell a music
@@ -939,6 +959,15 @@ export interface PublicChannelInfo {
   autoApproveYoutube: boolean;
   /** Whether the streamer reads sends aloud (name or message) — drives the voice picker. */
   ttsEnabled: boolean;
+  /** Whether the sender may choose where their post lands and how big it is — drives the picker. */
+  allowViewerPosition: boolean;
+  /**
+   * The channel's own media layout — where the sliders in the picker start, so an untouched one
+   * shows what will actually happen rather than a made-up number. The anchor also decides whether
+   * the margin slider is shown at all: margin is padding on a centred flex container, so on
+   * 'center' it moves the card nowhere.
+   */
+  overlayLayout: OverlayLayout;
   /** The logged-in viewer's own per-channel level (0 = anon/none) — for their header card. */
   viewerLevel: number;
   /** Their raw per-channel XP (0 = anon/none) — feeds the badge hover's "current/next" progress.

@@ -147,6 +147,15 @@ export const channels = sqliteTable('channels', {
   overlaySize: integer('overlay_size').notNull().default(80),
   overlayMargin: integer('overlay_margin').notNull().default(0),
   /**
+   * Opt-in: a sender may choose the anchor, edge margin and size of their own post. Off by
+   * default — it hands part of the screen to the viewer, and an unbounded size can claim all of
+   * it. Read at play time, not at submit time, so switching it off also re-homes whatever is
+   * already waiting in the queue.
+   */
+  allowViewerPosition: integer('allow_viewer_position', { mode: 'boolean' })
+    .notNull()
+    .default(false),
+  /**
    * Where EVERY YouTube post lands: the compact music player (true) or the full-size media anchor.
    * Default true because most requests are songs, and metadata cannot tell a music video from a
    * video reliably — the streamer's own switch beats any classifier, so it overrides the guess.
@@ -470,6 +479,15 @@ export const submissions = sqliteTable(
     giphyId: text('giphy_id'),
     /** TTS voice picked by the sender (catalog id from ttsVoices), null = auto by language. */
     ttsVoice: text('tts_voice'),
+    /**
+     * Layout the sender chose for this one post — each knob independently, null = the channel's
+     * own (and null throughout is what every source other than the website sends: chat commands,
+     * channel points, whitelist). Honoured only while the channel allows it, never for the music
+     * player. Size/margin carry the same units as the channel's: % of viewport.
+     */
+    overlayPosition: text('overlay_position').$type<OverlayPosition>(),
+    overlaySize: integer('overlay_size'),
+    overlayMargin: integer('overlay_margin'),
     /**
      * The channel owner sending to their own channel (tests, mostly). Derived at insert, never
      * taken from the client. Plays for real, but counts nowhere and the sweep drops the row.

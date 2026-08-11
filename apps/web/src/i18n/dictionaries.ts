@@ -227,6 +227,8 @@ export const en: Dict = {
     'A song holds the compact player while images and gifs keep appearing. Video and voice still pause the music.',
   'settings.sameAnchorNote':
     'Both stages point at the same corner, so the music card will sit under the media one. Give music its own position below if you want them side by side.',
+  'settings.allowViewerPositionNote':
+    'A sender may choose the corner, the edge margin and the size of their own post — up to the full screen. The music player stays where you put it, and the choice is shown in the queue before you approve.',
   'settings.musicSeparateNote': 'Otherwise a request appears where media does',
   'settings.youtubeAsMusicNote':
     'Most requests are songs, and YouTube data cannot reliably tell a music video from a video. Off = YouTube plays full-size.',
@@ -372,6 +374,13 @@ export const en: Dict = {
   'channel.firstSendHintCta': 'Open shop',
   'channel.voiceAuto': 'Voice: random',
   'channel.voicePreview': 'Listen to the voice',
+  'channel.placement': 'Where it appears',
+  'channel.placementNote':
+    "Pick a corner and a size, or leave them and it lands the way the streamer's overlay does.",
+  'channel.placementYou': 'your post',
+  'channel.placementSize': 'Size: {n}%',
+  'channel.placementMargin': 'Edge margin: {n}%',
+  'channel.placementReset': "Streamer's choice",
   'channel.tooBig': 'File too large: channel limit is {mb} MB',
   'channel.send': 'Send to stream',
   'channel.gifButton': 'Pick a GIF',
@@ -589,6 +598,8 @@ export const en: Dict = {
   'dash.sliderVolume': 'Volume: {n}%',
   'dash.layout': 'Overlay layout',
   'dash.position': 'Media position',
+  'dash.allowViewerPosition': 'Let senders choose the spot',
+  'dash.viewerPlaced': 'The sender chose this spot',
   'dash.sliderMediaSize': 'Media size: {n}%',
   'dash.sliderMusicSize': 'Player size: {n}%',
   'dash.sliderMargin': 'Edge margin: {n}%',
@@ -1020,6 +1031,8 @@ export const ru: Dict = {
     'Трек занимает компактный плеер, а картинки и гифки продолжают появляться. Видео и озвучка по-прежнему ставят музыку на паузу.',
   'settings.sameAnchorNote':
     'Оба плеера смотрят в один угол — музыкальная карточка окажется под медийной. Дай музыке своё положение ниже, если нужно рядом.',
+  'settings.allowViewerPositionNote':
+    'Зритель сможет выбрать для своей отправки угол, отступ и размер — вплоть до полного экрана. Музыкальный плеер останется там, где ты его поставил, а выбор видно в очереди ещё до одобрения.',
   'settings.musicSeparateNote': 'Иначе заявка появляется там же, где медиа',
   'settings.youtubeAsMusicNote':
     'Чаще всего заказывают музыку, а данные YouTube не отличают клип от видео надёжно. Выключи — YouTube будет играть в большом плеере.',
@@ -1166,6 +1179,13 @@ export const ru: Dict = {
   'channel.firstSendHintCta': 'В магазин',
   'channel.voiceAuto': 'Голос: случайный',
   'channel.voicePreview': 'Прослушать голос',
+  'channel.placement': 'Где появится',
+  'channel.placementNote':
+    'Выбери угол и размер — или не трогай, и отправка появится так, как решил стример.',
+  'channel.placementYou': 'твоя отправка',
+  'channel.placementSize': 'Размер: {n}%',
+  'channel.placementMargin': 'Отступ от края: {n}%',
+  'channel.placementReset': 'Как у стримера',
   'channel.tooBig': 'Файл слишком большой: лимит канала {mb} МБ',
   'channel.send': 'Отправить на стрим',
   'channel.gifButton': 'Выбрать GIF',
@@ -1384,6 +1404,8 @@ export const ru: Dict = {
   'dash.sliderVolume': 'Громкость: {n}%',
   'dash.layout': 'Раскладка оверлея',
   'dash.position': 'Позиция медиа',
+  'dash.allowViewerPosition': 'Зритель выбирает место',
+  'dash.viewerPlaced': 'Место выбрал отправитель',
   'dash.sliderMediaSize': 'Размер медиа: {n}%',
   'dash.sliderMusicSize': 'Размер плеера: {n}%',
   'dash.sliderMargin': 'Отступ от края: {n}%',
@@ -1814,6 +1836,8 @@ export const uk: Dict = {
     'Трек займає компактний плеєр, а картинки й гіфки продовжують з’являтися. Відео та озвучка так само ставлять музику на паузу.',
   'settings.sameAnchorNote':
     'Обидва плеєри дивляться в один кут — музична картка опиниться під медійною. Дай музиці своє положення нижче, якщо потрібно поруч.',
+  'settings.allowViewerPositionNote':
+    'Глядач зможе обрати для своєї відправки кут, відступ і розмір — аж до повного екрана. Музичний плеєр залишиться там, де ти його поставив, а вибір видно в черзі ще до схвалення.',
   'settings.musicSeparateNote': 'Інакше заявка буде там, де медіа',
   'settings.youtubeAsMusicNote':
     'Найчастіше замовляють музику, а дані YouTube не відрізняють кліп від відео надійно. Вимкни — YouTube гратиме у великому плеєрі.',
@@ -1962,6 +1986,13 @@ export const uk: Dict = {
   'channel.firstSendHintCta': 'До магазину',
   'channel.voiceAuto': 'Голос: випадковий',
   'channel.voicePreview': 'Прослухати голос',
+  'channel.placement': 'Де з’явиться',
+  'channel.placementNote':
+    'Обери кут і розмір — або не чіпай, і відправка з’явиться так, як вирішив стример.',
+  'channel.placementYou': 'твоя відправка',
+  'channel.placementSize': 'Розмір: {n}%',
+  'channel.placementMargin': 'Відступ від краю: {n}%',
+  'channel.placementReset': 'Як у стримера',
   'channel.tooBig': 'Файл завеликий: ліміт каналу {mb} МБ',
   'channel.send': 'Надіслати на стрім',
   'channel.gifButton': 'Обрати GIF',
@@ -2181,6 +2212,8 @@ export const uk: Dict = {
   'dash.sliderVolume': 'Гучність: {n}%',
   'dash.layout': 'Розкладка оверлея',
   'dash.position': 'Позиція медіа',
+  'dash.allowViewerPosition': 'Глядач обирає місце',
+  'dash.viewerPlaced': 'Місце обрав відправник',
   'dash.sliderMediaSize': 'Розмір медіа: {n}%',
   'dash.sliderMusicSize': 'Розмір плеєра: {n}%',
   'dash.sliderMargin': 'Відступ від краю: {n}%',

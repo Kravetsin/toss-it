@@ -108,6 +108,9 @@ export async function makeSubmission(
     youtubeStart: 0,
     giphyId: null,
     ttsVoice: null,
+    overlayPosition: null,
+    overlaySize: null,
+    overlayMargin: null,
     isSelfSend: false,
     ...patch,
   };

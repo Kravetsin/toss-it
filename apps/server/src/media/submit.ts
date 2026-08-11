@@ -82,6 +82,10 @@ function buildYoutubeSubmission(input: YoutubeSubmissionInput): SubmissionRow {
     youtubeStart: input.parsed.startSeconds,
     giphyId: null,
     ttsVoice: null,
+    // Chat has no picker; the channel's own layout decides where this lands and how big it is.
+    overlayPosition: null,
+    overlaySize: null,
+    overlayMargin: null,
     isSelfSend: input.isSelfSend ?? false,
   };
   return row;
@@ -335,6 +339,9 @@ export async function submitChatText(
     // The channel's default voice: a redemption has no place to pick one, and the paid voices are
     // bought per account — a chatter who never signed in owns none.
     ttsVoice: null,
+    overlayPosition: null,
+    overlaySize: null,
+    overlayMargin: null,
     isSelfSend,
   };
   // Owed, not paid — same as `!play`: a line the streamer rejects, or one that expires unshown,

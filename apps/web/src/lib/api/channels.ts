@@ -4,6 +4,7 @@ import type {
   LeaderboardEntry,
   LeaderboardMetric,
   LeaderboardPeriod,
+  OverlayLayout,
   PublicChannelInfo,
   UploadResponse,
   ApiError,
@@ -38,8 +39,12 @@ export function uploadMediaWithProgress(
   file: File | null,
   text: string,
   onProgress: (value: number | null) => void,
-  giphyId?: string | null,
-  voice?: string | null,
+  extras: {
+    giphyId?: string | null;
+    voice?: string | null;
+    /** What the sender overrode of the channel's layout; empty = all of it stays the streamer's. */
+    layout?: Partial<OverlayLayout>;
+  } = {},
 ): Promise<UploadResponse> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -69,8 +74,12 @@ export function uploadMediaWithProgress(
     const fd = new FormData();
     if (file) fd.append('file', file);
     if (text.trim()) fd.append('text', text.trim());
-    if (giphyId) fd.append('giphyId', giphyId);
-    if (voice) fd.append('voice', voice);
+    if (extras.giphyId) fd.append('giphyId', extras.giphyId);
+    if (extras.voice) fd.append('voice', extras.voice);
+    const { position, size, margin } = extras.layout ?? {};
+    if (position) fd.append('position', position);
+    if (size != null) fd.append('size', String(size));
+    if (margin != null) fd.append('margin', String(margin));
     xhr.send(fd);
   });
 }

@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { ChannelSettings, MusicDisplay, OverlayPosition } from '@tmw/shared';
 import { useI18n } from '@/i18n';
-import { Switch } from '@/ui';
+import { LayoutPreview, PositionGrid, Slider, Switch } from '@/ui';
 import { Icon } from '@/ui/icons';
-import { LayoutPreview, PositionGrid, SaveRow, Slider } from './controls';
+import { SaveRow } from './controls';
 import { ChatBurstButton } from './ChatBurstButton';
 import { MusicDisplayChoice } from '../MusicDisplayChoice';
 
@@ -24,18 +24,22 @@ export function MediaLayoutSettings({
   const [margin, setMargin] = useState(settings.overlayMargin);
   const [ytAsMusic, setYtAsMusic] = useState(settings.youtubeAsMusic);
   const [parallel, setParallel] = useState(settings.parallelSlots);
+  const [viewerPos, setViewerPos] = useState(settings.allowViewerPosition);
   return (
     <div className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <span className="text-sm text-muted">{t('dash.position')}</span>
-          <PositionGrid value={position} onChange={setPosition} />
+          <div className="mt-1">
+            <PositionGrid value={position} onChange={setPosition} />
+          </div>
         </div>
         <LayoutPreview
           position={position}
           size={mediaSize}
           margin={margin}
           label={t('dash.previewMedia')}
+          caption={t('dash.preview')}
         />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
@@ -56,6 +60,15 @@ export function MediaLayoutSettings({
           onChange={setMargin}
         />
       </div>
+      {/* Right under the anchor it overrides: this is the one setting that can move a post away
+          from the corner chosen above, so it belongs next to that corner. */}
+      <Switch
+        icon="monitor"
+        label={t('dash.allowViewerPosition')}
+        description={t('settings.allowViewerPositionNote')}
+        checked={viewerPos}
+        onChange={setViewerPos}
+      />
       {/* Lives here, next to the big player, because it answers "what even lands in this one". */}
       <Switch
         icon="youtube"
@@ -88,6 +101,7 @@ export function MediaLayoutSettings({
             overlayPosition: position,
             overlaySize: mediaSize,
             overlayMargin: margin,
+            allowViewerPosition: viewerPos,
             youtubeAsMusic: ytAsMusic,
             parallelSlots: parallel,
           })
@@ -113,13 +127,16 @@ export function MusicSettings({ settings, onSave }: { settings: ChannelSettings;
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <span className="text-sm text-muted">{t('dash.positionShort')}</span>
-          <PositionGrid value={musicPos} onChange={setMusicPos} />
+          <div className="mt-1">
+            <PositionGrid value={musicPos} onChange={setMusicPos} />
+          </div>
         </div>
         <LayoutPreview
           position={musicPos}
           size={musicSize}
           margin={musicMargin}
           label={t('dash.previewMusic')}
+          caption={t('dash.preview')}
         />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">

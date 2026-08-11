@@ -187,6 +187,9 @@ export function ChannelPage() {
                 voice={sub.voice}
                 voices={channel.ttsEnabled ? sub.availableVoices : undefined}
                 onVoiceChange={sub.setVoice}
+                layout={sub.layout}
+                channelLayout={channel.overlayLayout}
+                onLayoutChange={channel.allowViewerPosition ? sub.setLayout : undefined}
                 onPickFile={sub.pickFile}
                 onRemoveFile={sub.removeFile}
                 onPickGif={sub.pickGif}

@@ -165,6 +165,7 @@ const MOCK_SETTINGS: ChannelSettings = {
   chatRoleBorders: true,
   overlayPosition: 'bottom-right',
   overlaySize: 40,
+  allowViewerPosition: true,
   overlayMargin: 5,
   youtubeAsMusic: true,
   parallelSlots: true,
@@ -574,6 +575,12 @@ function mockPublicChannel(login: string): PublicChannelInfo {
     autoApproveYoutube:
       MOCK_SETTINGS.autoApproveYoutubeMusic || MOCK_SETTINGS.autoApproveYoutubeVideo,
     ttsEnabled: true,
+    allowViewerPosition: true, // on by default here — otherwise the placement picker is unreachable
+    overlayLayout: {
+      position: MOCK_SETTINGS.overlayPosition,
+      size: MOCK_SETTINGS.overlaySize,
+      margin: MOCK_SETTINGS.overlayMargin,
+    },
     viewerLevel: 8,
     viewerXp: 34000, // between L8 (25600) and L9 (51200) — the hover reads 34000/51200
     isFounder: true,

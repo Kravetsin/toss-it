@@ -2,8 +2,7 @@ import { useState } from 'react';
 import type { ChannelSettings } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { useConfirm } from '@/providers/ConfirmProvider';
-import { Slider } from '@/features/dashboard/components/settings/controls';
-import { Card, Switch } from '@/ui';
+import { Card, Slider, Switch } from '@/ui';
 
 /** Moderation policy: bypass rules for trusted content (GIF / YouTube auto-approve). Saved instantly. */
 export function ModerationSettings({

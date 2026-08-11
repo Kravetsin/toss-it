@@ -8,9 +8,11 @@ import type { FastifyInstance } from 'fastify';
 import { fileTypeFromFile } from 'file-type';
 import {
   DUST_POINTS,
+  OVERLAY_POSITIONS,
   TEXT_MAX_LEN,
   ttsVoiceModule,
   type MediaKind,
+  type OverlayPosition,
   type TtsLang,
   type UploadResponse,
 } from '@tmw/shared';
@@ -62,6 +64,14 @@ export interface MediaRoutesDeps {
 
 /** Send dust for viewer + streamer — an EARNING, so it also lifts the lifetime-earned counter. */
 const addStardust = (userId: string, n: number): Promise<void> => creditDust(userId, n);
+
+/** A numeric multipart field, clamped; null for absent or unparseable — never an error. */
+function clampField(value: string | undefined, min: number, max: number): number | null {
+  if (value === undefined) return null;
+  const n = Number(value);
+  if (!Number.isFinite(n)) return null;
+  return Math.min(max, Math.max(min, Math.round(n)));
+}
 
 export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps): void {
   const { playback, storage, tmpDir, io } = deps;
@@ -170,6 +180,9 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
         let text: string | undefined;
         let giphyIdField: string | undefined;
         let voiceField: string | undefined;
+        let positionField: string | undefined;
+        let sizeField: string | undefined;
+        let marginField: string | undefined;
         for await (const part of req.parts()) {
           if (part.type === 'file') {
             if (hasFile) {
@@ -187,6 +200,12 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
             giphyIdField = part.value.trim() || undefined;
           } else if (part.fieldname === 'voice' && typeof part.value === 'string') {
             voiceField = part.value.trim() || undefined;
+          } else if (part.fieldname === 'position' && typeof part.value === 'string') {
+            positionField = part.value.trim() || undefined;
+          } else if (part.fieldname === 'size' && typeof part.value === 'string') {
+            sizeField = part.value.trim() || undefined;
+          } else if (part.fieldname === 'margin' && typeof part.value === 'string') {
+            marginField = part.value.trim() || undefined;
           }
         }
 
@@ -206,6 +225,19 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
           }
           ttsVoice = voice.id;
         }
+
+        // The layout the sender chose. Never an error: the toggle can flip (or the tab go stale)
+        // while the file is still uploading, and losing a whole send over a placement is a bad
+        // trade — each knob just falls back to the channel's own. resolveLayout checks the toggle
+        // again at play time, which is what makes turning it off retroactive for the queue.
+        const mayPlace = channel.allowViewerPosition;
+        const overlayPosition =
+          mayPlace && OVERLAY_POSITIONS.includes(positionField as OverlayPosition)
+            ? (positionField as OverlayPosition)
+            : null;
+        // Same bounds the streamer's own sliders clamp to (see the settings PATCH).
+        const overlaySize = mayPlace ? clampField(sizeField, 10, 100) : null;
+        const overlayMargin = mayPlace ? clampField(marginField, 0, 25) : null;
 
         // Keep full text to detect a YouTube link BEFORE truncating (a long
         // caption before the link could otherwise cut it off); caption is clipped.
@@ -406,6 +438,9 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
           youtubeStart,
           giphyId,
           ttsVoice,
+          overlayPosition,
+          overlaySize,
+          overlayMargin,
           isSelfSend: isOwner,
         };
         await db.insert(submissions).values(row);

@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import type { ChannelSettings } from '@tmw/shared';
 import { useI18n } from '@/i18n';
-import { Button, Card } from '@/ui';
-import { Slider } from './settings/controls';
+import { Button, Card, Slider } from '@/ui';
 
 /** What viewers may send: max video / image display time, audio length, file size. */
 export function SubmissionLimits({

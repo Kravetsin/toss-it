@@ -1,11 +1,21 @@
-import { TEXT_MAX_LEN, type TtsVoiceModule } from '@tmw/shared';
+import { TEXT_MAX_LEN, type OverlayLayout, type TtsVoiceModule } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { clock } from '@/lib/format';
 import { playVoicePreview } from '@/lib/voicePreview';
 import { captionBesideYoutube, youtubeIdFromText } from '@/lib/youtube';
 import { useShop } from '@/providers/ShopProvider';
 import { Icon } from '@/ui/icons';
-import { Accordion, Alert, Button, IconButton, Select, Textarea } from '@/ui';
+import {
+  Accordion,
+  Alert,
+  Button,
+  IconButton,
+  LayoutPreview,
+  PositionGrid,
+  Select,
+  Slider,
+  Textarea,
+} from '@/ui';
 import { FileDropzone } from './FileDropzone';
 import { SelectedFileCard } from './SelectedFileCard';
 import { YouTubePreview } from './YouTubePreview';
@@ -27,6 +37,9 @@ export function ComposeForm({
   voice = 'auto',
   voices,
   onVoiceChange,
+  layout = {},
+  channelLayout,
+  onLayoutChange,
   onPickFile,
   onRemoveFile,
   onPickGif,
@@ -52,6 +65,12 @@ export function ComposeForm({
   voice?: string;
   voices?: TtsVoiceModule[];
   onVoiceChange?: (id: string) => void;
+  /** What this send overrides of the channel's layout; empty = all of it stays the streamer's.
+   *  The picker renders only when the channel allows it (onLayoutChange given). */
+  layout?: Partial<OverlayLayout>;
+  /** The channel's own layout — where the sliders start when the sender hasn't moved them. */
+  channelLayout?: OverlayLayout;
+  onLayoutChange?: (next: Partial<OverlayLayout>) => void;
   onPickFile: (file: File | null) => void;
   onRemoveFile: () => void;
   onPickGif?: (gif: SelectedGif) => void;
@@ -65,6 +84,12 @@ export function ComposeForm({
   const cooling = cooldownSec > 0;
   // YouTube preview only for a text link with no file/gif selected.
   const ytId = file || gif ? null : youtubeIdFromText(text);
+  // Placement: every knob the sender hasn't touched shows the channel's own value, so an untouched
+  // slider states what will actually happen instead of a number nobody chose.
+  const touched = Object.keys(layout).length > 0;
+  const anchor = layout.position ?? channelLayout?.position;
+  const size = layout.size ?? channelLayout?.size ?? 80;
+  const margin = layout.margin ?? channelLayout?.margin ?? 0;
   // The server drops the caption when the media would air instantly but the words wouldn't — say so
   // now, because afterwards they are simply gone and it reads as the streamer ignoring them.
   const captionWillDrop =
@@ -184,6 +209,56 @@ export function ComposeForm({
             />
           )}
         </div>
+      )}
+
+      {/* Folded away on purpose: placement is a flourish, not a step on the way to sending. */}
+      {onLayoutChange && channelLayout && (
+        <Accordion title={t('channel.placement')} icon="monitor">
+          <div className="flex flex-col gap-3">
+            <span className="text-xs text-muted">{t('channel.placementNote')}</span>
+            {/* Grid and screen side by side, same as the streamer's settings: the preview is what
+                makes the knobs mean anything, but full-width it swallows the whole form. */}
+            <div className="flex items-start gap-3">
+              <PositionGrid
+                value={layout.position ?? null}
+                onChange={(p) => onLayoutChange({ ...layout, position: p })}
+              />
+              <div className="min-w-0 max-w-[280px] flex-1">
+                <LayoutPreview
+                  position={anchor ?? channelLayout.position}
+                  size={size}
+                  margin={margin}
+                  label={t('channel.placementYou')}
+                />
+              </div>
+            </div>
+            <Slider
+              icon="image"
+              label={t('channel.placementSize', { n: size })}
+              min={10}
+              max={100}
+              value={size}
+              onChange={(n) => onLayoutChange({ ...layout, size: n })}
+            />
+            {/* Margin is padding on the anchor's flex container, so on a centred anchor it moves
+                nothing — hide the slider rather than hand over a knob that does nothing. */}
+            {anchor !== 'center' && (
+              <Slider
+                icon="monitor"
+                label={t('channel.placementMargin', { n: margin })}
+                min={0}
+                max={25}
+                value={margin}
+                onChange={(n) => onLayoutChange({ ...layout, margin: n })}
+              />
+            )}
+            {touched && (
+              <Button variant="ghost" className="self-start" onClick={() => onLayoutChange({})}>
+                {t('channel.placementReset')}
+              </Button>
+            )}
+          </div>
+        </Accordion>
       )}
 
       <Button

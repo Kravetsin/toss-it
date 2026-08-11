@@ -22,7 +22,7 @@ import { useClipboard } from '@/hooks/useClipboard';
 import { useFidgetEnabled } from '@/hooks/useFidgetEnabled';
 import { disintegrate } from '@/lib/burst';
 import { Icon } from '@/ui/icons';
-import { IconButton } from '@/ui';
+import { IconButton, PositionMark } from '@/ui';
 import { PlatformIcon, SealMark, UserBadges } from '@/components/UserMarks';
 import { CardEffect } from '@/components/CardEffect';
 import { nickProps } from '@/lib/nick';
@@ -198,6 +198,15 @@ export function SubmissionCard({
               <RepChip rep={rep} />
               <PlatformIcon userId={s.senderUserId} size={13} />
               <UserBadges isFounder={rep?.isFounder} variant="icons" />
+              {/* The sender chose where this lands (and possibly how big) — the streamer approves
+                  the placement along with the content, rather than meeting it on stream. */}
+              {(s.overlayPosition || s.overlaySize != null) && (
+                <PositionMark
+                  position={s.overlayPosition ?? 'center'}
+                  size={s.overlaySize}
+                  title={t('dash.viewerPlaced')}
+                />
+              )}
               <span className="ml-auto shrink-0 whitespace-nowrap text-xs text-muted">
                 {formatTrackDuration(s.kind, s.durationMs, t)} ·{' '}
                 {new Date(s.createdAt).toLocaleTimeString()}
