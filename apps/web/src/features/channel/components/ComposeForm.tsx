@@ -1,4 +1,5 @@
 import {
+  giphyClipUrl,
   renderedMediaPct,
   TEXT_MAX_LEN,
   type OverlayLayout,
@@ -55,7 +56,7 @@ export function ComposeForm({
 }: {
   file: File | null;
   gif?: SelectedGif | null;
-  /** Channel setting: do safe GIFs bypass moderation here? Drives the picker copy and the notice. */
+  /** Channel setting: does Giphy media bypass moderation here? Drives the picker copy and notice. */
   gifAutoApprove?: boolean;
   /** Channel setting: may viewer text air unmoderated? false = a caption on an instant send is dropped. */
   textAutoApprove?: boolean;
@@ -117,7 +118,26 @@ export function ComposeForm({
       ) : gif ? (
         <div className="flex flex-col gap-2">
           <div className="relative overflow-hidden rounded-[var(--radius)] border border-border">
-            <img src={gif.previewUrl} alt={gif.title} className="max-h-56 w-full object-contain" />
+            {gif.kind === 'clip' ? (
+              // Real player, not the silent preview loop: this is where the sound is always
+              // reachable, whatever the browser thinks of autoplay in the picker's grid.
+              <video
+                src={giphyClipUrl(gif.id)}
+                poster={gif.previewUrl}
+                controls
+                loop
+                autoPlay
+                muted
+                playsInline
+                className="max-h-56 w-full object-contain"
+              />
+            ) : (
+              <img
+                src={gif.previewUrl}
+                alt={gif.title}
+                className="max-h-56 w-full object-contain"
+              />
+            )}
             <button
               type="button"
               aria-label={t('channel.gifRemove')}

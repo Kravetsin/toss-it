@@ -41,6 +41,8 @@ export function uploadMediaWithProgress(
   onProgress: (value: number | null) => void,
   extras: {
     giphyId?: string | null;
+    /** 'clip' routes the Giphy id through the video path (sound); anything else is a GIF/sticker. */
+    giphyKind?: 'gif' | 'clip';
     voice?: string | null;
     /** What the sender overrode of the channel's layout; empty = all of it stays the streamer's. */
     layout?: Partial<OverlayLayout>;
@@ -75,6 +77,7 @@ export function uploadMediaWithProgress(
     if (file) fd.append('file', file);
     if (text.trim()) fd.append('text', text.trim());
     if (extras.giphyId) fd.append('giphyId', extras.giphyId);
+    if (extras.giphyKind) fd.append('giphyKind', extras.giphyKind);
     if (extras.voice) fd.append('voice', extras.voice);
     const { position, size, margin } = extras.layout ?? {};
     if (position) fd.append('position', position);
@@ -91,12 +94,18 @@ export function uploadMediaWithProgress(
  */
 export function sendTestPost(
   login: string,
-  payload: { file?: File | null; text?: string; giphyId?: string | null },
+  payload: {
+    file?: File | null;
+    text?: string;
+    giphyId?: string | null;
+    giphyKind?: 'gif' | 'clip';
+  },
 ): Promise<UploadResponse> {
   const fd = new FormData();
   if (payload.file) fd.append('file', payload.file);
   if (payload.text?.trim()) fd.append('text', payload.text.trim());
   if (payload.giphyId) fd.append('giphyId', payload.giphyId);
+  if (payload.giphyKind) fd.append('giphyKind', payload.giphyKind);
   return fetch(`/api/c/${encodeURIComponent(login)}/upload`, { method: 'POST', body: fd }).then(
     (r) => json<UploadResponse>(r),
   );

@@ -28,6 +28,8 @@ export interface SelectedGif {
   id: string;
   previewUrl: string;
   title: string;
+  /** 'clip' = a Giphy clip: real video with sound, so it airs through the video path. */
+  kind: 'gif' | 'clip';
 }
 
 /**
@@ -128,6 +130,7 @@ export function useMediaSubmission(
         (progress) => setPhase({ name: 'uploading', progress }),
         {
           giphyId: gif?.id,
+          giphyKind: gif?.kind,
           voice: voice === 'auto' ? null : voice,
           // Dropped server-side if the channel stopped allowing it — no reason to check here too.
           layout: channel?.allowViewerPosition ? layout : {},

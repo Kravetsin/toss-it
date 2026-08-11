@@ -4,7 +4,15 @@
  * video the repo already carries for the dev mock.
  */
 
-export const TEST_POST_KINDS = ['text', 'image', 'video', 'audio', 'youtube', 'gif'] as const;
+export const TEST_POST_KINDS = [
+  'text',
+  'image',
+  'video',
+  'audio',
+  'youtube',
+  'gif',
+  'clip',
+] as const;
 export type TestPostKind = (typeof TEST_POST_KINDS)[number];
 
 /** What a test of this kind sends to the real upload endpoint. */
@@ -12,6 +20,7 @@ export interface TestPayload {
   file?: File;
   text?: string;
   giphyId?: string;
+  giphyKind?: 'gif' | 'clip';
 }
 
 /** Long enough to hear the voice and judge the volume, short enough not to hold the stage. */
@@ -22,6 +31,8 @@ const TEST_CAPTION = 'тестовая подпись';
 const TEST_YOUTUBE = 'https://www.youtube.com/watch?v=aqz-KE-bpKQ';
 /** Giphy's own "hello" GIF — a stable, always-available id. */
 const TEST_GIPHY_ID = 'l0MYt5jPR6QX5pnqM';
+/** A G-rated South Park clip (~6 s) from Giphy's verified channel — the point is to hear the sound. */
+const TEST_GIPHY_CLIP_ID = 'mqq4jr945FSRG8LXLz';
 
 /** Test card: the grid and the corner ticks make it obvious where the media edges land in OBS. */
 async function testCardPng(): Promise<File> {
@@ -133,5 +144,7 @@ export async function buildTestPayload(kind: TestPostKind): Promise<TestPayload>
       return { text: TEST_YOUTUBE };
     case 'gif':
       return { giphyId: TEST_GIPHY_ID, text: TEST_CAPTION };
+    case 'clip':
+      return { giphyId: TEST_GIPHY_CLIP_ID, giphyKind: 'clip', text: TEST_CAPTION };
   }
 }

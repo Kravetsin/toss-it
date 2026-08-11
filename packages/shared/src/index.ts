@@ -13,6 +13,23 @@ export function giphyGifUrl(id: string, rendition = 'giphy.gif'): string {
   return `https://media.giphy.com/media/${id}/${rendition}`;
 }
 
+/**
+ * Renditions to try for a Giphy clip, best first — which ones exist varies per clip (360p always
+ * does, 480p/720p often 404), so a player walks the list on error. `giphy.mp4` is NOT here on
+ * purpose: for a clip it is the silent gif-style mp4, and a clip is meant to play with its sound.
+ */
+export const GIPHY_CLIP_RENDITIONS = ['giphy720p.mp4', 'giphy480p.mp4', 'giphy360p.mp4'] as const;
+
+/** Clip URLs, best rendition first — see GIPHY_CLIP_RENDITIONS. For a player that can retry. */
+export function giphyClipUrls(id: string): string[] {
+  return GIPHY_CLIP_RENDITIONS.map((r) => giphyGifUrl(id, r));
+}
+
+/** The one clip rendition every clip has — for previews, which get no second try. */
+export function giphyClipUrl(id: string): string {
+  return giphyGifUrl(id, 'giphy360p.mp4');
+}
+
 /** Max message/caption length; validated on both client and server. */
 export const TEXT_MAX_LEN = 280;
 
@@ -720,7 +737,7 @@ export interface ChannelSettings {
   autoApproveYoutubeVideo: boolean;
   /** With auto-approve on, YouTube longer than this (minutes, 1–10) falls to moderation. */
   youtubeAutoMaxMinutes: number;
-  /** Streamer opt-in: GIFs with a safe Giphy rating skip moderation (risky ones still queue). */
+  /** Streamer opt-in: anything from Giphy (GIF, sticker, clip) skips moderation — see the schema. */
   autoApproveGifs: boolean;
   /**
    * Streamer opt-in: text the viewer wrote skips moderation. While off, a caption attached to an
@@ -984,7 +1001,7 @@ export interface PublicChannelInfo {
   maxDurationMs: number;
   maxAudioDurationMs: number;
   maxFileSizeBytes: number;
-  /** Whether safe-rated GIFs skip moderation here — viewer page shows honest "instant vs review" copy. */
+  /** Whether Giphy media skips moderation here — viewer page shows honest "instant vs review" copy. */
   autoApproveGifs: boolean;
   /** Whether viewer-written text skips moderation; false = a caption on an instant send is dropped. */
   autoApproveText: boolean;
@@ -1282,6 +1299,7 @@ export interface DirectoryChannel {
   maxDurationMs: number;
   maxAudioDurationMs: number;
   maxFileSizeBytes: number;
+  /** Giphy media (GIF/sticker/clip) airs here without review — see ChannelSettings. */
   autoApproveGifs: boolean;
   autoApproveText: boolean;
   autoApproveYoutube: boolean;

@@ -179,6 +179,7 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
         let originalName = 'unknown';
         let text: string | undefined;
         let giphyIdField: string | undefined;
+        let giphyIsClip = false;
         let voiceField: string | undefined;
         let positionField: string | undefined;
         let sizeField: string | undefined;
@@ -198,6 +199,9 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
             text = part.value;
           } else if (part.fieldname === 'giphyId' && typeof part.value === 'string') {
             giphyIdField = part.value.trim() || undefined;
+          } else if (part.fieldname === 'giphyKind' && typeof part.value === 'string') {
+            // Only 'clip' matters: a sticker is a GIF in every way that reaches the overlay.
+            giphyIsClip = part.value.trim() === 'clip';
           } else if (part.fieldname === 'voice' && typeof part.value === 'string') {
             voiceField = part.value.trim() || undefined;
           } else if (part.fieldname === 'position' && typeof part.value === 'string') {
@@ -340,16 +344,25 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
           filePath = `${channel.id}/${id}.${outExt}`;
           await storage.putFile(filePath, finalTmp);
         } else if (giphyIdField) {
-          // GIF: nothing stored; keep the Giphy id, overlay renders from Giphy's CDN.
+          // GIF/sticker/clip: nothing stored; keep the Giphy id, overlay renders from Giphy's CDN.
           // Format check only — content is always Giphy-hosted (its own moderation is the gate).
           if (!isGiphyId(giphyIdField)) {
             return reply.code(422).send({ error: 'Некорректная GIF-ссылка' });
           }
-          kind = 'gif';
-          outMime = 'image/gif';
           giphyId = giphyIdField;
-          // GIFs loop briefly like images; reuse the image display window.
-          durationMs = channel.imageDurationMs;
+          if (giphyIsClip) {
+            // A clip is real video with sound, so it takes the video path — the overlay just reads
+            // its source off the CDN instead of /api/media. Length is unknown here (the Clips API
+            // reports none), so 0 means "ends on its own event", exactly like a YouTube post.
+            kind = 'video';
+            outMime = 'video/mp4';
+            durationMs = 0;
+          } else {
+            kind = 'gif';
+            outMime = 'image/gif';
+            // GIFs loop briefly like images; reuse the image display window.
+            durationMs = channel.imageDurationMs;
+          }
         } else {
           const yt = parseYoutube(fullText!);
           if (yt) {
@@ -400,12 +413,14 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
               .from(whitelist)
               .where(and(eq(whitelist.channelId, channel.id), eq(whitelist.userId, user.id)))
               .get()) !== undefined;
-        // Opt-in bypasses: YouTube (per music/video, decided above), GIFs (source-moderated) and
-        // plain text. Text is its own axis because it rides along with every other kind.
+        // Opt-in bypasses: YouTube (per music/video, decided above), anything from Giphy and plain
+        // text. One flag covers every Giphy library — GIF, sticker and clip — because what vouches
+        // for them is the same thing: Giphy's own moderation. `kind === 'gif'` stays beside it for
+        // plain .gif UPLOADS, which have always ridden this flag too.
         const autoApproved =
           whitelisted ||
           ytAutoApprove ||
-          (kind === 'gif' && channel.autoApproveGifs) ||
+          ((kind === 'gif' || giphyId !== null) && channel.autoApproveGifs) ||
           (kind === 'text' && channel.autoApproveText);
         // A link keeps its title when the caption goes — that text is YouTube's, not the viewer's.
         const captionDropped =

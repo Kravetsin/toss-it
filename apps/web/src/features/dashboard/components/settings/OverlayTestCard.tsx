@@ -13,6 +13,7 @@ const KIND_LABEL: Record<TestPostKind, string> = {
   audio: 'dash.testKindAudio',
   youtube: 'dash.testKindYoutube',
   gif: 'dash.testKindGif',
+  clip: 'dash.testKindClip',
 };
 
 /**

@@ -1,4 +1,4 @@
-import { giphyGifUrl, type SubmissionSummary } from '@tmw/shared';
+import { giphyClipUrl, giphyGifUrl, type SubmissionSummary } from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { LinkedText } from '@/ui';
 import { AudioPlayer, ImageFrame, VideoThumb, YouTubeFrame } from '@/ui/media';
@@ -23,7 +23,8 @@ export function SubmissionPreview({ s }: { s: SubmissionSummary }) {
       ) : null
     ) : s.kind === 'video' ? (
       <VideoThumb
-        src={s.url}
+        // A Giphy clip has no stored file — it plays straight from Giphy's CDN.
+        src={s.giphyId ? giphyClipUrl(s.giphyId) : s.url}
         durationHintSec={hint}
         size="queue"
         label={label}

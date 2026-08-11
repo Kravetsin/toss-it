@@ -15,7 +15,8 @@ export function SubmissionThumb({ s }: { s: SubmissionSummary }) {
       ? s.url
       : !imgError && s.kind === 'youtube' && s.youtubeId
         ? youtubeThumbnail(s.youtubeId)
-        : !imgError && s.kind === 'gif' && s.giphyId
+        : // Clips carry the same gif renditions as GIFs, so one branch covers both.
+          !imgError && s.giphyId
           ? giphyGifUrl(s.giphyId, '200w.gif')
           : null;
 
@@ -28,7 +29,7 @@ export function SubmissionThumb({ s }: { s: SubmissionSummary }) {
           onError={() => setImgError(true)}
           className="h-full w-full object-cover"
         />
-        {s.kind === 'youtube' && (
+        {(s.kind === 'youtube' || (s.kind === 'video' && s.giphyId)) && (
           <span className="absolute grid size-6 place-items-center bg-bg/70 text-text">
             <Icon name="play" size={14} />
           </span>

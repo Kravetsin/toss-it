@@ -100,7 +100,9 @@ export const channels = sqliteTable('channels', {
   // With auto-approve on, YouTube links this long or shorter air automatically; longer ones fall to
   // moderation instead (a viewer-requested 1h video shouldn't auto-play). Minutes; 1–10.
   youtubeAutoMaxMinutes: integer('youtube_auto_max_minutes').notNull().default(10),
-  // Streamer opt-in (default on): GIFs with a safe Giphy rating bypass moderation.
+  // Streamer opt-in (default on): anything picked from Giphy — GIF, sticker or clip — bypasses
+  // moderation, because what vouches for all three is the same thing: Giphy's own moderation.
+  // Historical column name; it also still covers plain .gif uploads, as it always did.
   autoApproveGifs: integer('auto_approve_gifs', { mode: 'boolean' }).notNull().default(true),
   // Streamer opt-in: text the viewer wrote themselves bypasses moderation. Off by default — every
   // other bypass leans on someone vouching for the content (Giphy's rating, YouTube's own

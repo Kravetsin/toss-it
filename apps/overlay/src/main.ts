@@ -12,6 +12,7 @@ import {
   frameEffectClass,
   sealEffectClass,
   sealMarkup,
+  giphyClipUrls,
   giphyGifUrl,
   injectCosmeticsStyles,
   injectLevelStyles,
@@ -630,15 +631,31 @@ function createMediaElement(sh: ShowState, payload: MediaPlayPayload, url: strin
   if (payload.kind === 'video') {
     const video = document.createElement('video');
     markNaturalSize(video);
-    video.src = url;
     video.autoplay = true;
     video.volume = volume;
     video.addEventListener('ended', () => finish(sh));
-    // OBS allows autoplay with sound; browsers may block it — retry muted.
-    video.play().catch(() => {
-      video.muted = true;
-      void video.play();
+    const start = () => {
+      // OBS allows autoplay with sound; browsers may block it — retry muted.
+      video.play().catch(() => {
+        video.muted = true;
+        void video.play();
+      });
+    };
+    // A Giphy clip has no stored file: it streams from Giphy's CDN, and which rendition exists
+    // varies per clip (see GIPHY_CLIP_RENDITIONS), so walk down the list on error before giving up.
+    const sources = payload.giphyId ? giphyClipUrls(payload.giphyId) : [url];
+    let next = 0;
+    const load = () => {
+      video.src = sources[next++]!;
+      start();
+    };
+    video.addEventListener('error', () => {
+      if (next < sources.length) return load();
+      // Out of renditions: report it now, like the YouTube player does on its own error. A clip
+      // carries no durationMs, so nothing else would free the slot before the server's watchdog.
+      finish(sh, 'error');
     });
+    load();
     return video;
   }
 

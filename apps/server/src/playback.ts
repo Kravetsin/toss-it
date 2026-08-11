@@ -873,9 +873,14 @@ export class PlaybackManager {
         .from(submissions)
         .where(eq(submissions.id, candidate.id))
         .get();
-      // Text, YouTube and GIF have no on-disk file (filePath=null) — that's normal for them
-      // (GIF/YouTube render from a remote CDN, text has no media). Don't drop them as "fileless".
-      const fileless = fresh?.kind === 'text' || fresh?.kind === 'youtube' || fresh?.kind === 'gif';
+      // Text, YouTube and anything Giphy-hosted have no on-disk file (filePath=null) — that's normal
+      // for them (Giphy/YouTube render from a remote CDN, text has no media). A Giphy clip counts
+      // here too: it is kind='video' with no stored file, so the giphyId is what makes it playable.
+      const fileless =
+        fresh?.kind === 'text' ||
+        fresh?.kind === 'youtube' ||
+        fresh?.kind === 'gif' ||
+        !!fresh?.giphyId;
       if (!fresh || fresh.status !== 'approved' || (!fresh.filePath && !fileless)) continue;
       // Another tryNext call may have taken this slot during the DB round-trip.
       if (sl.current) {

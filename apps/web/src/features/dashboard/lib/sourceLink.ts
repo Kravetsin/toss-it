@@ -1,4 +1,4 @@
-import { giphyGifUrl, type SubmissionSummary } from '@tmw/shared';
+import { giphyClipUrl, giphyGifUrl, type SubmissionSummary } from '@tmw/shared';
 
 /** mime subtype → the extension people expect to see on disk. */
 const EXT: Record<string, string> = {
@@ -19,6 +19,8 @@ export function sourceLink(s: SubmissionSummary): { href: string; download?: str
   if (s.kind === 'youtube') return s.youtubeId ? { href: `https://youtu.be/${s.youtubeId}` } : null;
   // A gif is either a Giphy pick (no file of ours) or a plain uploaded .gif — fall through for the latter.
   if (s.kind === 'gif' && s.giphyId) return { href: giphyGifUrl(s.giphyId) };
+  // Same for video: a Giphy clip has no file of ours, so it opens on their CDN.
+  if (s.kind === 'video' && s.giphyId) return { href: giphyClipUrl(s.giphyId) };
   const subtype = s.mime.split('/')[1] ?? '';
   const ext = EXT[subtype] ?? subtype.replace(/[^a-z0-9]/gi, '');
   return { href: s.url, download: `tossit-${s.id}${ext ? `.${ext}` : ''}` };
