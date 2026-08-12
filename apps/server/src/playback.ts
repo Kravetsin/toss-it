@@ -183,7 +183,7 @@ export async function equippedMarksFor(
     .all();
   for (const r of rows) {
     const e = r.equipped;
-    if (e?.nickColor || e?.nickEffect || e?.cardEffect || e?.frame || e?.entrance)
+    if (e?.nickColor || e?.nickEffect || e?.cardEffect || e?.frame || e?.seal || e?.entrance)
       out.set(r.id, marksFromEquipped(e));
     // nickColor2 needs no check of its own: it is only ever set alongside nickColor.
   }
@@ -1085,6 +1085,8 @@ export class PlaybackManager {
       senderCardEffect: marks.cardEffect ?? undefined,
       senderCardEffectColor: marks.cardEffectColor ?? undefined,
       senderFrame: marks.frame ?? undefined,
+      senderSeal: marks.seal ?? undefined,
+      senderSealColor: marks.sealColor ?? undefined,
       senderEntrance: marks.entrance ?? undefined,
       senderEntranceColor: marks.entranceColor ?? undefined,
       senderLevel: senderLevel || undefined,
