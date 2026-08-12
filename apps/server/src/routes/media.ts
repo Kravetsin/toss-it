@@ -3,7 +3,7 @@ import fsp from 'node:fs/promises';
 import path from 'node:path';
 import { createWriteStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
-import { and, count, desc, eq, gt } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { fileTypeFromFile } from 'file-type';
 import {
@@ -20,7 +20,6 @@ import { db } from '../db/index';
 import {
   bans,
   channels,
-  excludeSelfSends,
   submissions,
   userCosmetics,
   users,
@@ -42,7 +41,7 @@ import {
   YT_MUSIC_CATEGORY_ID,
 } from '../media/youtube';
 import { isGiphyId } from '../media/giphy';
-import { dropsCaption, textDurationMs } from '../media/submit';
+import { dropsCaption, hourlyBucketFull, textDurationMs } from '../media/submit';
 import { isAdmin, requireUser } from '../auth';
 import { speakableText, synthesize } from '../tts';
 import {
@@ -64,6 +63,16 @@ export interface MediaRoutesDeps {
 
 /** Send dust for viewer + streamer — an EARNING, so it also lifts the lifetime-earned counter. */
 const addStardust = (userId: string, n: number): Promise<void> => creditDust(userId, n);
+
+/** 429 body for a full hourly bucket, worded so the viewer knows WHICH budget ran out. */
+function hourlyFullError(kind: MediaKind): { error: string } {
+  return {
+    error:
+      kind === 'text'
+        ? 'Канал получил слишком много текстовых отправок за час'
+        : 'Канал получил слишком много отправок за час',
+  };
+}
 
 /** A numeric multipart field, clamped; null for absent or unparseable — never an error. */
 function clampField(value: string | undefined, min: number, max: number): number | null {
@@ -151,22 +160,6 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
             code: 'cooldown',
             retryAfterSec: waitS,
           });
-        }
-
-        const hourly = await db
-          .select({ n: count() })
-          .from(submissions)
-          .where(
-            and(
-              eq(submissions.channelId, channel.id),
-              gt(submissions.createdAt, new Date(Date.now() - 3_600_000)),
-              // The owner's own tests must not eat the viewers' hourly budget.
-              excludeSelfSends,
-            ),
-          )
-          .get();
-        if ((hourly?.n ?? 0) >= config.moderation.channelHourlyLimit) {
-          return reply.code(429).send({ error: 'Канал получил слишком много отправок за час' });
         }
       }
 
@@ -291,6 +284,11 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
             });
           }
           kind = detectedKind;
+          // The hourly ceiling can only be checked once the kind is known (text has its own
+          // budget) — for a file that means right here, before the transcode it would pay for.
+          if (!isOwner && (await hourlyBucketFull(channel.id, kind))) {
+            return reply.code(429).send(hourlyFullError(kind));
+          }
 
           // Re-encode everything to predictable formats (webp/mp4/mp3): one pass
           // trims duration and strips exotic codecs and metadata.
@@ -403,6 +401,11 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaRoutesDeps)
             outMime = 'text/plain';
             durationMs = textDurationMs(text!);
           }
+        }
+
+        // Same ceiling for the file-less kinds (text/gif/YouTube) — their bucket is only known here.
+        if (!hasFile && !isOwner && (await hourlyBucketFull(channel.id, kind))) {
+          return reply.code(429).send(hourlyFullError(kind));
         }
 
         // Hybrid moderation: owner and whitelist go straight to screen, rest pending.

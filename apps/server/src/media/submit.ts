@@ -1,15 +1,17 @@
 import crypto from 'node:crypto';
-import { and, eq } from 'drizzle-orm';
-import { CHANNEL_POINTS, CHAT_TEXT_MAX_LEN } from '@tmw/shared';
+import { and, count, eq, gt, ne } from 'drizzle-orm';
+import { CHANNEL_POINTS, CHAT_TEXT_MAX_LEN, type MediaKind } from '@tmw/shared';
 import { db } from '../db/index';
 import {
   channels,
+  excludeSelfSends,
   linkedIdentities,
   submissionPayouts,
   submissions,
   whitelist,
   type SubmissionRow,
 } from '../db/schema';
+import { config } from '../config';
 import {
   dashboardRoomOf,
   toLiveSummary,
@@ -103,6 +105,32 @@ async function routeSubmission(
     deps.io.to(dashboardRoomOf(row.channelId)).emit('moderation:new', await toLiveSummary(row));
   }
   return row;
+}
+
+/**
+ * Has this channel's hourly ceiling for `kind`'s bucket been reached? Text is counted apart from
+ * everything else and has its own, much larger budget — see config.moderation. Lives here rather
+ * than in each door so a new one cannot quietly become the cheap way past the limit.
+ */
+export async function hourlyBucketFull(channelId: string, kind: MediaKind): Promise<boolean> {
+  const isText = kind === 'text';
+  const row = await db
+    .select({ n: count() })
+    .from(submissions)
+    .where(
+      and(
+        eq(submissions.channelId, channelId),
+        gt(submissions.createdAt, new Date(Date.now() - 3_600_000)),
+        isText ? eq(submissions.kind, 'text') : ne(submissions.kind, 'text'),
+        // The owner's own tests must not eat the viewers' hourly budget.
+        excludeSelfSends,
+      ),
+    )
+    .get();
+  const limit = isText
+    ? config.moderation.channelHourlyLimitText
+    : config.moderation.channelHourlyLimit;
+  return (row?.n ?? 0) >= limit;
 }
 
 /**

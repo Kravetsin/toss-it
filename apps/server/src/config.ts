@@ -101,8 +101,14 @@ export const config = {
   moderation: {
     /** Min interval between one viewer's sends to one channel. */
     viewerCooldownMs: Number(process.env.VIEWER_COOLDOWN_MS ?? 60_000),
-    /** Max accepted sends per channel per hour. */
+    /** Max accepted sends per channel per hour — everything except text (see channelHourlyLimitText). */
     channelHourlyLimit: Number(process.env.CHANNEL_HOURLY_LIMIT ?? 60),
+    /**
+     * Text gets its own, far larger hourly budget: a line costs no transcode, no disk and a few
+     * seconds of stage, so the number that keeps a raid off a channel's screen is absurdly low for
+     * chat lines. Counted apart, so a busy `!tts` hour cannot starve the file/YouTube budget.
+     */
+    channelHourlyLimitText: Number(process.env.CHANNEL_HOURLY_LIMIT_TEXT ?? 200),
   },
 
   cleanup: {

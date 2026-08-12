@@ -2,12 +2,26 @@ import crypto from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { CHANNEL_POINTS, CHAT_TEXT_MAX_LEN } from '@tmw/shared';
-import { fakeIo, makeChannel } from '../../test/fakes';
+import { fakeIo, makeChannel, makeSubmission } from '../../test/fakes';
+import { config } from '../config';
 import { db } from '../db/index';
-import { linkedIdentities, submissionPayouts, submissions, users, whitelist } from '../db/schema';
+import {
+  linkedIdentities,
+  submissionPayouts,
+  submissions,
+  users,
+  whitelist,
+  type SubmissionRow,
+} from '../db/schema';
 import { PlaybackManager } from '../playback';
 import { parseYoutube } from './youtube';
-import { acceptsSends, dropsCaption, submitChatText, submitResolvedYoutube } from './submit';
+import {
+  acceptsSends,
+  dropsCaption,
+  hourlyBucketFull,
+  submitChatText,
+  submitResolvedYoutube,
+} from './submit';
 
 /**
  * The caption rule decides what a viewer's own words are allowed to do, so each case here is one a
@@ -80,6 +94,54 @@ describe('acceptsSends', () => {
   it('still lets the broadcaster through — the switch is aimed at viewers', async () => {
     const id = await makeChannel({ accepting: false });
     expect(await acceptsSends(id, 'tw_owner', 'tw_owner')).toBe(true);
+  });
+});
+
+/**
+ * The hourly ceiling, counted per bucket. Text is the cheap door (`!tts`, a line on a card), so a
+ * busy hour of it must not close the channel to files and links — nor the other way round.
+ */
+describe('hourlyBucketFull', () => {
+  const fill = async (id: string, n: number, patch: Partial<SubmissionRow>): Promise<void> => {
+    for (let i = 0; i < n; i++) await makeSubmission(id, patch);
+  };
+  const textRow: Partial<SubmissionRow> = { kind: 'text', mime: 'text/plain', filePath: null };
+
+  it('leaves the text budget untouched when the media one is spent', async () => {
+    const id = await makeChannel();
+    await fill(id, config.moderation.channelHourlyLimit, {});
+    expect(await hourlyBucketFull(id, 'image')).toBe(true);
+    expect(await hourlyBucketFull(id, 'text')).toBe(false);
+  });
+
+  it('closes text only on its own, much larger budget', async () => {
+    const id = await makeChannel();
+    await fill(id, config.moderation.channelHourlyLimit, textRow);
+    expect(await hourlyBucketFull(id, 'text')).toBe(false);
+    await fill(
+      id,
+      config.moderation.channelHourlyLimitText - config.moderation.channelHourlyLimit,
+      {
+        ...textRow,
+      },
+    );
+    expect(await hourlyBucketFull(id, 'text')).toBe(true);
+    expect(await hourlyBucketFull(id, 'image')).toBe(false);
+  });
+
+  // The dashboard's "test send" button would otherwise spend the viewers' budget for them.
+  it("ignores the owner's own test sends", async () => {
+    const id = await makeChannel();
+    await fill(id, config.moderation.channelHourlyLimit, { isSelfSend: true });
+    expect(await hourlyBucketFull(id, 'image')).toBe(false);
+  });
+
+  // An hour is a sliding window, so yesterday's flood must not still be holding the door shut.
+  it('forgets sends older than the hour', async () => {
+    const id = await makeChannel();
+    const old = new Date(Date.now() - 3_700_000);
+    await fill(id, config.moderation.channelHourlyLimit, { createdAt: old });
+    expect(await hourlyBucketFull(id, 'image')).toBe(false);
   });
 });
 

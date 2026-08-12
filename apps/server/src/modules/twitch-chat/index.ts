@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gt, or, sql } from 'drizzle-orm';
+import { and, desc, eq, or, sql } from 'drizzle-orm';
 import type { FastifyBaseLogger } from 'fastify';
 import {
   CHAT_TEXT_MAX_LEN,
@@ -9,6 +9,7 @@ import {
   type ChatFragment,
   type EquippedCosmetics,
   type LiveViewer,
+  type MediaKind,
 } from '@tmw/shared';
 import { db } from '../../db/index';
 import {
@@ -24,6 +25,7 @@ import { config } from '../../config';
 import { roomOf, type PlaybackManager, type QueueState, type RealtimeServer } from '../../playback';
 import {
   acceptsSends,
+  hourlyBucketFull,
   resolvePlayableYoutube,
   submitChatText,
   submitResolvedYoutube,
@@ -242,14 +244,15 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
 
   /**
    * Every gate a send passes, whichever door it came through: the channel's own pause switch, the
-   * per-viewer cooldown and the hourly ceiling (the latter two from config.moderation, matched to
-   * what media.ts enforces). Null = clear to send. Shared by the chat commands so a second one
+   * per-viewer cooldown and the hourly ceiling for `kind`'s bucket (the latter shared with the web
+   * path via hourlyBucketFull). Null = clear to send. Shared by the chat commands so a second one
    * cannot quietly become the cheap way past the first one's limits.
    */
   async function submitLimits(
     channelId: string,
     broadcasterId: string,
     twitchId: string,
+    kind: MediaKind,
   ): Promise<
     { kind: 'ratelimited'; waitS: number } | { kind: 'channelFull' } | { kind: 'paused' } | null
   > {
@@ -282,19 +285,8 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
       if (elapsed < cd) return { kind: 'ratelimited', waitS: Math.ceil((cd - elapsed) / 1000) };
     }
 
-    // Flood/raid backstop, same as the web path (owner tests excluded).
-    const hourly = await db
-      .select({ n: count() })
-      .from(submissions)
-      .where(
-        and(
-          eq(submissions.channelId, channelId),
-          gt(submissions.createdAt, new Date(Date.now() - 3_600_000)),
-          excludeSelfSends,
-        ),
-      )
-      .get();
-    if ((hourly?.n ?? 0) >= config.moderation.channelHourlyLimit) return { kind: 'channelFull' };
+    // Flood/raid backstop, same as the web path (owner tests excluded, text on its own budget).
+    if (await hourlyBucketFull(channelId, kind)) return { kind: 'channelFull' };
     return null;
   }
 
@@ -308,7 +300,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     const broadcasterId = broadcasterOf(input.channelId);
     if (!broadcasterId) return { kind: 'disabled' }; // not a channel we currently serve
 
-    const limited = await submitLimits(input.channelId, broadcasterId, input.twitchId);
+    const limited = await submitLimits(input.channelId, broadcasterId, input.twitchId, 'youtube');
     if (limited) return limited;
 
     const resolved = await resolvePlayableYoutube(input.link);
@@ -345,7 +337,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
       return { kind: 'tooLong', max: CHAT_TEXT_MAX_LEN };
     }
 
-    const limited = await submitLimits(input.channelId, broadcasterId, input.twitchId);
+    const limited = await submitLimits(input.channelId, broadcasterId, input.twitchId, 'text');
     if (limited) return limited;
 
     const { autoApproved } = await submitChatText(
