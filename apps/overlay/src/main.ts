@@ -152,6 +152,12 @@ interface ShowState {
   progressTimer: number | undefined;
   /** TTS is speaking right now — ducks the other slot for the speech only. */
   speaking: boolean;
+  /** The speech playing right now. Detached from the DOM, so clearing the stage cannot stop it —
+   *  this handle is the only way, and without it a skipped post kept talking over the next one. */
+  speechEl: HTMLAudioElement | null;
+  /** Bumped whenever a show ends or is replaced: the name→message chain checks it before starting
+   *  the next part, so a skip mid-name does not let the message follow it out. */
+  speechRun: number;
   /** Held silent by a sounded post in the other slot. Deliberately separate from `paused`, which is
    *  the streamer's own decision — conflating the two made ducking undo the pause button. */
   ducked: boolean;
@@ -184,6 +190,8 @@ const newShow = (el: HTMLElement): ShowState => ({
   timedStartTs: 0,
   progressTimer: undefined,
   speaking: false,
+  speechEl: null,
+  speechRun: 0,
   ducked: false,
 });
 
@@ -553,6 +561,8 @@ function emitProgress(sh: ShowState): void {
 function pausePlayback(sh: ShowState): void {
   if (sh.paused || !sh.currentId) return;
   sh.paused = true;
+  // Speech runs beside the post, not through it — every branch below has to leave it silent too.
+  sh.speechEl?.pause();
   if (sh.mediaEl) sh.mediaEl.pause();
   else if (sh.kind === 'youtube') sh.ytPlayer?.pauseVideo();
   else if (sh.timedDurationMs > 0 && sh.hideTimer !== undefined) {
@@ -567,6 +577,7 @@ function pausePlayback(sh: ShowState): void {
 function resumePlayback(sh: ShowState): void {
   if (!sh.paused || !sh.currentId) return;
   sh.paused = false;
+  void sh.speechEl?.play().catch(() => {});
   if (sh.mediaEl) void sh.mediaEl.play().catch(() => {});
   else if (sh.kind === 'youtube') sh.ytPlayer?.playVideo();
   else if (sh.timedDurationMs > 0) {
@@ -1447,16 +1458,22 @@ function scheduleSpeech(sh: ShowState, payload: MediaPlayPayload): void {
   if (payload.ttsText) parts.push('message');
   if (parts.length === 0) return;
 
+  // Anything still speaking for a previous post loses the slot to this one.
+  stopSpeech(sh);
+  const run = sh.speechRun;
   let i = 0;
   const next = () => {
+    // The show was skipped (or replaced) mid-sentence — the rest of it must not follow it out.
+    if (run !== sh.speechRun) return;
     const part = parts[i++];
     if (!part) {
       // Speech over — the song in the other slot can come back up.
       sh.speaking = false;
+      sh.speechEl = null;
       updateSlotDucking();
       return;
     }
-    speak(payload.submissionId, part, payload.volume, next);
+    speak(sh, payload.submissionId, part, payload.volume, next);
   };
   // Ducked for the speech only, not for the whole show: a two-second name must not mute a song for
   // the eight seconds an image is up.
@@ -1467,6 +1484,7 @@ function scheduleSpeech(sh: ShowState, payload: MediaPlayPayload): void {
 }
 
 function speak(
+  sh: ShowState,
   submissionId: string,
   part: 'name' | 'message',
   volume: number,
@@ -1477,10 +1495,29 @@ function speak(
     audio.volume = Math.min(100, Math.max(0, volume)) / 100;
     audio.addEventListener('ended', onEnd);
     audio.addEventListener('error', onEnd);
-    void audio.play().catch(onEnd);
+    sh.speechEl = audio;
+    // Held back while the streamer has the post paused — a pause landing in the pre-roll delay
+    // must not let the line slip out anyway. resumePlayback starts it.
+    if (!sh.paused) void audio.play().catch(onEnd);
   } catch {
     onEnd();
   }
+}
+
+/**
+ * Cut the speech dead. Separate from clearing the stage because the audio element never was on it:
+ * `new Audio()` is detached, so it outlived every skip until it was tracked on the show.
+ */
+function stopSpeech(sh: ShowState): void {
+  sh.speechRun++;
+  if (sh.speechEl) {
+    sh.speechEl.pause();
+    // Also stop it fetching. This fires 'error' on the old element, but the bumped run above is
+    // what keeps that from walking the chain on to the next part.
+    sh.speechEl.removeAttribute('src');
+    sh.speechEl = null;
+  }
+  sh.speaking = false;
 }
 
 /** Stop and destroy a slot's YouTube player so audio cuts immediately on finish/skip. */
@@ -1505,6 +1542,8 @@ function finish(sh: ShowState, reason: PlaybackDoneReason = 'ended'): void {
   sh.finishing = true;
   stopProgress(sh);
   destroyYoutube(sh);
+  // Before the exit animation, not after it: a skip has to go quiet at once, like the video does.
+  stopSpeech(sh);
   const id = sh.currentId;
   if (sh.hideTimer !== undefined) {
     window.clearTimeout(sh.hideTimer);
@@ -1539,6 +1578,7 @@ function clearStage(sh: ShowState): void {
     sh.exitTimer = undefined;
   }
   destroyYoutube(sh);
+  stopSpeech(sh);
   sh.el.replaceChildren();
 }
 
