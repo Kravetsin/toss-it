@@ -25,8 +25,10 @@ import { vdc } from '../spread';
  * mauling stutters. It also spreads evenly for ANY count, which is what lets a chat pill run eight
  * strikes while a card runs twelve (see ../spread).
  *
- * SIZE IS ABSOLUTE, not a fraction of the container — see `particle()`. A short row gets the same
- * claws as a tall card and simply clips them.
+ * SIZE IS DELIBERATELY OVERSIZED, and on the short surfaces it TRACKS the container's height — see
+ * `--claw-base` in the css. A strike is meant to run off both edges and be clipped, but "run off the
+ * edges" has to mean the same thing under one line of chat and under five: a fixed px length that
+ * fills a one-line pill is a scratch lost in a five-line one.
  *
  * THE ENVELOPE IS THE ANIMAL. Rake open (~0.2s), burn (the white in the wound), and the moment that
  * white is gone the wound starts closing. Nothing waits: the fade begins exactly where the flash ends,
@@ -114,12 +116,13 @@ export const cardClaws: CardEffectModule = {
       // vertical spread stays wide because being cut off top and bottom is the intent — see the size.
       left: `${rnd(16, 84).toFixed(1)}%`,
       top: `${rnd(18, 82).toFixed(1)}%`,
-      // ABSOLUTE SIZE, the same on every surface, and `compact` is deliberately ignored. A claw scaled
-      // down to fit a 26px chat row is a scratch nobody notices — and a wound that fits neatly inside
-      // its container isn't a wound, it's a decoration. Better that the animal is plainly bigger than
-      // the card and the stroke runs off both edges: the layer clips it, and what's left still reads.
-      '--len': `${rnd(78, 138).toFixed(1)}px`,
-      '--thick': `${rnd(20, 32).toFixed(1)}px`,
+      // Variation only, around `--claw-base` (see the css): a wound that fits neatly inside its
+      // container isn't a wound, it's a decoration, so the base is already bigger than the surface —
+      // but it has to GROW with the surface, or the same strike that mauls a one-line pill is a
+      // scratch under five lines. Thickness is a fraction of the length, never an independent roll:
+      // a short fat strike reads as a smear, a long thin one as a hairline.
+      '--claw-k': rnd(0.72, 1.28).toFixed(3),
+      '--claw-t': rnd(0.19, 0.3).toFixed(3),
       '--rot': `${rnd(-40, 40).toFixed(1)}deg`,
       '--claw': clawMask(rnd),
       '--dur': `${dur.toFixed(2)}s`,
@@ -128,11 +131,24 @@ export const cardClaws: CardEffectModule = {
   },
   // Struck somewhere else, at a new angle, with new claws every cycle. Geometry only, never timing: a
   // strike doesn't travel, so its size is not tied to `--dur` (see CardEffectModule.respawnKeys).
-  respawnKeys: ['top', '--len', '--thick', '--rot', '--claw'],
+  respawnKeys: ['top', '--claw-k', '--claw-t', '--rot', '--claw'],
   css: `
+/* STRIKE LENGTH follows the container's height on the short surfaces (chat pill, name row), where that
+   height is the thing that actually varies — one line or five. The cqh is read on .p, not here: a
+   declaration ON the container element queries its PARENT container, not itself. The px term is the
+   floor for a one-line pill, the clamp the ceiling so a tall bubble isn't raked by one huge claw. */
+.card-fx-claws {
+  container-type: size;
+}
+.card-fx-claws.compact .p {
+  --claw-base: clamp(96px, calc(52px + 165cqh), 230px);
+}
 /* THE GLOW and THE FADE, on the one element that carries NO mask — see the header: masking here is
    what cropped the light into a rectangle. */
 .card-fx-claws .p {
+  --claw-base: 108px;
+  --len: calc(var(--claw-base) * var(--claw-k, 1));
+  --thick: calc(var(--len) * var(--claw-t, 0.24));
   width: var(--len, 110px);
   height: var(--thick, 26px);
   margin: calc(var(--thick, 26px) / -2) 0 0 calc(var(--len, 110px) / -2);

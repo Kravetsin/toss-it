@@ -67,14 +67,15 @@ export const cardEyes: CardEffectModule = {
   colorUpgrade: 'card-eyes-color',
   labels: { name: 'shop.cardEyes', desc: 'shop.cardEyesDesc' },
   particle: (rnd, compact, index, color) => {
-    // Eye WIDTH; the height is 0.54× in CSS (the almond's aspect). Bigger on a card than in a pill.
-    const w = compact ? rnd(28, 38) : rnd(38, 52);
+    // Only the VARIATION around the base width; the base itself is `--eye-base` in CSS, so a taller
+    // container grows real eyes instead of the same specks (see the rule).
+    const k = rnd(0.84, 1.14);
     // One full appear → stare → vanish cycle. Each eye desynced by a negative delay.
     const dur = compact ? rnd(4, 5.5) : rnd(4.5, 7);
     return {
       left: `${rnd(12, 88).toFixed(1)}%`,
       top: `${rnd(16, 84).toFixed(1)}%`,
-      '--w': `${w.toFixed(1)}px`,
+      '--eye-k': k.toFixed(3),
       '--dur': `${dur.toFixed(2)}s`,
       '--delay': `${(-rnd(0, dur)).toFixed(2)}s`,
       // The chosen colour paints every layer (outline, iris, glow); default crimson when unset.
@@ -90,12 +91,24 @@ export const cardEyes: CardEffectModule = {
   // Reborn at a fresh spot / size / outline at opacity 0 (see the life keyframe). The movement variants
   // (--look/--life) are NOT re-rolled: they name the RUNNING animations, and swapping a name mid-flight
   // would restart the timeline; they're fixed per eye at spawn, which already varies eye-to-eye.
-  respawnKeys: ['top', '--w', '--eye-mask', '--flip'],
+  respawnKeys: ['top', '--eye-k', '--eye-mask', '--flip'],
   css: `
+/* SIZE FOLLOWS THE CONTAINER on the short surfaces. A chat bubble is 1 line tall or 5, and a constant
+   px width meant the same 30px eye in both — barely a smudge under three lines of text. The cqh is
+   read on .p (a declaration ON the container would query its PARENT container, not itself). The px
+   term is a floor for a one-line pill, the clamp a ceiling so a tall bubble grows no giant eye. */
+.card-fx-eyes {
+  container-type: size;
+}
+.card-fx-eyes.compact .p {
+  --eye-base: clamp(40px, calc(14px + 78cqh), 96px);
+}
 /* THE EYE — .p container (lifecycle + glow), ::before outline, ::after iris. Centred on the anchor via
    the negative margins; transform-origin center so the lids close toward the midline. */
 .card-fx-eyes .p {
   top: 0;
+  --eye-base: 46px;
+  --w: calc(var(--eye-base) * var(--eye-k, 1));
   width: var(--w, 44px);
   height: calc(var(--w, 44px) * 0.54);
   margin: calc(var(--w, 44px) * -0.27) 0 0 calc(var(--w, 44px) / -2);

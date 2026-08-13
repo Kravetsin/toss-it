@@ -159,7 +159,9 @@ export const cardRunes: CardEffectModule = {
       '--rune': strokePolygon(rune),
       // A slight tilt for life, but small — a rune leans, it doesn't tumble.
       '--rot': `${rnd(-6, 6).toFixed(1)}deg`,
-      '--sc': (compact ? rnd(0.55, 0.75) : rnd(0.85, 1.15)).toFixed(2),
+      // Variation only — the box it scales is `--rune-base`, which follows the container on the
+      // short surfaces (see the .p rule).
+      '--sc': rnd(0.85, 1.15).toFixed(2),
       '--dur': `${dur.toFixed(2)}s`,
       '--delay': `${(-rnd(0, dur)).toFixed(2)}s`,
     };
@@ -221,11 +223,22 @@ export const cardRunes: CardEffectModule = {
   }
 }
 
+/* THE GLYPH BOX follows the container on the short surfaces: a chat bubble is 1 line tall or 5, and a
+   constant 34px box meant the same thumbnail-sized rune under five lines of text. The cqh is read on
+   .p (a declaration ON the container would query its PARENT container, not itself); the px term is
+   the floor for a one-line pill, the clamp the ceiling for a tall one. */
+.card-fx-runes {
+  container-type: size;
+}
+.card-fx-runes.compact .p {
+  --rune-base: clamp(28px, calc(8px + 60cqh), 64px);
+}
 .card-fx-runes .p {
   top: 0;
-  width: 34px;
-  height: 34px;
-  margin: -17px 0 0 -17px;
+  --rune-base: 34px;
+  width: var(--rune-base);
+  height: var(--rune-base);
+  margin: calc(var(--rune-base) / -2) 0 0 calc(var(--rune-base) / -2);
   scale: var(--sc, 1);
   rotate: var(--rot, 0deg);
   filter: drop-shadow(0 0 3px #a78bfa) drop-shadow(0 0 7px #7c3aed);
