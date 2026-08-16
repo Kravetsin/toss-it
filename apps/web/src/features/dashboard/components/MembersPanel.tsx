@@ -83,7 +83,7 @@ export function MembersPanel({
             <li key={u.userId} className="flex items-center gap-2">
               <b className="truncate">{u.displayName}</b>
               <PlatformIcon userId={u.userId} size={13} />
-              <UserBadges isFounder={u.isFounder} variant="icons" />
+              <UserBadges isFounder={u.isFounder} />
               <span className="shrink-0 text-xs text-muted">
                 {t('dash.since', { date: new Date(u.addedAt).toLocaleDateString() })}
               </span>

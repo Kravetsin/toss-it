@@ -184,7 +184,6 @@ export function ProfileMenu({
             seal={user.equipped.seal}
             color={user.equipped.seal ? user.equipped.sealColors?.[user.equipped.seal] : null}
           />
-          <UserBadges isFounder={user.isFounder} variant="icons" />
           <span
             className={`truncate text-sm font-semibold text-text ${nick.className}`}
             style={nick.style}
@@ -192,6 +191,7 @@ export function ProfileMenu({
             {user.displayName}
           </span>
           <PlatformIcon userId={user.id} size={13} />
+          <UserBadges isFounder={user.isFounder} />
         </span>
         <span className="relative ml-1 flex shrink-0 items-center gap-1 label-mono text-accent">
           <DustMark size={14} />

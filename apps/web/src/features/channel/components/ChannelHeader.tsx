@@ -5,8 +5,9 @@ import { mb } from '@/lib/format';
 import { nickProps } from '@/lib/nick';
 import { PLATFORM_ICON, PLATFORM_LABEL } from '@/lib/social';
 import { Icon } from '@/ui/icons';
-import { Avatar, Badge, Chip, Tooltip } from '@/ui';
+import { Avatar, Chip, Tooltip } from '@/ui';
 import { CardEffect } from '@/components/CardEffect';
+import { UserBadges } from '@/components/UserMarks';
 
 export function ChannelHeader({ channel }: { channel: PublicChannelInfo }) {
   const { t } = useI18n();
@@ -36,12 +37,8 @@ export function ChannelHeader({ channel }: { channel: PublicChannelInfo }) {
               <h1 className={nick.className} style={nick.style}>
                 {channel.displayName}
               </h1>
-              {channel.isFounder && (
-                <Badge>
-                  <Icon name="sparkles" size={12} />
-                  {t('badge.founder')}
-                </Badge>
-              )}
+              {/* 28px against the 30px h1 — the mark reads at the nick's own scale, not as a chip. */}
+              <UserBadges isFounder={channel.isFounder} size={28} />
             </div>
             <p className="text-muted">{channel.description || t('channel.subtitle')}</p>
           </div>

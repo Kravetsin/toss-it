@@ -139,7 +139,7 @@ export function LeaderboardRow({
           {e.displayName}
         </b>
         <PlatformIcon userId={e.userId} size={13} />
-        <UserBadges isFounder={e.isFounder} variant="icons" />
+        <UserBadges isFounder={e.isFounder} />
         {isYou && <span className="label-mono text-accent">{t('channel.you')}</span>}
         {/* Level tab: the rank rail + Roman numeral already show the level — no value. */}
         {metric !== 'level' && (

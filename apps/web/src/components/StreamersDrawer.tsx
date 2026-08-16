@@ -8,6 +8,7 @@ import { Avatar, Chip, Drawer, Loader } from '@/ui';
 import { Icon, type IconName } from '@/ui/icons';
 import { CardEffect } from '@/components/CardEffect';
 import { StarMark } from '@/components/StarMark';
+import { UserBadges } from '@/components/UserMarks';
 
 const POLL_MS = 30_000;
 
@@ -81,9 +82,8 @@ function Card({ channel: c }: { channel: DirectoryChannel }) {
             {c.streamPlatform && (
               <Icon name={c.streamPlatform} size={12} className="shrink-0 text-faint" />
             )}
-            {c.isFounder && (
-              <Icon name="sparkles" size={12} className="shrink-0 text-accent" aria-hidden />
-            )}
+            {/* Row is a button, so the badge must not become a focus stop of its own. */}
+            <UserBadges isFounder={c.isFounder} size={20} focusable={false} />
           </span>
           <span className={`text-xs text-muted ${open ? '' : 'truncate'}`}>
             {c.description || t('dir.noDescription')}

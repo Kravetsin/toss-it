@@ -197,7 +197,7 @@ export function SubmissionCard({
               </b>
               <RepChip rep={rep} />
               <PlatformIcon userId={s.senderUserId} size={13} />
-              <UserBadges isFounder={rep?.isFounder} variant="icons" />
+              <UserBadges isFounder={rep?.isFounder} />
               {/* The sender chose where this lands (and possibly how big) — the streamer approves
                   the placement along with the content, rather than meeting it on stream. */}
               {(s.overlayPosition || s.overlaySize != null) && (

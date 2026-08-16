@@ -1,7 +1,7 @@
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { sealEffectClass, sealMarkup } from '@tmw/shared';
+import { BrandSeal } from '@/components/BrandSeal';
 import { useI18n } from '@/i18n';
-import { Badge } from '@/ui';
 import { Icon, type IconName } from '@/ui/icons';
 
 export type Platform = 'twitch' | 'google';
@@ -22,26 +22,32 @@ export function platformOf(userId: string | null | undefined): Platform | null {
  */
 export function HoverBadge({
   icon,
+  glyph,
   label,
   tone = 'muted',
   size = 14,
+  focusable = true,
   className = '',
 }: {
-  icon: IconName;
+  icon?: IconName;
+  /** Custom mark instead of an icon-set glyph (the founder badge wears the logo itself). */
+  glyph?: ReactNode;
   label: string;
   tone?: 'muted' | 'accent';
   size?: number;
+  /** Set false inside a button/link: a focus stop nested in a control is a keyboard trap. */
+  focusable?: boolean;
   className?: string;
 }) {
   return (
     <span
-      tabIndex={0}
+      {...(focusable ? { tabIndex: 0 } : {})}
       aria-label={label}
       className={`group/hb inline-flex shrink-0 items-center rounded-full outline-none focus-visible:[box-shadow:var(--shadow-focus)] ${
         tone === 'accent' ? 'text-accent' : 'text-muted'
       } ${className}`}
     >
-      <Icon name={icon} size={size} />
+      {glyph ?? (icon ? <Icon name={icon} size={size} /> : null)}
       {/* Collapsed = truly 0 wide: pl-1 lives behind the hover so its padding doesn't leave a
           residual sliver when max-width is 0 (border-box keeps padding even at max-w-0). */}
       <span className="label-mono max-w-0 overflow-hidden whitespace-nowrap pl-0 transition-[max-width,padding] duration-[var(--dur)] ease-out group-hover/hb:max-w-[7rem] group-hover/hb:pl-1 group-focus-visible/hb:max-w-[7rem] group-focus-visible/hb:pl-1">
@@ -76,7 +82,8 @@ export function PlatformIcon({
 
 interface BadgeDef {
   key: string;
-  icon: IconName;
+  /** Rendered at the given px size; a badge may wear an icon-set glyph or a mark of its own. */
+  glyph: (size: number) => ReactNode;
   label: string;
 }
 
@@ -114,40 +121,45 @@ export function SealMark({
 }
 
 /**
- * Achievement badges next to a nick. variant 'icons' = hover-reveal glyphs (dense lists),
- * 'chips' = text chips (profile/header).
+ * Earned badges next to a nick — ONE rendering everywhere: a bare mark at seal size, name revealed
+ * on hover (like the platform glyph). No pill, no always-on caption: a badge is an object the person
+ * earned, and a row of framed captions would out-shout the nick and the seal it stands next to.
+ * Channel-level badges land in this same row — give them a `glyph`, not a chip.
  */
 export function UserBadges({
   isFounder = false,
-  variant = 'icons',
+  size = 24,
+  focusable = true,
   className = '',
 }: {
   isFounder?: boolean;
-  variant?: 'icons' | 'chips';
+  size?: number;
+  /** Set false inside a button/link (see HoverBadge). */
+  focusable?: boolean;
   className?: string;
 }) {
   const { t } = useI18n();
   const badges: BadgeDef[] = [];
-  if (isFounder) badges.push({ key: 'founder', icon: 'sparkles', label: t('badge.founder') });
+  // Founders wear the logo, not a glyph borrowed from the icon set: they're part of the app itself,
+  // and no other mark can say that. Keep it the emblem — don't swap it for an icon later.
+  if (isFounder)
+    badges.push({
+      key: 'founder',
+      glyph: (px) => <BrandSeal size={px} decorative />,
+      label: t('badge.founder'),
+    });
   if (badges.length === 0) return null;
-
-  if (variant === 'chips') {
-    return (
-      <span className={`inline-flex flex-wrap items-center gap-1.5 ${className}`}>
-        {badges.map((b) => (
-          <Badge key={b.key}>
-            <Icon name={b.icon} size={12} />
-            {b.label}
-          </Badge>
-        ))}
-      </span>
-    );
-  }
 
   return (
     <span className={`inline-flex shrink-0 items-center gap-1.5 ${className}`}>
       {badges.map((b) => (
-        <HoverBadge key={b.key} icon={b.icon} label={b.label} tone="accent" />
+        <HoverBadge
+          key={b.key}
+          glyph={b.glyph(size)}
+          label={b.label}
+          tone="accent"
+          focusable={focusable}
+        />
       ))}
     </span>
   );

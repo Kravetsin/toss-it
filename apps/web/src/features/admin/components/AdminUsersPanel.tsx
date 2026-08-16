@@ -102,7 +102,7 @@ function UserRow({
           {u.identities.map((p) => (
             <PlatformIcon key={p} userId={`${p}:x`} size={13} />
           ))}
-          <UserBadges isFounder={u.isFounder} variant="icons" />
+          <UserBadges isFounder={u.isFounder} />
           {u.hasChannel && (
             <Tooltip content={t('admin.hasChannel')}>
               <span className="flex items-center">

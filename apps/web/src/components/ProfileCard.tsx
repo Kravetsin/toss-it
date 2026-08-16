@@ -35,11 +35,11 @@ export function ProfileCard({ user }: { user: SessionUser }) {
               {user.displayName}
             </span>
             <PlatformIcon userId={user.id} size={14} />
+            <UserBadges isFounder={user.isFounder} />
           </p>
           <p className="truncate text-xs text-muted">@{user.login}</p>
         </div>
       </div>
-      <UserBadges isFounder={user.isFounder} variant="chips" className="relative mt-2" />
     </div>
   );
 }

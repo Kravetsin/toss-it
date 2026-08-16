@@ -8,14 +8,22 @@ const SPARK =
  * it deliberately no longer mirrors any seal cosmetic (the ringed-star seal was retired for reading as
  * a UI icon, which is exactly what a logo should read as). Don't re-couple them.
  */
-export function BrandSeal({ size = 80, className = '' }: { size?: number; className?: string }) {
+export function BrandSeal({
+  size = 80,
+  decorative = false,
+  className = '',
+}: {
+  size?: number;
+  /** Inside an already-labelled control (e.g. the founder badge) — drop the redundant img role. */
+  decorative?: boolean;
+  className?: string;
+}) {
   return (
     <svg
       width={size}
       height={size}
       viewBox="0 0 24 24"
-      role="img"
-      aria-label="Tossit"
+      {...(decorative ? { 'aria-hidden': true } : { role: 'img', 'aria-label': 'Tossit' })}
       className={`shrink-0 ${className}`}
     >
       <circle
