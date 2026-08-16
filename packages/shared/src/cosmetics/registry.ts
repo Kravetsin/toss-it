@@ -177,8 +177,36 @@ const BASE_CSS = `
     --frame-ang: 360deg;
   }
 }
+/* Second frame layer, for a frame that also spills light INTO the card (the edge frames throw an
+   inset shadow from their own side). Empty unless a module paints it. Inward only, and that is not a
+   taste call: filter runs before mask and the ring's mask is clipped to the border box, so a halo
+   could never leave the band — and the chat bubble clips anything past its edge anyway. Every card
+   host leaves ::before free; the ring keeps ::after. */
+[class*='frame-fx-']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  /* Ready-made edge profile. A still glow is an inset shadow and wants no mask (it has to reach the
+     middle of the card); a glow that RUNS with the ring is painted as a conic gradient, which fills
+     the whole box, so it needs confining to the contour — such a module sets --frame-glow-mask to
+     var(--frame-edge). Unmasked is the default, so nothing else changes.
+
+     Narrow, and with a mid stop rather than a straight ramp: a wide profile lets the conic gradient
+     reach far enough inside that its RADIAL edges become visible as straight diagonal cuts. */
+  --frame-edge:
+    linear-gradient(to right, #000, rgba(0, 0, 0, 0.5) 5px, transparent 11px,
+      transparent calc(100% - 11px), rgba(0, 0, 0, 0.5) calc(100% - 5px), #000),
+    linear-gradient(to bottom, #000, rgba(0, 0, 0, 0.5) 5px, transparent 11px,
+      transparent calc(100% - 11px), rgba(0, 0, 0, 0.5) calc(100% - 5px), #000);
+  background: var(--frame-glow, none);
+  -webkit-mask: var(--frame-glow-mask, none);
+  mask: var(--frame-glow-mask, none);
+}
 @media (prefers-reduced-motion: reduce) {
-  [class*='frame-fx-']::after {
+  [class*='frame-fx-']::after,
+  [class*='frame-fx-']::before {
     animation: none;
   }
 }

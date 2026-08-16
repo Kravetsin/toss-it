@@ -8,6 +8,10 @@ import type { FrameModule } from '../types';
  *
  * A dim static coal and a wash keep the edge from going fully empty between burns. Radial paint
  * (never a fixed-height band) so it fades out on the side borders instead of ending in a cut.
+ *
+ * The coal is WHITE-HOT at its centre: orange over orange is the first thing to vanish on a bright
+ * stream, and the pale core is what still reads there. A second animation breathes the whole layer
+ * on a fast, shallow cycle — a coal brightens when air reaches it, and a deep pulse would blink.
  */
 export const frameEmbers: FrameModule = {
   id: 'frame-embers',
@@ -31,17 +35,39 @@ export const frameEmbers: FrameModule = {
 }
 .frame-fx-embers::after {
   background:
-    radial-gradient(ellipse 25% 55% at var(--ember-x) 100%,
-      rgba(255, 146, 46, var(--ember-a)),
-      rgba(150, 46, 8, calc(var(--ember-a) * 0.34)) 46%,
-      transparent 74%),
+    radial-gradient(ellipse 26% 58% at var(--ember-x) 100%,
+      rgba(255, 242, 206, var(--ember-a)),
+      rgba(255, 126, 18, calc(var(--ember-a) * 0.9)) 32%,
+      rgba(178, 46, 4, calc(var(--ember-a) * 0.45)) 62%,
+      transparent 80%),
     radial-gradient(ellipse 22% 44% at 78% 100%,
-      rgba(190, 74, 16, 0.3),
-      transparent 72%),
-    radial-gradient(ellipse 118% 36% at 50% 100%,
-      rgba(118, 32, 4, 0.32),
+      rgba(214, 84, 14, 0.46),
+      transparent 74%),
+    radial-gradient(ellipse 118% 38% at 50% 100%,
+      rgba(150, 42, 6, 0.55),
       transparent 72%);
-  animation: frame-embers-wander 12s ease-in-out infinite;
+  /* The wander owns --ember-x/--ember-a, the breath owns opacity — one property each, or the second
+     animation value would silently delete the first. */
+  animation:
+    frame-embers-wander 9s ease-in-out infinite,
+    frame-embers-breathe 1.35s ease-in-out infinite;
+}
+/* The coal warms the card from below — same breath as the band, so the two read as one heat source
+   rather than two effects sharing a card. */
+.frame-fx-embers::before {
+  box-shadow: inset 0 -7px 11px -5px rgba(255, 132, 40, 0.55);
+  animation: frame-embers-breathe 1.35s ease-in-out infinite;
+}
+@keyframes frame-embers-breathe {
+  0%, 100% {
+    opacity: 0.78;
+  }
+  40% {
+    opacity: 1;
+  }
+  62% {
+    opacity: 0.88;
+  }
 }
 /* Three burns per lap. Every move (32→36%, 68→72%) happens between two keyframes that both pin the
    alpha at 0, so the coal is invisible while it relocates and never appears to slide. */
