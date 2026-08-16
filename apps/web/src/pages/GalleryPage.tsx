@@ -30,6 +30,7 @@ import { useI18n } from '@/i18n';
 import { LeaderboardRow } from '@/features/channel/components/Leaderboard';
 import { SubmissionCard } from '@/features/dashboard/components/SubmissionCard';
 import { ComposeForm } from '@/features/channel/components/ComposeForm';
+import { RankDraftBench } from '@/features/gallery/RankDraft';
 import { Vessel } from '@/features/channel/components/Vessel/Vessel';
 import type { Phase } from '@/features/channel/hooks/useMediaSubmission';
 
@@ -573,6 +574,11 @@ export function GalleryPage() {
 
       <Section title="Entrances — sizes & backgrounds">
         <EntrancesShowcase />
+      </Section>
+
+      {/* DRAFT — delete with features/gallery/RankDraft.tsx once the rank shape is picked. */}
+      <Section title="Global rank — draft stages (not in the registry)">
+        <RankDraftBench />
       </Section>
 
       <Section title="Vessel — отправка зрителя (Phase 4)">
