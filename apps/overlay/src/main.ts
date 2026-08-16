@@ -86,11 +86,11 @@ declare global {
   }
 }
 
-// Inline lucide-style glyphs (no React icon set in the overlay; stroke = 2, matches the web).
-// Badge id -> inline SVG, rendered in mint after the name. Founder = sparkles (matches web UserBadges).
+// Badge id -> inline SVG, rendered in mint after the name (no React icon set in the overlay).
+// Founder = the Tossit emblem itself, not an icon-set glyph (see web BrandSeal / UserBadges).
 const BADGE_SVG: Record<string, string> = {
   founder:
-    '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M6 18H2"/></svg>',
+    '<svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="10.6" fill="#0c1a15" stroke="currentColor" stroke-width="1.3"/><path transform="translate(2.4 2.4) scale(0.8)" fill="currentColor" d="M12 0C12 6.627 6.627 12 0 12C6.627 12 12 17.373 12 24C12 17.373 17.373 12 24 12C17.373 12 12 6.627 12 0Z"/></svg>',
 };
 
 // Dev: server on separate port. Prod: overlay served by the server (same-origin, unless ?server=).
@@ -1815,6 +1815,10 @@ const SEAL_DEMO_COLORS: Record<string, string | undefined> = {
   'seal-core': '#5ad1ff',
   'seal-hourglass': '#7cff4f',
   'seal-swarm': '#c9b6ff',
+  'seal-moons': '#ffb35c',
+  'seal-keyring': '#ff8fd4',
+  'seal-lanterns': '#ffd166',
+  'seal-rings': '#a0e34a',
 };
 
 /** Same, for the colourable card effects — a non-default tint so the upgrade shows without a picker. */
@@ -2041,7 +2045,9 @@ function mountDemoPanel(): void {
   const sealButtons = (
     [
       ['none', 'Нет'],
-      ...COSMETICS.filter((c) => c.type === 'seal').map(
+      // `upgrade` items (the per-seal colours) render nothing and are never worn as a seal — left in,
+      // each one adds a button that paints an empty box.
+      ...COSMETICS.filter((c) => c.type === 'seal' && !c.upgrade).map(
         (c) => [c.id, c.id.replace(/^seal-/, '')] as [string, string],
       ),
     ] as [string, string][]

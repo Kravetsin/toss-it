@@ -208,13 +208,11 @@ ${
   filter: drop-shadow(0 0 0.1em var(--seal-tint, #8df0cc))
     drop-shadow(0 0 0.24em var(--seal-tint, #8df0cc));
 }`
-    : // Cold rung: a thinner ring, a slower pulse, and whatever colour the viewer picked dimmed and drained
-      // — a star that has not gone off yet. Doubled selector beats the shared block, which the lit rung
-      // emits again AFTER these rules; at equal specificity its duration would win.
-      `.${c} {
-  filter: brightness(0.62) saturate(0.72);
-}
-.seal-fx.${c} .nv-star {
+    : // Cold rung: a thinner ring, a slower pulse and NO glow — a star that has not gone off yet.
+      // Deliberately not dimmed: a drained rung reads as a broken copy of the lit one, and nobody
+      // wears it. Doubled selector beats the shared block, which the lit rung emits again AFTER these
+      // rules; at equal specificity its duration would win.
+      `.seal-fx.${c} .nv-star {
   animation-duration: ${PULSE_COLD}s;
 }`
 }

@@ -180,10 +180,7 @@ ${ORBIT_CSS}${
           // Doubled up as `.seal-fx.${c}` on purpose. The shared block above is emitted by BOTH rungs,
           // so the lit rung's copy lands AFTER these rules in the concatenated sheet; at equal
           // specificity its `animation` shorthand would then reset the slow orbit back to the default.
-          `.${c} {
-  filter: brightness(0.6) saturate(0.72);
-}
-.seal-fx.${c} .bh-p {
+          `.seal-fx.${c} .bh-p {
   animation-duration: ${DUR * 1.7}s;
 }
 .seal-fx.${c} .bh-arc {

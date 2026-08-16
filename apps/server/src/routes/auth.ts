@@ -35,6 +35,7 @@ import {
   upsertUser,
 } from '../auth';
 import {
+  breadthFor,
   dustEarnedFor,
   dustSpentFor,
   messagesTotalFor,
@@ -483,6 +484,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
         submissionsTotal: await submissionsTotalFor(user.id),
         dustEarnedTotal: await dustEarnedFor(user.id),
         dustSpentTotal: await dustSpentFor(user.id),
+        breadth: await breadthFor(user.id),
         equipped: user.equipped ?? {},
         hasTwitch: !!twitchIdentity,
       },

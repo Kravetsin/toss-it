@@ -63,6 +63,13 @@ export interface CosmeticItem {
    */
   since?: string;
   /**
+   * In the catalog so surfaces can RENDER it (demo pickers, admin preview, devMock), but not yet
+   * obtainable: no price and no milestone, because the axis it will be earned on doesn't exist yet.
+   * The shop hides it entirely — a 0-dust item with no `earn` would otherwise render a buy button
+   * that the server rejects — and `unlocked` refuses it for everyone but admins.
+   */
+  draft?: boolean;
+  /**
    * Rungs of ONE artifact that differ only by tier (the seals). The shop collapses a ladder into a
    * single row of tier icons instead of one full-width block per rung, so a tab stays short as
    * families are added — which is also why every rung shares one name/desc. Omit for standalone
@@ -71,16 +78,82 @@ export interface CosmeticItem {
   ladder?: string;
 }
 
+/**
+ * The metric an earned cosmetic is gated on. Every one of these only ever CLIMBS — a milestone must
+ * never un-earn itself. That is why the wallet axes are lifetime earned and lifetime spent and never
+ * the current balance, and why `channelsModerated` counts channels the viewer has EVER been seen
+ * moderating rather than the ones they moderate today.
+ *
+ * The `channels*` family is the BREADTH axis: they count CHANNELS that clear a per-channel bar
+ * (`CosmeticEarn.per`), not a total. "5 channels with 100 messages each" is a different thing from
+ * "500 messages", and the whole point of the family is the difference.
+ */
+export type CosmeticMetric =
+  | 'messages'
+  | 'watchMinutes'
+  | 'submissions'
+  | 'dustEarned'
+  | 'dustSpent'
+  | 'channelsMessaged'
+  | 'channelsSent'
+  | 'channelsWatched'
+  | 'channelsModerated';
+
 /** How an earned (non-bought) cosmetic is unlocked. */
 export interface CosmeticEarn {
-  /**
-   * The account-wide metric that unlocks it, summed across every channel and linked identity. Every
-   * one of these only ever CLIMBS — a milestone must never un-earn itself. That is why the wallet
-   * axes are lifetime earned and lifetime spent, and never the current balance.
-   */
-  metric: 'messages' | 'watchMinutes' | 'submissions' | 'dustEarned' | 'dustSpent';
-  /** How many of the metric are needed (watchMinutes counts minutes, shown as hours in the shop). */
+  metric: CosmeticMetric;
+  /** How much of the metric is needed. For a `channels*` metric this is a number of CHANNELS —
+   *  which is also what the shop shows as progress, because "3/5 channels" is the honest reading of
+   *  a breadth milestone (watchMinutes counts minutes, shown as hours). */
   count: number;
+  /**
+   * BREADTH metrics only: the bar ONE channel must clear to be counted (messages, submissions, or
+   * minutes watched in that channel). Undefined for `channelsModerated`, where being a moderator is
+   * the bar, and for every total metric.
+   */
+  per?: number;
+}
+
+/**
+ * What the BREADTH cosmetics are judged on: how much the viewer has done in EACH channel, rather
+ * than in total. Sent as per-channel lists so ONE payload answers every rung — the alternative was
+ * the server recomputing an aggregate for every threshold in the catalog on each /me.
+ *
+ * Lists are sorted biggest first and cover only channels the viewer has touched, so they stay a
+ * handful of numbers. Self-sends are excluded from `submissions`, as everywhere else.
+ */
+export interface BreadthTotals {
+  /** Messages sent, per channel. */
+  messages: number[];
+  /** Submissions sent, per channel. */
+  submissions: number[];
+  /** Minutes watched, per channel. */
+  watchMinutes: number[];
+  /** How many channels the viewer has EVER been seen moderating — a count, since there is no bar to
+   *  clear. Append-only on the server: losing the role must not un-earn the seal. */
+  moderated: number;
+}
+
+/** Whether this metric is judged per channel (see BreadthTotals) rather than as a total. */
+export function isBreadthMetric(metric: CosmeticMetric): boolean {
+  return metric.startsWith('channels');
+}
+
+/**
+ * How far along a BREADTH milestone the viewer is: how many channels clear this rung's bar. Shared
+ * so the shop's progress and the server's gate can never drift apart — they read the same payload
+ * through the same function.
+ */
+export function breadthProgress(earn: CosmeticEarn, totals: BreadthTotals): number {
+  if (earn.metric === 'channelsModerated') return totals.moderated;
+  const per = earn.per ?? 1;
+  const list =
+    earn.metric === 'channelsMessaged'
+      ? totals.messages
+      : earn.metric === 'channelsSent'
+        ? totals.submissions
+        : totals.watchMinutes;
+  return list.filter((n) => n >= per).length;
 }
 
 /** i18n keys for the shop; the actual strings live in apps/web i18n dictionaries (per convention). */

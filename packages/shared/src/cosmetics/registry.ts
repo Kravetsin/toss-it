@@ -52,6 +52,10 @@ import { sealVoidCollapsing, sealVoid, sealVoidColor } from './effects/seal-void
 import { sealCoreCold, sealCore, sealCoreColor } from './effects/seal-core';
 import { sealHourglassGlass, sealHourglass, sealHourglassColor } from './effects/seal-hourglass';
 import { sealSwarmHandful, sealSwarm, sealSwarmColor } from './effects/seal-swarm';
+import { sealMoonsQuiet, sealMoons, sealMoonsColor } from './effects/seal-moons';
+import { sealKeyringFew, sealKeyring, sealKeyringColor } from './effects/seal-keyring';
+import { sealLanternsFew, sealLanterns, sealLanternsColor } from './effects/seal-lanterns';
+import { sealRingsSapling, sealRings, sealRingsColor } from './effects/seal-rings';
 import { entranceGlitch } from './effects/entrance-glitch';
 import { entranceWarp } from './effects/entrance-warp';
 import { entranceEcho } from './effects/entrance-echo';
@@ -277,6 +281,21 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   sealHourglassGlass,
   sealHourglass,
   sealHourglassColor,
+  // The BREADTH family: earned by turning up in DIFFERENT channels rather than by piling up one
+  // counter. Every one is `draft` — the catalog carries them so surfaces can render them, but the
+  // metric they need (distinct channels) doesn't exist yet, so none of them is obtainable.
+  sealMoonsQuiet,
+  sealMoons,
+  sealMoonsColor,
+  sealKeyringFew,
+  sealKeyring,
+  sealKeyringColor,
+  sealLanternsFew,
+  sealLanterns,
+  sealLanternsColor,
+  sealRingsSapling,
+  sealRings,
+  sealRingsColor,
   entranceGlitch,
   entranceWarp,
   entranceEcho,
@@ -309,6 +328,7 @@ const META_KEYS: Record<keyof CosmeticItem, true> = {
   upgrade: true,
   earn: true,
   since: true,
+  draft: true,
   ladder: true,
 };
 

@@ -410,6 +410,33 @@ export const channelDaily = sqliteTable(
 );
 
 /**
+ * Channels a chatter has EVER been seen moderating on the PLATFORM (the moderator badge on a chat
+ * message), one row per (channel, identity). Not to be confused with `channel_moderators` above,
+ * which is the inbox's own moderator list — people a streamer invited into the dashboard.
+ *
+ * Written the first time a message arrives wearing the badge and never deleted: the keyring seal is
+ * gated on this count, and an earned cosmetic must never un-earn itself because a streamer
+ * reshuffled their mod list. So this is a record of sightings, not a mirror of who moderates today.
+ *
+ * Only channels running our bot can be seen at all, and only while the moderator actually talks —
+ * the same limit every other activity metric here has.
+ */
+export const chatModeratorSightings = sqliteTable(
+  'chat_moderator_sightings',
+  {
+    channelId: text('channel_id').notNull(),
+    platform: text('platform').notNull(),
+    platformUserId: text('platform_user_id').notNull(),
+    /** First sighting. Kept for support questions ("since when?"), never read by the gate. */
+    seenAt: integer('seen_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.channelId, t.platform, t.platformUserId] }),
+    index('idx_chat_mod_sightings_user').on(t.platform, t.platformUserId),
+  ],
+);
+
+/**
  * Stardust earned by a platform identity (chat bot) with no user row yet.
  * Claimed and deleted at first login with that identity. platform: 'twitch' | ...
  */

@@ -146,13 +146,11 @@ ${
       drop-shadow(0 0 0.3em var(--seal-tint, #8df0cc));
   }
 }`
-    : // Cold rung: a sparse ring on a quiet channel. Dimmed and drained whatever colour was picked,
-      // so the tier survives recolouring. Doubled selectors beat the shared block, which the lit rung
-      // emits again AFTER these rules — at equal specificity its shorthand would undo them.
-      `.${c} {
-  filter: brightness(0.62) saturate(0.72);
-}
-.seal-fx.${c} .co-ring {
+    : // Cold rung: a sparse ring on a quiet channel, turning slower, with no glow. Deliberately not
+      // dimmed: a drained rung reads as a broken copy of the lit one, and nobody wears it. Doubled
+      // selectors beat the shared block, which the lit rung emits again AFTER these rules — at equal
+      // specificity its shorthand would undo them.
+      `.seal-fx.${c} .co-ring {
   animation-duration: 15s;
 }
 .seal-fx.${c} .co-m {

@@ -8,7 +8,12 @@ import {
   frameEffectClass,
   nickEffectClass,
   nickEffectModule,
+  isBreadthMetric,
+  breadthProgress,
+  type BreadthTotals,
+  type CosmeticEarn,
   type CosmeticItem,
+  type CosmeticMetric,
   type CosmeticType,
 } from '@tmw/shared';
 import { useI18n } from '@/i18n';
@@ -16,7 +21,7 @@ import { useMe } from '@/hooks/useMe';
 import { useApiAction } from '@/hooks/useApiAction';
 import { useConfirm } from '@/providers/ConfirmProvider';
 import { Badge, Button, Card, Drawer, IconButton } from '@/ui';
-import { Icon } from '@/ui/icons';
+import { Icon, type IconName } from '@/ui/icons';
 import { DustMark } from '@/components/DustMark';
 import { NewDot, NewDotGroup } from '@/components/NewDot';
 import { SealMark } from '@/components/UserMarks';
@@ -52,13 +57,49 @@ type ShopCategory = 'nick' | 'card' | 'frame' | 'seal' | 'entrance' | 'voices';
 /** Per-metric presentation for earned items. A table rather than a branch per metric, so the next
  *  axis is one line here. `unit` divides the raw count for display (watch time is stored in minutes,
  *  shown in hours). */
-const EARN_META = {
+type EarnMeta = {
+  icon: IconName;
+  unit: number;
+  lockedKey: string;
+  /** Breadth metrics only: how the per-channel bar reads under a rung, and the unit it is shown in. */
+  barKey?: string;
+  barUnit?: number;
+};
+const EARN_META: Record<CosmeticMetric, EarnMeta> = {
   messages: { icon: 'message-circle', unit: 1, lockedKey: 'shop.earnLocked' },
   watchMinutes: { icon: 'clock', unit: 60, lockedKey: 'shop.earnLockedWatch' },
   submissions: { icon: 'send', unit: 1, lockedKey: 'shop.earnLockedSends' },
   dustEarned: { icon: 'sparkles', unit: 1, lockedKey: 'shop.earnLockedDust' },
   dustSpent: { icon: 'sparkles', unit: 1, lockedKey: 'shop.earnLockedSpent' },
-} as const;
+  // The breadth axis counts CHANNELS, so the unit is always 1 and the icon is a stream, whatever the
+  // per-channel bar happens to be. `barKey` is what that bar reads as under the rung; the bar's own
+  // unit lives in `barUnit` (minutes shown as hours, as everywhere else).
+  channelsMessaged: {
+    icon: 'monitor',
+    unit: 1,
+    lockedKey: 'shop.earnLockedChannels',
+    barKey: 'shop.barMessages',
+    barUnit: 1,
+  },
+  channelsSent: {
+    icon: 'monitor',
+    unit: 1,
+    lockedKey: 'shop.earnLockedChannels',
+    barKey: 'shop.barSends',
+    barUnit: 1,
+  },
+  channelsWatched: {
+    icon: 'monitor',
+    unit: 1,
+    lockedKey: 'shop.earnLockedChannels',
+    barKey: 'shop.barHours',
+    barUnit: 60,
+  },
+  channelsModerated: { icon: 'monitor', unit: 1, lockedKey: 'shop.earnLockedChannels' },
+};
+
+/** The empty payload an anonymous view falls back to, so the progress code never branches on null. */
+const NO_BREADTH: BreadthTotals = { messages: [], submissions: [], watchMinutes: [], moderated: 0 };
 
 /** Which tab an item lands in. Exhaustive by type, so a new cosmetic type can't quietly miss its
  *  "new" dot — adding one to the registry fails typecheck until it's placed here. */
@@ -224,13 +265,24 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   const confirm = useConfirm();
   const user = me?.user;
 
+  // An admin may equip the whole catalog without buying or grinding for it — the only way to judge a
+  // cosmetic is to wear it on real surfaces (see /api/cosmetics/equip, which enforces the same rule).
+  // Expressed as owning everything and having limitless activity, so no row below needs a branch.
+  const admin = user?.isAdmin ?? false;
+  /**
+   * What the shop is allowed to list. A `draft` item has neither a price nor a milestone (see
+   * CosmeticItem.draft), so its row would offer a purchase the server refuses — admins still see it,
+   * because previewing an unreleased cosmetic on real surfaces is exactly what the bypass is for.
+   */
+  const shopItems = COSMETICS.filter((c) => admin || !c.draft);
+
   const colorItem = COSMETICS.find((c) => c.id === NICK_COLOR_ID)!;
   const gradientItem = COSMETICS.find((c) => c.id === NICK_GRADIENT_ID)!;
   const flowItem = COSMETICS.find((c) => c.id === NICK_FLOW_ID)!;
-  const nickEffects = COSMETICS.filter((c) => c.type === 'nick_effect');
+  const nickEffects = shopItems.filter((c) => c.type === 'nick_effect');
   // Exclude upgrades (the colour picker) — like `entrances` below. An upgrade renders nothing and is
   // never equipped as an effect; left in, it would leak into the last group as an empty effect row.
-  const cardEffects = COSMETICS.filter((c) => c.type === 'card_effect' && !c.upgrade);
+  const cardEffects = shopItems.filter((c) => c.type === 'card_effect' && !c.upgrade);
   // Runtime groups with their effects; any card effect not mapped above is absorbed into the last
   // group so a new effect never vanishes from the shop just because it wasn't tagged.
   const cardGroups = (() => {
@@ -243,10 +295,10 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     if (extra.length) groups[groups.length - 1]!.effects.push(...extra);
     return groups.filter((g) => g.effects.length > 0);
   })();
-  const frames = COSMETICS.filter((c) => c.type === 'frame');
+  const frames = shopItems.filter((c) => c.type === 'frame');
   // `upgrade` items (the per-seal colours) aren't equippable seals — they render inside their own
   // seal's row, so they must not form a ladder of their own here.
-  const seals = COSMETICS.filter((c) => c.type === 'seal' && !c.upgrade);
+  const seals = shopItems.filter((c) => c.type === 'seal' && !c.upgrade);
   // Rungs of one artifact collapse into a single row (see CosmeticItem.ladder): four full-width
   // blocks per seal would turn this tab into a scroll wall as families are added.
   const sealLadders: CosmeticItem[][] = [];
@@ -257,14 +309,10 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     else sealLadders.push([s]);
   }
   // `upgrade` items (the portal colour) aren't equippable entrances — they're a rung, rendered below.
-  const entrances = COSMETICS.filter((c) => c.type === 'entrance' && !c.upgrade);
+  const entrances = shopItems.filter((c) => c.type === 'entrance' && !c.upgrade);
   const portalColorItem = COSMETICS.find((c) => c.id === PORTAL_COLOR_ID)!;
   // Every specific voice is a purchase; the free path is the "auto" option in the compose form.
-  const voiceItems = COSMETICS.filter((c) => c.type === 'tts_voice');
-  // An admin may equip the whole catalog without buying or grinding for it — the only way to judge a
-  // cosmetic is to wear it on real surfaces (see /api/cosmetics/equip, which enforces the same rule).
-  // Expressed as owning everything and having limitless activity, so no row below needs a branch.
-  const admin = user?.isAdmin ?? false;
+  const voiceItems = shopItems.filter((c) => c.type === 'tts_voice');
   const ownsItem = (id: string) => admin || (user?.ownedCosmetics.includes(id) ?? false);
   const ownsColor = ownsItem(NICK_COLOR_ID);
   const ownsGradient = ownsItem(NICK_GRADIENT_ID);
@@ -288,6 +336,17 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     dustEarned: admin ? Infinity : (user?.dustEarnedTotal ?? 0),
     dustSpent: admin ? Infinity : (user?.dustSpentTotal ?? 0),
   };
+  /**
+   * How far along ONE milestone the viewer is. A breadth metric answers in CHANNELS — how many clear
+   * that rung's own bar — through the shared helper the server's gate also uses, so the number here
+   * and the verdict there can never disagree.
+   */
+  const earnHave = (earn: CosmeticEarn) =>
+    isBreadthMetric(earn.metric)
+      ? admin
+        ? Infinity
+        : breadthProgress(earn, user?.breadth ?? NO_BREADTH)
+      : earnTotals[earn.metric as keyof typeof earnTotals];
   const equippedEntrance = user?.equipped.entrance ?? null;
   const ownsPortalColor = ownsItem(PORTAL_COLOR_ID);
   const equippedEntranceColor = user?.equipped.entranceColor ?? null;
@@ -446,9 +505,9 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     // Earned items (frames) count as "owned" once the milestone is met; the rest are owned by purchase.
     const earn = e.earn;
     const earnMeta = earn ? EARN_META[earn.metric] : null;
-    const earnHave = earn ? earnTotals[earn.metric] : 0;
+    const have = earn ? earnHave(earn) : 0;
     const earnUnit = earnMeta?.unit ?? 1;
-    const owned = earn ? earnHave >= earn.count : ownsItem(e.id);
+    const owned = earn ? have >= earn.count : ownsItem(e.id);
     const on = equippedId === e.id;
     const mod = cosmeticModule(e.id);
     const labels = mod?.labels;
@@ -510,7 +569,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
             ) : earn && earnMeta ? (
               <span className="inline-flex items-center gap-1.5 label-mono text-muted">
                 <Icon name={earnMeta.icon} size={13} />
-                {Math.floor(Math.min(earnHave, earn.count) / earnUnit)} /{' '}
+                {Math.floor(Math.min(have, earn.count) / earnUnit)} /{' '}
                 {Math.round(earn.count / earnUnit)}
               </span>
             ) : (
@@ -536,7 +595,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
               earn && earnMeta ? (
                 // Earned, not bought: no buy button — just how far off the milestone is.
                 <span className="label-mono text-faint">
-                  {t(earnMeta.lockedKey, { n: Math.ceil((earn.count - earnHave) / earnUnit) })}
+                  {t(earnMeta.lockedKey, { n: Math.ceil((earn.count - have) / earnUnit) })}
                 </span>
               ) : (
                 <Button
@@ -643,11 +702,13 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     const colorItem = colorUp ? COSMETICS.find((c) => c.id === colorUp) : undefined;
     const colorMod = colorUp ? cosmeticModule(colorUp) : undefined;
     const headEarn = head.earn;
-    const headOwned = headEarn ? earnTotals[headEarn.metric] >= headEarn.count : ownsItem(head.id);
+    const headOwned = headEarn ? earnHave(headEarn) >= headEarn.count : ownsItem(head.id);
     const colorEarn = colorItem?.earn;
-    const colorMet = colorEarn ? earnTotals[colorEarn.metric] >= colorEarn.count : false;
+    // Admins get the picker without the milestone, the same bypass `ownsItem` gives them everywhere
+    // else here — otherwise an unreleased seal (no `earn` yet) could not be judged in its own colours.
+    const colorMet = admin || (colorEarn ? earnHave(colorEarn) >= colorEarn.count : false);
     const colorEarnMeta = colorEarn ? EARN_META[colorEarn.metric] : null;
-    const colorHave = colorEarn ? earnTotals[colorEarn.metric] : 0;
+    const colorHave = colorEarn ? earnHave(colorEarn) : 0;
     const colorUnit = colorEarnMeta?.unit ?? 1;
     // Same rule as the effect rows: the ladder's mark covers the upgrade whenever its own block is
     // absent, so the two together always account for the id.
@@ -680,10 +741,17 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
             {rungs.map((r) => {
               const earn = r.earn;
               const earnMeta = earn ? EARN_META[earn.metric] : null;
-              const have = earn ? earnTotals[earn.metric] : 0;
+              const have = earn ? earnHave(earn) : 0;
               const unit = earnMeta?.unit ?? 1;
               const owned = earn ? have >= earn.count : ownsItem(r.id);
               const on = equippedSeal === r.id;
+              // A breadth rung's progress reads "2/5" in CHANNELS, which alone doesn't say what a
+              // channel has to clear — so the bar goes under it. Without this the rungs of one
+              // family look identical: same target, different requirement.
+              const barText =
+                earn?.per && earnMeta?.barKey
+                  ? t(earnMeta.barKey, { n: Math.round(earn.per / (earnMeta.barUnit ?? 1)) })
+                  : null;
               return (
                 <div key={r.id} className="flex flex-col items-center gap-2 text-center">
                   {/* Locked rungs stay visible but dimmed — the ladder doubles as the roadmap. Goes
@@ -719,6 +787,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
                       </span>
                     ) : null}
                   </span>
+                  {barText && <span className="label-mono text-[10px] text-faint">{barText}</span>}
                 </div>
               );
             })}

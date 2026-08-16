@@ -1,8 +1,9 @@
 import { and, eq, inArray, or, sql } from 'drizzle-orm';
-import { COSMETICS, LEVEL_POINTS, xpToLevel } from '@tmw/shared';
+import { COSMETICS, LEVEL_POINTS, xpToLevel, type BreadthTotals } from '@tmw/shared';
 import { db } from './db/index';
 import {
   channelActivity,
+  chatModeratorSightings,
   excludeSelfSends,
   linkedIdentities,
   submissions,
@@ -214,6 +215,97 @@ export async function submissionsTotalFor(userId: string): Promise<number> {
     .where(and(eq(submissions.senderUserId, userId), excludeSelfSends))
     .get();
   return row?.n ?? 0;
+}
+
+/**
+ * The BREADTH axis: what the user has done in EACH channel, rather than in total. Returned as
+ * per-channel lists so one payload answers every rung of every ladder (see BreadthTotals) — the
+ * alternative was a separate aggregate per threshold in the catalog, on every /me.
+ *
+ * Four cheap queries. `channel_activity` is bucketed per month, so its two columns are summed per
+ * channel first; submissions are counted per channel with self-sends excluded, as everywhere else.
+ */
+export async function breadthFor(userId: string): Promise<BreadthTotals> {
+  const ids = await db
+    .select({ provider: linkedIdentities.provider, providerId: linkedIdentities.providerId })
+    .from(linkedIdentities)
+    .where(eq(linkedIdentities.userId, userId))
+    .all();
+  const mine = ids.length
+    ? or(
+        ...ids.map((i) =>
+          and(
+            eq(channelActivity.platform, i.provider),
+            eq(channelActivity.platformUserId, i.providerId),
+          ),
+        ),
+      )
+    : undefined;
+
+  // Activity rows exist only where the identity chatted or watched, so both lists come from one
+  // grouped scan; a channel with zero of one column simply lands at 0 and fails any bar.
+  const activity = mine
+    ? await db
+        .select({
+          channelId: channelActivity.channelId,
+          messages: sql<number>`coalesce(sum(${channelActivity.messages}), 0)`,
+          watchMinutes: sql<number>`coalesce(sum(${channelActivity.watchMinutes}), 0)`,
+        })
+        .from(channelActivity)
+        .where(mine)
+        .groupBy(channelActivity.channelId)
+        .all()
+    : [];
+
+  const sends = await db
+    .select({ channelId: submissions.channelId, n: sql<number>`count(*)` })
+    .from(submissions)
+    .where(and(eq(submissions.senderUserId, userId), excludeSelfSends))
+    .groupBy(submissions.channelId)
+    .all();
+
+  const moderated = ids.length
+    ? ((
+        await db
+          .select({ n: sql<number>`count(*)` })
+          .from(chatModeratorSightings)
+          .where(
+            or(
+              ...ids.map((i) =>
+                and(
+                  eq(chatModeratorSightings.platform, i.provider),
+                  eq(chatModeratorSightings.platformUserId, i.providerId),
+                ),
+              ),
+            ),
+          )
+          .get()
+      )?.n ?? 0)
+    : 0;
+
+  const desc = (xs: number[]) => xs.filter((n) => n > 0).sort((a, b) => b - a);
+  return {
+    messages: desc(activity.map((r) => r.messages)),
+    watchMinutes: desc(activity.map((r) => r.watchMinutes)),
+    submissions: desc(sends.map((r) => r.n)),
+    moderated,
+  };
+}
+
+/**
+ * Records that this identity wears the moderator badge in this channel. Append-only and idempotent:
+ * the first sighting wins and nothing ever removes it (see chat_moderator_sightings). Call it from
+ * the chat pipeline — it is a no-op after the first message.
+ */
+export async function noteChatModerator(
+  channelId: string,
+  platform: string,
+  platformUserId: string,
+): Promise<void> {
+  await db
+    .insert(chatModeratorSightings)
+    .values({ channelId, platform, platformUserId, seenAt: new Date() })
+    .onConflictDoNothing();
 }
 
 /** Per-channel level for one sender (0 if anon/unknown) — for single live emits. */

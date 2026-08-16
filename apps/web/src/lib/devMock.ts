@@ -84,6 +84,15 @@ const MOCK_ME: MeResponse = {
     // Lifetime spent dust. Past the black hole's first rung (2000) but not its second (10k), so that
     // ladder previews the LOCKED rung the nova's no longer shows.
     dustSpentTotal: 5400,
+    // The breadth axis, per channel. Tuned so every new ladder previews mid-climb: 4 channels clear
+    // the moons' first bar (25 messages) but only 2 clear its second (100); 2 of 3 channels clear the
+    // rings' first bar (10 h); the keyring sits one channel short of its second rung.
+    breadth: {
+      messages: [420, 180, 96, 41, 12],
+      submissions: [12, 6, 3, 1],
+      watchMinutes: [1800, 700, 240],
+      moderated: 2,
+    },
     equipped: {
       nickColor: '#8df0cc',
       nickColor2: '#a78bfa',
@@ -102,6 +111,10 @@ const MOCK_ME: MeResponse = {
         'seal-core': '#5ad1ff',
         'seal-hourglass': '#7cff4f',
         'seal-swarm': '#c9b6ff',
+        'seal-moons': '#ffb35c',
+        'seal-keyring': '#ff8fd4',
+        'seal-lanterns': '#ffd166',
+        'seal-rings': '#a0e34a',
       },
       frame: 'frame-runner',
       seal: 'seal-nova',
@@ -338,7 +351,7 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderEffect: 'nick-pulse',
     senderCardEffect: 'card-lightning',
     senderFrame: 'frame-storm',
-    senderSeal: 'seal-nova',
+    senderSeal: 'seal-lanterns',
     text: 'бахнуло знатно, го смотреть',
     createdAt: t - 26 * min,
   }),
@@ -626,7 +639,7 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     nickFlow: true,
     nickEffect: 'nick-glow',
     cardEffect: 'card-lightning',
-    seal: 'seal-nova',
+    seal: 'seal-moons',
     sealColor: null,
     level: 8,
   },
@@ -641,7 +654,7 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     nickFlow: false,
     nickEffect: null,
     cardEffect: null,
-    seal: 'seal-nova',
+    seal: 'seal-keyring',
     sealColor: null,
     level: 4,
   },

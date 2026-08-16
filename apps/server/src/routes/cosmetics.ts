@@ -4,7 +4,9 @@ import {
   COSMETICS,
   cosmeticModule,
   isCosmeticOfType,
+  isBreadthMetric,
   isHexColor,
+  breadthProgress,
   type CosmeticEarn,
   type CosmeticStateResponse,
   type EquippedCosmetics,
@@ -13,6 +15,7 @@ import { db } from '../db/index';
 import { userCosmetics, users } from '../db/schema';
 import { isAdmin, requireUser } from '../auth';
 import {
+  breadthFor,
   dustEarnedFor,
   dustSpentFor,
   messagesTotalFor,
@@ -28,6 +31,13 @@ async function owns(userId: string, itemId: string): Promise<boolean> {
     .where(and(eq(userCosmetics.userId, userId), eq(userCosmetics.itemId, itemId)))
     .get();
   return !!row;
+}
+
+/** Live progress toward an earn milestone: channels for a breadth metric, the total otherwise. */
+async function earnProgress(userId: string, earn: CosmeticEarn): Promise<number> {
+  return isBreadthMetric(earn.metric)
+    ? breadthProgress(earn, await breadthFor(userId))
+    : earnTotal(userId, earn.metric);
 }
 
 /** Live total for an earn metric (summed across channels/identities). */
@@ -53,8 +63,10 @@ async function unlocked(userId: string, itemId: string): Promise<boolean> {
   const item = COSMETICS.find((c) => c.id === itemId);
   if (!item) return false;
   if (isAdmin(userId)) return true;
+  // Not obtainable yet — in the catalog only so surfaces can render it (see CosmeticItem.draft).
+  if (item.draft) return false;
   return item.earn
-    ? (await earnTotal(userId, item.earn.metric)) >= item.earn.count
+    ? (await earnProgress(userId, item.earn)) >= item.earn.count
     : owns(userId, itemId);
 }
 

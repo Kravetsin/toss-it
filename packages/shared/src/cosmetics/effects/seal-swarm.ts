@@ -204,13 +204,11 @@ ${
       drop-shadow(0 0 0.42em var(--seal-tint, #8df0cc));
   }
 }`
-    : // Cold rung: a thinner cloud turning slower. Dimmed and drained whatever colour was picked, so
-      // the tier survives recolouring. Doubled selectors beat the shared block, which the lit rung
-      // emits again AFTER these rules — at equal specificity its duration would win.
-      `.${c} {
-  filter: brightness(0.55) saturate(0.7);
-}
-.seal-fx.${c} .sw-m {
+    : // Cold rung: a thinner cloud, turning slower, with no glow. Deliberately not dimmed: a drained
+      // rung reads as a broken copy of the lit one, and nobody wears it. Doubled selectors beat the
+      // shared block, which the lit rung emits again AFTER these rules — at equal specificity its
+      // duration would win.
+      `.seal-fx.${c} .sw-m {
   animation-duration: ${SPIN_COLD}s;
 }
 .seal-fx.${c} .sw-haze {

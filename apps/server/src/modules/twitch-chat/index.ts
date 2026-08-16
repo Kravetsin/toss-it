@@ -30,6 +30,7 @@ import {
   submitChatText,
   submitResolvedYoutube,
 } from '../../media/submit';
+import { noteChatModerator } from '../../level';
 import { EventSubClient, type ChatNoticeEvent } from './eventsub';
 import { createBadgeResolver, roleFromBadges, type EventBadge } from './badges';
 import { createCheermoteResolver } from './cheermotes';
@@ -99,6 +100,9 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
   let channelByBroadcaster = new Map<string, string>();
   /** Excluded twitch logins (bots) — skip their messages entirely. Refreshed on reconcile. */
   let excludedLogins = new Set<string>();
+  /** `channelId:chatterId` already written to chat_moderator_sightings this process — the row is
+   *  insert-or-ignore, so this only saves the write, and losing it on restart costs one insert. */
+  const modsSeen = new Set<string>();
   /** Channel ids whose streamer left the chat overlay enabled. Refreshed on reconcile. */
   let chatEnabledChannels = new Set<string>();
   /** channel id -> last time an overlay was connected, for the unsubscribe grace. */
@@ -454,6 +458,21 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     }
 
     if (excluded) return;
+
+    // A moderator sighting, for the breadth seal gated on "channels you moderate". Written once per
+    // (channel, chatter) for the lifetime of the process: the in-memory guard is what keeps this off
+    // the hot path, and the row itself is insert-or-ignore anyway. Not gated on `live` — being a mod
+    // is a fact about the channel, not about this stream.
+    if (ev.chatterId !== ev.broadcasterId && roleFromBadges(ev.badges) === 'moderator') {
+      const seen = `${channelId}:${ev.chatterId}`;
+      if (!modsSeen.has(seen)) {
+        modsSeen.add(seen);
+        noteChatModerator(channelId, 'twitch', ev.chatterId).catch((err) => {
+          modsSeen.delete(seen);
+          deps.log.warn({ err }, 'twitch-chat: moderator sighting failed');
+        });
+      }
+    }
 
     // Where an answer can land. These are independent: a streamer may run the media overlay with
     // no chat overlay at all, and for them Twitch chat is the only surface a command has. Both

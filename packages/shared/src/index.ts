@@ -1,5 +1,5 @@
 // Local bindings for use in the interfaces below; also re-exported for consumers (see `export *`).
-import type { EquippedCosmetics } from './cosmetics';
+import type { BreadthTotals, EquippedCosmetics } from './cosmetics';
 import type { ChannelTheme } from './theme';
 
 export type MediaKind = 'image' | 'video' | 'audio' | 'text' | 'youtube' | 'gif';
@@ -910,6 +910,8 @@ export interface SessionUser {
   /** Lifetime stardust spent, summed over everything owned — unlocks the black hole seal. Climbs
    *  only, because every dust sink is a permanent grant. */
   dustSpentTotal: number;
+  /** Per-channel totals for the breadth axis (see BreadthTotals). */
+  breadth: BreadthTotals;
   /** Currently equipped cosmetics (nick color, etc.). */
   equipped: EquippedCosmetics;
   /** A Twitch identity opens this account (native or linked) — chat dust reaches it. */

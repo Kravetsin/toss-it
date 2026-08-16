@@ -27,9 +27,9 @@ import {
 injectCosmeticsStyles();
 injectLevelStyles();
 
-// Founder = sparkles glyph before the name (matches web UserBadges / the media overlay).
+// Founder = the Tossit emblem before the name (matches web BrandSeal / the media overlay).
 const FOUNDER_SVG =
-  '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>';
+  '<svg viewBox="0 0 24 24" width="15" height="15"><circle cx="12" cy="12" r="10.6" fill="#0c1a15" stroke="currentColor" stroke-width="1.3"/><path transform="translate(2.4 2.4) scale(0.8)" fill="currentColor" d="M12 0C12 6.627 6.627 12 0 12C6.627 12 12 17.373 12 24C12 17.373 17.373 12 24 12C17.373 12 12 6.627 12 0Z"/></svg>';
 
 // Trail marker: the brand 4-point spark (same glyph as StarMark / stardust).
 const STAR_SVG =
@@ -686,7 +686,7 @@ if (DEMO) {
       userId: 'u5',
       name: 'oldtimer',
       twitchColor: '#f5d76e',
-      cosmetics: { cardEffect: 'card-sakura', seal: 'seal-swarm' },
+      cosmetics: { cardEffect: 'card-sakura', seal: 'seal-keyring' },
       isFounder: false,
       level: 10,
       badges: [MODERATOR, VIP],
@@ -710,7 +710,7 @@ if (DEMO) {
       userId: 'u6',
       name: 'subfan',
       twitchColor: '#7ec8ff',
-      cosmetics: { cardEffect: 'card-snow', seal: 'seal-hourglass-glass' },
+      cosmetics: { cardEffect: 'card-snow', seal: 'seal-rings' },
       isFounder: false,
       level: 2,
       badges: [SUB],

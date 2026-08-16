@@ -279,13 +279,11 @@ ${ORBIT_CSS}${
       drop-shadow(0 0 0.3em var(--seal-tint, #8df0cc));
   }
 }`
-        : // Cold rung: a bare glass on a slow trickle. Dimmed and drained whatever colour was picked, so
-          // the tier survives recolouring. Doubled selectors beat the shared block, which the lit rung
-          // emits again AFTER these rules — at equal specificity its durations would win.
-          `.${c} {
-  filter: brightness(0.62) saturate(0.72);
-}
-.seal-fx.${c} .hg-g,
+        : // Cold rung: a bare glass on a slow trickle, with no glow. Deliberately not dimmed: a drained
+          // rung reads as a broken copy of the lit one, and nobody wears it. Doubled selectors beat the
+          // shared block, which the lit rung emits again AFTER these rules — at equal specificity its
+          // durations would win.
+          `.seal-fx.${c} .hg-g,
 .seal-fx.${c} .hg-neck {
   animation-duration: ${FALL_COLD}s;
 }
