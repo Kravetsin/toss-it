@@ -172,7 +172,7 @@ function render(
 export const cardCodeRain: CardEffectModule = {
   id: 'card-code-rain',
   type: 'card_effect',
-  costDust: 4000,
+  costDust: 5000,
   since: '2026-08-18',
   className: 'card-fx-code-rain',
   // Nominal only: a render effect owns the whole layer, but counts must be non-zero for the layer to

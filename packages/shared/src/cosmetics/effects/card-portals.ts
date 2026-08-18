@@ -530,7 +530,7 @@ function render(
 export const cardPortals: CardEffectModule = {
   id: 'card-portals',
   type: 'card_effect',
-  costDust: 6000,
+  costDust: 5000,
   since: '2026-08-18',
   className: 'card-fx-portals',
   // Nominal only: a render effect owns the whole layer, but counts must be non-zero for the layer to

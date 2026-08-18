@@ -20,7 +20,7 @@ import { useI18n } from '@/i18n';
 import { useMe } from '@/hooks/useMe';
 import { useApiAction } from '@/hooks/useApiAction';
 import { useConfirm } from '@/providers/ConfirmProvider';
-import { Badge, Button, Card, Drawer, IconButton } from '@/ui';
+import { Badge, Button, Card, Drawer, IconButton, Tooltip } from '@/ui';
 import { Icon, type IconName } from '@/ui/icons';
 import { DustMark } from '@/components/DustMark';
 import { NewDot, NewDotGroup } from '@/components/NewDot';
@@ -587,6 +587,14 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
               {/* Picks up the colour upgrade while ITS row is hidden (shown only once the effect is
                   owned) — otherwise that id has no mark anywhere and pins the tab's dot on. */}
               <NewDot id={colorUp && !upgradeShown ? [e.id, colorUp] : e.id} />
+              {/* That this effect CAN be recoloured is part of what the buyer is choosing between, and
+                  until now it only appeared after the purchase — the upgrade's own block is gated on
+                  owning the effect. Drops away once the upgrade is owned: by then the pickers say it. */}
+              {colorUp && !ownsColorUp && (
+                <Tooltip content={t(dual ? 'shop.colorUpgradeDualHint' : 'shop.colorUpgradeHint')}>
+                  <Icon name="palette" size={14} className="shrink-0 text-faint" />
+                </Tooltip>
+              )}
             </span>
             {owned ? (
               on ? (

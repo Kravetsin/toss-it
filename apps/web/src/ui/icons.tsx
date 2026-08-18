@@ -34,6 +34,7 @@ import {
   Menu,
   Minimize,
   Monitor,
+  Palette,
   Pause,
   PictureInPicture2,
   Play,
@@ -115,6 +116,7 @@ const LUCIDE = {
   'arrow-left': ArrowLeft,
   'arrow-right': ArrowRight,
   globe: Globe,
+  palette: Palette,
 } satisfies Record<string, LucideIcon>;
 
 /** Brand glyphs (monochrome, tinted via currentColor); paths from simple-icons (CC0). */
