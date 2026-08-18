@@ -39,6 +39,18 @@ export const TEXT_MAX_LEN = 280;
  */
 export const CHAT_TEXT_MAX_LEN = 180;
 
+/**
+ * How many viewer votes `!skip` needs. The streamer picks inside these bounds: below two it is not
+ * a vote at all, and above ten no chat that is not huge would ever reach it.
+ */
+export const SKIP_VOTES = { min: 2, max: 10, default: 3 } as const;
+
+/** Clamp a streamer-supplied vote threshold into the allowed range. */
+export function clampSkipVotes(n: number): number {
+  if (!Number.isFinite(n)) return SKIP_VOTES.default;
+  return Math.min(SKIP_VOTES.max, Math.max(SKIP_VOTES.min, Math.round(n)));
+}
+
 /** One of 9 preset anchors for media placement in overlay (3x3 grid order). */
 export type OverlayPosition =
   | 'top-left'
@@ -278,6 +290,8 @@ export interface ChannelPointsStatus {
   hasYoutube: boolean;
   /** Whether the "put a line on stream" reward is set up. */
   hasTts: boolean;
+  /** Whether the "skip what is on screen" reward is set up. */
+  hasSkip: boolean;
 }
 
 /** Donation integration status (dashboard). Callback model: provider POSTs to us. */
@@ -762,6 +776,11 @@ export interface ChannelSettings {
   chatPlayCommand: boolean;
   /** Let viewers put a line on stream with `!tts <text>` — read aloud when the channel speaks messages. */
   chatTtsCommand: boolean;
+  /** Let viewers take what is on screen off it with `!skip` — a vote for viewers, one command
+   *  for the streamer and their moderators. */
+  chatSkipCommand: boolean;
+  /** Viewer votes a `!skip` needs (SKIP_VOTES bounds). */
+  skipVotesNeeded: number;
   /** Language the bot answers in. Separate from the dashboard's own language: the streamer may
    *  read the UI in one language and run a chat in another. */
   botLocale: BotLocale;

@@ -34,6 +34,12 @@ export const CHANNEL_POINTS = {
   pointsPerDust: 2,
   /** Default point cost when we create the reward (streamer can change it in Twitch). */
   defaultCost: 200,
+  /**
+   * Default cost of the skip reward, deliberately three times the rest: every other reward puts
+   * something on stream, this one takes someone else's post off it. Taking should cost more than
+   * giving, or the cheapest way to be on screen is to clear it.
+   */
+  defaultSkipCost: 600,
   /** Slider bounds + snap for the point cost the streamer picks at creation (round numbers only). */
   minCost: 50,
   maxCost: 10_000,

@@ -601,6 +601,10 @@ export const en: Dict = {
   'dash.channelPointsTtsCost': 'Line cost: {cost} points',
   'dash.channelPointsTtsNote':
     'Viewers spend points to put up to {n} characters on your screen — read aloud too, if you speak messages. Stardust is credited only once it shows; if it never does, their points come back.',
+  'dash.channelPointsSkipTitle': 'Skip what is on screen',
+  'dash.channelPointsSkipCost': 'Skip cost: {cost} points',
+  'dash.channelPointsSkipNote':
+    'Viewers spend points to take whatever is playing off the screen — video, track or image. Background music is out of reach, and an empty screen refunds the points. No stardust for a skip.',
   'dash.channelPointsRewardActive': 'active',
   'dash.channelPointsCost': 'Reward cost: {cost} points',
   'dash.payoutViewer': 'Viewer gets',
@@ -657,6 +661,10 @@ export const en: Dict = {
   'dash.chatTtsCommand': 'Let viewers put a line on stream with !tts',
   'dash.chatTtsCommandNote':
     '!tts <text> sends up to {n} characters to the screen, same limits (1/min) as a site send. Read aloud only if you speak messages; goes for review unless you auto-approve text.',
+  'dash.chatSkipCommand': 'Let viewers skip with !skip',
+  'dash.chatSkipCommandNote':
+    'Viewers vote; you and your moderators skip with one command. Media first, then music — the background playlist is never touched.',
+  'dash.skipVotesNeeded': 'Votes to skip: {n}',
   'dash.botLocale': 'Bot answer language',
   'dash.botLocale.en': 'English',
   'dash.botLocale.ru': 'Russian',
@@ -1454,6 +1462,10 @@ export const ru: Dict = {
   'dash.channelPointsTtsCost': 'Стоимость строки: {cost} баллов',
   'dash.channelPointsTtsNote':
     'Зрители тратят баллы, чтобы вывести на экран до {n} символов — с озвучкой, если у вас включено чтение сообщений. Пыль начисляем, только когда покажем; не показали — баллы возвращаются.',
+  'dash.channelPointsSkipTitle': 'Пропуск показа',
+  'dash.channelPointsSkipCost': 'Стоимость пропуска: {cost} баллов',
+  'dash.channelPointsSkipNote':
+    'За баллы зритель убирает с экрана то, что идёт: видео, трек или картинку. Фоновая музыка не в счёт, а если на экране пусто — баллы возвращаются. Пыль за пропуск не начисляем.',
   'dash.channelPointsRewardActive': 'активна',
   'dash.channelPointsCost': 'Цена награды: {cost} баллов',
   'dash.payoutViewer': 'Зрителю',
@@ -1510,6 +1522,10 @@ export const ru: Dict = {
   'dash.chatTtsCommand': 'Разрешить текст на экран командой !tts',
   'dash.chatTtsCommandNote':
     '!tts <текст> отправляет на экран до {n} символов, лимит тот же (1/мин), что и при отправке с сайта. Озвучится, только если у вас включено чтение сообщений; уйдёт на модерацию, если не включён автопропуск текста.',
+  'dash.chatSkipCommand': 'Разрешить пропуск командой !skip',
+  'dash.chatSkipCommandNote':
+    'Зрители голосуют, ты и модераторы пропускаете с одной команды. Сначала медиа, потом музыка — фоновый плейлист не трогаем.',
+  'dash.skipVotesNeeded': 'Голосов для пропуска: {n}',
   'dash.botLocale': 'Язык ответов бота',
   'dash.botLocale.en': 'Английский',
   'dash.botLocale.ru': 'Русский',
@@ -2309,6 +2325,10 @@ export const uk: Dict = {
   'dash.channelPointsTtsCost': 'Вартість рядка: {cost} балів',
   'dash.channelPointsTtsNote':
     'Глядачі витрачають бали, щоб вивести на екран до {n} символів — з озвученням, якщо у вас увімкнено читання повідомлень. Пил нараховуємо, лише коли покажемо; не показали — бали повертаються.',
+  'dash.channelPointsSkipTitle': 'Пропуск показу',
+  'dash.channelPointsSkipCost': 'Вартість пропуску: {cost} балів',
+  'dash.channelPointsSkipNote':
+    'За бали глядач прибирає з екрана те, що йде: відео, трек або картинку. Фонова музика не рахується, а якщо на екрані порожньо — бали повертаються. Пил за пропуск не нараховуємо.',
   'dash.channelPointsRewardActive': 'активна',
   'dash.channelPointsCost': 'Ціна нагороди: {cost} балів',
   'dash.payoutViewer': 'Глядачеві',
@@ -2365,6 +2385,10 @@ export const uk: Dict = {
   'dash.chatTtsCommand': 'Дозволити текст на екран командою !tts',
   'dash.chatTtsCommandNote':
     '!tts <текст> надсилає на екран до {n} символів, ліміт той самий (1/хв), що й при надсиланні із сайту. Озвучиться, лише якщо у вас увімкнено читання повідомлень; піде на модерацію, якщо не ввімкнено автопропуск тексту.',
+  'dash.chatSkipCommand': 'Дозволити пропуск командою !skip',
+  'dash.chatSkipCommandNote':
+    'Глядачі голосують, ти та модератори пропускаєте з однієї команди. Спершу медіа, потім музика — фоновий плейлист не чіпаємо.',
+  'dash.skipVotesNeeded': 'Голосів для пропуску: {n}',
   'dash.botLocale': 'Мова відповідей бота',
   'dash.botLocale.en': 'Англійська',
   'dash.botLocale.ru': 'Російська',

@@ -2,6 +2,7 @@ import type { BotCommandInfo, ChatFragment, ChatSystemLine } from '@tmw/shared';
 import { balance } from './balance';
 import { play } from './play';
 import { queue } from './queue';
+import { skip } from './skip';
 import { tossit } from './tossit';
 import { tts } from './tts';
 import { xp } from './xp';
@@ -11,7 +12,7 @@ export type { ChannelCommandState, ChatCommand, CommandContext, CommandDeps } fr
 
 /** The registry: one entry per command file in this folder. Order is what `!tossit` lists, so it
  *  runs from the one a newcomer needs first to the one only a regular asks for. */
-const COMMANDS: ChatCommand[] = [tossit, balance, xp, queue, play, tts];
+const COMMANDS: ChatCommand[] = [tossit, balance, xp, queue, play, tts, skip];
 
 /** Triggers a viewer can actually use in this channel — what `!tossit` advertises. */
 export function availableTriggers(state: ChannelCommandState): string[] {
@@ -49,16 +50,17 @@ export function toChatText(line: ChatSystemLine): string {
 }
 
 /** Per-viewer silence after a command, so one person cannot fill the overlay by themselves.
- *  Keyed per command, not per person: asking your balance should not mute your next !queue. */
+ *  Keyed per command, not per person: asking your balance should not mute your next !queue.
+ *  Deliberately the ONLY throttle here: a channel-wide floor also silenced the second PERSON to
+ *  type, who then had no idea why the bot ignored them. Protecting Twitch's send rate limit is the
+ *  delivery layer's job (it can drop the chat copy and still answer on the overlay), not this
+ *  layer's — here a swallowed message is a command that never ran. */
 const USER_COOLDOWN_MS = 15_000;
-/** Per-channel floor, so a coordinated group cannot either. */
-const CHANNEL_COOLDOWN_MS = 3_000;
 /** Sweep the per-user map once it outgrows any plausible live audience. */
 const SWEEP_AT = 5_000;
 
 /** `${channelId} ${twitchId} ${command}` -> last accepted run. */
 const lastByUser = new Map<string, number>();
-const lastByChannel = new Map<string, number>();
 
 /** Leading `!word`; letters cover non-Latin triggers, since chat is not English-only. */
 const TRIGGER_RE = /^!([\p{L}\d_]{1,24})(?:\s+|$)/u;
@@ -80,15 +82,15 @@ export function isCommand(fragments: ChatFragment[], state: ChannelCommandState)
   return !!cmd && (cmd.available?.(state) ?? true);
 }
 
-function onCooldown(channelId: string, twitchId: string, command: string, now: number): boolean {
-  const userKey = `${channelId} ${twitchId} ${command}`;
-  if (now - (lastByUser.get(userKey) ?? 0) < USER_COOLDOWN_MS) return true;
-  if (now - (lastByChannel.get(channelId) ?? 0) < CHANNEL_COOLDOWN_MS) return true;
+function onCooldown(channelId: string, twitchId: string, cmd: ChatCommand, now: number): boolean {
+  const window = cmd.cooldownMs ?? USER_COOLDOWN_MS;
+  if (window <= 0) return false;
+  const userKey = `${channelId} ${twitchId} ${cmd.name}`;
+  if (now - (lastByUser.get(userKey) ?? 0) < window) return true;
   if (lastByUser.size > SWEEP_AT) {
     for (const [key, at] of lastByUser) if (now - at >= USER_COOLDOWN_MS) lastByUser.delete(key);
   }
   lastByUser.set(userKey, now);
-  lastByChannel.set(channelId, now);
   return false;
 }
 
@@ -96,7 +98,7 @@ function onCooldown(channelId: string, twitchId: string, command: string, now: n
  * Run a chat message through the command registry. Delivery is the caller's business — the same
  * answer may go to the overlay, to Twitch chat, or both. Cooldowns are charged only for messages
  * that actually resolve to one of our commands, so another bot's `!lurk` traffic never silences
- * ours; the per-channel floor is also what keeps us far under Twitch's send rate limit.
+ * ours.
  */
 export async function runCommand(
   fragments: ChatFragment[],
@@ -108,7 +110,7 @@ export async function runCommand(
   if (!match) return null;
   const cmd = byTrigger.get(match[1]!.toLowerCase());
   if (!cmd) return null;
-  if (onCooldown(ctx.channelId, ctx.twitchId, cmd.name, Date.now())) return null;
+  if (onCooldown(ctx.channelId, ctx.twitchId, cmd, Date.now())) return null;
   const args = text.trim().slice(match[0].length).split(/\s+/).filter(Boolean);
   return cmd.run({ ...ctx, args }, deps);
 }

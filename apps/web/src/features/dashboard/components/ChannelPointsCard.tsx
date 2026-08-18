@@ -18,6 +18,7 @@ import { DustMark } from '@/components/DustMark';
 function hasFlag(kind: RewardKind, value: boolean): Partial<ChannelPointsStatus> {
   if (kind === 'stardust') return { hasStardust: value };
   if (kind === 'youtube') return { hasYoutube: value };
+  if (kind === 'skip') return { hasSkip: value };
   return { hasTts: value };
 }
 
@@ -55,6 +56,7 @@ export function ChannelPointsCard() {
   const [stardustCost, setStardustCost] = useState<number>(CHANNEL_POINTS.defaultCost);
   const [ytCost, setYtCost] = useState<number>(CHANNEL_POINTS.defaultCost);
   const [ttsCost, setTtsCost] = useState<number>(CHANNEL_POINTS.defaultCost);
+  const [skipCost, setSkipCost] = useState<number>(CHANNEL_POINTS.defaultSkipCost);
 
   useEffect(() => {
     let cancelled = false;
@@ -81,6 +83,7 @@ export function ChannelPointsCard() {
           hasStardust: false,
           hasYoutube: false,
           hasTts: false,
+          hasSkip: false,
         });
       } finally {
         setBusy(false);
@@ -237,6 +240,38 @@ export function ChannelPointsCard() {
               variant="primary"
               disabled={busy || loading}
               onClick={() => create('tts', ttsCost)}
+            >
+              {t('dash.channelPointsRewardCreate')}
+            </Button>
+          </>
+        )}
+      </RewardTile>
+
+      {/* The one reward that takes a post OFF the screen — hence the higher default price, and a
+          description that says what it cannot reach (the background playlist). */}
+      <RewardTile
+        icon="skip-forward"
+        title={t('dash.channelPointsSkipTitle')}
+        description={t('dash.channelPointsSkipNote')}
+        badge={status?.hasSkip ? <ActiveBadge t={t} /> : undefined}
+      >
+        {status?.hasSkip ? (
+          <RemoveRow t={t} busy={busy} onRemove={() => remove('skip')} />
+        ) : (
+          <>
+            <Slider
+              icon="skip-forward"
+              label={t('dash.channelPointsSkipCost', { cost: skipCost })}
+              min={CHANNEL_POINTS.minCost}
+              max={CHANNEL_POINTS.maxCost}
+              step={CHANNEL_POINTS.costStep}
+              value={skipCost}
+              onChange={setSkipCost}
+            />
+            <Button
+              variant="primary"
+              disabled={busy || loading}
+              onClick={() => create('skip', skipCost)}
             >
               {t('dash.channelPointsRewardCreate')}
             </Button>

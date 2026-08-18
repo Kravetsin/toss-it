@@ -171,6 +171,8 @@ const MOCK_SETTINGS: ChannelSettings = {
   chatBotReplies: false,
   chatPlayCommand: true,
   chatTtsCommand: true,
+  chatSkipCommand: true,
+  skipVotesNeeded: 3,
   botLocale: 'ru' as const,
   chatFontSize: 19,
   chatFadeSeconds: 0,
@@ -1002,6 +1004,7 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
       hasStardust: false,
       hasYoutube: false,
       hasTts: false,
+      hasSkip: false,
     };
   }
   // add (POST) / remove (DELETE) for any reward kind — the kind is the last path segment.

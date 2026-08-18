@@ -530,14 +530,29 @@ export class PlaybackManager {
   }
 
   /** Streamer skips the show in one slot. true if something was playing there. */
-  async skip(channelId: string, slot: PlaybackSlot = 'media'): Promise<boolean> {
+  async skip(
+    channelId: string,
+    slot: PlaybackSlot = 'media',
+    cause = 'streamer-skip',
+  ): Promise<boolean> {
     const current = this.state(channelId).slots[slot].current;
     if (!current) return false;
     // Overlay gets media:skip and clears the screen; onDone advances the queue
     // regardless of whether the overlay is alive.
     this.io.to(roomOf(channelId)).emit('media:skip', current.id);
-    await this.onDone(channelId, current.id, 'streamer-skip');
+    await this.onDone(channelId, current.id, cause);
     return true;
+  }
+
+  /**
+   * Skip whatever is on screen, media before music — the order chat means by "skip this". Returns
+   * the slot that was skipped, or null if the screen was empty. The verdict a skip carries is
+   * unchanged (see `aired`): who asked for it makes no difference to the sender's points.
+   */
+  async skipCurrent(channelId: string, cause: string): Promise<PlaybackSlot | null> {
+    const busy = this.currentsOf(channelId)[0];
+    if (!busy) return null;
+    return (await this.skip(channelId, busy.slot, cause)) ? busy.slot : null;
   }
 
   /**

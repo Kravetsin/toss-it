@@ -92,6 +92,33 @@ describe('PlaybackManager', () => {
     expect(playback.getCurrent(channelId, 'media')?.id).toBe(picture.id);
   });
 
+  /**
+   * What `!skip` and the skip reward both mean by "this": whatever the eye is on. With a song in
+   * the corner and a video on the stage, chat is asking about the video — picking the song there
+   * would silently kill the wrong post, and the buyer would have paid for it.
+   */
+  it('skips the media stage before the music player, and reports which it took', async () => {
+    const song = await makeSubmission(channelId, youtubePatch());
+    const picture = await makeSubmission(channelId);
+    playback.enqueue(song);
+    await settle();
+    playback.enqueue(picture);
+    await settle();
+
+    expect(await playback.skipCurrent(channelId, 'vote-skip')).toBe('media');
+    await settle();
+    expect(playback.getCurrent(channelId, 'media')).toBeNull();
+    expect(playback.getCurrent(channelId, 'music')?.id).toBe(song.id);
+
+    // Nothing left on the stage — the song is now what "this" means.
+    expect(await playback.skipCurrent(channelId, 'vote-skip')).toBe('music');
+    await settle();
+    expect(playback.getCurrent(channelId, 'music')).toBeNull();
+
+    // An empty screen is not a failure to report, it is nothing to skip — the reward refunds on it.
+    expect(await playback.skipCurrent(channelId, 'vote-skip')).toBeNull();
+  });
+
   it('skips over posts meant for the other slot when filling one', async () => {
     // Two songs then a picture: the media slot must reach past both songs for the picture.
     playback.enqueue(await makeSubmission(channelId, youtubePatch()));

@@ -4,6 +4,7 @@ import {
   CHAT_TEXT_MAX_LEN,
   DUST_POINTS,
   LEVEL_POINTS,
+  SKIP_VOTES,
   xpToLevel,
   type BotLocale,
   type ChatFragment,
@@ -36,11 +37,12 @@ import { createBadgeResolver, roleFromBadges, type EventBadge } from './badges';
 import { createCheermoteResolver } from './cheermotes';
 import { awardDust } from './accrual';
 import { isCommand, runCommand, toChatText } from './commands/index';
-import type { ChannelCommandState, PlayResult, SayResult } from './commands/types';
+import type { ChannelCommandState, PlayResult, SayResult, SkipResult } from './commands/types';
 import { getRewardById } from '../channel-points/store';
 import { noticeText } from './notices';
 import { t } from './strings';
 import { bumpMessage, bumpWatch, flushActivity } from './stats';
+import { createSkipVotes } from './skipVotes';
 import { planSubs } from './subplan';
 import { loadBotCredentials, refreshBotCredentials, type BotCredentials } from './token';
 
@@ -56,6 +58,13 @@ const MODERATED_CHANNELS_URL = 'https://api.twitch.tv/helix/moderation/channels'
 const CHAT_MESSAGES_URL = 'https://api.twitch.tv/helix/chat/messages';
 const CHATTERS_URL = 'https://api.twitch.tv/helix/chat/chatters';
 const COSMETICS_TTL_MS = 60_000;
+/** Twitch counts a bot's sends in 30-second windows; ours are budgeted in the same unit. */
+const SEND_WINDOW_MS = 30_000;
+/** A modded bot is allowed 100 per window in a channel — a fifth of that leaves room for AutoMod
+ *  retries and for the streamer's own bots, and no chat needs more of us than that. */
+const SEND_PER_CHANNEL = 20;
+/** Whole-account ceiling: one bot serves every live channel, and spam flags land on the account. */
+const SEND_GLOBAL = 200;
 
 export interface TwitchChatDeps {
   /** Live signal: the streamer's OBS overlay is connected (platform-agnostic). */
@@ -113,6 +122,12 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
   let playCommandChannels = new Set<string>();
   /** Channel ids whose streamer enabled `!tts` (put a line on stream from chat). Off by default. */
   let ttsCommandChannels = new Set<string>();
+  /** Channel ids whose streamer enabled `!skip` (viewers vote the current show off screen). */
+  let skipCommandChannels = new Set<string>();
+  /** channel id -> viewer votes a skip needs there. Missing = the column default. */
+  let skipVotesNeeded = new Map<string, number>();
+  /** Who has voted against what is on screen right now, per channel. */
+  const skipVotes = createSkipVotes();
   /** Per-channel bot answer language. Refreshed on reconcile; missing = the column default. */
   let botLocales = new Map<string, BotLocale>();
   /** Channel id -> owner login, the /c/<login> the `!tossit` answer points at. */
@@ -127,6 +142,9 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
   const xpCache = new Map<string, { xp: number; at: number }>();
   /** channel id -> latest Get-Chatters snapshot, for the streamer "who's on stream now" panel. */
   const liveChatters = new Map<string, { viewers: LiveViewer[]; at: number }>();
+  /** broadcaster id -> when we wrote to that chat, within the current send window. */
+  const sendTimes = new Map<string, number[]>();
+  let globalSends: number[] = [];
   // Resolves native platform badges to image URLs (cached catalogs; helixGet is hoisted below).
   const badgeResolver = createBadgeResolver({ helixGet, log: deps.log });
   // Same idea for cheers: one cached catalog per channel, nothing per message.
@@ -243,6 +261,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     return {
       playEnabled: playCommandChannels.has(channelId),
       ttsEnabled: ttsCommandChannels.has(channelId),
+      skipEnabled: skipCommandChannels.has(channelId),
     };
   }
 
@@ -355,6 +374,51 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
       },
     );
     return { kind: autoApproved ? 'queued' : 'moderation' };
+  }
+
+  /**
+   * Back the `!skip` command. Media before music, because that is what chat means by "skip this";
+   * the background playlist is not ours to touch — it is nobody's submission, and it is usually a
+   * multi-hour set nobody wants restarted.
+   *
+   * The streamer and their moderators skip outright: Twitch's own badge is the authority, the same
+   * one the overlay renders. Everyone else votes, and the tally is per submission — see skipVotes.
+   */
+  async function skipFromChat(input: {
+    channelId: string;
+    twitchId: string;
+    privileged: boolean;
+  }): Promise<SkipResult> {
+    if (!skipCommandChannels.has(input.channelId)) return { kind: 'disabled' };
+    const current = deps.playback.currentsOf(input.channelId)[0];
+    if (!current) {
+      return skipVotes.answerNothing(input.channelId, input.twitchId)
+        ? { kind: 'nothing' }
+        : { kind: 'silent' };
+    }
+
+    if (input.privileged) {
+      const done = await deps.playback.skip(input.channelId, current.slot, 'chat-skip');
+      skipVotes.clear(input.channelId);
+      return done ? { kind: 'skipped', byVote: false } : { kind: 'silent' };
+    }
+
+    const need = skipVotesNeeded.get(input.channelId) ?? SKIP_VOTES.default;
+    const tally = skipVotes.vote({
+      channelId: input.channelId,
+      submissionId: current.sub.id,
+      twitchId: input.twitchId,
+      need,
+    });
+    if (tally.outcome !== 'passed') {
+      return tally.outcome === 'counted'
+        ? { kind: 'voted', have: tally.have, need }
+        : { kind: 'silent' };
+    }
+    // The show can end on its own between the vote and the skip; then the votes simply bought
+    // nothing, and the next post keeps its own empty tally.
+    const done = await deps.playback.skip(input.channelId, current.slot, 'vote-skip');
+    return done ? { kind: 'skipped', byVote: true } : { kind: 'silent' };
   }
 
   /** Single-flight guard: concurrent 401s must share one refresh, because Twitch
@@ -480,11 +544,16 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     // shared bot account off Twitch's platform-wide spam radar.
     const toOverlay = chatEnabledChannels.has(channelId) && live;
     const toChat = botReplyChannels.has(channelId) && live;
-    // !play and !tts have a side effect (they queue media), so the registry must run even when no
-    // answer can land — the confirmation is then simply dropped, but the send still reaches the queue.
+    // !play, !tts and !skip have a side effect (they move what is on the stream), so the registry
+    // must run even when no answer can land — the confirmation is then simply dropped, but the
+    // command itself still takes effect.
     const sendOn =
-      (playCommandChannels.has(channelId) || ttsCommandChannels.has(channelId)) && live;
+      (playCommandChannels.has(channelId) ||
+        ttsCommandChannels.has(channelId) ||
+        skipCommandChannels.has(channelId)) &&
+      live;
     if (toOverlay || toChat || sendOn) {
+      const role = roleFromBadges(ev.badges);
       void runCommand(
         ev.fragments,
         {
@@ -493,12 +562,17 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
           login: ev.chatterLogin,
           name: ev.chatterName,
           locale: botLocales.get(channelId) ?? 'ru',
+          // Twitch's own badges are the authority on who runs this channel — the same source the
+          // overlay draws the mod sword from.
+          privileged:
+            ev.chatterId === ev.broadcasterId || role === 'broadcaster' || role === 'moderator',
         },
         {
           queueState: deps.queueState,
           xpFor: lookupXp,
           play: playFromChat,
           say: sayFromChat,
+          skip: skipFromChat,
           channelUrl,
           commandState: commandStateOf,
         },
@@ -508,7 +582,9 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
           // Twitch chat is plain text — only the overlay card wears the asker's look, and only
           // there do we pay the cosmetics lookup (cached ~60s). Send first so the DB read never
           // delays the chat reply.
-          if (toChat) void sendChatMessage(ev.broadcasterId, toChatText(line));
+          if (toChat && canSendChat(ev.broadcasterId)) {
+            void sendChatMessage(ev.broadcasterId, toChatText(line));
+          }
           if (toOverlay) {
             void lookupCosmetics(ev.chatterId).then(({ cosmetics, isFounder }) =>
               deps.io
@@ -619,6 +695,30 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
       if (res.status !== 401) break;
     }
     return res;
+  }
+
+  /**
+   * Twitch's send budget, spent honestly. A modded bot may post 100 messages per 30 s in a channel;
+   * we stay far under that per channel and keep a whole-account ceiling too, because one bot
+   * account serves every stream at once and it is the ACCOUNT that gets flagged for spam.
+   *
+   * Over budget we drop the chat copy only — the command has already run and its answer still
+   * reaches the chat overlay. That is the trade this replaced the old channel-wide cooldown with:
+   * a lost line, never a lost command.
+   */
+  function canSendChat(broadcasterId: string): boolean {
+    const now = Date.now();
+    const since = now - SEND_WINDOW_MS;
+    const mine = (sendTimes.get(broadcasterId) ?? []).filter((at) => at > since);
+    globalSends = globalSends.filter((at) => at > since);
+    if (mine.length >= SEND_PER_CHANNEL || globalSends.length >= SEND_GLOBAL) {
+      sendTimes.set(broadcasterId, mine);
+      return false;
+    }
+    mine.push(now);
+    globalSends.push(now);
+    sendTimes.set(broadcasterId, mine);
+    return true;
   }
 
   /**
@@ -767,6 +867,8 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
         botReplies: channels.chatBotReplies,
         playCommand: channels.chatPlayCommand,
         ttsCommand: channels.chatTtsCommand,
+        skipCommand: channels.chatSkipCommand,
+        skipVotes: channels.skipVotesNeeded,
         botLocale: channels.botLocale,
         ownerLogin: users.login,
       })
@@ -788,6 +890,8 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     botReplyChannels = new Set(modded.filter((r) => r.botReplies).map((r) => r.id));
     playCommandChannels = new Set(modded.filter((r) => r.playCommand).map((r) => r.id));
     ttsCommandChannels = new Set(modded.filter((r) => r.ttsCommand).map((r) => r.id));
+    skipCommandChannels = new Set(modded.filter((r) => r.skipCommand).map((r) => r.id));
+    skipVotesNeeded = new Map(modded.map((r) => [r.id, r.skipVotes]));
     botLocales = new Map(modded.map((r) => [r.id, r.botLocale]));
     channelLogins = new Map(modded.map((r) => [r.id, r.ownerLogin]));
     // Subscriptions follow the stream, not the sign-up: a channel with no overlay connected reads

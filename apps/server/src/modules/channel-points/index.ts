@@ -1,8 +1,10 @@
+import { eq } from 'drizzle-orm';
 import type { FastifyBaseLogger } from 'fastify';
 import {
   CHANNEL_POINTS,
   CHAT_TEXT_MAX_LEN,
   DUST_POINTS,
+  type BotLocale,
   type ChannelPointsStatus,
 } from '@tmw/shared';
 import { roomOf, type PlaybackManager, type RealtimeServer } from '../../playback';
@@ -13,7 +15,10 @@ import {
   submitResolvedYoutube,
 } from '../../media/submit';
 import { isRedemptionKnown } from '../../media/payout';
+import { db } from '../../db/index';
+import { channels } from '../../db/schema';
 import { awardDust } from '../twitch-chat/accrual';
+import { t } from '../twitch-chat/strings';
 import { ChannelPointsEventSub, type RedemptionEvent } from './eventsub';
 import {
   cancelRedemption,
@@ -117,8 +122,50 @@ function ttsText(lang: string | undefined): { title: string; prompt: string } {
   return TTS_TEXT[lang as keyof typeof TTS_TEXT] ?? TTS_TEXT.ru;
 }
 
+/**
+ * Skip reward text. The only reward that takes something OFF the screen, so the prompt spends its
+ * room on the two things a buyer can be wrong about: the background playlist is out of reach, and
+ * an empty screen refunds instead of eating the points.
+ */
+const SKIP_TEXT = {
+  ru: {
+    title: 'Пропустить показ (Tossit)',
+    prompt:
+      'Сразу убирает с экрана то, что идёт: видео, трек или картинку. Фоновая музыка не в счёт. Если в момент покупки на экране пусто — баллы вернутся.',
+  },
+  uk: {
+    title: 'Пропустити показ (Tossit)',
+    prompt:
+      'Одразу прибирає з екрана те, що йде: відео, трек або картинку. Фонова музика не рахується. Якщо в момент купівлі на екрані порожньо — бали повернуться.',
+  },
+  en: {
+    title: 'Skip what is on screen (Tossit)',
+    prompt:
+      'Instantly takes whatever is playing off the screen: video, track or image. Background music is out of reach. Nothing on screen when you redeem — your points come back.',
+  },
+} as const;
+
+function skipText(lang: string | undefined): { title: string; prompt: string } {
+  return SKIP_TEXT[lang as keyof typeof SKIP_TEXT] ?? SKIP_TEXT.ru;
+}
+
+/** The language this channel's bot speaks — read for the one chat line a skip puts out, which is
+ *  rare enough to pay a row read for. */
+async function channelBotLocale(channelId: string): Promise<BotLocale> {
+  const row = await db
+    .select({ locale: channels.botLocale })
+    .from(channels)
+    .where(eq(channels.id, channelId))
+    .get();
+  return row?.locale ?? 'ru';
+}
+
 /** The independent rewards Tossit can own on a channel; each is created/removed on its own. */
-export type RewardKind = 'stardust' | 'youtube' | 'tts';
+export type RewardKind = 'stardust' | 'youtube' | 'tts' | 'skip';
+
+/** Rewards whose buyer types something into Twitch's own prompt (the link, the line). The other
+ *  two are a plain click — asking for input there would just block the redemption. */
+const INPUT_KINDS = new Set<RewardKind>(['youtube', 'tts']);
 
 /**
  * What Twitch will store for a reward: title ≤45 chars, prompt ≤200. Longer is rejected with a
@@ -135,6 +182,7 @@ export function rewardTextFor(
 ): { title: string; prompt: string } {
   if (kind === 'youtube') return youtubeText(lang);
   if (kind === 'tts') return ttsText(lang);
+  if (kind === 'skip') return skipText(lang);
   return rewardText(lang);
 }
 
@@ -396,6 +444,43 @@ export function createChannelPointsModule(deps: {
   }
 
   /**
+   * Skip reward: the only one that takes something OFF the screen, and the only one that resolves
+   * within a single call — it either skipped a show (FULFILLED) or found the screen empty
+   * (CANCELED, points back). Nothing to keep pending, because a skip is about this exact moment.
+   *
+   * No dust: this buys an action, not a post. Paying for it would put a price on griefing, and the
+   * skipped post keeps whatever verdict playback gives it — who asked for the skip changes nothing
+   * about what its own sender is owed.
+   */
+  async function processSkip(
+    reward: RewardRecord,
+    conn: ConnectionRecord,
+    ev: RedemptionEvent,
+  ): Promise<void> {
+    const slot = await playback.skipCurrent(reward.channelId, 'points-skip');
+    await authorized(reward.channelId, (token) =>
+      slot
+        ? fulfillRedemption(token, conn.broadcasterId, reward.rewardId, ev.redemptionId)
+        : cancelRedemption(token, conn.broadcasterId, reward.rewardId, ev.redemptionId),
+    );
+    log.info(
+      { channelId: reward.channelId, redeemerId: ev.redeemerId, slot },
+      slot ? 'channel-points: skipped by redemption' : 'channel-points: nothing to skip, refunded',
+    );
+    if (!slot) return;
+    // Say who did it. Without a line, a post vanishing mid-play reads as the overlay breaking —
+    // and the chat overlay is where the vote-skip announces itself too.
+    const locale = await channelBotLocale(reward.channelId);
+    io.to(roomOf(reward.channelId)).emit('chat:system', {
+      name: ev.redeemerName,
+      text: t(locale, 'skipPoints'),
+      cosmetics: null,
+      isFounder: false,
+      twitchColor: null,
+    });
+  }
+
+  /**
    * The submission's fate, told to Twitch: aired → take the points, anything else → give them back.
    * Never throws — a settle that fails leaves the redemption pending, which the streamer can still
    * resolve by hand in their own queue, and that is a better failure than losing the points.
@@ -448,6 +533,8 @@ export function createChannelPointsModule(deps: {
       await processYoutube(reward, conn, ev);
     } else if (reward.kind === 'tts') {
       await processTts(reward, conn, ev);
+    } else if (reward.kind === 'skip') {
+      await processSkip(reward, conn, ev);
     } else {
       log.warn({ kind: reward.kind }, 'channel-points: reward kind has no handler');
     }
@@ -469,6 +556,7 @@ export function createChannelPointsModule(deps: {
       let total = 0;
       let stale = 0;
       let capped = 0;
+      let refunded = 0;
       do {
         const res = await authorized(channelId, (token) =>
           getRedemptions(token, conn.broadcasterId, reward.rewardId, 'UNFULFILLED', after),
@@ -487,6 +575,15 @@ export function createChannelPointsModule(deps: {
           pagination?: { cursor?: string };
         };
         for (const r of body.data ?? []) {
+          // A skip is only meaningful the instant it is bought. Whatever sits in this backlog was
+          // bought while we were down, and the show it aimed at is long gone — refund, never replay.
+          if (reward.kind === 'skip') {
+            await authorized(channelId, (token) =>
+              cancelRedemption(token, conn.broadcasterId, reward.rewardId, r.id),
+            );
+            refunded += 1;
+            continue;
+          }
           // Both request kinds stay UNFULFILLED while queued, so the backlog holds ones we already
           // took (a payout row exists — skip) next to ones we never saw.
           if (reward.kind !== 'stardust' && (await isRedemptionKnown(r.id))) continue;
@@ -524,6 +621,12 @@ export function createChannelPointsModule(deps: {
         log.info({ channelId, rewardId: reward.rewardId, total }, 'channel-points: swept backlog');
       // Never silent: what the bounds refused stays pending on Twitch, and the streamer can only
       // resolve by hand what they know about.
+      if (refunded > 0) {
+        log.info(
+          { channelId, rewardId: reward.rewardId, refunded },
+          'channel-points: refunded skips bought while we were down',
+        );
+      }
       if (stale > 0 || capped > 0) {
         log.warn(
           { channelId, rewardId: reward.rewardId, stale, capped },
@@ -590,9 +693,9 @@ export function createChannelPointsModule(deps: {
     run: (fn: (token: string) => Promise<Response>) => Promise<Response | null>,
   ): Promise<string | null> {
     const text = rewardTextFor(kind, lang);
-    // Both request rewards take viewer input (the link / the line); stardust is a plain click.
+    // The request rewards take viewer input (the link / the line); stardust and skip are clicks.
     const res = await run((token) =>
-      createReward(token, broadcasterId, text.title, cost, text.prompt, kind !== 'stardust'),
+      createReward(token, broadcasterId, text.title, cost, text.prompt, INPUT_KINDS.has(kind)),
     );
     if (res?.ok) {
       return ((await res.json()) as { data?: { id: string }[] }).data?.[0]?.id ?? null;
@@ -734,6 +837,7 @@ export function createChannelPointsModule(deps: {
         hasStardust: rewards.some((r) => r.kind === 'stardust'),
         hasYoutube: rewards.some((r) => r.kind === 'youtube'),
         hasTts: rewards.some((r) => r.kind === 'tts'),
+        hasSkip: rewards.some((r) => r.kind === 'skip'),
       };
     },
     settleRedemption,

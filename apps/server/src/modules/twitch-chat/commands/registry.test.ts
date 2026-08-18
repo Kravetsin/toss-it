@@ -13,6 +13,7 @@ describe('isCommand', () => {
   const state = (patch: Partial<ChannelCommandState> = {}): ChannelCommandState => ({
     playEnabled: false,
     ttsEnabled: false,
+    skipEnabled: false,
     ...patch,
   });
 
@@ -30,5 +31,9 @@ describe('isCommand', () => {
     expect(isCommand(msg('!say hi'), state())).toBe(false);
     expect(isCommand(msg('!tts hi'), state({ ttsEnabled: true }))).toBe(true);
     expect(isCommand(msg('!play link'), state({ playEnabled: true }))).toBe(true);
+    expect(isCommand(msg('!skip'), state())).toBe(false);
+    expect(isCommand(msg('!skip'), state({ skipEnabled: true }))).toBe(true);
+    // The Russian trigger is the one viewers actually type in these chats.
+    expect(isCommand(msg('!скип'), state({ skipEnabled: true }))).toBe(true);
   });
 });

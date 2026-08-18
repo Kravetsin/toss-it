@@ -296,7 +296,7 @@ export function disconnectChannelPoints(): Promise<unknown> {
 }
 
 /** Which Tossit reward a call is about — the kind is the path segment on the server. */
-export type RewardKind = 'stardust' | 'youtube' | 'tts';
+export type RewardKind = 'stardust' | 'youtube' | 'tts' | 'skip';
 
 export function addChannelPointsReward(
   kind: RewardKind,

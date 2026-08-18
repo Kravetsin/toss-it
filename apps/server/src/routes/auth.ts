@@ -58,7 +58,9 @@ const CHANNEL_POINTS_SCOPE = 'channel:manage:redemptions';
 /** The reward kinds a request may name, or null for anything we don't own. Central so the OAuth
  *  entry and the add/remove routes accept exactly the same set. */
 function rewardKindOf(value: string | undefined): RewardKind | null {
-  return value === 'stardust' || value === 'youtube' || value === 'tts' ? value : null;
+  return value === 'stardust' || value === 'youtube' || value === 'tts' || value === 'skip'
+    ? value
+    : null;
 }
 
 /** OAuth state cookie payload. bot = admin's bot-connect; link = attach Twitch to session user;

@@ -1,9 +1,15 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BOT_LOCALES, CHAT_TEXT_MAX_LEN, type BotLocale, type ChannelSettings } from '@tmw/shared';
+import {
+  BOT_LOCALES,
+  CHAT_TEXT_MAX_LEN,
+  SKIP_VOTES,
+  type BotLocale,
+  type ChannelSettings,
+} from '@tmw/shared';
 import { useI18n } from '@/i18n';
 import { Icon } from '@/ui/icons';
-import { Card, Select, Switch } from '@/ui';
+import { Card, Select, Slider, Switch } from '@/ui';
 import { SaveRow } from './settings/controls';
 
 /**
@@ -25,6 +31,8 @@ export function ChatDustSettings({
   const [botReplies, setBotReplies] = useState(settings.chatBotReplies);
   const [playCommand, setPlayCommand] = useState(settings.chatPlayCommand);
   const [ttsCommand, setTtsCommand] = useState(settings.chatTtsCommand);
+  const [skipCommand, setSkipCommand] = useState(settings.chatSkipCommand);
+  const [skipVotes, setSkipVotes] = useState(settings.skipVotesNeeded);
   const [botLocale, setBotLocale] = useState<BotLocale>(settings.botLocale);
   if (!settings.chatBotLogin) return null;
 
@@ -75,6 +83,27 @@ export function ChatDustSettings({
             checked={ttsCommand}
             onChange={setTtsCommand}
           />
+          {/* The only command that removes something instead of adding it, so the threshold sits
+              directly under its switch — the switch alone would not say how many people it takes.
+              The streamer and their moderators never vote; the note is where that is said. */}
+          <Switch
+            icon="skip-forward"
+            label={t('dash.chatSkipCommand')}
+            description={t('dash.chatSkipCommandNote')}
+            checked={skipCommand}
+            onChange={setSkipCommand}
+          />
+          {skipCommand && (
+            <Slider
+              icon="users"
+              label={t('dash.skipVotesNeeded', { n: skipVotes })}
+              min={SKIP_VOTES.min}
+              max={SKIP_VOTES.max}
+              step={1}
+              value={skipVotes}
+              onChange={setSkipVotes}
+            />
+          )}
           <div className="flex flex-col gap-1.5">
             {/* Select renders `label` as aria only, so the visible caption is ours to draw. */}
             <span className="label-mono text-faint">{t('dash.botLocale')}</span>
@@ -92,6 +121,8 @@ export function ChatDustSettings({
                 chatBotReplies: botReplies,
                 chatPlayCommand: playCommand,
                 chatTtsCommand: ttsCommand,
+                chatSkipCommand: skipCommand,
+                skipVotesNeeded: skipVotes,
                 botLocale,
               })
             }

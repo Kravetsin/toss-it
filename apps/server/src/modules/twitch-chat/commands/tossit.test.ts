@@ -15,15 +15,17 @@ describe('!tossit', () => {
     name: 'Viewer',
     args: [],
     locale: 'ru',
+    privileged: false,
   });
 
-  const deps = (playEnabled: boolean, ttsEnabled = false): CommandDeps => ({
+  const deps = (playEnabled: boolean, ttsEnabled = false, skipEnabled = false): CommandDeps => ({
     queueState: () => null,
     xpFor: async () => 0,
     play: async () => ({ kind: 'disabled' }),
     say: async () => ({ kind: 'disabled' }),
+    skip: async () => ({ kind: 'disabled' }),
     channelUrl: () => 'toss-it.org/c/kravets',
-    commandState: () => ({ playEnabled, ttsEnabled }),
+    commandState: () => ({ playEnabled, ttsEnabled, skipEnabled }),
   });
 
   it('lists the other commands and points at the channel page', async () => {

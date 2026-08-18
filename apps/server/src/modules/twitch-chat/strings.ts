@@ -31,6 +31,13 @@ const STRINGS = {
     ttsLong: 'too long — {n} characters max',
     ttsQueued: 'on its way to the screen',
     ttsModeration: 'sent for review',
+    // `!skip`. The vote line is a bare ratio: it is read at a glance mid-stream, and it repeats.
+    skipNothing: 'nothing on screen right now',
+    skipVotes: '{have}/{need} to skip',
+    skipDone: 'skipping',
+    skipDoneVotes: 'enough votes — skipping',
+    /** Said by the SKIP REWARD, so it names the deed, not the doer's tense. */
+    skipPoints: 'skip bought with points',
     // Chat-notice captions. The row already shows WHO, so these only say WHAT — and they name a
     // thing rather than an action, because a Slavic past tense would have to guess the sender's
     // gender. The number, when there is one, is appended by the caller as " · n".
@@ -77,6 +84,11 @@ const STRINGS = {
     ttsLong: 'слишком длинно — максимум {n} символов',
     ttsQueued: 'скоро появится на экране',
     ttsModeration: 'отправил на модерацию',
+    skipNothing: 'сейчас на экране пусто',
+    skipVotes: '{have}/{need} за скип',
+    skipDone: 'пропускаю',
+    skipDoneVotes: 'голосов хватило — пропускаю',
+    skipPoints: 'скип за баллы',
     noticeSub: 'новая подписка',
     noticeResub: 'подписка',
     noticeSubGift: 'подписка в подарок',
@@ -118,6 +130,11 @@ const STRINGS = {
     ttsLong: 'занадто довго — максимум {n} символів',
     ttsQueued: 'скоро зʼявиться на екрані',
     ttsModeration: 'надіслав на модерацію',
+    skipNothing: 'зараз на екрані порожньо',
+    skipVotes: '{have}/{need} за скіп',
+    skipDone: 'пропускаю',
+    skipDoneVotes: 'голосів вистачило — пропускаю',
+    skipPoints: 'скіп за бали',
     noticeSub: 'нова підписка',
     noticeResub: 'підписка',
     noticeSubGift: 'підписка в подарунок',

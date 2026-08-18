@@ -9,7 +9,7 @@ import { REWARD_PROMPT_MAX, REWARD_TITLE_MAX, rewardTextFor, type RewardKind } f
  * prompt grows every time someone clarifies it, and the constants inside it can grow on their own.
  */
 describe('reward copy fits what Twitch stores', () => {
-  const kinds: RewardKind[] = ['stardust', 'youtube', 'tts'];
+  const kinds: RewardKind[] = ['stardust', 'youtube', 'tts', 'skip'];
 
   for (const kind of kinds) {
     for (const lang of BOT_LOCALES) {

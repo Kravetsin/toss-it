@@ -6,6 +6,7 @@ import {
   CHANNEL_DESCRIPTION_MAX_LEN,
   CHANNEL_LINKS_MAX,
   CHANNEL_LINK_URL_MAX_LEN,
+  clampSkipVotes,
   earnedBackgroundIds,
   musicConfigFrom,
   MUSIC_DISPLAYS,
@@ -203,6 +204,7 @@ function toSettings(
     chatCommands: commandCatalog({
       playEnabled: ch.chatPlayCommand,
       ttsEnabled: ch.chatTtsCommand,
+      skipEnabled: ch.chatSkipCommand,
     }),
     chatBotLogin: chatBot.login,
     chatBotReading: chatBot.reading,
@@ -225,6 +227,8 @@ function toSettings(
     chatBotReplies: ch.chatBotReplies,
     chatPlayCommand: ch.chatPlayCommand,
     chatTtsCommand: ch.chatTtsCommand,
+    chatSkipCommand: ch.chatSkipCommand,
+    skipVotesNeeded: ch.skipVotesNeeded,
     botLocale: ch.botLocale,
     chatFontSize: ch.chatFontSize,
     chatFadeSeconds: ch.chatFadeSeconds,
@@ -712,6 +716,12 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
           typeof b.chatPlayCommand === 'boolean' ? b.chatPlayCommand : channel.chatPlayCommand,
         chatTtsCommand:
           typeof b.chatTtsCommand === 'boolean' ? b.chatTtsCommand : channel.chatTtsCommand,
+        chatSkipCommand:
+          typeof b.chatSkipCommand === 'boolean' ? b.chatSkipCommand : channel.chatSkipCommand,
+        skipVotesNeeded:
+          typeof b.skipVotesNeeded === 'number'
+            ? clampSkipVotes(b.skipVotesNeeded)
+            : channel.skipVotesNeeded,
         botLocale: BOT_LOCALES.includes(b.botLocale as BotLocale)
           ? (b.botLocale as BotLocale)
           : channel.botLocale,

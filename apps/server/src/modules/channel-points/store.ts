@@ -12,7 +12,7 @@ import type { StreamerCreds } from './token';
 export type ConnectionRecord = ChannelPointConnectionRow;
 export type RewardRecord = ChannelPointRewardRow;
 /** What a reward routes to. */
-export type RewardKind = 'stardust' | 'youtube' | 'tts';
+export type RewardKind = 'stardust' | 'youtube' | 'tts' | 'skip';
 
 /** Decode the encrypted {access,refresh} blob; null if it can't be read (key rotated / corrupt). */
 export function decodeCreds(conn: ConnectionRecord): StreamerCreds | null {

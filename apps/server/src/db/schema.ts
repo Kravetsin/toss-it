@@ -131,6 +131,14 @@ export const channels = sqliteTable('channels', {
    * `autoApproveText`, and whether it is spoken by `ttsMessage`.
    */
   chatTtsCommand: integer('chat_tts_command', { mode: 'boolean' }).notNull().default(false),
+  /**
+   * Let viewers skip what is on screen with `!skip`. Off by default, and unlike every other
+   * command this one TAKES something away — so the streamer and their moderators skip with a
+   * single command, while everyone else has to gather `skipVotesNeeded` votes.
+   */
+  chatSkipCommand: integer('chat_skip_command', { mode: 'boolean' }).notNull().default(false),
+  /** Viewer votes that skip the current show; 2–10, clamped on write. */
+  skipVotesNeeded: integer('skip_votes_needed').notNull().default(3),
   /** Language the bot answers commands in. Seeded from the dashboard's language at channel
    *  creation, then owned by the streamer — the UI language and the chat language differ often. */
   botLocale: text('bot_locale').$type<BotLocale>().notNull().default('ru'),

@@ -13,6 +13,8 @@ export interface CommandContext {
   args: string[];
   /** Language this channel's bot answers in. */
   locale: BotLocale;
+  /** Broadcaster or moderator of THIS channel — read from the message's own Twitch badges. */
+  privileged: boolean;
 }
 
 /**
@@ -42,6 +44,19 @@ export type SayResult =
   | { kind: 'queued' }
   | { kind: 'moderation' };
 
+/**
+ * Outcome of a `!skip`. `silent` is a deliberate non-answer: a second vote from the same person,
+ * a count line we just posted, or a repeated "nothing is playing" — all of them true, none of them
+ * worth another line in someone's chat.
+ */
+export type SkipResult =
+  | { kind: 'disabled' }
+  | { kind: 'nothing' }
+  | { kind: 'silent' }
+  | { kind: 'voted'; have: number; need: number }
+  /** `byVote` false = the streamer or a moderator, whose single command is enough. */
+  | { kind: 'skipped'; byVote: boolean };
+
 /** The streamer's own switches over the command set — everything `available()` is allowed to ask
  *  about. Kept to plain data so the dashboard can answer it from a channel row. */
 export interface ChannelCommandState {
@@ -49,6 +64,8 @@ export interface ChannelCommandState {
   playEnabled: boolean;
   /** `!tts` — same reasoning, and it puts the viewer's own words on the stream. */
   ttsEnabled: boolean;
+  /** `!skip` — the one command that takes a post off the screen instead of putting one on it. */
+  skipEnabled: boolean;
 }
 
 /** Live state a command cannot read from the DB, injected by the twitch-chat module. */
@@ -79,6 +96,9 @@ export interface CommandDeps {
     name: string;
     text: string;
   }): Promise<SayResult>;
+  /** Skip what is on screen (`!skip`). Owns the enable gate, the vote tally and the playback call;
+   *  the command only turns the result into a line. */
+  skip(input: { channelId: string; twitchId: string; privileged: boolean }): Promise<SkipResult>;
 }
 
 /** One command = one file in this folder + one entry in the registry (see ./index.ts). */
@@ -92,6 +112,10 @@ export interface ChatCommand {
    *  it takes plain channel state instead of a caller's context. Running is still each command's
    *  own business: `!play` stays silent by itself when disabled. */
   available?(state: ChannelCommandState): boolean;
+  /** Per-caller silence after a run, overriding the registry default. 0 = never throttled here,
+   *  for a command that has to see every message (`!skip` counts votes; a swallowed one is a lost
+   *  vote) and does its own silencing instead. */
+  cooldownMs?: number;
   /** The line to answer with, or null to stay silent. */
   run(ctx: CommandContext, deps: CommandDeps): Promise<ChatSystemLine | null>;
 }
