@@ -224,6 +224,7 @@ const sub = (
   senderEffect: null,
   senderCardEffect: null,
   senderCardEffectColor: null,
+  senderCardEffectColor2: null,
   senderFrame: null,
   senderSeal: null,
   senderSealColor: null,
@@ -500,8 +501,59 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderLevel: 7,
     senderColor: '#5ac8ff',
     senderCardEffect: 'card-blade-duel',
+    // Both blades recoloured — the dual-colour upgrade is the only one with two pickers.
+    senderCardEffectColor: '#b57cff',
+    senderCardEffectColor2: '#7cff9e',
     text: 'держи блок',
     createdAt: t - 74 * min,
+  }),
+  sub({
+    id: 's20',
+    kind: 'text',
+    senderUserId: 'twitch:v23',
+    senderName: 'nulltrace',
+    senderLevel: 8,
+    senderColor: '#7cffb0',
+    senderCardEffect: 'card-code-rain',
+    text: 'смотри внимательнее',
+    createdAt: t - 78 * min,
+  }),
+  sub({
+    id: 's21',
+    kind: 'text',
+    senderUserId: 'twitch:v24',
+    senderName: 'violetstack',
+    senderLevel: 6,
+    senderColor: '#c9a7ff',
+    senderCardEffect: 'card-code-rain',
+    // Next to the default green one above: the colour upgrade is the whole difference.
+    senderCardEffectColor: '#c26bff',
+    text: 'а можно фиолетовый',
+    createdAt: t - 82 * min,
+  }),
+  sub({
+    id: 's22',
+    kind: 'text',
+    senderUserId: 'twitch:v25',
+    senderName: 'linecleaner',
+    senderLevel: 5,
+    senderColor: '#ffe14a',
+    senderCardEffect: 'card-well',
+    text: 'ещё один ряд',
+    createdAt: t - 86 * min,
+  }),
+  sub({
+    id: 's23',
+    kind: 'text',
+    senderUserId: 'twitch:v26',
+    senderName: 'apertureboy',
+    senderLevel: 9,
+    senderColor: '#5fd8ff',
+    senderCardEffect: 'card-portals',
+    senderCardEffectColor: '#5fffd0',
+    senderCardEffectColor2: '#ff5f8f',
+    text: 'думаю с порталами',
+    createdAt: t - 90 * min,
   }),
 ];
 
@@ -655,7 +707,7 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     nickColor2: null,
     nickFlow: false,
     nickEffect: null,
-    cardEffect: null,
+    cardEffect: 'card-portals',
     seal: 'seal-keyring',
     sealColor: null,
     level: 4,
@@ -670,7 +722,7 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     nickColor2: null,
     nickFlow: false,
     nickEffect: 'nick-pulse',
-    cardEffect: 'card-snow',
+    cardEffect: 'card-code-rain',
     // Colourable hourglass seal, recoloured — previews a tinted seal in the leaderboard.
     seal: 'seal-hourglass',
     sealColor: '#7cff4f',
@@ -686,7 +738,7 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     nickColor2: null,
     nickFlow: false,
     nickEffect: 'nick-glow',
-    cardEffect: 'card-rain',
+    cardEffect: 'card-well',
     // Colourable butterfly seal, recoloured cyan.
     seal: 'seal-core',
     sealColor: '#5ad1ff',
@@ -791,6 +843,7 @@ const MOCK_DIRECTORY: DirectoryChannel[] = [
     nickEffect: 'nick-glow',
     cardEffect: 'card-stardust',
     cardEffectColor: null,
+    cardEffectColor2: null,
   },
   {
     login: 'pixel_witch',
@@ -815,6 +868,7 @@ const MOCK_DIRECTORY: DirectoryChannel[] = [
     nickEffect: null,
     cardEffect: null,
     cardEffectColor: null,
+    cardEffectColor2: null,
   },
   {
     login: 'dj_summer',
@@ -840,6 +894,7 @@ const MOCK_DIRECTORY: DirectoryChannel[] = [
     nickEffect: null,
     cardEffect: 'card-butterflies',
     cardEffectColor: '#ff2e9a',
+    cardEffectColor2: null,
   },
   {
     login: 'clip_gremlin',
@@ -864,6 +919,7 @@ const MOCK_DIRECTORY: DirectoryChannel[] = [
     nickEffect: null,
     cardEffect: null,
     cardEffectColor: null,
+    cardEffectColor2: null,
   },
 ];
 
@@ -1049,6 +1105,18 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
         else delete map[k];
       }
       next.cardEffectColors = map;
+    }
+    // The SECOND colour of a two-sided effect, merged the same way. Not optional bookkeeping: this
+    // mock is how the shop gets looked at, and a slot it silently drops reads as a broken feature.
+    const colorPatch2 = (body as { cardEffectColors2?: Record<string, string | null> })
+      .cardEffectColors2;
+    if (colorPatch2 && typeof colorPatch2 === 'object') {
+      const map = { ...(u.equipped.cardEffectColors2 ?? {}) };
+      for (const [k, v] of Object.entries(colorPatch2)) {
+        if (v) map[k] = v;
+        else delete map[k];
+      }
+      next.cardEffectColors2 = map;
     }
     // Mirror the server's ladder: an upgrade can't outlive the rung it stands on.
     if (!next.nickColor) next.nickColor2 = undefined;

@@ -37,6 +37,12 @@ import { cardEyesColor } from './effects/card-eyes-color';
 import { cardHextech } from './effects/card-hextech';
 import { cardHextechColor } from './effects/card-hextech-color';
 import { cardBladeDuel } from './effects/card-blade-duel';
+import { cardCodeRain } from './effects/card-code-rain';
+import { cardCodeRainColor } from './effects/card-code-rain-color';
+import { cardWell } from './effects/card-well';
+import { cardPortals } from './effects/card-portals';
+import { cardBladeDuelColor } from './effects/card-blade-duel-color';
+import { cardPortalsColor } from './effects/card-portals-color';
 import { cardClaws } from './effects/card-claws';
 import { cardClawsColor } from './effects/card-claws-color';
 import { cardJelly } from './effects/card-jelly';
@@ -280,6 +286,12 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   // First entry of the "games/movies" shop group — a self-contained choreographed scene rather than
   // a themed particle swarm, see card-blade-duel's header.
   cardBladeDuel,
+  cardBladeDuelColor,
+  cardCodeRain,
+  cardCodeRainColor,
+  cardWell,
+  cardPortals,
+  cardPortalsColor,
   // Frames group by the metric that earns them, each family in ladder order: chat messages first,
   // then watch time. A rung is a separate item, so the shop shows what the next one looks like.
   frameRunner,
@@ -549,6 +561,7 @@ export function fillCardEffect(
   surface: Surface,
   compact: boolean,
   color?: string,
+  color2?: string,
 ): () => void {
   // The chosen colour, on the LAYER as well as on each particle: an effect whose look partly lives on
   // the layer's own pseudo-elements (card-hextech's etched lattice) cannot be reached by a per-particle
@@ -566,7 +579,7 @@ export function fillCardEffect(
   // A JS-rendered effect (a canvas web, not a particle swarm) owns the whole layer itself.
   const m = asCardEffect(id);
   if (m?.render && typeof window !== 'undefined') {
-    return m.render(layer, surface, compact, color) ?? (() => {});
+    return m.render(layer, surface, compact, color, color2) ?? (() => {});
   }
   const count = particleCount(id, surface);
   if (!count) return () => {};
@@ -608,13 +621,14 @@ export function mountCardEffect(
   surface: Surface,
   compact: boolean,
   color?: string,
+  color2?: string,
 ): () => void {
   const cls = cardEffectLayerClass(id, surface, compact);
   if (!cls) return () => {};
   const layer = document.createElement('span');
   layer.className = cls;
   layer.setAttribute('aria-hidden', 'true');
-  const off = fillCardEffect(layer, id, surface, compact, color);
+  const off = fillCardEffect(layer, id, surface, compact, color, color2);
   host.appendChild(layer);
   return () => {
     off();

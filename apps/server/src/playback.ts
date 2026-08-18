@@ -72,6 +72,7 @@ export interface NickMarks {
   cardEffect: string | null;
   /** Card effect tint (#rrggbb); only meaningful for a colourable effect (butterflies). */
   cardEffectColor: string | null;
+  cardEffectColor2: string | null;
   /** Border decoration on the card (e.g. 'frame-runner'); null = none. */
   frame: string | null;
   /** Small object the sender carries (e.g. 'seal-hourglass'); null = none. Own slot, not a frame. */
@@ -90,6 +91,7 @@ const NO_MARKS: NickMarks = {
   nickEffect: null,
   cardEffect: null,
   cardEffectColor: null,
+  cardEffectColor2: null,
   frame: null,
   seal: null,
   sealColor: null,
@@ -113,6 +115,8 @@ export function marksFromEquipped(equipped: EquippedCosmetics | null): NickMarks
     // Null unless that effect has a colour set — a plain effect has no entry and renders its own palette.
     cardEffectColor:
       (equipped?.cardEffect && equipped.cardEffectColors?.[equipped.cardEffect]) ?? null,
+    cardEffectColor2:
+      (equipped?.cardEffect && equipped.cardEffectColors2?.[equipped.cardEffect]) ?? null,
     frame: equipped?.frame ?? null,
     seal: equipped?.seal ?? null,
     // The colour stored FOR the equipped seal (per-seal map; see EquippedCosmetics.sealColors). Null
@@ -140,6 +144,7 @@ export function toSummary(
     senderEffect: marks.nickEffect,
     senderCardEffect: marks.cardEffect,
     senderCardEffectColor: marks.cardEffectColor,
+    senderCardEffectColor2: marks.cardEffectColor2,
     senderFrame: marks.frame,
     senderSeal: marks.seal,
     senderSealColor: marks.sealColor,
@@ -1099,6 +1104,7 @@ export class PlaybackManager {
       senderEffect: marks.nickEffect ?? undefined,
       senderCardEffect: marks.cardEffect ?? undefined,
       senderCardEffectColor: marks.cardEffectColor ?? undefined,
+      senderCardEffectColor2: marks.cardEffectColor2 ?? undefined,
       senderFrame: marks.frame ?? undefined,
       senderSeal: marks.seal ?? undefined,
       senderSealColor: marks.sealColor ?? undefined,

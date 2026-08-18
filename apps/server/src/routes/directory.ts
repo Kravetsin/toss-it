@@ -127,6 +127,8 @@ export function registerDirectoryRoutes(
         cardEffect: r.equipped?.cardEffect ?? null,
         cardEffectColor:
           (r.equipped?.cardEffect && r.equipped.cardEffectColors?.[r.equipped.cardEffect]) ?? null,
+        cardEffectColor2:
+          (r.equipped?.cardEffect && r.equipped.cardEffectColors2?.[r.equipped.cardEffect]) ?? null,
       };
     });
     // Live group in a fixed order (the client rotates it per visitor so exposure isn't first-come),

@@ -107,6 +107,8 @@ async function sendsBoard(
     cardEffect: r.equipped?.cardEffect ?? null,
     cardEffectColor:
       (r.equipped?.cardEffect && r.equipped.cardEffectColors?.[r.equipped.cardEffect]) ?? null,
+    cardEffectColor2:
+      (r.equipped?.cardEffect && r.equipped.cardEffectColors2?.[r.equipped.cardEffect]) ?? null,
     seal: r.equipped?.seal ?? null,
     sealColor: (r.equipped?.seal && r.equipped.sealColors?.[r.equipped.seal]) ?? null,
     level: levels[i] ?? 0,
@@ -187,6 +189,8 @@ async function chatBoard(
       cardEffect: u?.equipped?.cardEffect ?? null,
       cardEffectColor:
         (u?.equipped?.cardEffect && u.equipped.cardEffectColors?.[u.equipped.cardEffect]) ?? null,
+      cardEffectColor2:
+        (u?.equipped?.cardEffect && u.equipped.cardEffectColors2?.[u.equipped.cardEffect]) ?? null,
       seal: u?.equipped?.seal ?? null,
       sealColor: (u?.equipped?.seal && u.equipped.sealColors?.[u.equipped.seal]) ?? null,
       level,
@@ -337,6 +341,8 @@ export function registerChannelRoutes(app: FastifyInstance): void {
       cardEffect: equipped?.cardEffect ?? null,
       cardEffectColor:
         (equipped?.cardEffect && equipped.cardEffectColors?.[equipped.cardEffect]) ?? null,
+      cardEffectColor2:
+        (equipped?.cardEffect && equipped.cardEffectColors2?.[equipped.cardEffect]) ?? null,
       // Render the streamer's chosen background only if the channel has actually earned it; '' else.
       pageBackground: earnedBackgroundIds(played?.n ?? 0).includes(pageBackground)
         ? pageBackground

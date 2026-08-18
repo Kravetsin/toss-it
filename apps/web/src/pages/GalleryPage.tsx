@@ -31,6 +31,7 @@ import { LeaderboardRow } from '@/features/channel/components/Leaderboard';
 import { SubmissionCard } from '@/features/dashboard/components/SubmissionCard';
 import { ComposeForm } from '@/features/channel/components/ComposeForm';
 import { RankDraftBench } from '@/features/gallery/RankDraft';
+import { PopBench } from '@/features/gallery/PopBench';
 import { Vessel } from '@/features/channel/components/Vessel/Vessel';
 import type { Phase } from '@/features/channel/hooks/useMediaSubmission';
 
@@ -147,6 +148,7 @@ const DEMO_SUBMISSION: SubmissionSummary = {
   senderEffect: null,
   senderCardEffect: null,
   senderCardEffectColor: null,
+  senderCardEffectColor2: null,
   senderSeal: null,
   senderSealColor: null,
   senderFrame: null,
@@ -574,6 +576,11 @@ export function GalleryPage() {
 
       <Section title="Entrances — sizes & backgrounds">
         <EntrancesShowcase />
+      </Section>
+
+      {/* DRAFT — delete with features/gallery/PopBench.tsx once the survivors become real modules. */}
+      <Section title="Games / movies — card effect concepts (not in the registry)">
+        <PopBench />
       </Section>
 
       {/* DRAFT — delete with features/gallery/RankDraft.tsx once the rank shape is picked. */}

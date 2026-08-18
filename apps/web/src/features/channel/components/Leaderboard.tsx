@@ -89,6 +89,9 @@ export function LeaderboardRow({
   const cardEffectColor = mine
     ? (mine.cardEffectColors?.[mine.cardEffect ?? ''] ?? null)
     : e.cardEffectColor;
+  const cardEffectColor2 = mine
+    ? (mine.cardEffectColors2?.[mine.cardEffect ?? ''] ?? null)
+    : e.cardEffectColor2;
   const nick = nickProps({
     color: mine ? mine.nickColor : e.nickColor,
     color2: mine ? mine.nickColor2 : e.nickColor2,
@@ -99,7 +102,7 @@ export function LeaderboardRow({
   const levelGlow = !!tier && (e.level ?? 0) >= LEVEL_GLOW_FROM;
   return (
     <li className="relative">
-      <CardEffect effect={cardEffect} color={cardEffectColor} compact />
+      <CardEffect effect={cardEffect} color={cardEffectColor} color2={cardEffectColor2} compact />
       {tier && (
         <span
           aria-hidden

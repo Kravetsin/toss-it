@@ -20,6 +20,9 @@ export function ChannelHeader({ channel }: { channel: PublicChannelInfo }) {
   const cardEffectColor = mine
     ? (mine.cardEffectColors?.[mine.cardEffect ?? ''] ?? null)
     : channel.cardEffectColor;
+  const cardEffectColor2 = mine
+    ? (mine.cardEffectColors2?.[mine.cardEffect ?? ''] ?? null)
+    : channel.cardEffectColor2;
   const nick = nickProps({
     color: mine ? mine.nickColor : channel.nickColor,
     color2: mine ? mine.nickColor2 : channel.nickColor2,
@@ -28,7 +31,7 @@ export function ChannelHeader({ channel }: { channel: PublicChannelInfo }) {
   });
   return (
     <div className="relative">
-      <CardEffect effect={cardEffect} color={cardEffectColor} />
+      <CardEffect effect={cardEffect} color={cardEffectColor} color2={cardEffectColor2} />
       <div className="relative">
         <div className="flex items-center gap-4">
           <Avatar url={channel.avatarUrl} name={channel.displayName} size={56} />

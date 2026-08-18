@@ -233,6 +233,7 @@ function renderMessage(msg: ChatOverlayMessage): void {
       'overlayChat',
       true,
       msg.cosmetics.cardEffectColors?.[msg.cosmetics.cardEffect] ?? undefined,
+      msg.cosmetics.cardEffectColors2?.[msg.cosmetics.cardEffect] ?? undefined,
     );
   // The bubble is what arrives, so the bubble wears the entrance. Unequipped leaves the chat's own
   // unfold-from-the-star running (see .bubble:not([data-fx]) in chat.html).
@@ -347,6 +348,7 @@ function renderSystem(line: ChatSystemEvent): void {
       'overlayChat',
       true,
       line.cosmetics.cardEffectColors?.[line.cosmetics.cardEffect] ?? undefined,
+      line.cosmetics.cardEffectColors2?.[line.cosmetics.cardEffect] ?? undefined,
     );
     card.appendChild(fx);
   }
@@ -704,6 +706,55 @@ if (DEMO) {
       isFounder: false,
       level: 7,
       fragments: [{ type: 'text', text: 'соткал и жду' }],
+    },
+    // The two new pop scenes on the smallest surface: the rain has to keep ~6 rows of glyphs on a
+    // 40px pill, and the well has to fill the whole width instead of a centred strip.
+    {
+      id: '5c',
+      userId: 'u5c',
+      name: 'nulltrace',
+      twitchColor: '#7cffb0',
+      cosmetics: { cardEffect: 'card-code-rain' },
+      isFounder: false,
+      level: 8,
+      fragments: [{ type: 'text', text: 'смотри внимательнее' }],
+    },
+    {
+      id: '5d',
+      userId: 'u5d',
+      name: 'violetstack',
+      twitchColor: '#c9a7ff',
+      cosmetics: {
+        cardEffect: 'card-code-rain',
+        cardEffectColors: { 'card-code-rain': '#c26bff' },
+      },
+      isFounder: false,
+      level: 6,
+      fragments: [{ type: 'text', text: 'а можно фиолетовый' }],
+    },
+    {
+      id: '5e',
+      userId: 'u5e',
+      name: 'linecleaner',
+      twitchColor: '#ffe14a',
+      cosmetics: { cardEffect: 'card-well' },
+      isFounder: false,
+      level: 5,
+      fragments: [{ type: 'text', text: 'ещё один ряд' }],
+    },
+    {
+      id: '5f',
+      userId: 'u5f',
+      name: 'apertureboy',
+      twitchColor: '#5fd8ff',
+      cosmetics: {
+        cardEffect: 'card-portals',
+        cardEffectColors: { 'card-portals': '#5fffd0' },
+        cardEffectColors2: { 'card-portals': '#ff5f8f' },
+      },
+      isFounder: false,
+      level: 9,
+      fragments: [{ type: 'text', text: 'думаю с порталами' }],
     },
     {
       id: '6',

@@ -186,6 +186,8 @@ export interface MediaPlayPayload {
   senderCardEffect?: string;
   /** Card effect tint (#rrggbb) from the 'card-butterflies-color' upgrade; absent = effect's palette. */
   senderCardEffectColor?: string;
+  /** Second tint, for a two-sided effect (the duel's blades, the portal pair); absent = its palette. */
+  senderCardEffectColor2?: string;
   /** Sender's equipped frame id (e.g. 'frame-runner'); absent if none. Border decoration on the card. */
   senderFrame?: string;
   /** Sender's equipped seal id (e.g. 'seal-hourglass'); absent if none. A small object, own slot. */
@@ -677,6 +679,8 @@ export interface SubmissionSummary {
   senderCardEffect: string | null;
   /** Card effect tint (#rrggbb) from the 'card-butterflies-color' upgrade; null = effect's palette. */
   senderCardEffectColor: string | null;
+  /** Second tint, for a two-sided effect (the duel's blades, the portal pair); null = its palette. */
+  senderCardEffectColor2: string | null;
   /** Sender's equipped frame id, null if none. Border decoration on the submission card. */
   senderFrame: string | null;
   /** Sender's equipped seal id, null if none. A small object in the card's free corner. */
@@ -1058,6 +1062,8 @@ export interface PublicChannelInfo {
   cardEffect: string | null;
   /** Card effect tint (#rrggbb) from the 'card-butterflies-color' upgrade; absent = effect's palette. */
   cardEffectColor?: string | null;
+  /** Second tint, for a two-sided effect; absent = the effect's own palette. */
+  cardEffectColor2?: string | null;
   /** The page background to render: the streamer's chosen id, but only if the channel has earned it
    *  (see PAGE_BACKGROUNDS); '' otherwise. A reward for airing submissions, never a purchase. */
   pageBackground: string;
@@ -1231,6 +1237,8 @@ export interface LeaderboardEntry {
   cardEffect: string | null;
   /** Card effect tint (#rrggbb) from the 'card-butterflies-color' upgrade; absent = effect's palette. */
   cardEffectColor?: string | null;
+  /** Second tint, for a two-sided effect; absent = the effect's own palette. */
+  cardEffectColor2?: string | null;
   /** Equipped seal id, null if none — shown next to the badges. */
   seal: string | null;
   /** Seal tint (#rrggbb) from the seal's colour upgrade; null = the seal's palette. */
@@ -1333,6 +1341,7 @@ export interface DirectoryChannel {
   nickEffect: string | null;
   cardEffect: string | null;
   cardEffectColor: string | null;
+  cardEffectColor2: string | null;
 }
 
 /** Cross-channel user reputation — aggregates across all channels. */

@@ -21,6 +21,7 @@ export function ProfileCard({ user }: { user: SessionUser }) {
       <CardEffect
         effect={user.equipped?.cardEffect}
         color={user.equipped?.cardEffectColors?.[user.equipped?.cardEffect ?? '']}
+        color2={user.equipped?.cardEffectColors2?.[user.equipped?.cardEffect ?? '']}
         compact
       />
       <div className="relative flex items-center gap-3">

@@ -41,6 +41,9 @@ const PORTAL_COLOR_ID = 'entrance-portal-color';
 // A colourable card effect (butterflies, eyes) carries its OWN colour upgrade (CardEffectModule
 // .colorUpgrade), bought separately and rendered INSIDE that effect's own card — see effectRow.
 const DEFAULT_CARD_COLOR = '#ff2e9a';
+// The second picker of a dual-colour effect starts on a DIFFERENT hue: two swatches opening on the
+// same colour read as one control duplicated by mistake.
+const DEFAULT_CARD_COLOR2 = '#5ac8ff';
 const DEFAULT_PORTAL_COLOR = '#8df0cc';
 
 /** The whole viewer economy, in catalog order (biggest first) — see DUST_POINTS. Donations are
@@ -133,7 +136,7 @@ const CARD_GROUPS = [
     key: 'arcane',
     ids: ['card-wisp', 'card-runes', 'card-web', 'card-eyes', 'card-candles', 'card-hextech'],
   },
-  { key: 'pop', ids: ['card-blade-duel'] },
+  { key: 'pop', ids: ['card-blade-duel', 'card-code-rain', 'card-well', 'card-portals'] },
 ] as const;
 type CardGroupKey = (typeof CARD_GROUPS)[number]['key'];
 const GROUP_LABEL: Record<CardGroupKey, string> = {
@@ -324,6 +327,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   const equippedCardEffect = user?.equipped.cardEffect ?? null;
   // Per-effect saved colours (butterflies, eyes) — the picker inside each effect card reads/writes here.
   const equippedCardEffectColors = user?.equipped.cardEffectColors ?? {};
+  const equippedCardEffectColors2 = user?.equipped.cardEffectColors2 ?? {};
   const equippedFrame = user?.equipped.frame ?? null;
   const equippedSeal = user?.equipped.seal ?? null;
   // Per-seal saved colours (butterfly, eye) — the picker inside each seal's row reads/writes here.
@@ -368,6 +372,9 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   // Draft colours being picked, keyed by effect id (butterflies, eyes). Seeded lazily from the saved
   // colour on first edit; unset entries fall back to the saved colour (or the default) in effectRow.
   const [cardColorDraft, setCardColorDraft] = useState<Record<string, string>>({});
+  // Second picker of a dual-colour effect (the duel's blades, the portal pair). Its own draft map, so
+  // dragging one picker never republishes the other's colour.
+  const [cardColor2Draft, setCardColor2Draft] = useState<Record<string, string>>({});
   // Same, keyed by seal id (butterfly, eye) — the picker inside each seal's row.
   const [sealColorDraft, setSealColorDraft] = useState<Record<string, string>>({});
   // Reflect the saved colors when they change (e.g. after a refresh) without fighting active edits.
@@ -467,13 +474,27 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   const portalColorDirty =
     portalColor.toLowerCase() !== (equippedEntranceColor ?? '').toLowerCase();
   // Per-effect card colour: set/clear the colour for ONE effect id (the picker lives in its card).
-  const applyCardColorFor = (id: string, hex: string) =>
-    void act(() => equipCosmetic({ cardEffectColors: { [id]: hex } }), {
-      after: refresh,
-      success: t('shop.equipped'),
-    });
+  //
+  // BOTH SIDES OF A DUAL EFFECT GO IN ONE REQUEST. /equip is a read-modify-write of the whole equipped
+  // blob, so two concurrent calls each start from the state before the other and the second write
+  // silently drops the first one's colour. Firing one call per picker looked fine and lost a colour
+  // every time both were dirty — which is every first use, since both pickers start off their defaults.
+  const applyCardColorsFor = (id: string, hex?: string, hex2?: string) =>
+    void act(
+      () =>
+        equipCosmetic({
+          ...(hex !== undefined ? { cardEffectColors: { [id]: hex } } : {}),
+          ...(hex2 !== undefined ? { cardEffectColors2: { [id]: hex2 } } : {}),
+        }),
+      { after: refresh, success: t('shop.equipped') },
+    );
   const removeCardColorFor = (id: string) =>
-    void act(() => equipCosmetic({ cardEffectColors: { [id]: null } }), { after: refresh });
+    void act(
+      () => equipCosmetic({ cardEffectColors: { [id]: null }, cardEffectColors2: { [id]: null } }),
+      {
+        after: refresh,
+      },
+    );
   // Per-seal colour. Written for EVERY rung of the ladder at once, not just the one whose row hosts
   // the picker: the tint is stored per seal id, so a family with two rungs would otherwise keep two
   // separate colours and the one you actually wear would come out untinted.
@@ -527,6 +548,11 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     const savedColor = equippedCardEffectColors[e.id];
     const draftColor = cardColorDraft[e.id] ?? savedColor ?? DEFAULT_CARD_COLOR;
     const colorDirty = draftColor.toLowerCase() !== (savedColor ?? '').toLowerCase();
+    // A two-sided effect gets a second picker under the same upgrade (see CardEffectModule.dualColor).
+    const dual = mod?.type === 'card_effect' && !!mod.dualColor;
+    const savedColor2 = equippedCardEffectColors2[e.id];
+    const draftColor2 = cardColor2Draft[e.id] ?? savedColor2 ?? DEFAULT_CARD_COLOR2;
+    const color2Dirty = draftColor2.toLowerCase() !== (savedColor2 ?? '').toLowerCase();
     return (
       <div
         key={e.id}
@@ -539,7 +565,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
         {/* Preview shows the SAVED colour, not the live draft: a colour effect regenerates its whole
             particle swarm on a colour change, so previewing every slider tick would respawn it
             frantically. It updates once on Apply (the native picker swatch shows the draft live). */}
-        {isCard && <CardEffect effect={e.id} color={savedColor} />}
+        {isCard && <CardEffect effect={e.id} color={savedColor} color2={savedColor2} />}
         <div className="relative flex flex-col gap-2">
           <div className="flex items-center justify-between gap-2">
             {/* The demo needs the effect's `animation` explicitly: nick modules declare it instead
@@ -645,18 +671,35 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
                     type="color"
                     value={draftColor}
                     onChange={(ev) => setCardColorDraft((p) => ({ ...p, [e.id]: ev.target.value }))}
-                    aria-label={t(colorMod.labels.name)}
+                    aria-label={dual ? `${t(colorMod.labels.name)} 1` : t(colorMod.labels.name)}
                     className="h-10 w-14 shrink-0 cursor-pointer rounded-[var(--radius-sm)] border border-border bg-surface"
                   />
+                  {dual && (
+                    <input
+                      type="color"
+                      value={draftColor2}
+                      onChange={(ev) =>
+                        setCardColor2Draft((p) => ({ ...p, [e.id]: ev.target.value }))
+                      }
+                      aria-label={`${t(colorMod.labels.name)} 2`}
+                      className="h-10 w-14 shrink-0 cursor-pointer rounded-[var(--radius-sm)] border border-border bg-surface"
+                    />
+                  )}
                   <Button
                     variant="primary"
                     size="sm"
-                    onClick={() => applyCardColorFor(e.id, draftColor)}
-                    disabled={!colorDirty}
+                    onClick={() =>
+                      applyCardColorsFor(
+                        e.id,
+                        colorDirty ? draftColor : undefined,
+                        dual && color2Dirty ? draftColor2 : undefined,
+                      )
+                    }
+                    disabled={!colorDirty && !(dual && color2Dirty)}
                   >
                     {t('shop.apply')}
                   </Button>
-                  {savedColor && (
+                  {(savedColor || savedColor2) && (
                     <Button variant="ghost" size="sm" onClick={() => removeCardColorFor(e.id)}>
                       {t('shop.resetColor')}
                     </Button>

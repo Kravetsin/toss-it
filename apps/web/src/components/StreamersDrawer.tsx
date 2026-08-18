@@ -63,7 +63,12 @@ function Card({ channel: c }: { channel: DirectoryChannel }) {
     <li className="relative overflow-hidden border border-border bg-surface-2 transition-colors duration-[var(--dur-fast)] hover:border-accent">
       {/* The streamer's own card effect, same as on their channel header — compact while the card is
           a single row (particles would look sparse crossing it), full once it opens. */}
-      <CardEffect effect={c.cardEffect} color={c.cardEffectColor} compact={!open} />
+      <CardEffect
+        effect={c.cardEffect}
+        color={c.cardEffectColor}
+        color2={c.cardEffectColor2}
+        compact={!open}
+      />
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}

@@ -155,7 +155,11 @@ export function SubmissionCard({
           className="pointer-events-none absolute inset-0 z-0"
           style={{ backgroundColor: 'rgba(255,255,255,0.05)', clipPath: 'circle(0% at 50% 50%)' }}
         />
-        <CardEffect effect={s.senderCardEffect} color={s.senderCardEffectColor} />
+        <CardEffect
+          effect={s.senderCardEffect}
+          color={s.senderCardEffectColor}
+          color2={s.senderCardEffectColor2}
+        />
         {tier && (
           <span
             aria-hidden

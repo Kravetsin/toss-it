@@ -218,6 +218,12 @@ export interface CardEffectModule extends BaseModule {
    */
   colorUpgrade?: string;
   /**
+   * This effect is painted from TWO colours (the duel's two blades, the portal pair), so its single
+   * `colorUpgrade` unlocks two pickers and `render` is handed both. The second is stored in
+   * EquippedCosmetics.cardEffectColors2. Only meaningful together with colorUpgrade.
+   */
+  dualColor?: boolean;
+  /**
    * Inline style for ONE randomized particle. Randomize spawn/size/speed and set the animation
    * timing through the `--dur`/`--delay` custom properties (NEGATIVE delay so particles start
    * mid-flight, desynced) — the css should read `animation: <name> var(--dur) linear var(--delay)`
@@ -286,6 +292,7 @@ export interface CardEffectModule extends BaseModule {
     surface: Surface,
     compact: boolean,
     color?: string,
+    color2?: string,
   ) => (() => void) | void;
 }
 
@@ -432,6 +439,15 @@ export interface EquippedCosmetics {
    * palette. Persists across card-effect changes (switching effects keeps each one's colour).
    */
   cardEffectColors?: Record<string, string>;
+  /**
+   * SECOND #rrggbb per effect, for the effects that have two sides to paint (the duel's two blades,
+   * the portal pair). Same shape and same upgrade as cardEffectColors — a dual effect's ONE upgrade
+   * unlocks both pickers, so an entry here is only accepted for an effect whose module sets
+   * `dualColor`. A parallel record rather than a widened value type: every consumer of
+   * cardEffectColors already assumes "id → one hex", and the day one of them renders a pair as a
+   * colour is the day the effect silently stops painting.
+   */
+  cardEffectColors2?: Record<string, string>;
   /** Equipped frame item id (e.g. 'frame-runner'); requires owning it. A border decoration on the
    *  sender's card, layered over its role colour (the colour is untouched). */
   frame?: string | null;

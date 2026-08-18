@@ -827,6 +827,8 @@ function drawMotes(
   pose: Pose,
   loopT: number,
   count: number,
+  bladeA: string,
+  bladeB: string,
 ): void {
   const [ax, ay] = alongBlade(st, pose.a, 0.55);
   const [bx2, by2] = alongBlade(st, pose.b, 0.55);
@@ -848,7 +850,7 @@ function drawMotes(
     // Unlit dust is a faint grey speck; a mote near a blade takes its colour and flares. The unlit
     // floor is not decoration — it is the only thing giving the far corners any texture at all while
     // the duel is busy in the middle, so it has to stay perceptible rather than merely present.
-    ctx.fillStyle = lit > 0.01 ? (dA < dB ? BLADE_A : BLADE_B) : '#9aa0ab';
+    ctx.fillStyle = lit > 0.01 ? (dA < dB ? bladeA : bladeB) : '#9aa0ab';
     ctx.globalAlpha = 0.12 + lit * lit * 0.48;
     // A mote is DUST, so its apparent size is nearly independent of how big the scene is — clamped to
     // stay at least a pixel across. Scaling it with the card's height (as the blades and sparks do)
@@ -990,7 +992,18 @@ function since(loopMs: number, tMs: number): number {
   return d < 0 ? d + LOOP_MS : d;
 }
 
-function render(layer: HTMLElement, surface: Surface, compact: boolean): (() => void) | void {
+function render(
+  layer: HTMLElement,
+  surface: Surface,
+  compact: boolean,
+  color?: string,
+  color2?: string,
+): (() => void) | void {
+  // One upgrade, two pickers: a duel has two sides and painting both the same colour would delete the
+  // only thing that tells them apart. Either colour falling back on its own default is fine — a
+  // half-recoloured duel still reads as two sides.
+  const bladeA = color || BLADE_A;
+  const bladeB = color2 || BLADE_B;
   if (typeof document === 'undefined') return;
   const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
@@ -1066,13 +1079,14 @@ function render(layer: HTMLElement, surface: Surface, compact: boolean): (() => 
 
     // The room first: the light the blades throw on it, then the dust hanging in it. Both reach the
     // card's far corners, which the duel itself never does on a wide card — see the BACKGROUND note.
-    drawSpill(ctx!, stage, livePose.a, BLADE_A, spillW, spillH);
-    drawSpill(ctx!, stage, livePose.b, BLADE_B, spillW, spillH);
-    if (moteCount) drawMotes(ctx!, stage, bw, bh, livePose, loopMs / LOOP_MS, moteCount);
+    drawSpill(ctx!, stage, livePose.a, bladeA, spillW, spillH);
+    drawSpill(ctx!, stage, livePose.b, bladeB, spillW, spillH);
+    if (moteCount)
+      drawMotes(ctx!, stage, bw, bh, livePose, loopMs / LOOP_MS, moteCount, bladeA, bladeB);
 
     // Ribbons next — they are the air the blades moved through, so the blades sit on top of them.
-    drawRibbon(ctx!, stage, keys, ms, (p) => p.a, BLADE_A, ribbonSamples);
-    drawRibbon(ctx!, stage, keys, ms, (p) => p.b, BLADE_B, ribbonSamples);
+    drawRibbon(ctx!, stage, keys, ms, (p) => p.a, bladeA, ribbonSamples);
+    drawRibbon(ctx!, stage, keys, ms, (p) => p.b, bladeB, ribbonSamples);
 
     // Then the motion trail, oldest and faintest at the back. The samples fill a FIXED span of time,
     // so adding samples makes the smear denser without making it longer (see TRAIL_SPAN).
@@ -1083,12 +1097,12 @@ function render(layer: HTMLElement, surface: Surface, compact: boolean): (() => 
       // sample count — otherwise raising the density would also quietly brighten the whole trail.
       const age = i / trailSamples;
       const a = 0.26 * (1 - age) * (1 - age) + 0.03;
-      drawBlade(ctx!, stage, p.a, BLADE_A, w * (1 - age * 0.45), a);
-      drawBlade(ctx!, stage, p.b, BLADE_B, w * (1 - age * 0.45), a);
+      drawBlade(ctx!, stage, p.a, bladeA, w * (1 - age * 0.45), a);
+      drawBlade(ctx!, stage, p.b, bladeB, w * (1 - age * 0.45), a);
     }
     const pose = poseAt(keys, ms);
-    drawBlade(ctx!, stage, pose.a, BLADE_A, w, 1);
-    drawBlade(ctx!, stage, pose.b, BLADE_B, w, 1);
+    drawBlade(ctx!, stage, pose.a, bladeA, w, 1);
+    drawBlade(ctx!, stage, pose.b, bladeB, w, 1);
 
     ctx!.globalCompositeOperation = 'lighter';
     for (const c of CONTACTS) {
@@ -1200,6 +1214,8 @@ export const cardBladeDuel: CardEffectModule = {
   className: 'card-fx-blade-duel',
   // `render` owns the whole layer; counts only need to be non-zero to get the layer created.
   counts: { web: 1, overlayCard: 1, overlayChat: 1 },
+  colorUpgrade: 'card-blade-duel-color',
+  dualColor: true,
   labels: { name: 'shop.cardBladeDuel', desc: 'shop.cardBladeDuelDesc' },
   render,
 };
