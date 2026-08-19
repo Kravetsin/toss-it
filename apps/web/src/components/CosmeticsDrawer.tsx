@@ -592,7 +592,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
                   owning the effect. Drops away once the upgrade is owned: by then the pickers say it. */}
               {colorUp && !ownsColorUp && (
                 <Tooltip content={t(dual ? 'shop.colorUpgradeDualHint' : 'shop.colorUpgradeHint')}>
-                  <Icon name="palette" size={14} className="shrink-0 text-faint" />
+                  <Icon name="palette" size={14} className="shrink-0 text-text" />
                 </Tooltip>
               )}
             </span>
