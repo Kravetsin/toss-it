@@ -1318,6 +1318,14 @@ export interface DirectoryChannel {
   streamUrl: string | null;
   streamPlatform: StreamPlatform | null;
   live: boolean;
+  /**
+   * WHICH overlay is connected, not just whether one is. A channel running only the chat overlay is
+   * "live" by every signal we have and still cannot show a single submission, so a card that says
+   * "takes images, gifs, videos and sounds" is lying to the viewer at exactly the moment they act on
+   * it. Meaningless while `live` is false — nothing is connected then, and the card says so already.
+   */
+  overlayMedia: boolean;
+  overlayChat: boolean;
   /** When their last overlay left (epoch ms); null while live, or if it left before we tracked it. */
   lastLiveAt: number | null;
   isFounder: boolean;

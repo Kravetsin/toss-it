@@ -811,6 +811,10 @@ export const en: Dict = {
   'dir.agoM': '{m} min ago',
   'dir.agoH': '{h} h ago',
   'dir.noDescription': 'Takes images, gifs, videos and sounds.',
+  'dir.noDescriptionChat': 'Only the chat overlay is up — sends will wait in the queue.',
+  'dir.chatOnly': 'chat only',
+  'dir.chatOnlyHint':
+    'Only the chat overlay is connected: nothing can go on screen until the media source is added.',
   'dir.aired': 'Aired on this stream: {n}',
   'dir.chipGifs': 'GIPHY airs at once',
   'dir.chipYoutube': 'YouTube airs at once',
@@ -1683,6 +1687,10 @@ export const ru: Dict = {
   'dir.agoM': '{m} мин назад',
   'dir.agoH': '{h} ч назад',
   'dir.noDescription': 'Принимает картинки, гифки, видео и звуки.',
+  'dir.noDescriptionChat': 'Подключён только оверлей чата — отправка подождёт в очереди.',
+  'dir.chatOnly': 'только чат',
+  'dir.chatOnlyHint':
+    'Подключён только оверлей чата: пока не добавлен медиа-источник, на экран ничего не выйдет.',
   'dir.aired': 'Показов на этом стриме: {n}',
   'dir.chipGifs': 'Giphy идёт сразу',
   'dir.chipYoutube': 'ютуб идёт сразу',
@@ -2558,6 +2566,10 @@ export const uk: Dict = {
   'dir.agoM': '{m} хв тому',
   'dir.agoH': '{h} год тому',
   'dir.noDescription': 'Приймає картинки, гіфки, відео та звуки.',
+  'dir.noDescriptionChat': 'Підключено лише оверлей чату — відправлення почекає в черзі.',
+  'dir.chatOnly': 'лише чат',
+  'dir.chatOnlyHint':
+    'Підключено лише оверлей чату: доки не додано медіа-джерело, на екран нічого не вийде.',
   'dir.aired': 'Показів на цьому стрімі: {n}',
   'dir.chipGifs': 'Giphy іде одразу',
   'dir.chipYoutube': 'ютуб іде одразу',

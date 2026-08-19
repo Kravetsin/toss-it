@@ -58,6 +58,9 @@ function Card({ channel: c }: { channel: DirectoryChannel }) {
     : min >= 60
       ? t('dir.agoH', { h: Math.floor(min / 60) })
       : t('dir.agoM', { m: min });
+  // Live, but only the chat overlay is up: nothing sent here can go on screen until the media source
+  // is added. Worth saying plainly — this is the row a viewer is about to act on.
+  const chatOnly = c.live && !c.overlayMedia && c.overlayChat;
 
   return (
     <li className="relative overflow-hidden border border-border bg-surface-2 transition-colors duration-[var(--dur-fast)] hover:border-accent">
@@ -91,14 +94,17 @@ function Card({ channel: c }: { channel: DirectoryChannel }) {
             <UserBadges isFounder={c.isFounder} size={20} focusable={false} />
           </span>
           <span className={`text-xs text-muted ${open ? '' : 'truncate'}`}>
-            {c.description || t('dir.noDescription')}
+            {/* A streamer's own words always win; the fallback is ours to keep honest. */}
+            {c.description || t(chatOnly ? 'dir.noDescriptionChat' : 'dir.noDescription')}
           </span>
         </span>
         <span
-          className={`shrink-0 label-mono ${c.live ? 'flex items-center gap-1.5 text-ok' : 'text-faint'}`}
+          className={`shrink-0 label-mono ${c.live && !chatOnly ? 'flex items-center gap-1.5 text-ok' : 'text-faint'}`}
         >
-          {c.live && <span className="size-2 shrink-0 animate-pulse rounded-full bg-ok" />}
-          {state}
+          {c.live && !chatOnly && (
+            <span className="size-2 shrink-0 animate-pulse rounded-full bg-ok" />
+          )}
+          {chatOnly ? t('dir.chatOnly') : state}
         </span>
         <Icon
           name="chevron-down"
@@ -114,6 +120,14 @@ function Card({ channel: c }: { channel: DirectoryChannel }) {
             <StarMark size={15} className="text-accent" />
             {t('dir.aired', { n: c.aired })}
           </span>
+          {/* Said again inside the card, because a streamer WITH a description never shows the
+              fallback above and the viewer would otherwise learn this only after sending. */}
+          {chatOnly && (
+            <span className="flex items-center gap-2 text-sm text-warn">
+              <Icon name="message-circle" size={15} className="shrink-0" />
+              {t('dir.chatOnlyHint')}
+            </span>
+          )}
           <div className="flex flex-wrap gap-2">
             <Chip
               icon="image"

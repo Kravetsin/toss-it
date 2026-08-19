@@ -100,6 +100,9 @@ export function registerDirectoryRoutes(
     const mapped = rows.map((r): DirectoryChannel => {
       const stream = streamOf(r.links, r.ownerUserId, r.login);
       const isLive = live.has(r.id);
+      // Which sources are up right now — the media one is the only one that can put a submission on
+      // screen (see PlaybackManager.presence).
+      const presence = isLive ? deps.playback.presence(r.id) : { media: 0, chat: 0 };
       return {
         login: r.login,
         displayName: r.displayName,
@@ -108,6 +111,8 @@ export function registerDirectoryRoutes(
         streamUrl: stream.url,
         streamPlatform: stream.platform,
         live: isLive,
+        overlayMedia: presence.media > 0,
+        overlayChat: presence.chat > 0,
         lastLiveAt: isLive ? null : (r.lastLiveAt?.getTime() ?? null),
         isFounder: r.founderSince != null,
         aired: aired.get(r.id) ?? 0,
