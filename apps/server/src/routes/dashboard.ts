@@ -53,7 +53,7 @@ import {
   type SubmissionRow,
 } from '../db/schema';
 import { config } from '../config';
-import { requireUser } from '../auth';
+import { isAdmin, requireUser } from '../auth';
 import {
   fetchPlaylistTracks,
   fetchVideoDurations,
@@ -180,9 +180,17 @@ function sanitizeLinks(input: unknown): ChannelLink[] {
   return out;
 }
 
-/** Which page backgrounds the channel has unlocked. Same rule as the public /api/c/:login gate
- *  (played, excluding the streamer's own test sends), so settings and the public page agree. */
-async function earnedBackgroundsFor(channelId: string): Promise<string[]> {
+/**
+ * Which page backgrounds the channel has unlocked. Same rule as the public /api/c/:login gate
+ * (played, excluding the streamer's own test sends), so settings and the public page agree.
+ *
+ * An ADMIN-owned channel gets the whole set: same use-only bypass the cosmetics catalogue grants (see
+ * `unlocked` in routes/cosmetics), and for the same reason — the thresholds exist to pace viewers,
+ * not to stop us from looking at what we shipped. Nothing is granted: the milestone is still unmet,
+ * so the moment the owner leaves the admin list the page falls back to what the channel really earned.
+ */
+async function earnedBackgroundsFor(channelId: string, ownerUserId: string): Promise<string[]> {
+  if (isAdmin(ownerUserId)) return PAGE_BACKGROUNDS.map((b) => b.id);
   const row = await db
     .select({ n: count() })
     .from(submissions)
@@ -616,7 +624,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
       return toSettings(
         channel,
         await chatBotInfo(channel),
-        await earnedBackgroundsFor(channel.id),
+        await earnedBackgroundsFor(channel.id, channel.ownerUserId),
       );
     },
   );
@@ -825,7 +833,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
       return toSettings(
         { ...channel, ...patch },
         await chatBotInfo(channel),
-        await earnedBackgroundsFor(channel.id),
+        await earnedBackgroundsFor(channel.id, channel.ownerUserId),
       );
     },
   );

@@ -22,7 +22,7 @@ import {
 } from '../db/schema';
 import { config } from '../config';
 import { levelsForKeys, xpForKeys } from '../level';
-import { getSessionUser, requireUser } from '../auth';
+import { getSessionUser, isAdmin, requireUser } from '../auth';
 
 function newOverlayToken(): string {
   return crypto.randomBytes(24).toString('hex');
@@ -277,6 +277,7 @@ export function registerChannelRoutes(app: FastifyInstance): void {
         overlayMargin: channels.overlayMargin,
         description: channels.description,
         links: channels.links,
+        ownerUserId: users.id,
         founderSince: users.founderSince,
         equipped: users.equipped,
         accentHue: channels.accentHue,
@@ -291,6 +292,7 @@ export function registerChannelRoutes(app: FastifyInstance): void {
     if (!row) return reply.code(404).send({ error: 'Канал не найден' });
     const {
       channelId,
+      ownerUserId,
       founderSince,
       equipped,
       ttsName,
@@ -344,9 +346,13 @@ export function registerChannelRoutes(app: FastifyInstance): void {
       cardEffectColor2:
         (equipped?.cardEffect && equipped.cardEffectColors2?.[equipped.cardEffect]) ?? null,
       // Render the streamer's chosen background only if the channel has actually earned it; '' else.
-      pageBackground: earnedBackgroundIds(played?.n ?? 0).includes(pageBackground)
-        ? pageBackground
-        : '',
+      // Admin-owned channels are exempt, exactly as their settings picker is (see
+      // earnedBackgroundsFor in routes/dashboard) — otherwise the picker would offer a background the
+      // page then refuses to draw.
+      pageBackground:
+        earnedBackgroundIds(played?.n ?? 0).includes(pageBackground) || isAdmin(ownerUserId)
+          ? pageBackground
+          : '',
       theme: { accentHue, bgHue, bgTint },
       viewerLevel: xpToLevel(viewerXp),
       viewerXp,
