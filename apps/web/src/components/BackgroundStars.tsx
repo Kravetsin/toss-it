@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useFidgetEnabled } from '@/hooks/useFidgetEnabled';
+import { ignitePageBackground, pageBackgroundCentre } from '@/lib/pageBackgroundFx';
 
 type Kind = 'amb' | 'comet' | 'spark' | 'launch' | 'keep' | 'cosmos';
 
@@ -258,6 +259,15 @@ export function BackgroundStars({ staticMode = false }: { staticMode?: boolean }
         } else if (e.kind === 'launch') {
           e.t += dt / e.dur;
           if (e.t >= 1) {
+            // Landed. With an earned background on screen the keepsake was aimed at ITS centre, so the
+            // arrival is handed over: a star lights up inside the galaxy (or a mote enters the hole)
+            // instead of a lone star being pinned to this layer, where 500 of them turn to mush over
+            // the disc. The spark burst fires either way — that is the impact, not the keepsake.
+            if (ignitePageBackground()) {
+              explode(e.tx, e.ty);
+              ents.splice(i, 1);
+              continue;
+            }
             // Landed: leave permanent star and spark burst
             ents.push({
               kind: 'keep',
@@ -341,8 +351,11 @@ export function BackgroundStars({ staticMode = false }: { staticMode?: boolean }
 
     starsApi = {
       launchKeepsake: (point) => {
-        const tx = 30 + Math.random() * Math.max(40, W - 60);
-        const ty = 24 + Math.random() * 50;
+        // Aim at the earned background's core when there is one: the flight then ends somewhere that
+        // means something, and the sky answers on arrival (see the 'launch' branch above).
+        const sky = pageBackgroundCentre();
+        const tx = sky ? sky.x : 30 + Math.random() * Math.max(40, W - 60);
+        const ty = sky ? sky.y : 24 + Math.random() * 50;
         ents.push({
           kind: 'launch',
           x: point.x,

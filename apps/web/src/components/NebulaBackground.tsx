@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useFidgetEnabled } from '@/hooks/useFidgetEnabled';
+import { registerPageBackgroundFx } from '@/lib/pageBackgroundFx';
 
 /**
  * PROTOTYPE — a barred-spiral galaxy on the viewer page background, reusing the portal's tinted glow
@@ -66,11 +67,29 @@ interface Star {
   sz: number; // base sprite size
   knot: boolean; // a star-forming clump — bigger and brighter, so arms read as beaded, not smooth
   bulge: boolean; // part of the central bar: lives inside R_IN, skips the arm rim-fade
+  /** Set only on a star lit by an arriving submission: the moment it ignited, for its flare. */
+  born?: number;
 }
 
 // Triangular distribution in [-1,1], peaked at 0 — packs stars toward the arm centreline (arm thickness).
 function spread(): number {
   return Math.random() + Math.random() - 1;
+}
+
+/** A star lit by an arriving submission: mid-disc so it is visible, and a knot so it has presence. */
+function igniteStar(now: number): Star {
+  const arm = ARMS[Math.floor(Math.random() * ARMS.length)]!;
+  const r = 0.42 + Math.random() * 0.38;
+  return {
+    r,
+    theta: arm.base + SPIRAL * Math.log(r / R_IN) + spread() * (0.12 + 0.5 * r),
+    tw: 0.4 + Math.random() * 0.8,
+    ph: Math.random() * 6.28,
+    sz: 5 + Math.random() * 2,
+    knot: true,
+    bulge: false,
+    born: now,
+  };
 }
 
 function buildStars(n: number): Star[] {
@@ -170,6 +189,9 @@ export function NebulaBackground({
   // star at once — a visible shuffle of the whole sky a moment after it appeared.
   const starsRef = useRef<Star[] | null>(null);
   const addedRef = useRef(0);
+  // When the whole disc last flared (a submission arriving). Read by the draw loop, written by the
+  // registered ignite — a ref, so neither one re-renders the component to talk to the other.
+  const swellRef = useRef(0);
 
   useEffect(() => {
     if (!enabled) return;
@@ -249,8 +271,12 @@ export function NebulaBackground({
           ? 1
           : Math.min(1, (st.r - R_IN) / 0.06) * Math.min(1, (1 - st.r) / 0.24);
         const base = st.bulge ? 0.6 : st.knot ? 0.85 : 0.4 + 0.45 * (1 - st.r);
-        ctx.globalAlpha = Math.min(1, base * tw * Math.max(0, fade));
-        ctx.drawImage(sprite, x - size / 2, y - size / 2, size, size);
+        // A newly lit star flares and shrinks back into the field over ~1s. It is added to the alpha
+        // rather than multiplied in, so it still reads while the star sits in a dim part of the disc.
+        const flare = st.born ? Math.exp(-(now - st.born) / 380) : 0;
+        const sz = size * (1 + 2.4 * flare);
+        ctx.globalAlpha = Math.min(1, base * tw * Math.max(0, fade) + flare * 0.9);
+        ctx.drawImage(sprite, x - sz / 2, y - sz / 2, sz, sz);
       };
 
       // The disc is tilted (RY < RX), so sin(ang) is the depth cue: the upper half (sin < 0) recedes
@@ -268,11 +294,14 @@ export function NebulaBackground({
       //  (a) the LIGHT it casts — a soft, wide, additive halo that reaches well beyond the body;
       //  (b) the STAR itself — two OPAQUE layers (white-hot core → colour mantle), source-over so it
       //      genuinely occludes the far-side stars behind it (no semi-transparent "bubble" in between).
+      // The core answers an arrival: a short swell of its own light, so the disc reacts as a whole
+      // and not only at the one star that lit up.
+      const swell = swellRef.current ? Math.exp(-(now - swellRef.current) / 520) : 0;
       const Rstar = RX * 0.008;
-      const Rglow = RX * 0.31;
+      const Rglow = RX * 0.31 * (1 + 0.12 * swell);
       const glow = ctx.createRadialGradient(centreX, centreY, 0, centreX, centreY, Rglow);
-      glow.addColorStop(0, `rgba(${lr},${lg},${lb},0.4)`);
-      glow.addColorStop(0.35, `rgba(${hr},${hg},${hb},0.16)`);
+      glow.addColorStop(0, `rgba(${lr},${lg},${lb},${0.4 + 0.18 * swell})`);
+      glow.addColorStop(0.35, `rgba(${hr},${hg},${hb},${0.16 + 0.08 * swell})`);
       glow.addColorStop(1, `rgba(${hr},${hg},${hb},0)`);
       ctx.globalCompositeOperation = 'lighter';
       ctx.globalAlpha = 1;
@@ -308,10 +337,21 @@ export function NebulaBackground({
     const ro = new ResizeObserver(resize);
     ro.observe(canvas);
     raf = requestAnimationFrame(frame);
+    // A submission that lands is answered here rather than by a star pinned to the top of the page:
+    // the disc IS the channel's count now, so an arrival has to join it.
+    registerPageBackgroundFx({
+      centre: () => ({ x: W * cx, y: H * cy }),
+      ignite: () => {
+        const now = performance.now();
+        swellRef.current = now;
+        starsRef.current?.push(igniteStar(now));
+      },
+    });
 
     return () => {
       cancelAnimationFrame(raf);
       ro.disconnect();
+      registerPageBackgroundFx(null);
     };
   }, [enabled, color, cx, cy]);
 

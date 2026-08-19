@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useFidgetEnabled } from '@/hooks/useFidgetEnabled';
+import { registerPageBackgroundFx } from '@/lib/pageBackgroundFx';
 
 /**
  * A black hole on the viewer page background — the darker sibling of the galaxy (NebulaBackground),
@@ -51,6 +52,8 @@ interface Mote {
   tw: number; // twinkle frequency
   ph: number; // twinkle phase
   sz: number; // base size
+  /** Set only on a mote fed by an arriving submission: the moment it entered, for its flare. */
+  born?: number;
 }
 
 function buildMotes(n: number): Mote[] {
@@ -96,6 +99,8 @@ export function BlackHoleBackground({
   // array rather than rebuilding the field.
   const motesRef = useRef<Mote[] | null>(null);
   const addedRef = useRef(0);
+  // When the horizon last flared (a submission arriving) — see NebulaBackground's swellRef.
+  const swellRef = useRef(0);
 
   useEffect(() => {
     if (!enabled) return;
@@ -150,8 +155,10 @@ export function BlackHoleBackground({
         // Fade in at the rim, brightest mid-fall, then dim just before the black core eats it.
         const fade = Math.min(1, ph / 0.08) * Math.min(1, (1 - ph) / 0.14);
         const tw = 0.65 + 0.35 * Math.sin(now * 0.001 * m.tw + m.ph);
-        const size = m.sz * (0.7 + 0.9 * ph); // compresses brighter/bigger as it nears the horizon
-        ctx.globalAlpha = Math.min(1, (1.3 + 0.55 * ph) * fade * tw);
+        // A mote just fed in flares as it enters, then settles into the stream with the rest.
+        const flare = m.born ? Math.exp(-(now - m.born) / 420) : 0;
+        const size = m.sz * (0.7 + 0.9 * ph) * (1 + 2 * flare);
+        ctx.globalAlpha = Math.min(1, (1.3 + 0.55 * ph) * fade * tw + flare * 0.9);
         ctx.drawImage(sprite, x - size / 2, y - size / 2, size, size);
       }
 
@@ -167,8 +174,11 @@ export function BlackHoleBackground({
         centreY,
         Rcore * 1.5,
       );
+      // The horizon answers an arrival with a short flare of its own — the hole acknowledging what
+      // it just took.
+      const swell = swellRef.current ? Math.exp(-(now - swellRef.current) / 520) : 0;
       ring.addColorStop(0, `rgba(${hr},${hg},${hb},0)`);
-      ring.addColorStop(0.15, `rgba(${hr},${hg},${hb},0.2)`);
+      ring.addColorStop(0.15, `rgba(${hr},${hg},${hb},${0.2 + 0.5 * swell})`);
       ring.addColorStop(1, `rgba(${hr},${hg},${hb},0)`);
       ctx.globalAlpha = 1;
       ctx.fillStyle = ring;
@@ -198,10 +208,31 @@ export function BlackHoleBackground({
     const ro = new ResizeObserver(resize);
     ro.observe(canvas);
     raf = requestAnimationFrame(frame);
+    // An arriving submission enters the stream AT THE RIM and falls in from there — `ph0` is solved
+    // backwards from the clock so its phase is 0 at this instant, instead of the mote popping in
+    // halfway down someone else's fall.
+    registerPageBackgroundFx({
+      centre: () => ({ x: W * cx, y: H * cy }),
+      ignite: () => {
+        const now = performance.now();
+        swellRef.current = now;
+        const speed = 0.00001 + Math.random() * 0.00001;
+        motesRef.current?.push({
+          a0: (Math.floor(Math.random() * ARMS) / ARMS) * Math.PI * 2 + (Math.random() - 0.5) * 1.6,
+          ph0: (((-now * speed) % 1) + 1) % 1,
+          speed,
+          tw: 0.4 + Math.random() * 0.8,
+          ph: Math.random() * 6.28,
+          sz: 3.4 + Math.random() * 2,
+          born: now,
+        });
+      },
+    });
 
     return () => {
       cancelAnimationFrame(raf);
       ro.disconnect();
+      registerPageBackgroundFx(null);
     };
   }, [enabled, color, cx, cy, fill]);
 
