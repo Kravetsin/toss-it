@@ -13,9 +13,9 @@ import { IS_THEME_PREVIEW } from '../lib/themeQuery';
 import { ProfileMenu } from '@/components/ProfileMenu';
 
 /** Renders the earned page background by id (server already gated it to a background the channel has). */
-export function PageBackground({ id }: { id: string }) {
-  if (id === 'nebula') return <NebulaBackground />;
-  if (id === 'blackhole') return <BlackHoleBackground />;
+export function PageBackground({ id, sends = 0 }: { id: string; sends?: number }) {
+  if (id === 'nebula') return <NebulaBackground sends={sends} />;
+  if (id === 'blackhole') return <BlackHoleBackground sends={sends} />;
   return null;
 }
 
@@ -50,6 +50,7 @@ export function ChannelShell({
   viewerLevel = 0,
   viewerXp = 0,
   pageBackground = '',
+  sends = 0,
 }: {
   children: ReactNode;
   /** The logged-in viewer's per-channel level, for their always-visible header card. */
@@ -58,12 +59,15 @@ export function ChannelShell({
   viewerXp?: number;
   /** Earned page background id ('' = none); server already checked the channel earned it. */
   pageBackground?: string;
+  /** The channel's aired sends — the earned background renders one star per send (see PageBackground). */
+  sends?: number;
 }) {
   const { me } = useMe();
   return (
     <PageShell maxWidth="xl">
-      {/* Earned background behind everything; stars twinkle over it. Only for channels that earned it. */}
-      <PageBackground id={pageBackground} />
+      {/* Earned background behind everything; the ambient sky twinkles over it. Only for channels that
+          earned it — and once it is on, the channel's sends live IN it rather than as loose stars. */}
+      <PageBackground id={pageBackground} sends={sends} />
       <BackgroundStars staticMode={IS_THEME_PREVIEW} />
       <div className="relative z-10">
         <div className="mb-6 flex items-center justify-between gap-2">

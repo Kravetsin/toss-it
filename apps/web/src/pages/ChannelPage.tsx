@@ -36,6 +36,10 @@ export function ChannelPage() {
   const firedRef = useRef<string | null>(null);
   const { openShop } = useShop();
   const [firstSendHint, setFirstSendHint] = useState(false);
+  // The channel's aired sends: the number the leaderboard legend states, and the number the earned
+  // background renders as stars. One source for both, or the sky and the caption would disagree.
+  const [sends, setSends] = useState(0);
+  const cosmosDone = useRef('');
 
   const bumpBoard = useCallback(() => setBoardRefresh((k) => k + 1), []);
 
@@ -45,24 +49,32 @@ export function ChannelPage() {
       .catch(() => setChannel(null));
   }, [login]);
 
-  // On mount: populate sky with stars based on total visible posts from all contributors.
-  // Channel cosmos incentivizes quality submissions. Stars animate in with fade/twinkle.
-  // Run once to avoid duplication with session stars.
+  // The channel's total aired sends, read once per channel.
   useEffect(() => {
     let cancelled = false;
-    let timer = 0;
+    setSends(0);
     void getLeaderboard(login)
       .then((b) => {
-        if (cancelled) return;
-        const total = b.reduce((sum, e) => sum + e.value, 0);
-        if (total > 0) timer = window.setTimeout(() => populateCosmos(total), 500);
+        if (!cancelled) setSends(b.reduce((sum, e) => sum + e.value, 0));
       })
       .catch(() => {});
     return () => {
       cancelled = true;
-      if (timer) window.clearTimeout(timer);
     };
   }, [login]);
+
+  // Scatter the cosmos across the sky — one star per send — but ONLY while the channel has no earned
+  // background. With a galaxy or a black hole on, those same stars are rendered inside it instead:
+  // 500+ loose twinkles over a spiral is mush, and two star fields on one page count the same thing
+  // twice. Waits for the channel so it never scatters stars a moment before the background loads.
+  useEffect(() => {
+    if (typeof channel !== 'object' || !channel) return;
+    if (channel.pageBackground) return;
+    if (sends <= 0 || cosmosDone.current === login) return;
+    cosmosDone.current = login;
+    const timer = window.setTimeout(() => populateCosmos(sends), 500);
+    return () => window.clearTimeout(timer);
+  }, [channel, login, sends]);
 
   const loadedChannel = channel !== 'loading' ? channel : null;
   const sub = useMediaSubmission(loadedChannel, login, bumpBoard);
@@ -109,6 +121,7 @@ export function ChannelPage() {
       viewerLevel={channel.viewerLevel}
       viewerXp={channel.viewerXp}
       pageBackground={channel.pageBackground}
+      sends={sends}
     >
       <ChannelHeader channel={channel} />
 

@@ -18,6 +18,10 @@ import { useFidgetEnabled } from '@/hooks/useFidgetEnabled';
 
 const DEFAULT_COLOR = '#8df0cc';
 const R_IN = 0.17; // arms start here (the bar tips); inside is the bulge — keeps the core clear
+// Ceiling on the stars a channel's sends may add. Deliberately the cap the page's own cosmos layer
+// used to carry: this moves those stars into the disc rather than adding a second crowd, so the
+// busiest channel costs the same frame it did before.
+const COUNT_STARS_MAX = 700;
 const SPIRAL = 6; // log-spiral winding: higher = more turns from bar to rim
 // Two dominant arms from opposite bar tips (base 0 and π lie along the bar axis), plus two fainter
 // spurs offset from them — the Milky Way reads as two-armed with minor spurs, not a clean pinwheel.
@@ -143,15 +147,29 @@ export function NebulaBackground({
   cx = 0.5,
   cy = 0.42,
   fill = 'viewport',
+  sends = 0,
 }: {
   color?: string;
   cx?: number;
   cy?: number;
   /** 'viewport' = fixed full-screen page background; 'parent' = fill a sized `relative` box (preview). */
   fill?: 'viewport' | 'parent';
+  /**
+   * The channel's aired sends. Each one adds a star ON TOP of the width-driven base, capped by
+   * COUNT_STARS_MAX: the disc is the channel's counter, which is why the page stops scattering its
+   * own loose "cosmos" stars once this background is on (see BackgroundStars / ChannelShell). The
+   * base stays because it exists for a different reason — a wide monitor needs a denser disc to not
+   * look thinned out, and that has nothing to do with how much the channel has aired.
+   */
+  sends?: number;
 }) {
   const enabled = useFidgetEnabled();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // The live star array, shared with the top-up effect below. A ref, because the count arrives AFTER
+  // the first paint (the page has to fetch it) and rebuilding the field on arrival would re-seed every
+  // star at once — a visible shuffle of the whole sky a moment after it appeared.
+  const starsRef = useRef<Star[] | null>(null);
+  const addedRef = useRef(0);
 
   useEffect(() => {
     if (!enabled) return;
@@ -169,8 +187,12 @@ export function NebulaBackground({
       number,
       number,
     ];
-    // Density scales with viewport width so the wider disc (below) doesn't thin out on big monitors.
-    const stars = buildStars(Math.min(1300, Math.max(560, Math.round(window.innerWidth * 0.7))));
+    // Density scales with viewport width so the wider disc (below) doesn't thin out on big monitors,
+    // then the channel's own sends are added on top (one star each, capped).
+    const base = Math.min(1300, Math.max(560, Math.round(window.innerWidth * 0.7)));
+    const stars = buildStars(base);
+    starsRef.current = stars;
+    addedRef.current = 0;
     let W = 0;
     let H = 0;
     let raf = 0;
@@ -292,6 +314,17 @@ export function NebulaBackground({
       ro.disconnect();
     };
   }, [enabled, color, cx, cy]);
+
+  // The channel's sends, added to the disc as they become known. Pushed into the SAME array the draw
+  // loop walks, so new stars simply join the sky the next frame — nothing is rebuilt and nothing that
+  // was already there moves.
+  useEffect(() => {
+    const want = Math.min(COUNT_STARS_MAX, Math.max(0, Math.round(sends)));
+    const stars = starsRef.current;
+    if (!stars || want <= addedRef.current) return;
+    stars.push(...buildStars(want - addedRef.current));
+    addedRef.current = want;
+  }, [sends]);
 
   if (!enabled) return null;
   return (

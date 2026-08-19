@@ -15,6 +15,8 @@ import { useFidgetEnabled } from '@/hooks/useFidgetEnabled';
 const DEFAULT_COLOR = '#8df0cc';
 const WIND = 1; // spiral turns on the way in
 const ARMS = 2; // faint over-density every half-turn, so the inflow reads as a disc, not a smear
+// Ceiling on the motes a channel's sends may add — see NebulaBackground's COUNT_STARS_MAX.
+const COUNT_MOTES_MAX = 700;
 
 function hexToRgb(hex: string): [number, number, number] {
   const h = hex.replace('#', '');
@@ -78,14 +80,22 @@ export function BlackHoleBackground({
   cx = 0.5,
   cy = 0.42,
   fill = 'viewport',
+  sends = 0,
 }: {
   color?: string;
   cx?: number;
   cy?: number;
   fill?: 'viewport' | 'parent';
+  /** The channel's aired sends, one mote each on top of the width-driven base (see NebulaBackground
+   *  for why the base stays). Everything sent spirals in and is swallowed — which is the whole read. */
+  sends?: number;
 }) {
   const enabled = useFidgetEnabled();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // See NebulaBackground: the count lands after the first paint, so it is topped up into the live
+  // array rather than rebuilding the field.
+  const motesRef = useRef<Mote[] | null>(null);
+  const addedRef = useRef(0);
 
   useEffect(() => {
     if (!enabled) return;
@@ -98,7 +108,10 @@ export function BlackHoleBackground({
     const safe = /^#[0-9a-f]{6}$/i.test(color) ? color : DEFAULT_COLOR;
     const sprite = makeSprite(safe);
     const [hr, hg, hb] = hexToRgb(safe);
-    const motes = buildMotes(Math.min(1100, Math.max(480, Math.round(window.innerWidth * 0.6))));
+    const base = Math.min(1100, Math.max(480, Math.round(window.innerWidth * 0.6)));
+    const motes = buildMotes(base);
+    motesRef.current = motes;
+    addedRef.current = 0;
     let W = 0;
     let H = 0;
     let raf = 0;
@@ -191,6 +204,16 @@ export function BlackHoleBackground({
       ro.disconnect();
     };
   }, [enabled, color, cx, cy, fill]);
+
+  // The channel's sends, added to the inflow as they become known — pushed into the live array so the
+  // stream simply gets denser instead of being rebuilt.
+  useEffect(() => {
+    const want = Math.min(COUNT_MOTES_MAX, Math.max(0, Math.round(sends)));
+    const motes = motesRef.current;
+    if (!motes || want <= addedRef.current) return;
+    motes.push(...buildMotes(want - addedRef.current));
+    addedRef.current = want;
+  }, [sends]);
 
   if (!enabled) return null;
   return (
