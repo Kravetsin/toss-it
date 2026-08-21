@@ -1827,6 +1827,12 @@ const CARD_FX_DEMO_COLORS: Record<string, string | undefined> = {
   'card-hextech': '#ffb43c',
   'card-claws': '#ff4d6a',
   'card-web': '#ff8fd4',
+  'card-spellclash': '#8fb4ff',
+};
+
+/** Second picker of the DUAL-colour effects, whose two sides are the whole point of the upgrade. */
+const CARD_FX_DEMO_COLORS2: Record<string, string | undefined> = {
+  'card-spellclash': '#ffb03c',
 };
 
 function demoPayload(kind: MediaKind, st: DemoState): MediaPlayPayload {
@@ -1852,6 +1858,7 @@ function demoPayload(kind: MediaKind, st: DemoState): MediaPlayPayload {
     // ternary chain, so the next colourable seal is one line.
     senderSealColor: st.sender ? SEAL_DEMO_COLORS[st.seal] : undefined,
     senderCardEffectColor: CARD_FX_DEMO_COLORS[st.cardEffect],
+    senderCardEffectColor2: CARD_FX_DEMO_COLORS2[st.cardEffect],
     senderEntrance: st.entrance !== 'none' ? st.entrance : undefined,
     // Demo a non-default tint so the colour upgrade is visible on the stage without a picker. Sent for
     // ANY entrance, not just the portal: the upgrade tints whichever one is equipped (see

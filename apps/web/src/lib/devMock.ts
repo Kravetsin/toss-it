@@ -555,6 +555,20 @@ const MOCK_PENDING: SubmissionSummary[] = [
     text: 'думаю с порталами',
     createdAt: t - 90 * min,
   }),
+  sub({
+    id: 's24',
+    kind: 'text',
+    senderUserId: 'twitch:v27',
+    senderName: 'expelliarmus',
+    senderLevel: 10,
+    senderColor: '#ffcf94',
+    senderCardEffect: 'card-spellclash',
+    // Both beams recoloured, so the row shows the dual upgrade rather than the default green/red.
+    senderCardEffectColor: '#8fb4ff',
+    senderCardEffectColor2: '#ffb03c',
+    text: 'кто кого',
+    createdAt: t - 94 * min,
+  }),
 ];
 
 const MOCK_NOW: SubmissionSummary | null = sub({
@@ -755,7 +769,7 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     // Static gradient, no flow — the contrast against the drifting rows above is the point.
     nickFlow: false,
     nickEffect: null,
-    cardEffect: 'card-sakura',
+    cardEffect: 'card-spellclash',
     seal: null,
     sealColor: null,
     level: 2,

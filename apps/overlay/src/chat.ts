@@ -757,6 +757,20 @@ if (DEMO) {
       fragments: [{ type: 'text', text: 'думаю с порталами' }],
     },
     {
+      id: '5g',
+      userId: 'u5g',
+      name: 'expelliarmus',
+      twitchColor: '#ffcf94',
+      cosmetics: {
+        cardEffect: 'card-spellclash',
+        cardEffectColors: { 'card-spellclash': '#8fb4ff' },
+        cardEffectColors2: { 'card-spellclash': '#ffb03c' },
+      },
+      isFounder: false,
+      level: 10,
+      fragments: [{ type: 'text', text: 'кто кого' }],
+    },
+    {
       id: '6',
       userId: 'u6',
       name: 'subfan',

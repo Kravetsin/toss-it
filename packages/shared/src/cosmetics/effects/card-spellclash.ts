@@ -1,36 +1,36 @@
-import { type Concept, blob, clamp, easeOut, hash, rgba, span, TAU } from './scene';
+import type { CardEffectModule, Surface } from '../types';
+import { mountScene, sceneHash as hash, sceneRgba as rgba } from '../canvas';
 
 /**
- * CONCEPT — "the wand duel": two jets of light come in from off-card left and right, LOCK in the
- * middle, and shove each other back and forth. No figures, no wands, no crest — only the two beams,
- * the knot of light where they meet, and what that knot throws off.
+ * A duel of two spells: jets of light come in from off-card left and right, LOCK in the middle, and
+ * shove each other back and forth for sixteen seconds. No figures, no wands, no crest — only the two
+ * beams, the weld where they meet, and what that weld throws off.
  *
  * THE CONTACT POINT IS THE ANIMATION. Everything else is derived from it: each beam is drawn from its
  * own edge TO that point, so the winning beam lengthens and the losing one is crushed short, and the
  * sparks always come off the real meeting place. Authoring two beams and hoping they touch is how a
  * duel turns into two lines overlapping.
  *
- * THE KNOT HAS ONE COLOUR AND KEEPS IT. It is a weld: white core, warm halo, always. Tinting it by
- * whoever is currently winning is the one thing that breaks it — the contact stops being a place
- * where two powers meet and starts being a token that belongs to a side. Who is winning is told by
- * the BEAMS (the crushed one runs brighter and thicker) and by where the knot has been driven to.
+ * THE WELD HAS ONE COLOUR AND KEEPS IT — warm halo, white core, at every instant, and the colour
+ * upgrade does NOT reach it. Tinting the contact by whoever is currently winning is the one thing
+ * that breaks the scene: it stops being a place where two powers meet and becomes a token that
+ * belongs to a side. Who is winning is told by the BEAMS (the crushed one runs brighter and thicker)
+ * and by where the weld has been driven to.
  *
- * A LONG LOOP, UNEVENLY PACED. Sixteen seconds, and none of the pushes match: a probe, a lean that is
- * answered, a stalemate that barely moves, a slow grind out to the edge, a slip. Depths and durations
- * differ on purpose — equal beats are a metronome, and a metronome is the one thing a duel cannot look
- * like. There is no burst at the turn either: an explosion there asks the viewer what exploded, and
- * there is no honest answer.
+ * A LONG LOOP, UNEVENLY PACED: a probe, a lean that is answered, a clinch that barely moves, a slow
+ * grind out to the edge, a slip. Depths and durations differ on purpose — equal beats are a
+ * metronome, and a metronome is the one thing a duel cannot look like. There is no burst at the turn
+ * either: an explosion there asks the viewer what exploded, and there is no honest answer.
  *
  * THE TURNS ARE A SPLINE, NOT A CHAIN OF EASINGS. Per-segment easing gives every keyframe a corner in
  * VELOCITY — an easeIn arrives at the peak at full speed and the easeOut after it leaves in the
- * opposite direction just as fast, so the knot visibly jerks at the exact instant the duel turns.
- * Position was continuous there; nothing else was. So the keys are interpolated as one cyclic Hermite
+ * opposite direction just as fast, so the weld visibly jerks at the exact instant the duel turns.
+ * Position is continuous there; nothing else is. So the keys are interpolated as one cyclic Hermite
  * spline with finite-difference tangents: speed carries THROUGH every key and through the loop seam,
  * and the shape of a beat comes from where its keys sit rather than from a curve picked per segment.
- * A pair of keys close together is a fast slip, a pair far apart a slow grind, and two keys at nearly
- * the same value are a clinch — the spline decelerates into it and out of it on its own. Tangents are
- * damped below 1 and the result is clamped: an undamped cardinal spline overshoots a peak, and this
- * one's peaks are the edges of the card.
+ * Near keys are a fast slip, far ones a slow grind, two keys at nearly the same value a clinch — the
+ * spline decelerates into it and out of it on its own. Tangents are damped below 1 and the result is
+ * clamped: an undamped cardinal spline overshoots a peak, and this one's peaks are the card's edges.
  *
  * THE BEAM IS A ROPE WITH KINKS, NOT A BOLT. The kinks are triangle waves (hard corners at any sample
  * density — a sine sampled coarsely gives soft bends and looks like rope), scrolling along the beam at
@@ -49,11 +49,53 @@ import { type Concept, blob, clamp, easeOut, hash, rgba, span, TAU } from './sce
 
 const GREEN = '#55ff9e';
 const RED = '#ff4b4b';
-const HOT = '#ffcf94'; // the weld: the scene's only warm colour, and it never moves off the contact
+const HOT = '#ffcf94'; // the weld: the scene's only warm colour, and no upgrade repaints it
 const WHITE = '#ffffff';
 const LOOP = 16000;
+const TAU = Math.PI * 2;
 /** Pressure at which a side is fully crushed; everything strain-driven is read against it. */
 const PEAK = 0.3;
+
+function clamp(v: number, a: number, b: number): number {
+  return v < a ? a : v > b ? b : v;
+}
+/** 0..1 progress of `t` through a window, clamped. */
+function span(t: number, from: number, to: number): number {
+  return clamp((t - from) / (to - from), 0, 1);
+}
+const easeOut = (t: number): number => 1 - (1 - t) ** 3;
+
+const glows = new Map<string, HTMLCanvasElement>();
+/** Soft halo sprite, cached per colour — cheaper than a gradient per spark. */
+function blob(
+  ctx: CanvasRenderingContext2D,
+  color: string,
+  x: number,
+  y: number,
+  r: number,
+  a = 1,
+): void {
+  if (r <= 0 || a <= 0) return;
+  let sprite = glows.get(color);
+  if (!sprite) {
+    const n = parseInt(color.slice(1), 16);
+    const c = document.createElement('canvas');
+    c.width = c.height = 48;
+    const g = c.getContext('2d')!;
+    const grad = g.createRadialGradient(24, 24, 0, 24, 24, 24);
+    const rgb = [(n >> 16) & 255, (n >> 8) & 255, n & 255].join(',');
+    grad.addColorStop(0, `rgba(${rgb},0.85)`);
+    grad.addColorStop(0.3, `rgba(${rgb},0.35)`);
+    grad.addColorStop(1, `rgba(${rgb},0)`);
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 48, 48);
+    glows.set(color, c);
+    sprite = c;
+  }
+  ctx.globalAlpha = a;
+  ctx.drawImage(sprite, x - r, y - r, r * 2, r * 2);
+  ctx.globalAlpha = 1;
+}
 
 /**
  * Where the contact sits, as a fraction of the card's width off centre; + = the left beam is winning.
@@ -66,10 +108,10 @@ const KEYS: { at: number; to: number }[] = [
   { at: 3000, to: -0.03 }, // answered, and it drifts past the middle
   { at: 4400, to: 0.1 },
   { at: 5400, to: 0.13 }, // a real lean this time
-  { at: 6500, to: 0.11 }, // clinch: the knot hardly moves, it only shakes
+  { at: 6500, to: 0.11 }, // clinch: the weld hardly moves, it only shakes
   { at: 7600, to: 0.29 }, // ground out to the edge
   { at: 8500, to: 0.24 }, // and held there — a peak left instantly is a bounce, not a duel
-  { at: 9600, to: 0.05 }, // it gives, and the knot runs back through the middle
+  { at: 9600, to: 0.05 }, // it gives, and the weld runs back through the middle
   { at: 10600, to: -0.1 }, // the other side takes over
   { at: 11600, to: -0.07 }, // a stumble in the middle of its own push
   { at: 12900, to: -0.29 }, // deepest of the loop
@@ -187,7 +229,21 @@ function drawBeam(
   ctx.stroke();
 }
 
-function paint(ctx: CanvasRenderingContext2D, w: number, h: number, t: number): void {
+/** How much of the shower a surface can afford; the weld is the same everywhere. */
+interface Density {
+  sparks: number;
+  motes: number;
+}
+
+function paint(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  t: number,
+  left: string,
+  right: string,
+  den: Density,
+): void {
   const v = pressure(t);
   const heat = strain(t);
   const [cx, cy] = contact(t, w, h);
@@ -203,23 +259,24 @@ function paint(ctx: CanvasRenderingContext2D, w: number, h: number, t: number): 
 
   // Light first, so everything else sits IN it. Each wand lights its own end and flares as it is
   // driven back; the weld lights the middle, and its light is warm at every moment of the loop.
-  blob(ctx, GREEN, lx, ly, h * 1.5, 0.15 + Math.max(0, -v) * 0.3);
-  blob(ctx, RED, rx, ry, h * 1.5, 0.15 + Math.max(0, v) * 0.3);
+  blob(ctx, left, lx, ly, h * 1.5, 0.15 + Math.max(0, -v) * 0.3);
+  blob(ctx, right, rx, ry, h * 1.5, 0.15 + Math.max(0, v) * 0.3);
   blob(ctx, HOT, cx, cy, h * (1.15 + heat * 0.45), 0.2 + heat * 0.22);
 
   // Dust across the full width. Painted WHITE and thin: additive over the beams' own wash, a mote
   // comes out the colour of the light it is standing in, which is both cheaper and more honest than
-  // picking a side for it — a speck of dust does not belong to a duellist.
+  // picking a side for it — a speck of dust does not belong to a duellist, and it also means the
+  // colour upgrade needs no second thought here.
   //
   // WHOLE laps per loop: a mote on its own free pace lands mid-crossing when the loop wraps, and the
   // whole field jumps back to its start at once.
-  for (let i = 0; i < 24; i++) {
+  for (let i = 0; i < den.motes; i++) {
     const laps = Math.round(hash(i, 31) * 6) - 3;
     const mx = ((((hash(i, 33) + (t / LOOP) * laps) % 1) + 1) % 1) * w;
     const my =
       (hash(i, 34) * 0.9 + 0.05 + Math.sin(((t / LOOP) * 3 + hash(i, 35)) * TAU) * 0.05) * h;
     const lit = clamp(1 - Math.hypot(mx - cx, my - cy) / (h * 0.9), 0, 1);
-    // Away from the knot a mote still catches the beam it is closest to, so the corners aren't dead.
+    // Away from the weld a mote still catches the beam it is closest to, so the corners aren't dead.
     const along = clamp(1 - Math.abs(my - h * 0.5) / (h * 0.45), 0, 1) * 0.45;
     const l = Math.max(lit * lit, along * along);
     ctx.fillStyle = WHITE;
@@ -242,7 +299,7 @@ function paint(ctx: CanvasRenderingContext2D, w: number, h: number, t: number): 
     const len = Math.hypot(cx - ax, cy - ay);
     const amp = Math.min(scale * 0.16, len * 0.22) * (0.75 + push * 0.85);
     const cyc = clamp(2.4 * (h / 170) ** 0.5 * (len / (w * 0.5)) ** 0.6, 0.7, 3.2);
-    const color = side < 0 ? GREEN : RED;
+    const color = side < 0 ? left : right;
     const seed = side < 0 ? 0.31 : 1.87;
     // Sampled against the kink count, not against the beam: a fixed step is either wasted on a lazy
     // curve or too coarse to show the corners the top octave is there to make.
@@ -250,7 +307,7 @@ function paint(ctx: CanvasRenderingContext2D, w: number, h: number, t: number): 
     const pts: [number, number][] = [];
     for (let i = 0; i <= steps; i++) pts.push(beamAt(i / steps, ax, ay, cx, cy, amp, cyc, t, seed));
     // The compressed beam burns brighter and thicker. It is the loser that glows, not the winner:
-    // this is the strain that is about to send the knot back the other way.
+    // this is the strain that is about to send the weld back the other way.
     drawBeam(ctx, pts, color, wBase * (1 + push * 0.45), 1 + push * 0.75);
 
     // Forks: a short branch peeling off the jet and dying. Each takes a slot of the loop, so a beam
@@ -296,7 +353,7 @@ function paint(ctx: CanvasRenderingContext2D, w: number, h: number, t: number): 
   // Each spark's period divides the loop exactly, which is what keeps the shower seamless at the wrap.
   // Every one of them is warm with a white core: the sparks come off the weld, not off either beam.
   const g = h * 0.0000055;
-  for (let i = 0; i < 72; i++) {
+  for (let i = 0; i < den.sparks; i++) {
     const period = LOOP / (26 + Math.floor(hash(i, 71) * 20));
     const off = hash(i, 72) * period;
     let born = Math.floor((t - off) / period) * period + off;
@@ -308,7 +365,7 @@ function paint(ctx: CanvasRenderingContext2D, w: number, h: number, t: number): 
     const life = period * (0.2 + hash(i, 73) * 0.7);
     if (age > life) continue;
     const [ox, oy] = contact(born, w, h);
-    // Thrown mostly the way the knot is being driven, the rest sideways off the seam.
+    // Thrown mostly the way the weld is being driven, the rest sideways off the seam.
     const bias = pressure(born) > 0 ? 1 : -1;
     const a = (hash(i, 74) - 0.5) * 2.8;
     const speed = scale * 0.0017 * (0.25 + hash(i, 75) ** 2 * 1.5) * kick;
@@ -334,13 +391,46 @@ function paint(ctx: CanvasRenderingContext2D, w: number, h: number, t: number): 
   ctx.globalCompositeOperation = 'source-over';
 }
 
-export const spellclash: Concept = {
-  id: 'pop-spellclash',
-  nod: 'Гарри Поттер',
-  title: 'Дуэль заклинаний',
-  blurb:
-    'Два луча входят из-за краёв и сцепляются посередине. Место стыка — сварка: белое ядро, тёплый ореол, всегда одного цвета, и оттуда постоянно летят искры. Кто побеждает — видно по лучам: продавленный горит ярче и толще, и этот накал разворачивает стык обратно. Петля 16 секунд: наезды разной глубины и длины, скорость непрерывна — на переломе стык не дёргается.',
-  loopMs: LOOP,
-  stillMs: 12900,
-  paint,
+/** Density per surface: the shower is the expensive half, and a 40px chat pill cannot show 70 sparks. */
+const DENSITY: Record<Surface, Density> = {
+  web: { sparks: 72, motes: 24 },
+  overlayCard: { sparks: 84, motes: 26 },
+  overlayChat: { sparks: 38, motes: 14 },
+};
+
+function render(
+  layer: HTMLElement,
+  surface: Surface,
+  _compact: unknown,
+  color?: string,
+  color2?: string,
+): (() => void) | void {
+  if (typeof document === 'undefined') return;
+  // One upgrade, two pickers: the scene is only legible because the two beams differ, so each keeps
+  // its own colour. The weld takes neither — it belongs to both (see the header).
+  const left = color || GREEN;
+  const right = color2 || RED;
+  const den = DENSITY[surface];
+  return mountScene(
+    layer,
+    'card-spellclash',
+    (ctx, w, h, t) => paint(ctx, w, h, t, left, right, den),
+    { loopMs: LOOP, stillMs: 12900, maxLive: 5 },
+  );
+}
+
+export const cardSpellclash: CardEffectModule = {
+  id: 'card-spellclash',
+  type: 'card_effect',
+  costDust: 5200,
+  since: '2026-08-21',
+  className: 'card-fx-spellclash',
+  // Nominal only: a render effect owns the whole layer, but counts must be non-zero for the layer to
+  // be created at all (see CardEffectModule.render / cardEffectLayerClass). Real per-surface density
+  // is DENSITY above, which the scene reads directly.
+  counts: { web: 1, overlayCard: 1, overlayChat: 1 },
+  colorUpgrade: 'card-spellclash-color',
+  dualColor: true,
+  labels: { name: 'shop.cardSpellclash', desc: 'shop.cardSpellclashDesc' },
+  render,
 };

@@ -136,7 +136,10 @@ const CARD_GROUPS = [
     key: 'arcane',
     ids: ['card-wisp', 'card-runes', 'card-web', 'card-eyes', 'card-candles', 'card-hextech'],
   },
-  { key: 'pop', ids: ['card-blade-duel', 'card-code-rain', 'card-well', 'card-portals'] },
+  {
+    key: 'pop',
+    ids: ['card-blade-duel', 'card-code-rain', 'card-well', 'card-portals', 'card-spellclash'],
+  },
 ] as const;
 type CardGroupKey = (typeof CARD_GROUPS)[number]['key'];
 const GROUP_LABEL: Record<CardGroupKey, string> = {
