@@ -220,11 +220,17 @@ export function registerCosmeticsRoutes(app: FastifyInstance): void {
       const next: Record<string, string> = { ...(equipped.cardEffectColors2 ?? {}) };
       for (const [effectId, value] of Object.entries(raw as Record<string, unknown>)) {
         const mod = cosmeticModule(effectId);
-        if (mod?.type !== 'card_effect' || !mod.colorUpgrade || !mod.dualColor) {
+        if (mod?.type !== 'card_effect' || !mod.colorUpgrade) {
           return reply.code(400).send({ error: 'Некорректный эффект' });
         }
         if (value === null) {
+          // A CLEAR is allowed on any colourable effect, `dualColor` or not. Reset sends both maps in
+          // one request (one write, or the second call clobbers the first), so gating the clear on
+          // dualColor rejected the whole request for every single-colour effect — the colour could be
+          // set and never taken off. Nothing is being parked here; the key is being removed.
           delete next[effectId];
+        } else if (!mod.dualColor) {
+          return reply.code(400).send({ error: 'Некорректный эффект' });
         } else if (typeof value === 'string' && isHexColor(value)) {
           if (!(await unlocked(user.id, mod.colorUpgrade))) {
             return reply.code(403).send({ error: 'Предмет не куплен' });
