@@ -15,42 +15,52 @@ export const frameRunner: FrameModule = {
   // EARNED, not bought: 500 chat messages on the account (see CosmeticItem.earn / the equip gate).
   costDust: 0,
   earn: { metric: 'messages', count: 500 },
-  className: 'frame-fx-runner',
   colorUpgrade: 'frame-runner-color',
+  className: 'frame-fx-runner',
   labels: { name: 'shop.frameRunner', desc: 'shop.frameRunnerDesc' },
   css: `
+/* WHITE IS THE CORE, COLOUR IS THE BODY — the arc runs colour → white-hot → colour and fades out at
+   both ends, the way frame-dragon-breath is built. It used to ramp from transparent straight up to
+   white and only then into the tint, which put the colour on the leading half alone and left the
+   white sitting at the tail; a runner is one hot thing seen from both sides, not a two-tone dash.
+   That is also what makes the colour upgrade legible: the tint has to flank the highlight, or a
+   recoloured runner still reads as a white streak.
+
+   The arc is CENTRED at 50%, away from the gradient's seam (the ray where it wraps 100% → 0%). Both
+   ends of the sweep are flat transparent there, so the seam has nothing to show — which is why this
+   needs none of the rotate-and-shift trickery that a seam-crossing arc would. */
 .frame-fx-runner::after {
-  background: conic-gradient(from var(--frame-ang), transparent 0 82%, #eafff8 91%, rgb(var(--frame-rgb, 141, 240, 204)) 95%, transparent 100%);
+  background: conic-gradient(from var(--frame-ang),
+    transparent 0 40%,
+    rgb(var(--frame-rgb, 141, 240, 204)) 46%,
+    #eafff8 50%,
+    rgb(var(--frame-rgb, 141, 240, 204)) 54%,
+    transparent 60% 100%);
   animation: frame-run 7s linear infinite;
 }
 /* The glow travels WITH the runner: same conic gradient, same --frame-ang, same keyframe on a layer
    of its own, so the two can't drift apart — an inset shadow could only have lit a whole side.
  *
- * The tail runs THROUGH the seam (0% and 100% carry the same value) and fades over ~50° at each end.
- * That is not cosmetic tuning: a conic gradient's stops are RADII, so any quick drop in alpha shows
- * up as a straight cut across the card, and the tighter the drop the more it reads as a chopped
- * block. The runner's own arc gets away with a hard end because it is 2px wide; a glow cannot.
+ * Centred on the arc and fading over ~28° at each end. That is not cosmetic tuning: a conic
+ * gradient's stops are RADII, so any quick drop in alpha shows up as a straight cut across the card,
+ * and the tighter the drop the more it reads as a chopped block. The arc itself gets away with short
+ * ramps because it is 2px wide; a glow that fills the box cannot.
  *
- * ONE hue, varying only in alpha, for the same reason: a white core is the highest-contrast stop in
- * the ramp, so it is where that straight cut becomes visible first. The white point belongs to the
- * runner itself — repeating it out here bought nothing and cost the soft edge.
- *
- * And the gradient is turned half a turn with every stop moved the matching 50%, which paints the
- * IDENTICAL picture but puts the SEAM — the ray where a conic gradient wraps from 100% back to 0% —
- * in the dead zone. Equal colours across the seam are not enough: the slopes must match too, or the
- * kink reads as a hard line pointing at the card's centre. In the dead zone both sides are flat
- * zero, so there is nothing left to see. */
+ * ONE hue, varying only in alpha: a white core is the highest-contrast stop in the ramp, so it is
+ * where that straight cut becomes visible first. The white point belongs to the runner itself —
+ * repeating it out here bought nothing and cost the soft edge. */
 .frame-fx-runner::before {
-  --frame-glow: conic-gradient(from calc(var(--frame-ang) + 180deg),
+  --frame-glow: conic-gradient(from var(--frame-ang),
     transparent 0,
-    transparent 18%,
+    transparent 22%,
     rgba(var(--frame-rgb, 141, 240, 204), 0.05) 29%,
-    rgba(var(--frame-rgb, 141, 240, 204), 0.2) 39%,
+    rgba(var(--frame-rgb, 141, 240, 204), 0.2) 38%,
     rgba(var(--frame-rgb, 141, 240, 204), 0.42) 45%,
-    rgba(var(--frame-rgb, 141, 240, 204), 0.52) 48%,
-    rgba(var(--frame-rgb, 141, 240, 204), 0.3) 50%,
-    rgba(var(--frame-rgb, 141, 240, 204), 0.09) 57%,
-    transparent 67%,
+    rgba(var(--frame-rgb, 141, 240, 204), 0.52) 50%,
+    rgba(var(--frame-rgb, 141, 240, 204), 0.42) 55%,
+    rgba(var(--frame-rgb, 141, 240, 204), 0.2) 62%,
+    rgba(var(--frame-rgb, 141, 240, 204), 0.09) 71%,
+    transparent 78%,
     transparent 100%);
   --frame-glow-mask: var(--frame-edge);
   animation: frame-run 7s linear infinite;
