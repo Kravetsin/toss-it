@@ -1,15 +1,4 @@
-import {
-  type Concept,
-  blob,
-  clamp,
-  easeIn,
-  easeInOut,
-  easeOut,
-  hash,
-  rgba,
-  span,
-  TAU,
-} from './scene';
+import { type Concept, blob, clamp, easeOut, hash, rgba, span, TAU } from './scene';
 
 /**
  * CONCEPT — "the wand duel": two jets of light come in from off-card left and right, LOCK in the
@@ -27,11 +16,21 @@ import {
  * the BEAMS (the crushed one runs brighter and thicker) and by where the knot has been driven to.
  *
  * A LONG LOOP, UNEVENLY PACED. Sixteen seconds, and none of the pushes match: a probe, a lean that is
- * answered, a stalemate that barely moves, a slow grind out to the edge, a slip. Every push is
- * easeIn (pressure accumulates, then gives) and every recoil easeOut (spent at once, then settles).
- * Depths and durations differ on purpose — equal beats are a metronome, and a metronome is the one
- * thing a duel cannot look like. There is no burst at the turn: an explosion there asks the viewer
- * what exploded, and there is no honest answer.
+ * answered, a stalemate that barely moves, a slow grind out to the edge, a slip. Depths and durations
+ * differ on purpose — equal beats are a metronome, and a metronome is the one thing a duel cannot look
+ * like. There is no burst at the turn either: an explosion there asks the viewer what exploded, and
+ * there is no honest answer.
+ *
+ * THE TURNS ARE A SPLINE, NOT A CHAIN OF EASINGS. Per-segment easing gives every keyframe a corner in
+ * VELOCITY — an easeIn arrives at the peak at full speed and the easeOut after it leaves in the
+ * opposite direction just as fast, so the knot visibly jerks at the exact instant the duel turns.
+ * Position was continuous there; nothing else was. So the keys are interpolated as one cyclic Hermite
+ * spline with finite-difference tangents: speed carries THROUGH every key and through the loop seam,
+ * and the shape of a beat comes from where its keys sit rather than from a curve picked per segment.
+ * A pair of keys close together is a fast slip, a pair far apart a slow grind, and two keys at nearly
+ * the same value are a clinch — the spline decelerates into it and out of it on its own. Tangents are
+ * damped below 1 and the result is clamped: an undamped cardinal spline overshoots a peak, and this
+ * one's peaks are the edges of the card.
  *
  * THE BEAM IS A ROPE WITH KINKS, NOT A BOLT. The kinks are triangle waves (hard corners at any sample
  * density — a sine sampled coarsely gives soft bends and looks like rope), scrolling along the beam at
@@ -56,38 +55,57 @@ const LOOP = 16000;
 /** Pressure at which a side is fully crushed; everything strain-driven is read against it. */
 const PEAK = 0.3;
 
-/** Where the contact sits, as a fraction of the card's width off centre. + = the left beam is winning. */
-interface Beat {
-  at: number;
-  to: number;
-  ease: (t: number) => number;
-}
-const BEATS: Beat[] = [
-  { at: 0, to: 0, ease: easeInOut },
-  { at: 1200, to: 0.06, ease: easeInOut }, // a probe, barely a shove
-  { at: 2600, to: -0.02, ease: easeInOut }, // answered, and it drifts past the middle
-  { at: 4200, to: 0.14, ease: easeIn }, // a real lean this time
-  { at: 5600, to: 0.1, ease: easeInOut }, // stalemate: the knot hardly moves, it only shakes
-  { at: 7000, to: PEAK, ease: easeIn }, // ground out to the edge
-  { at: 7900, to: 0.16, ease: easeOut }, // held, and shoved back
-  { at: 9000, to: 0.06, ease: easeInOut },
-  { at: 10200, to: -0.12, ease: easeIn }, // the other side takes over
-  { at: 11100, to: -0.08, ease: easeOut }, // a stumble in the middle of its own push
-  { at: 12600, to: -PEAK, ease: easeIn }, // deepest of the loop
-  { at: 13600, to: -0.1, ease: easeOut }, // it slips
-  { at: 15000, to: 0.05, ease: easeInOut },
-  { at: LOOP, to: 0, ease: easeInOut },
+/**
+ * Where the contact sits, as a fraction of the card's width off centre; + = the left beam is winning.
+ * Keys of ONE cyclic spline (see the header), so the gap to the next key is the beat's whole
+ * character: near keys read as a slip, far ones as a grind, equal values as a clinch.
+ */
+const KEYS: { at: number; to: number }[] = [
+  { at: 0, to: 0 },
+  { at: 1400, to: 0.07 }, // a probe, barely a shove
+  { at: 3000, to: -0.03 }, // answered, and it drifts past the middle
+  { at: 4400, to: 0.1 },
+  { at: 5400, to: 0.13 }, // a real lean this time
+  { at: 6500, to: 0.11 }, // clinch: the knot hardly moves, it only shakes
+  { at: 7600, to: 0.29 }, // ground out to the edge
+  { at: 8500, to: 0.24 }, // and held there — a peak left instantly is a bounce, not a duel
+  { at: 9600, to: 0.05 }, // it gives, and the knot runs back through the middle
+  { at: 10600, to: -0.1 }, // the other side takes over
+  { at: 11600, to: -0.07 }, // a stumble in the middle of its own push
+  { at: 12900, to: -0.29 }, // deepest of the loop
+  { at: 13700, to: -0.25 },
+  { at: 14800, to: -0.06 },
 ];
+/** Tangent damping. Below 1 because a cardinal spline overshoots its peaks, and these are the edges. */
+const TENSION = 0.72;
+
+/** Key `i`, wrapping around the loop — index -1 is the last key one loop back. */
+function key(i: number): [number, number] {
+  const n = KEYS.length;
+  const k = ((i % n) + n) % n;
+  const laps = Math.floor(i / n);
+  return [KEYS[k]!.at + laps * LOOP, KEYS[k]!.to];
+}
 
 /** Signed pressure at `t`: + means the left beam is pushing the contact toward the right edge. */
 function pressure(t: number): number {
-  let prev = BEATS[0]!;
-  for (let i = 1; i < BEATS.length; i++) {
-    const b = BEATS[i]!;
-    if (t <= b.at) return prev.to + (b.to - prev.to) * b.ease(span(t, prev.at, b.at));
-    prev = b;
-  }
-  return prev.to;
+  let i = KEYS.length - 1;
+  for (let j = 0; j < KEYS.length; j++) if (t >= KEYS[j]!.at) i = j;
+  const [t0, v0] = key(i);
+  const [t1, v1] = key(i + 1);
+  const [tb, vb] = key(i - 1);
+  const [ta, va] = key(i + 2);
+  const dt = t1 - t0;
+  // Finite-difference tangents: each key's slope is read off its NEIGHBOURS, which is what carries
+  // speed through the key instead of restarting it there.
+  const m0 = TENSION * ((v1 - vb) / (t1 - tb)) * dt;
+  const m1 = TENSION * ((va - v0) / (ta - t0)) * dt;
+  const p = clamp((t - t0) / dt, 0, 1);
+  const p2 = p * p;
+  const p3 = p2 * p;
+  const v =
+    (2 * p3 - 3 * p2 + 1) * v0 + (p3 - 2 * p2 + p) * m0 + (-2 * p3 + 3 * p2) * v1 + (p3 - p2) * m1;
+  return clamp(v, -0.33, 0.33);
 }
 
 /** How hard the crushed side is straining at `t`, 0..1 — the scene's only "event" scalar. */
@@ -321,8 +339,8 @@ export const spellclash: Concept = {
   nod: 'Гарри Поттер',
   title: 'Дуэль заклинаний',
   blurb:
-    'Два луча входят из-за краёв и сцепляются посередине. Место стыка — сварка: белое ядро, тёплый ореол, всегда одного цвета, и оттуда постоянно летят искры. Кто побеждает — видно по лучам: продавленный горит ярче и толще, и этот накал разворачивает стык обратно. Петля 16 секунд, все наезды разной глубины и длины.',
+    'Два луча входят из-за краёв и сцепляются посередине. Место стыка — сварка: белое ядро, тёплый ореол, всегда одного цвета, и оттуда постоянно летят искры. Кто побеждает — видно по лучам: продавленный горит ярче и толще, и этот накал разворачивает стык обратно. Петля 16 секунд: наезды разной глубины и длины, скорость непрерывна — на переломе стык не дёргается.',
   loopMs: LOOP,
-  stillMs: 12400,
+  stillMs: 12900,
   paint,
 };
