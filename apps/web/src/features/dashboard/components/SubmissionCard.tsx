@@ -11,6 +11,7 @@ import {
 } from 'motion/react';
 import {
   frameEffectClass,
+  frameTintVar,
   LEVEL_GLOW_FROM,
   levelTier,
   toRoman,
@@ -68,6 +69,7 @@ export function SubmissionCard({
   const { fillRef, handlers: fillHandlers } = useFillEffect();
   const { copiedKey, copy } = useClipboard();
   const link = sourceLink(s);
+  const frameTint = frameTintVar(s.senderFrameColor);
   const [expanded, setExpanded] = useState(false);
   const [fx, setFx] = useState<'approve' | 'reject' | null>(null);
   const fidget = useFidgetEnabled();
@@ -137,7 +139,13 @@ export function SubmissionCard({
         dragListener={false}
         dragControls={dragControls}
         dragMomentum={false}
-        style={{ x, opacity: cardOpacity, touchAction: 'pan-y' }}
+        // The frame's tint rides on the same element as its class.
+        style={{
+          x,
+          opacity: cardOpacity,
+          touchAction: 'pan-y',
+          ...(frameTint ? { '--frame-rgb': frameTint } : {}),
+        }}
         onPointerDownCapture={() => {
           draggedRef.current = false;
         }}

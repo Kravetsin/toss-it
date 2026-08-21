@@ -307,6 +307,17 @@ export interface FrameModule extends BaseModule {
   type: 'frame';
   /** Class set on the card host (e.g. 'frame-fx-runner'); the module's CSS targets its `::after`. */
   className: string;
+  /**
+   * Catalog id of the colour UPGRADE that unlocks recolouring THIS frame (e.g. frame-runner →
+   * 'frame-runner-color'). Same shape as CardEffectModule.colorUpgrade: each colourable frame has its
+   * own upgrade, bought separately, and its own stored colour (EquippedCosmetics.frameColors).
+   *
+   * A frame is pure CSS, so the tint arrives as the `--frame-rgb` custom property on the card host —
+   * an 'r, g, b' TRIPLET, not a hex, because the runner's glow is a stack of `rgba()` stops at a
+   * dozen different alphas and a hex cannot carry one. The module paints from
+   * `rgba(var(--frame-rgb, 141, 240, 204), <a>)`; unset = the brand mint, as before.
+   */
+  colorUpgrade?: string;
 }
 
 /**
@@ -451,6 +462,14 @@ export interface EquippedCosmetics {
   /** Equipped frame item id (e.g. 'frame-runner'); requires owning it. A border decoration on the
    *  sender's card, layered over its role colour (the colour is untouched). */
   frame?: string | null;
+  /**
+   * Per-frame #rrggbb tints, keyed by frame id (e.g. { 'frame-runner': '#ff6ec7' }). Mirrors
+   * sealColors: each colourable frame keeps its OWN colour and has its OWN upgrade (see
+   * FrameModule.colorUpgrade), so switching frames keeps each one's colour. An entry exists only once
+   * that frame's colour upgrade is bought (enforced on equip). A plain frame has no entry and keeps
+   * the brand mint.
+   */
+  frameColors?: Record<string, string>;
   /**
    * Equipped seal item id (e.g. 'seal-hourglass'). A small OBJECT rather than a border treatment, so
    * it has its own slot and can be worn together with a frame. Each surface places it where it has

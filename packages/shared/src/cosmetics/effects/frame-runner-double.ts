@@ -13,12 +13,13 @@ export const frameRunnerDouble: FrameModule = {
   costDust: 0,
   earn: { metric: 'messages', count: 1000 },
   className: 'frame-fx-double',
+  colorUpgrade: 'frame-runner-double-color',
   labels: { name: 'shop.frameRunnerDouble', desc: 'shop.frameRunnerDoubleDesc' },
   css: `
 .frame-fx-double::after {
   background: conic-gradient(from var(--frame-ang),
-    #eafff8 0 2%, var(--cos-mint, #8df0cc) 5%, transparent 9% 50%,
-    #eafff8 52% 54%, var(--cos-mint, #8df0cc) 57%, transparent 61% 100%);
+    #eafff8 0 2%, rgb(var(--frame-rgb, 141, 240, 204)) 5%, transparent 9% 50%,
+    #eafff8 52% 54%, rgb(var(--frame-rgb, 141, 240, 204)) 57%, transparent 61% 100%);
   animation: frame-run 6s linear infinite;
 }
 /* One glow per runner, 180° apart, on the same variable and keyframe as the arcs above. Both tails
@@ -34,21 +35,36 @@ export const frameRunnerDouble: FrameModule = {
   --frame-glow: conic-gradient(from calc(var(--frame-ang) + 122.4deg),
     transparent 0,
     transparent 8%,
-    rgba(141, 240, 204, 0.05) 15%,
-    rgba(141, 240, 204, 0.3) 19.5%,
-    rgba(141, 240, 204, 0.5) 21.5%,
-    rgba(141, 240, 204, 0.24) 27%,
-    rgba(141, 240, 204, 0.05) 35%,
+    rgba(var(--frame-rgb, 141, 240, 204), 0.05) 15%,
+    rgba(var(--frame-rgb, 141, 240, 204), 0.3) 19.5%,
+    rgba(var(--frame-rgb, 141, 240, 204), 0.5) 21.5%,
+    rgba(var(--frame-rgb, 141, 240, 204), 0.24) 27%,
+    rgba(var(--frame-rgb, 141, 240, 204), 0.05) 35%,
     transparent 46%,
     transparent 57%,
-    rgba(141, 240, 204, 0.16) 63%,
-    rgba(141, 240, 204, 0.46) 66%,
-    rgba(141, 240, 204, 0.24) 72%,
-    rgba(141, 240, 204, 0.05) 80%,
+    rgba(var(--frame-rgb, 141, 240, 204), 0.16) 63%,
+    rgba(var(--frame-rgb, 141, 240, 204), 0.46) 66%,
+    rgba(var(--frame-rgb, 141, 240, 204), 0.24) 72%,
+    rgba(var(--frame-rgb, 141, 240, 204), 0.05) 80%,
     transparent 92%,
     transparent 100%);
   --frame-glow-mask: var(--frame-edge);
   animation: frame-run 6s linear infinite;
 }
 `,
+};
+
+/**
+ * The colour UPGRADE for the double runner. A separate purchase from the single runner's: the two
+ * frames are separate items with separate tints, so one upgrade could only ever paint one of them.
+ */
+export const frameRunnerDoubleColor: FrameModule = {
+  id: 'frame-runner-double-color',
+  type: 'frame',
+  costDust: 1500,
+  requires: 'frame-runner-double',
+  upgrade: true,
+  since: '2026-08-21',
+  className: '',
+  labels: { name: 'shop.frameColorRunnerDouble', desc: 'shop.frameColorDesc' },
 };

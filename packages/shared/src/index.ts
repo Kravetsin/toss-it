@@ -190,6 +190,8 @@ export interface MediaPlayPayload {
   senderCardEffectColor2?: string;
   /** Sender's equipped frame id (e.g. 'frame-runner'); absent if none. Border decoration on the card. */
   senderFrame?: string;
+  /** Frame tint (#rrggbb) from the frame's colour upgrade; absent = the brand mint. */
+  senderFrameColor?: string;
   /** Sender's equipped seal id (e.g. 'seal-hourglass'); absent if none. A small object, own slot. */
   senderSeal?: string;
   /** Seal tint (#rrggbb) from the seal's colour upgrade; absent = the seal's palette. */
@@ -683,6 +685,8 @@ export interface SubmissionSummary {
   senderCardEffectColor2: string | null;
   /** Sender's equipped frame id, null if none. Border decoration on the submission card. */
   senderFrame: string | null;
+  /** Frame tint (#rrggbb) from the frame's colour upgrade; null = the brand mint. */
+  senderFrameColor: string | null;
   /** Sender's equipped seal id, null if none. A small object in the card's free corner. */
   senderSeal: string | null;
   /** Seal tint (#rrggbb) from the seal's colour upgrade; null = the seal's palette. */

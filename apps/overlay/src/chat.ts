@@ -9,6 +9,7 @@ import {
   applyEntrance,
   applyStyleMap,
   frameEffectClass,
+  frameTintVar,
   injectCosmeticsStyles,
   injectLevelStyles,
   levelTier,
@@ -223,6 +224,11 @@ function renderMessage(msg: ChatOverlayMessage): void {
   bubble.className = 'bubble';
   const frameCls = frameEffectClass(msg.cosmetics?.frame);
   if (frameCls) bubble.classList.add(frameCls);
+  // Colourable frames read their tint from --frame-rgb; an untinted one keeps the module's mint.
+  const frameTint = frameTintVar(
+    msg.cosmetics?.frame ? msg.cosmetics.frameColors?.[msg.cosmetics.frame] : null,
+  );
+  if (frameTint) bubble.style.setProperty('--frame-rgb', frameTint);
   // Particles render behind the text, clipped to the pill. `compact`: a pill is short, so the
   // trajectory crosses it and starts/ends outside. No teardown — the listeners live on the pill's
   // own particles and go when the row does.
@@ -706,6 +712,17 @@ if (DEMO) {
       isFounder: false,
       level: 7,
       fragments: [{ type: 'text', text: 'соткал и жду' }],
+    },
+    {
+      id: '5b2',
+      userId: 'u5b2',
+      name: 'runnerpink',
+      twitchColor: '#ff6ec7',
+      // The frame colour upgrade: same runner as the earned default, repainted.
+      cosmetics: { frame: 'frame-runner', frameColors: { 'frame-runner': '#ff6ec7' } },
+      isFounder: false,
+      level: 4,
+      fragments: [{ type: 'text', text: 'розовый бегунок' }],
     },
     // The two new pop scenes on the smallest surface: the rain has to keep ~6 rows of glyphs on a
     // 40px pill, and the well has to fill the whole width instead of a centred strip.

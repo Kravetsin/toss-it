@@ -152,6 +152,7 @@ const DEMO_SUBMISSION: SubmissionSummary = {
   senderSeal: null,
   senderSealColor: null,
   senderFrame: null,
+  senderFrameColor: null,
   senderLevel: 8,
   kind: 'text',
   mime: 'text/plain',

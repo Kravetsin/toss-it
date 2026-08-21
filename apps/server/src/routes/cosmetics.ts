@@ -100,8 +100,10 @@ export function registerCosmeticsRoutes(app: FastifyInstance): void {
     // Free items (e.g. base TTS voices) are available to everyone — nothing to buy.
     if (item.costDust <= 0) return reply.code(400).send({ error: 'Предмет бесплатный' });
     // Ladder items must be bought in order: the shop only hides the later rungs, so without this
-    // a direct request could buy an upgrade that no surface can render.
-    if (item.requires && !(await owns(user.id, item.requires))) {
+    // a direct request could buy an upgrade that no surface can render. UNLOCKED, not owned: an
+    // earned base (the runner frames) has no ownership row at all, so an owns() gate would make its
+    // colour upgrade unbuyable forever. What the upgrade needs is that the base is usable.
+    if (item.requires && !(await unlocked(user.id, item.requires))) {
       return reply.code(400).send({ error: 'Сначала нужен предыдущий предмет' });
     }
 
@@ -149,6 +151,7 @@ export function registerCosmeticsRoutes(app: FastifyInstance): void {
       cardEffect?: unknown;
       cardEffectColors?: unknown;
       cardEffectColors2?: unknown;
+      frameColors?: unknown;
       frame?: unknown;
       seal?: unknown;
       sealColors?: unknown;
@@ -241,6 +244,34 @@ export function registerCosmeticsRoutes(app: FastifyInstance): void {
         }
       }
       equipped.cardEffectColors2 = next;
+    }
+
+    // Per-frame tints: a partial { frameId: '#rrggbb' | null } map, mirroring cardEffectColors. Each
+    // colourable frame has its own BOUGHT upgrade (see FrameModule.colorUpgrade) even though the frame
+    // itself is earned, so a set is gated on owning that upgrade; a clear is always allowed.
+    if ('frameColors' in body) {
+      const raw = body.frameColors;
+      if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+        return reply.code(400).send({ error: 'Некорректный цвет' });
+      }
+      const next: Record<string, string> = { ...(equipped.frameColors ?? {}) };
+      for (const [frameId, value] of Object.entries(raw as Record<string, unknown>)) {
+        const mod = cosmeticModule(frameId);
+        if (mod?.type !== 'frame' || !mod.colorUpgrade) {
+          return reply.code(400).send({ error: 'Некорректная рамка' });
+        }
+        if (value === null) {
+          delete next[frameId];
+        } else if (typeof value === 'string' && isHexColor(value)) {
+          if (!(await unlocked(user.id, mod.colorUpgrade))) {
+            return reply.code(403).send({ error: 'Предмет не куплен' });
+          }
+          next[frameId] = value.toLowerCase();
+        } else {
+          return reply.code(400).send({ error: 'Некорректный цвет' });
+        }
+      }
+      equipped.frameColors = next;
     }
 
     // Per-seal colours: a partial { sealId: '#rrggbb' | null } map, mirroring cardEffectColors. Each

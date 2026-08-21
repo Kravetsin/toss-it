@@ -10,6 +10,7 @@ import {
   applyEntrance,
   applyStyleMap,
   frameEffectClass,
+  frameTintVar,
   sealEffectClass,
   sealMarkup,
   giphyClipUrls,
@@ -410,6 +411,9 @@ function buildCard(payload: MediaPlayPayload, media: HTMLElement): HTMLElement {
   player.className = 'player';
   const frameCls = frameEffectClass(payload.senderFrame);
   if (frameCls) player.classList.add(frameCls);
+  // Colourable frames read their tint from --frame-rgb; an untinted one keeps the module's mint.
+  const frameTint = frameTintVar(payload.senderFrameColor);
+  if (frameTint) player.style.setProperty('--frame-rgb', frameTint);
   if (payload.kind === 'youtube') player.classList.add('is-youtube');
   else if (payload.kind === 'image' || payload.kind === 'gif' || payload.kind === 'video')
     player.classList.add('has-media');
@@ -1808,6 +1812,8 @@ interface DemoState {
   entrance: string;
   /** Seal catalog id, or 'none'. */
   seal: string;
+  /** Frame catalog id, or 'none'. */
+  frame: string;
 }
 
 /** Tint shown for each colourable seal in the demo, so the colour upgrade is visible with no picker. */
@@ -1853,6 +1859,10 @@ function demoPayload(kind: MediaKind, st: DemoState): MediaPlayPayload {
     senderLevel: st.sender ? 7 : undefined,
     senderEffect: st.sender && st.nickGlow ? 'nick-glow' : undefined,
     senderCardEffect: st.cardEffect !== 'none' ? st.cardEffect : undefined,
+    senderFrame: st.frame !== 'none' ? st.frame : undefined,
+    // A non-default tint on whichever frame is picked, so the frame colour upgrade is visible on the
+    // stage without a picker; a frame with no colour upgrade simply ignores it.
+    senderFrameColor: st.frame !== 'none' ? '#ff6ec7' : undefined,
     senderSeal: st.sender && st.seal !== 'none' ? st.seal : undefined,
     // Demo the seal colour upgrade on the colourable seals, without a picker. A table rather than a
     // ternary chain, so the next colourable seal is one line.
@@ -1893,6 +1903,7 @@ function mountDemoPanel(): void {
     founder: true,
     nickGlow: true,
     cardEffect: 'card-levitation',
+    frame: 'none',
     // On by default: an entrance is invisible unless you happen to fire an alert while looking, so
     // the demo shows it rather than hiding it behind a click nobody knows to make.
     entrance: 'entrance-glitch',
@@ -2044,6 +2055,29 @@ function mountDemoPanel(): void {
     return b;
   });
   panel.appendChild(entRow);
+
+  section('рамка');
+  const frRow = document.createElement('div');
+  frRow.className = 'row';
+  // Registry-driven like the rows above; the per-frame colour upgrades are `upgrade` items and are
+  // never worn as a frame, so they stay out (the demo tints whatever IS picked instead).
+  const frButtons = (
+    [
+      ['none', 'Нет'],
+      ...COSMETICS.filter((c) => c.type === 'frame' && !c.upgrade).map(
+        (c) => [c.id, c.id.replace(/^frame-/, '')] as [string, string],
+      ),
+    ] as [string, string][]
+  ).map(([val, label]) => {
+    const b = btn(label, () => {
+      st.frame = val;
+      frButtons.forEach((x) => x.classList.toggle('on', x === b));
+    });
+    if (val === st.frame) b.classList.add('on');
+    frRow.appendChild(b);
+    return b;
+  });
+  panel.appendChild(frRow);
 
   section('печать');
   const sealRow = document.createElement('div');

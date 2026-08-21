@@ -6,6 +6,7 @@ import {
   cosmeticModule,
   entranceModule,
   frameEffectClass,
+  frameTintVar,
   nickEffectClass,
   nickEffectModule,
   isBreadthMetric,
@@ -41,6 +42,8 @@ const PORTAL_COLOR_ID = 'entrance-portal-color';
 // A colourable card effect (butterflies, eyes) carries its OWN colour upgrade (CardEffectModule
 // .colorUpgrade), bought separately and rendered INSIDE that effect's own card — see effectRow.
 const DEFAULT_CARD_COLOR = '#ff2e9a';
+/** The runners' own mint: a frame picker should open on the colour the frame is showing right now. */
+const DEFAULT_FRAME_COLOR = '#8df0cc';
 // The second picker of a dual-colour effect starts on a DIFFERENT hue: two swatches opening on the
 // same colour read as one control duplicated by mistake.
 const DEFAULT_CARD_COLOR2 = '#5ac8ff';
@@ -154,12 +157,14 @@ const GROUP_LABEL: Record<CardGroupKey, string> = {
  *  realistic small card (the frame lives on the border, not a swarm — nothing to look at otherwise).
  *  Roomier than a chat pill on purpose: an ornament frame draws a band along each edge, and on a
  *  tighter box the top and bottom bands nearly meet and read as clutter rather than a border. */
-function FrameDemo({ id, label }: { id: string; label: string }) {
+function FrameDemo({ id, label, color }: { id: string; label: string; color?: string }) {
   const cls = frameEffectClass(id);
+  const tint = frameTintVar(color);
   return (
     <div className="flex justify-start">
       <div
         className={`relative inline-flex items-center gap-1.5 rounded-[10px] border border-[rgba(141,240,204,0.5)] bg-[#0e1413] px-4 py-2.5 ${cls}`}
+        style={tint ? ({ '--frame-rgb': tint } as CSSProperties) : undefined}
       >
         <span className="text-sm font-medium text-accent">{label}</span>
         <span className="text-sm text-muted">gg</span>
@@ -301,7 +306,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     if (extra.length) groups[groups.length - 1]!.effects.push(...extra);
     return groups.filter((g) => g.effects.length > 0);
   })();
-  const frames = shopItems.filter((c) => c.type === 'frame');
+  const frames = shopItems.filter((c) => c.type === 'frame' && !c.upgrade);
   // `upgrade` items (the per-seal colours) aren't equippable seals — they render inside their own
   // seal's row, so they must not form a ladder of their own here.
   const seals = shopItems.filter((c) => c.type === 'seal' && !c.upgrade);
@@ -331,6 +336,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   // Per-effect saved colours (butterflies, eyes) — the picker inside each effect card reads/writes here.
   const equippedCardEffectColors = user?.equipped.cardEffectColors ?? {};
   const equippedCardEffectColors2 = user?.equipped.cardEffectColors2 ?? {};
+  const equippedFrameColors = user?.equipped.frameColors ?? {};
   const equippedFrame = user?.equipped.frame ?? null;
   const equippedSeal = user?.equipped.seal ?? null;
   // Per-seal saved colours (butterfly, eye) — the picker inside each seal's row reads/writes here.
@@ -482,18 +488,29 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   // blob, so two concurrent calls each start from the state before the other and the second write
   // silently drops the first one's colour. Firing one call per picker looked fine and lost a colour
   // every time both were dirty — which is every first use, since both pickers start off their defaults.
-  const applyCardColorsFor = (id: string, hex?: string, hex2?: string) =>
+  const applyColorsFor = (type: CosmeticType, id: string, hex?: string, hex2?: string) =>
     void act(
       () =>
-        equipCosmetic({
-          ...(hex !== undefined ? { cardEffectColors: { [id]: hex } } : {}),
-          ...(hex2 !== undefined ? { cardEffectColors2: { [id]: hex2 } } : {}),
-        }),
+        equipCosmetic(
+          type === 'frame'
+            ? hex !== undefined
+              ? { frameColors: { [id]: hex } }
+              : {}
+            : {
+                ...(hex !== undefined ? { cardEffectColors: { [id]: hex } } : {}),
+                ...(hex2 !== undefined ? { cardEffectColors2: { [id]: hex2 } } : {}),
+              },
+        ),
       { after: refresh, success: t('shop.equipped') },
     );
-  const removeCardColorFor = (id: string) =>
+  const removeColorFor = (type: CosmeticType, id: string) =>
     void act(
-      () => equipCosmetic({ cardEffectColors: { [id]: null }, cardEffectColors2: { [id]: null } }),
+      () =>
+        equipCosmetic(
+          type === 'frame'
+            ? { frameColors: { [id]: null } }
+            : { cardEffectColors: { [id]: null }, cardEffectColors2: { [id]: null } },
+        ),
       {
         after: refresh,
       },
@@ -541,15 +558,19 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     const isEntrance = e.type === 'entrance';
     const isFrame = e.type === 'frame';
     // Colourable card effects carry their own colour upgrade, whose buy/picker renders INSIDE this card.
-    const colorUp = mod?.type === 'card_effect' ? mod.colorUpgrade : undefined;
+    // Card effects and frames both carry their own colour upgrade, whose buy/picker renders INSIDE
+    // this row. The seal ladders have their own row builder — same idea, different layout.
+    const colorUp =
+      mod?.type === 'card_effect' || mod?.type === 'frame' ? mod.colorUpgrade : undefined;
     const colorMod = colorUp ? cosmeticModule(colorUp) : undefined;
     const colorItem = colorUp ? COSMETICS.find((c) => c.id === colorUp) : undefined;
     const ownsColorUp = colorUp ? ownsItem(colorUp) : false;
     // One source of truth for whether the upgrade gets its own block below — the "new" mark on the
     // name covers the upgrade exactly when it does NOT, so the id always has something to clear it.
     const upgradeShown = !!(colorUp && owned && colorItem && colorMod);
-    const savedColor = equippedCardEffectColors[e.id];
-    const draftColor = cardColorDraft[e.id] ?? savedColor ?? DEFAULT_CARD_COLOR;
+    const savedColor = isFrame ? equippedFrameColors[e.id] : equippedCardEffectColors[e.id];
+    const draftColor =
+      cardColorDraft[e.id] ?? savedColor ?? (isFrame ? DEFAULT_FRAME_COLOR : DEFAULT_CARD_COLOR);
     const colorDirty = draftColor.toLowerCase() !== (savedColor ?? '').toLowerCase();
     // A two-sided effect gets a second picker under the same upgrade (see CardEffectModule.dualColor).
     const dual = mod?.type === 'card_effect' && !!mod.dualColor;
@@ -626,7 +647,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
               color={equippedEntranceColor ?? undefined}
             />
           )}
-          {isFrame && <FrameDemo id={e.id} label={previewName} />}
+          {isFrame && <FrameDemo id={e.id} label={previewName} color={savedColor} />}
           <div className="flex items-center gap-2">
             {!owned ? (
               earn && earnMeta ? (
@@ -700,7 +721,8 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
                     variant="primary"
                     size="sm"
                     onClick={() =>
-                      applyCardColorsFor(
+                      applyColorsFor(
+                        e.type,
                         e.id,
                         colorDirty ? draftColor : undefined,
                         dual && color2Dirty ? draftColor2 : undefined,
@@ -711,7 +733,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
                     {t('shop.apply')}
                   </Button>
                   {(savedColor || savedColor2) && (
-                    <Button variant="ghost" size="sm" onClick={() => removeCardColorFor(e.id)}>
+                    <Button variant="ghost" size="sm" onClick={() => removeColorFor(e.type, e.id)}>
                       {t('shop.resetColor')}
                     </Button>
                   )}

@@ -75,6 +75,8 @@ export interface NickMarks {
   cardEffectColor2: string | null;
   /** Border decoration on the card (e.g. 'frame-runner'); null = none. */
   frame: string | null;
+  /** Tint for that frame from its colour upgrade; null = the brand mint. */
+  frameColor: string | null;
   /** Small object the sender carries (e.g. 'seal-hourglass'); null = none. Own slot, not a frame. */
   seal: string | null;
   /** Seal tint (#rrggbb); only meaningful for a colourable seal. */
@@ -93,6 +95,7 @@ const NO_MARKS: NickMarks = {
   cardEffectColor: null,
   cardEffectColor2: null,
   frame: null,
+  frameColor: null,
   seal: null,
   sealColor: null,
   entrance: null,
@@ -118,6 +121,9 @@ export function marksFromEquipped(equipped: EquippedCosmetics | null): NickMarks
     cardEffectColor2:
       (equipped?.cardEffect && equipped.cardEffectColors2?.[equipped.cardEffect]) ?? null,
     frame: equipped?.frame ?? null,
+    // The colour stored FOR the equipped frame (per-frame map; see EquippedCosmetics.frameColors).
+    // Null unless that frame has a colour set — an untinted frame keeps the brand mint.
+    frameColor: (equipped?.frame && equipped.frameColors?.[equipped.frame]) ?? null,
     seal: equipped?.seal ?? null,
     // The colour stored FOR the equipped seal (per-seal map; see EquippedCosmetics.sealColors). Null
     // unless that seal has a colour set — a plain seal has no entry and renders its own palette.
@@ -146,6 +152,7 @@ export function toSummary(
     senderCardEffectColor: marks.cardEffectColor,
     senderCardEffectColor2: marks.cardEffectColor2,
     senderFrame: marks.frame,
+    senderFrameColor: marks.frameColor,
     senderSeal: marks.seal,
     senderSealColor: marks.sealColor,
     senderLevel,
@@ -1106,6 +1113,7 @@ export class PlaybackManager {
       senderCardEffectColor: marks.cardEffectColor ?? undefined,
       senderCardEffectColor2: marks.cardEffectColor2 ?? undefined,
       senderFrame: marks.frame ?? undefined,
+      senderFrameColor: marks.frameColor ?? undefined,
       senderSeal: marks.seal ?? undefined,
       senderSealColor: marks.sealColor ?? undefined,
       senderEntrance: marks.entrance ?? undefined,

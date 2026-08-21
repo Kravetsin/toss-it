@@ -48,8 +48,8 @@ import { cardSpellclashColor } from './effects/card-spellclash-color';
 import { cardClaws } from './effects/card-claws';
 import { cardClawsColor } from './effects/card-claws-color';
 import { cardJelly } from './effects/card-jelly';
-import { frameRunner } from './effects/frame-runner';
-import { frameRunnerDouble } from './effects/frame-runner-double';
+import { frameRunner, frameRunnerColor } from './effects/frame-runner';
+import { frameRunnerDouble, frameRunnerDoubleColor } from './effects/frame-runner-double';
 import { frameDragonBreath } from './effects/frame-dragon-breath';
 import { frameWater } from './effects/frame-water';
 import { frameEmbers } from './effects/frame-embers';
@@ -299,7 +299,9 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   // Frames group by the metric that earns them, each family in ladder order: chat messages first,
   // then watch time. A rung is a separate item, so the shop shows what the next one looks like.
   frameRunner,
+  frameRunnerColor,
   frameRunnerDouble,
+  frameRunnerDoubleColor,
   frameDragonBreath,
   frameCanopy,
   frameEmbers,
@@ -429,6 +431,21 @@ export function frameModule(id: string | null | undefined): FrameModule | undefi
  *  none/unknown. The class alone drives the effect — the injected stylesheet does the rest. */
 export function frameEffectClass(id: string | null | undefined): string {
   return frameModule(id)?.className ?? '';
+}
+
+/**
+ * The `--frame-rgb` value for a frame tint, or undefined when there is none (a plain frame, or one
+ * whose owner never bought the colour upgrade) — the module's own `var()` fallback then paints the
+ * brand mint. An 'r, g, b' TRIPLET rather than the hex, because a runner's glow is a stack of
+ * `rgba()` stops at a dozen alphas and only a triplet can be shared by all of them.
+ *
+ * Every surface sets the property on the same element that carries the frame class, so this is the
+ * one place the conversion lives.
+ */
+export function frameTintVar(color: string | null | undefined): string | undefined {
+  if (!color || !/^#[0-9a-f]{6}$/i.test(color)) return undefined;
+  const n = parseInt(color.slice(1), 16);
+  return `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`;
 }
 
 /** Seal module by catalog id, or undefined for unknown / non-seal ids. */

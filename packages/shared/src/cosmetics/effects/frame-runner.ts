@@ -16,10 +16,11 @@ export const frameRunner: FrameModule = {
   costDust: 0,
   earn: { metric: 'messages', count: 500 },
   className: 'frame-fx-runner',
+  colorUpgrade: 'frame-runner-color',
   labels: { name: 'shop.frameRunner', desc: 'shop.frameRunnerDesc' },
   css: `
 .frame-fx-runner::after {
-  background: conic-gradient(from var(--frame-ang), transparent 0 82%, #eafff8 91%, var(--cos-mint, #8df0cc) 95%, transparent 100%);
+  background: conic-gradient(from var(--frame-ang), transparent 0 82%, #eafff8 91%, rgb(var(--frame-rgb, 141, 240, 204)) 95%, transparent 100%);
   animation: frame-run 7s linear infinite;
 }
 /* The glow travels WITH the runner: same conic gradient, same --frame-ang, same keyframe on a layer
@@ -43,16 +44,32 @@ export const frameRunner: FrameModule = {
   --frame-glow: conic-gradient(from calc(var(--frame-ang) + 180deg),
     transparent 0,
     transparent 18%,
-    rgba(141, 240, 204, 0.05) 29%,
-    rgba(141, 240, 204, 0.2) 39%,
-    rgba(141, 240, 204, 0.42) 45%,
-    rgba(141, 240, 204, 0.52) 48%,
-    rgba(141, 240, 204, 0.3) 50%,
-    rgba(141, 240, 204, 0.09) 57%,
+    rgba(var(--frame-rgb, 141, 240, 204), 0.05) 29%,
+    rgba(var(--frame-rgb, 141, 240, 204), 0.2) 39%,
+    rgba(var(--frame-rgb, 141, 240, 204), 0.42) 45%,
+    rgba(var(--frame-rgb, 141, 240, 204), 0.52) 48%,
+    rgba(var(--frame-rgb, 141, 240, 204), 0.3) 50%,
+    rgba(var(--frame-rgb, 141, 240, 204), 0.09) 57%,
     transparent 67%,
     transparent 100%);
   --frame-glow-mask: var(--frame-edge);
   animation: frame-run 7s linear infinite;
 }
 `,
+};
+
+/**
+ * The colour UPGRADE for the single runner: bought with stardust even though the runner itself is
+ * earned, so the frame stays a badge for 500 messages and the colour is a separate, optional spend.
+ * Never equipped on its own — owning it turns on the picker (see FrameModule.colorUpgrade).
+ */
+export const frameRunnerColor: FrameModule = {
+  id: 'frame-runner-color',
+  type: 'frame',
+  costDust: 750,
+  requires: 'frame-runner',
+  upgrade: true,
+  since: '2026-08-21',
+  className: '',
+  labels: { name: 'shop.frameColorRunner', desc: 'shop.frameColorDesc' },
 };
