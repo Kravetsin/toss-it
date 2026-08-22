@@ -1217,6 +1217,8 @@ export interface AdminBotStatus {
 
 export type LeaderboardMetric = 'sends' | 'messages' | 'watch' | 'level';
 export type LeaderboardPeriod = 'month' | 'all';
+/** The stats page and its leaderboards share one window, so they share one type. */
+export type StatsPeriod = LeaderboardPeriod;
 
 export interface LeaderboardEntry {
   /**
@@ -1251,9 +1253,9 @@ export interface LeaderboardEntry {
   level?: number;
 }
 
-/** One UTC day bucket for the streamer stats charts. */
+/** One bucket of the streamer stats charts — a UTC day, or a whole month in the all-time view. */
 export interface DailyStat {
-  /** 'YYYY-MM-DD' (UTC). */
+  /** 'YYYY-MM-DD' for a day bucket, 'YYYY-MM' for a month one (see StatsSummary.bucket). */
   day: string;
   /** All submissions received that day (any status). */
   submissions: number;
@@ -1273,16 +1275,26 @@ export interface KindStat {
 
 /** Streamer statistics overview (owner-only). Daily series is the last N UTC days, zero-filled. */
 export interface StatsSummary {
-  totalSubmissions: number;
-  totalAired: number;
-  totalRejected: number;
-  monthSubmissions: number;
-  todaySubmissions: number;
-  /** Distinct registered senders (by account id) all-time. */
+  /**
+   * Window every number below covers, echoed back so the page can label them. 'month' is the current
+   * CALENDAR month (UTC), not a rolling 30 days — the leaderboards on the same page already use that
+   * window, and two different "months" under one switch would be a lie.
+   */
+  period: StatsPeriod;
+  /** Granularity of `daily`: a bar per day for the month view, per month for all-time. */
+  bucket: 'day' | 'month';
+  /** Submissions received in the period (any status). */
+  submissions: number;
+  /** ...of which played on stream. */
+  aired: number;
+  rejected: number;
+  /** Distinct registered senders in the period. */
   uniqueContributors: number;
-  /** Chat totals for the current UTC month (from channel activity). */
-  monthMessages: number;
-  monthWatchMinutes: number;
+  /** Chat totals for the period (from the per-day channel counters). */
+  messages: number;
+  watchMinutes: number;
+  /** Today's submissions — the one number that ignores the period, because it says so on the tile. */
+  todaySubmissions: number;
   daily: DailyStat[];
   byKind: KindStat[];
 }

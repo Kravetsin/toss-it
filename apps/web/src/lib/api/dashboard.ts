@@ -11,6 +11,10 @@ import type {
   PlaybackSlot,
   OnboardingStatus,
   ReputationStats,
+  LeaderboardEntry,
+  LeaderboardMetric,
+  LeaderboardPeriod,
+  StatsPeriod,
   StatsSummary,
   SubmissionSummary,
 } from '@tmw/shared';
@@ -18,8 +22,19 @@ import { json } from './http';
 
 const dash = (channelId: string) => `/api/dashboard/${encodeURIComponent(channelId)}`;
 
-export function getStats(channelId: string, days: number): Promise<StatsSummary> {
-  return fetch(`${dash(channelId)}/stats?days=${days}`).then((r) => json<StatsSummary>(r));
+export function getStats(channelId: string, period: StatsPeriod): Promise<StatsSummary> {
+  return fetch(`${dash(channelId)}/stats?period=${period}`).then((r) => json<StatsSummary>(r));
+}
+
+/** The owner's own leaderboards: the whole room, not the public page's top ten. */
+export function getOwnerLeaderboard(
+  channelId: string,
+  metric: LeaderboardMetric,
+  period: LeaderboardPeriod,
+): Promise<LeaderboardEntry[]> {
+  return fetch(`${dash(channelId)}/leaderboard?metric=${metric}&period=${period}`).then((r) =>
+    json<LeaderboardEntry[]>(r),
+  );
 }
 
 export function getLivePresence(channelId: string): Promise<LivePresence> {

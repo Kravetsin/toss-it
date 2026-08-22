@@ -17,6 +17,8 @@ import {
   type OnboardingStatus,
   type PublicChannelInfo,
   type ReputationStats,
+  type DailyStat,
+  type StatsPeriod,
   type StatsSummary,
   type SubmissionSummary,
 } from '@tmw/shared';
@@ -781,37 +783,63 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
 ];
 
 /** Stats for a period; only the daily series depends on it — the totals are lifetime either way. */
-const mockStats = (days: number): StatsSummary => ({
-  totalSubmissions: 1234,
-  totalAired: 720, // galaxy unlocked (>=500), black hole in progress (720/1000) — previews both states
-  totalRejected: 210,
-  monthSubmissions: 189,
-  todaySubmissions: 12,
-  uniqueContributors: 84,
-  monthMessages: 5230,
-  monthWatchMinutes: 9840,
-  daily: Array.from({ length: days }, (_, i) => {
-    const dayMs = t - (days - 1 - i) * 86_400_000;
-    const submissions = 3 + Math.floor(Math.random() * 12);
+/**
+ * Stats for a window. Mirrors the real endpoint: the month view is a bar per day of the current
+ * calendar month, the all-time view a bar per month — and every total follows the window too, or the
+ * period switch looks broken in mock mode (which is exactly how it was first reported).
+ */
+const mockStats = (period: StatsPeriod): StatsSummary => {
+  const now = new Date(t);
+  const bucket = period === 'all' ? 'month' : 'day';
+  const keys =
+    bucket === 'day'
+      ? Array.from({ length: now.getUTCDate() }, (_, i) =>
+          new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), i + 1))
+            .toISOString()
+            .slice(0, 10),
+        )
+      : Array.from({ length: 14 }, (_, i) =>
+          new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 13 + i, 1))
+            .toISOString()
+            .slice(0, 7),
+        );
+  const scale = bucket === 'month' ? 22 : 1; // a month bucket holds a month's worth of activity
+  const daily: DailyStat[] = keys.map((day) => {
+    const submissions = (3 + Math.floor(Math.random() * 12)) * scale;
     const aired = Math.floor(submissions * (0.4 + Math.random() * 0.4));
     return {
-      day: new Date(dayMs).toISOString().slice(0, 10),
+      day,
       submissions,
       aired,
       rejected: Math.floor((submissions - aired) * Math.random()),
-      messages: 20 + Math.floor(Math.random() * 120),
-      watchMinutes: 100 + Math.floor(Math.random() * 400),
+      messages: (20 + Math.floor(Math.random() * 120)) * scale,
+      watchMinutes: (100 + Math.floor(Math.random() * 400)) * scale,
     };
-  }),
-  byKind: [
-    { kind: 'image', count: 520 },
-    { kind: 'youtube', count: 310 },
-    { kind: 'video', count: 190 },
-    { kind: 'text', count: 120 },
-    { kind: 'gif', count: 64 },
-    { kind: 'audio', count: 30 },
-  ],
-});
+  });
+  const sum = (pick: (d: DailyStat) => number) => daily.reduce((n, d) => n + pick(d), 0);
+  return {
+    period,
+    bucket,
+    submissions: sum((d) => d.submissions),
+    aired: sum((d) => d.aired),
+    rejected: sum((d) => d.rejected),
+    // Deliberately past the galaxy threshold in the all-time view and short of the black hole's,
+    // so the achievements page previews both states.
+    uniqueContributors: period === 'all' ? 84 : 19,
+    messages: sum((d) => d.messages),
+    watchMinutes: sum((d) => d.watchMinutes),
+    todaySubmissions: 12,
+    daily,
+    byKind: [
+      { kind: 'image', count: 520 },
+      { kind: 'youtube', count: 310 },
+      { kind: 'video', count: 190 },
+      { kind: 'text', count: 120 },
+      { kind: 'gif', count: 64 },
+      { kind: 'audio', count: 30 },
+    ],
+  };
+};
 
 const MOCK_LIVE: LivePresence = {
   live: true,
@@ -1175,7 +1203,9 @@ function route(pathname: string, init?: RequestInit, query?: URLSearchParams): u
       case 'stats':
         // The real endpoint's series length follows ?days=; a fixed one here makes the period switch
         // look broken in mock mode, which is exactly how this was first reported.
-        return mockStats(Number(query?.get('days')) || 14);
+        return mockStats(query?.get('period') === 'all' ? 'all' : 'month');
+      case 'leaderboard':
+        return MOCK_LEADERBOARD;
       case 'live':
         return MOCK_LIVE;
       case 'onboarding':

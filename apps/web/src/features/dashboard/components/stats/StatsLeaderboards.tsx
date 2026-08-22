@@ -4,9 +4,9 @@ import {
   toRoman,
   type LeaderboardEntry,
   type LeaderboardMetric,
-  type LeaderboardPeriod,
+  type StatsPeriod,
 } from '@tmw/shared';
-import { getLeaderboard } from '@/lib/api';
+import { getOwnerLeaderboard } from '@/lib/api';
 import { useI18n } from '@/i18n';
 import { useMe } from '@/hooks/useMe';
 import { Card, Icon, type IconName } from '@/ui';
@@ -26,9 +26,12 @@ const EMPTY: Record<LeaderboardMetric, LeaderboardEntry[]> = {
   level: [],
 };
 
-const TOP_N = 5;
-
-function MiniBoard({
+/**
+ * The owner's board: EVERYONE, not a top five. The public channel page shows ten, and a streamer
+ * looking at their own stats was getting half of what their viewers can see. Past a screenful the
+ * list scrolls inside its card, so four boards still fit on one page.
+ */
+function Board({
   metric,
   icon,
   title,
@@ -47,15 +50,18 @@ function MiniBoard({
   const { me } = useMe();
   return (
     <Card className="flex flex-col gap-2">
-      <h3 className="flex items-center gap-2 label-mono text-text">
-        <Icon name={icon} size={15} className="text-accent" />
-        {title}
+      <h3 className="flex items-center justify-between gap-2 label-mono text-text">
+        <span className="flex items-center gap-2">
+          <Icon name={icon} size={15} className="text-accent" />
+          {title}
+        </span>
+        {entries.length > 0 && <span className="tabular-nums text-muted">{entries.length}</span>}
       </h3>
       {entries.length === 0 ? (
         <p className="py-3 text-center text-sm text-muted">{t('lb.empty')}</p>
       ) : (
-        <ol className="flex flex-col">
-          {entries.slice(0, TOP_N).map((e, i) => {
+        <ol className="-mr-1 flex max-h-72 flex-col overflow-y-auto pr-1">
+          {entries.map((e, i) => {
             const isYou = e.userId === meId;
             const mine = isYou ? me?.user?.equipped : undefined;
             const nick = nickProps({
@@ -70,7 +76,7 @@ function MiniBoard({
                 key={e.userId}
                 className={`flex items-center gap-2 px-1 py-1.5 text-sm ${isYou ? 'bg-accent-soft' : ''}`}
               >
-                <span className="w-4 shrink-0 text-center text-xs tabular-nums text-muted">
+                <span className="w-5 shrink-0 text-center text-xs tabular-nums text-muted">
                   {i + 1}
                 </span>
                 {tier && (
@@ -96,17 +102,28 @@ function MiniBoard({
   );
 }
 
-/** Streamer-facing leaderboards: all four boards at a glance (compact top-5), shared period toggle. */
-export function StatsLeaderboards({ login, meId }: { login: string; meId: string | null }) {
+/**
+ * Streamer-facing leaderboards: all four boards at a glance. The window comes from the PAGE — the
+ * section used to carry a period toggle of its own, which left two unrelated switches on one screen
+ * and was half of why the page looked like it ignored the one at the top.
+ */
+export function StatsLeaderboards({
+  channelId,
+  meId,
+  period,
+}: {
+  channelId: string;
+  meId: string | null;
+  period: StatsPeriod;
+}) {
   const { t } = useI18n();
-  const [period, setPeriod] = useState<LeaderboardPeriod>('all');
   const [boards, setBoards] = useState<Record<LeaderboardMetric, LeaderboardEntry[]>>(EMPTY);
 
   useEffect(() => {
     let cancelled = false;
     void Promise.all(
       METRICS.map((m) =>
-        getLeaderboard(login, m.key, period)
+        getOwnerLeaderboard(channelId, m.key, period)
           .then((b) => [m.key, b] as const)
           .catch(() => [m.key, []] as const),
       ),
@@ -116,7 +133,7 @@ export function StatsLeaderboards({ login, meId }: { login: string; meId: string
     return () => {
       cancelled = true;
     };
-  }, [login, period]);
+  }, [channelId, period]);
 
   const formatValue = (metric: LeaderboardMetric) => (v: number) => {
     if (metric !== 'watch') return String(v);
@@ -127,30 +144,13 @@ export function StatsLeaderboards({ login, meId }: { login: string; meId: string
 
   return (
     <section className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="flex items-center gap-2 font-display">
-          <Icon name="trophy" size={16} className="text-warn" />
-          {t('channel.leaderboard')}
-        </h2>
-        <div className="flex gap-1 border border-border bg-surface-2 p-1">
-          {(['month', 'all'] as const).map((p) => (
-            <button
-              key={p}
-              type="button"
-              aria-pressed={period === p}
-              onClick={() => setPeriod(p)}
-              className={`rounded-none px-2.5 py-1 label-mono transition-colors duration-200 ease-out ${
-                period === p ? 'bg-accent text-accent-contrast' : 'text-muted hover:text-text'
-              }`}
-            >
-              {t(p === 'month' ? 'lb.month' : 'lb.all')}
-            </button>
-          ))}
-        </div>
-      </div>
+      <h2 className="flex items-center gap-2 font-display">
+        <Icon name="trophy" size={16} className="text-warn" />
+        {t('channel.leaderboard')}
+      </h2>
       <div className="grid gap-4 sm:grid-cols-2">
         {METRICS.map((m) => (
-          <MiniBoard
+          <Board
             key={m.key}
             metric={m.key}
             icon={m.icon}

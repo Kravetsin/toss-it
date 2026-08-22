@@ -98,7 +98,7 @@ export function AchievementsPage() {
     setStats(null);
     let cancelled = false;
     // Totals are all-time regardless of the window, so the range is irrelevant here.
-    void getStats(channelId, 14)
+    void getStats(channelId, 'all')
       .then((s) => {
         if (!cancelled) setStats(s);
       })
@@ -160,7 +160,7 @@ export function AchievementsPage() {
           <BackgroundAchievement
             key={def.id}
             def={def}
-            aired={stats?.totalAired ?? 0}
+            aired={stats?.aired ?? 0}
             loading={!stats}
           />
         ))}

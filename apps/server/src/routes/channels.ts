@@ -36,7 +36,7 @@ const lbCache = new Map<string, { at: number; entries: LeaderboardEntry[] }>();
 
 /** Global excluded logins (bots), cached briefly. All logins stored lowercase. */
 let exclCache: { at: number; logins: string[] } | null = null;
-async function excludedLogins(): Promise<string[]> {
+export async function excludedLogins(): Promise<string[]> {
   if (exclCache && Date.now() - exclCache.at < LB_CACHE_MS) return exclCache.logins;
   const rows = await db
     .select({ login: leaderboardExclusions.login })
@@ -58,11 +58,16 @@ const monthStartUtc = () => {
 };
 const currentMonth = () => new Date().toISOString().slice(0, 7);
 
-/** Top-10 by media that actually played (the original leaderboard). */
-async function sendsBoard(
+/**
+ * Board by media that actually played (the original leaderboard). `limit` is the public page's top-10
+ * by default; the streamer's own stats tab asks for the whole room (see the dashboard route), because
+ * a viewer seeing a richer table than the owner does is backwards.
+ */
+export async function sendsBoard(
   channelId: string,
   period: LeaderboardPeriod,
   excluded: string[],
+  limit = 10,
 ): Promise<LeaderboardEntry[]> {
   const rows = await db
     .select({
@@ -87,7 +92,7 @@ async function sendsBoard(
     )
     .groupBy(submissions.senderUserId)
     .orderBy(desc(count()))
-    .limit(10)
+    .limit(limit)
     .all();
 
   const levels = await levelsForKeys(
@@ -115,12 +120,14 @@ async function sendsBoard(
   }));
 }
 
-/** Top-10 by chat activity (bot counters), bridged to Tossit accounts where linked. */
-async function chatBoard(
+/** Board by chat activity (bot counters), bridged to Tossit accounts where linked. See sendsBoard
+ *  for `limit`. */
+export async function chatBoard(
   channelId: string,
   metric: 'messages' | 'watch' | 'level',
   period: LeaderboardPeriod,
   excluded: string[],
+  limit = 10,
 ): Promise<LeaderboardEntry[]> {
   // SUM aggregates months for 'all'; for a single month it's a no-op.
   const valueExpr =
@@ -147,7 +154,7 @@ async function chatBoard(
     )
     .groupBy(channelActivity.platformUserId)
     .orderBy(desc(valueExpr))
-    .limit(10)
+    .limit(limit)
     .all();
 
   // Linked/native accounts get their Tossit nick, colors and badge — same perks

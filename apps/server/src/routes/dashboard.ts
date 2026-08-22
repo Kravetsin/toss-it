@@ -30,15 +30,19 @@ import {
   type MusicTrack,
   type OnboardingStatus,
   type ReputationStats,
+  type LeaderboardEntry,
+  type LeaderboardMetric,
+  type LeaderboardPeriod,
+  type StatsPeriod,
   type StatsSummary,
   type PlaybackSlot,
   type SubmissionSummary,
 } from '@tmw/shared';
+import { chatBoard, excludedLogins, sendsBoard } from './channels';
 import { db } from '../db/index';
 import { TEST_CHAT_MESSAGES } from '../testChat';
 import {
   bans,
-  channelActivity,
   channelDaily,
   channelIntegrations,
   channelModerators,
@@ -147,6 +151,9 @@ const hueOrNull = (v: unknown): number | null =>
   typeof v === 'number' && Number.isFinite(v) ? ((Math.round(v) % 360) + 360) % 360 : null;
 
 const DAY_MS = 86_400_000;
+/** Rows the owner's own leaderboards may return (the public page keeps its top-10). */
+const OWNER_BOARD_LIMIT = 200;
+const LB_METRICS: readonly string[] = ['sends', 'messages', 'watch', 'level'];
 /** UTC 'YYYY-MM-DD' for an epoch-ms instant. */
 const utcDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 
@@ -1017,21 +1024,34 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
     },
   );
 
-  /** Owner-only stats overview: totals + last-N-day activity series + submissions by kind. */
-  app.get<{ Params: { channelId: string }; Querystring: { days?: string } }>(
+  /**
+   * Owner-only stats overview. ONE window governs the whole page (see StatsSummary.period): every
+   * total, the series and the kind breakdown are computed for it, because a period switch that moves
+   * three charts out of eleven blocks reads as broken — which is how this was reported.
+   *
+   * 'month' is the current CALENDAR month, matching what the leaderboards below already call a month.
+   * The series granularity follows the window: a bar per day for a month, a bar per month for all
+   * time. A daily series over a channel's whole history would be hundreds of bars in a 500px card.
+   */
+  app.get<{ Params: { channelId: string }; Querystring: { period?: string } }>(
     '/api/dashboard/:channelId/stats',
     async (req, reply): Promise<StatsSummary | undefined> => {
       const channel = await requireOwnerOf(req, reply, req.params.channelId);
       if (!channel) return;
-      const days = clamp(parseInt(req.query.days ?? '14', 10) || 14, 1, 90);
+      const period: StatsPeriod = req.query.period === 'all' ? 'all' : 'month';
+      const bucket = period === 'all' ? 'month' : 'day';
       const nowD = new Date();
       const todayStart = Date.UTC(nowD.getUTCFullYear(), nowD.getUTCMonth(), nowD.getUTCDate());
-      const sinceMs = todayStart - (days - 1) * DAY_MS;
       const monthStart = Date.UTC(nowD.getUTCFullYear(), nowD.getUTCMonth(), 1);
-      const month = nowD.toISOString().slice(0, 7);
+      // 'all' has no lower bound; every query below simply drops its date filter.
+      const sinceMs = period === 'month' ? monthStart : null;
+      const inPeriod = sinceMs === null ? [] : [gte(submissions.createdAt, new Date(sinceMs))];
 
-      // Submissions per day: bucket the ms timestamp into a UTC calendar day.
-      const dayExpr = sql<string>`strftime('%Y-%m-%d', ${submissions.createdAt} / 1000, 'unixepoch')`;
+      // Bucket the ms timestamp into a UTC calendar day or month, whichever this window charts.
+      // sql.raw for the format: it comes from the ternary above, never from the request, and a bound
+      // parameter inside a GROUP BY expression is the kind of thing that works until a driver changes.
+      const fmt = sql.raw(bucket === 'month' ? '%Y-%m' : '%Y-%m-%d');
+      const dayExpr = sql<string>`strftime('${fmt}', ${submissions.createdAt} / 1000, 'unixepoch')`;
       const subDaily = await db
         .select({
           day: dayExpr,
@@ -1040,47 +1060,69 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
           rejected: sql<number>`sum(case when ${submissions.status} = 'rejected' then 1 else 0 end)`,
         })
         .from(submissions)
-        .where(
-          and(
-            eq(submissions.channelId, channel.id),
-            gte(submissions.createdAt, new Date(sinceMs)),
-            excludeSelfSends,
-          ),
-        )
+        .where(and(eq(submissions.channelId, channel.id), ...inPeriod, excludeSelfSends))
         .groupBy(dayExpr)
         .all();
 
-      const chatDaily = await db
+      // Chat counters are stored per day; the all-time view folds them into months on the way out.
+      const chatRows = await db
         .select({
           day: channelDaily.day,
           messages: channelDaily.messages,
           watchMinutes: channelDaily.watchMinutes,
         })
         .from(channelDaily)
-        .where(and(eq(channelDaily.channelId, channel.id), gte(channelDaily.day, utcDay(sinceMs))))
+        .where(
+          and(
+            eq(channelDaily.channelId, channel.id),
+            ...(sinceMs === null ? [] : [gte(channelDaily.day, utcDay(sinceMs))]),
+          ),
+        )
         .all();
 
       const subByDay = new Map(subDaily.map((r) => [r.day, r]));
-      const chatByDay = new Map(chatDaily.map((r) => [r.day, r]));
-      const daily: DailyStat[] = [];
-      for (let i = 0; i < days; i++) {
-        const day = utcDay(sinceMs + i * DAY_MS);
-        const s = subByDay.get(day);
-        const c = chatByDay.get(day);
-        daily.push({
-          day,
-          submissions: s?.submissions ?? 0,
-          aired: s?.aired ?? 0,
-          rejected: s?.rejected ?? 0,
-          messages: c?.messages ?? 0,
-          watchMinutes: c?.watchMinutes ?? 0,
-        });
+      const chatByDay = new Map<string, { messages: number; watchMinutes: number }>();
+      for (const r of chatRows) {
+        const key = bucket === 'month' ? r.day.slice(0, 7) : r.day;
+        const acc = chatByDay.get(key) ?? { messages: 0, watchMinutes: 0 };
+        acc.messages += r.messages;
+        acc.watchMinutes += r.watchMinutes;
+        chatByDay.set(key, acc);
       }
+
+      // The axis is built from the calendar, not from the rows: a bucket with no activity has to be
+      // an empty bar rather than a gap, or the chart silently compresses quiet stretches away.
+      const keys: string[] = [];
+      if (bucket === 'day') {
+        for (let ms = monthStart; ms <= todayStart; ms += DAY_MS) keys.push(utcDay(ms));
+      } else {
+        // From the earliest month that has anything at all, up to the current one.
+        const earliest = [...subByDay.keys(), ...chatByDay.keys()].sort()[0];
+        const nowKey = utcDay(todayStart).slice(0, 7);
+        let cur = earliest ?? nowKey;
+        while (cur <= nowKey) {
+          keys.push(cur);
+          const [y, m] = cur.split('-').map(Number) as [number, number];
+          cur = utcDay(Date.UTC(y, m, 1)).slice(0, 7); // month index is 0-based, so this is "next"
+        }
+      }
+      const daily: DailyStat[] = keys.map((day) => {
+        const sub = subByDay.get(day);
+        const chat = chatByDay.get(day);
+        return {
+          day,
+          submissions: sub?.submissions ?? 0,
+          aired: sub?.aired ?? 0,
+          rejected: sub?.rejected ?? 0,
+          messages: chat?.messages ?? 0,
+          watchMinutes: chat?.watchMinutes ?? 0,
+        };
+      });
 
       const byKindRows = await db
         .select({ kind: submissions.kind, count: sql<number>`count(*)` })
         .from(submissions)
-        .where(and(eq(submissions.channelId, channel.id), excludeSelfSends))
+        .where(and(eq(submissions.channelId, channel.id), ...inPeriod, excludeSelfSends))
         .groupBy(submissions.kind)
         .all();
       const byKind: KindStat[] = byKindRows
@@ -1092,35 +1134,53 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
           total: sql<number>`count(*)`,
           aired: sql<number>`sum(case when ${submissions.status} = 'played' then 1 else 0 end)`,
           rejected: sql<number>`sum(case when ${submissions.status} = 'rejected' then 1 else 0 end)`,
-          month: sql<number>`sum(case when ${submissions.createdAt} >= ${monthStart} then 1 else 0 end)`,
           today: sql<number>`sum(case when ${submissions.createdAt} >= ${todayStart} then 1 else 0 end)`,
           contributors: sql<number>`count(distinct ${submissions.senderUserId})`,
         })
         .from(submissions)
-        .where(and(eq(submissions.channelId, channel.id), excludeSelfSends))
-        .get();
-
-      const chatMonth = await db
-        .select({
-          messages: sql<number>`coalesce(sum(${channelActivity.messages}), 0)`,
-          watch: sql<number>`coalesce(sum(${channelActivity.watchMinutes}), 0)`,
-        })
-        .from(channelActivity)
-        .where(and(eq(channelActivity.channelId, channel.id), eq(channelActivity.month, month)))
+        .where(and(eq(submissions.channelId, channel.id), ...inPeriod, excludeSelfSends))
         .get();
 
       return {
-        totalSubmissions: totals?.total ?? 0,
-        totalAired: totals?.aired ?? 0,
-        totalRejected: totals?.rejected ?? 0,
-        monthSubmissions: totals?.month ?? 0,
-        todaySubmissions: totals?.today ?? 0,
+        period,
+        bucket,
+        submissions: totals?.total ?? 0,
+        aired: totals?.aired ?? 0,
+        rejected: totals?.rejected ?? 0,
         uniqueContributors: totals?.contributors ?? 0,
-        monthMessages: chatMonth?.messages ?? 0,
-        monthWatchMinutes: chatMonth?.watch ?? 0,
+        messages: daily.reduce((n, d) => n + d.messages, 0),
+        watchMinutes: daily.reduce((n, d) => n + d.watchMinutes, 0),
+        todaySubmissions: totals?.today ?? 0,
         daily,
         byKind,
       };
+    },
+  );
+
+  /**
+   * Owner-only leaderboards: the same boards the public channel page shows, but the WHOLE room rather
+   * than the top ten. The public route stays capped — this is the streamer looking at their own
+   * channel, where "who is in my top 40" is a real question and the viewer page was, until now, the
+   * richer view of the two.
+   */
+  app.get<{
+    Params: { channelId: string };
+    Querystring: { metric?: string; period?: string };
+  }>(
+    '/api/dashboard/:channelId/leaderboard',
+    async (req, reply): Promise<LeaderboardEntry[] | undefined> => {
+      const channel = await requireOwnerOf(req, reply, req.params.channelId);
+      if (!channel) return;
+      const metric = (
+        LB_METRICS.includes(req.query.metric ?? '') ? req.query.metric : 'sends'
+      ) as LeaderboardMetric;
+      const period: LeaderboardPeriod = req.query.period === 'month' ? 'month' : 'all';
+      const excluded = await excludedLogins();
+      // Capped all the same: a board is a list to read, and past a few hundred rows it is a data dump
+      // that costs a level lookup per row.
+      return metric === 'sends'
+        ? sendsBoard(channel.id, period, excluded, OWNER_BOARD_LIMIT)
+        : chatBoard(channel.id, metric, period, excluded, OWNER_BOARD_LIMIT);
     },
   );
 
