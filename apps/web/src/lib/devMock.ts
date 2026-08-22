@@ -1206,7 +1206,10 @@ function route(pathname: string, init?: RequestInit, query?: URLSearchParams): u
   }
 
   const cm = pathname.match(/^\/api\/c\/([^/]+)(?:\/(leaderboard))?$/);
-  if (cm) return cm[2] === 'leaderboard' ? MOCK_LEADERBOARD : mockPublicChannel(cm[1]!);
+  // The public board is served capped at ten (see the channels route); only the owner's own
+  // dashboard boards page through the whole room.
+  if (cm)
+    return cm[2] === 'leaderboard' ? MOCK_LEADERBOARD.slice(0, 10) : mockPublicChannel(cm[1]!);
 
   const m = pathname.match(/^\/api\/dashboard\/[^/]+\/(.+)$/);
   if (m) {

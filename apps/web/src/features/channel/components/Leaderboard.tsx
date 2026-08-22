@@ -244,7 +244,11 @@ export function Leaderboard({
         </p>
       ) : (
         <Card>
-          <ol className="flex flex-col gap-1.5">
+          {/* Ten rows tall, then it scrolls: a row is 40px plus its gap, so the block stops at a
+              screenful instead of pushing the rest of the page down. The board is served capped at
+              ten anyway — the scroll is what keeps a taller row (a long nick, a wrapped badge) from
+              stretching the card. */}
+          <ol className="-mr-1 flex max-h-[28.5rem] flex-col gap-1.5 overflow-y-auto pr-1">
             {board.map((e, i) => {
               const isYou = e.userId === meId;
               return (

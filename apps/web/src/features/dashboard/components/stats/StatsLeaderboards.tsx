@@ -8,9 +8,7 @@ import {
 } from '@tmw/shared';
 import { getOwnerLeaderboard } from '@/lib/api';
 import { useI18n } from '@/i18n';
-import { useMe } from '@/hooks/useMe';
 import { Card, Icon, type IconName } from '@/ui';
-import { nickProps } from '@/lib/nick';
 
 const METRICS: { key: LeaderboardMetric; icon: IconName; label: string }[] = [
   { key: 'sends', icon: 'send', label: 'lb.sends' },
@@ -26,9 +24,14 @@ const PAGE = 25;
  * The owner's board: EVERYONE, not a top five — the public channel page shows ten, and a streamer
  * looking at their own stats was getting half of what their viewers can see.
  *
- * Paged as the reader scrolls rather than fetched whole: a busy channel has thousands of chatters,
- * each row carries the sender's cosmetics, and four of these load at once. A sentinel at the end of
- * the list pulls the next page; a short page means the board is finished.
+ * Paged as the reader scrolls rather than fetched whole: a busy channel has thousands of chatters and
+ * four of these load at once. A sentinel at the end of the list pulls the next page; a short page
+ * means the board is finished.
+ *
+ * Nicknames are drawn PLAIN, unlike the viewer-facing board on the channel page. Equipped colours and
+ * effects are something a viewer shows off to a room; this is the owner scanning their own list, and
+ * a column of individually coloured, glowing names is harder to read, not richer. The level numeral
+ * stays — that is rank, not decoration, and one of the four boards is ranked by it.
  */
 function Board({
   channelId,
@@ -48,7 +51,6 @@ function Board({
   formatValue: (v: number) => string;
 }) {
   const { t } = useI18n();
-  const { me } = useMe();
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [done, setDone] = useState(false);
   const scrollRef = useRef<HTMLOListElement>(null);
@@ -131,13 +133,6 @@ function Board({
         <ol ref={scrollRef} className="-mr-1 flex min-h-0 flex-1 flex-col overflow-y-auto pr-1">
           {entries.map((e, i) => {
             const isYou = e.userId === meId;
-            const mine = isYou ? me?.user?.equipped : undefined;
-            const nick = nickProps({
-              color: mine ? mine.nickColor : e.nickColor,
-              color2: mine ? mine.nickColor2 : e.nickColor2,
-              flow: mine ? mine.nickFlow : e.nickFlow,
-              effect: mine ? mine.nickEffect : e.nickEffect,
-            });
             const tier = e.level ? levelTier(e.level) : null;
             return (
               <li
@@ -152,10 +147,7 @@ function Board({
                     {toRoman(e.level!)}
                   </span>
                 )}
-                <b
-                  className={`min-w-0 flex-1 truncate ${isYou ? 'text-accent' : 'text-text'} ${nick.className}`}
-                  style={nick.style}
-                >
+                <b className={`min-w-0 flex-1 truncate ${isYou ? 'text-accent' : 'text-text'}`}>
                   {e.displayName}
                 </b>
                 {metric !== 'level' && (
