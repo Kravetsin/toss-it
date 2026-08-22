@@ -780,7 +780,8 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
   },
 ];
 
-const MOCK_STATS: StatsSummary = {
+/** Stats for a period; only the daily series depends on it — the totals are lifetime either way. */
+const mockStats = (days: number): StatsSummary => ({
   totalSubmissions: 1234,
   totalAired: 720, // galaxy unlocked (>=500), black hole in progress (720/1000) — previews both states
   totalRejected: 210,
@@ -789,8 +790,8 @@ const MOCK_STATS: StatsSummary = {
   uniqueContributors: 84,
   monthMessages: 5230,
   monthWatchMinutes: 9840,
-  daily: Array.from({ length: 14 }, (_, i) => {
-    const dayMs = t - (13 - i) * 86_400_000;
+  daily: Array.from({ length: days }, (_, i) => {
+    const dayMs = t - (days - 1 - i) * 86_400_000;
     const submissions = 3 + Math.floor(Math.random() * 12);
     const aired = Math.floor(submissions * (0.4 + Math.random() * 0.4));
     return {
@@ -810,7 +811,7 @@ const MOCK_STATS: StatsSummary = {
     { kind: 'gif', count: 64 },
     { kind: 'audio', count: 30 },
   ],
-};
+});
 
 const MOCK_LIVE: LivePresence = {
   live: true,
@@ -955,7 +956,7 @@ function cosmeticState() {
   return { stardust: u.stardust, ownedCosmetics: u.ownedCosmetics, equipped: u.equipped };
 }
 
-function route(pathname: string, init?: RequestInit): unknown | undefined {
+function route(pathname: string, init?: RequestInit, query?: URLSearchParams): unknown | undefined {
   if (pathname === '/api/auth/me') return MOCK_ME;
   if (pathname === '/api/auth/logout') {
     try {
@@ -1172,7 +1173,9 @@ function route(pathname: string, init?: RequestInit): unknown | undefined {
         return { volume: MOCK_SETTINGS.volume };
       }
       case 'stats':
-        return MOCK_STATS;
+        // The real endpoint's series length follows ?days=; a fixed one here makes the period switch
+        // look broken in mock mode, which is exactly how this was first reported.
+        return mockStats(Number(query?.get('days')) || 14);
       case 'live':
         return MOCK_LIVE;
       case 'onboarding':
@@ -1274,9 +1277,10 @@ export function installDevMock() {
     if (isMockOn()) {
       const href =
         typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-      const { pathname } = new URL(href, window.location.origin);
+      const url = new URL(href, window.location.origin);
+      const { pathname } = url;
       if (pathname.startsWith('/api/')) {
-        const data = route(pathname, init);
+        const data = route(pathname, init, url.searchParams);
         if (data !== undefined) {
           return new Response(JSON.stringify(data), {
             status: 200,
