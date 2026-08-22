@@ -701,7 +701,7 @@ function mockPublicChannel(login: string): PublicChannelInfo {
   };
 }
 
-const MOCK_LEADERBOARD: LeaderboardEntry[] = [
+const MOCK_LEADERBOARD_TOP: LeaderboardEntry[] = [
   {
     userId: 'twitch:other1',
     login: 'darkblane',
@@ -780,6 +780,29 @@ const MOCK_LEADERBOARD: LeaderboardEntry[] = [
     sealColor: null,
     level: 2,
   },
+];
+
+/**
+ * The board's long tail. The owner's leaderboards page themselves as you scroll, and six rows could
+ * never show that — this is enough to walk past two page boundaries and reach the end.
+ */
+const MOCK_LEADERBOARD: LeaderboardEntry[] = [
+  ...MOCK_LEADERBOARD_TOP,
+  ...Array.from({ length: 54 }, (_, i) => ({
+    userId: `twitch:filler${i}`,
+    login: `viewer${i}`,
+    displayName: `viewer_${String(i).padStart(2, '0')}`,
+    value: Math.max(1, 60 - i * 2),
+    isFounder: false,
+    nickColor: null,
+    nickColor2: null,
+    nickFlow: false,
+    nickEffect: null,
+    cardEffect: null,
+    seal: null,
+    sealColor: null,
+    level: Math.max(1, 9 - Math.floor(i / 7)),
+  })),
 ];
 
 /** Stats for a period; only the daily series depends on it — the totals are lifetime either way. */
@@ -1204,8 +1227,11 @@ function route(pathname: string, init?: RequestInit, query?: URLSearchParams): u
         // The real endpoint's series length follows ?days=; a fixed one here makes the period switch
         // look broken in mock mode, which is exactly how this was first reported.
         return mockStats(query?.get('period') === 'all' ? 'all' : 'month');
-      case 'leaderboard':
-        return MOCK_LEADERBOARD;
+      case 'leaderboard': {
+        // Sliced like the real route, so the page's infinite scroll actually reaches an end here.
+        const from = Number(query?.get('offset')) || 0;
+        return MOCK_LEADERBOARD.slice(from, from + (Number(query?.get('limit')) || 25));
+      }
       case 'live':
         return MOCK_LIVE;
       case 'onboarding':

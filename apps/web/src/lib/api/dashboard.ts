@@ -26,15 +26,20 @@ export function getStats(channelId: string, period: StatsPeriod): Promise<StatsS
   return fetch(`${dash(channelId)}/stats?period=${period}`).then((r) => json<StatsSummary>(r));
 }
 
-/** The owner's own leaderboards: the whole room, not the public page's top ten. */
+/**
+ * One page of the owner's own leaderboards: the whole room rather than the public page's top ten,
+ * walked with an offset. A short page means the end of the board.
+ */
 export function getOwnerLeaderboard(
   channelId: string,
   metric: LeaderboardMetric,
   period: LeaderboardPeriod,
+  limit: number,
+  offset: number,
 ): Promise<LeaderboardEntry[]> {
-  return fetch(`${dash(channelId)}/leaderboard?metric=${metric}&period=${period}`).then((r) =>
-    json<LeaderboardEntry[]>(r),
-  );
+  return fetch(
+    `${dash(channelId)}/leaderboard?metric=${metric}&period=${period}&limit=${limit}&offset=${offset}`,
+  ).then((r) => json<LeaderboardEntry[]>(r));
 }
 
 export function getLivePresence(channelId: string): Promise<LivePresence> {

@@ -151,8 +151,9 @@ const hueOrNull = (v: unknown): number | null =>
   typeof v === 'number' && Number.isFinite(v) ? ((Math.round(v) % 360) + 360) % 360 : null;
 
 const DAY_MS = 86_400_000;
-/** Rows the owner's own leaderboards may return (the public page keeps its top-10). */
-const OWNER_BOARD_LIMIT = 200;
+/** Page size for the owner's own leaderboards, and the most one request may ask for. */
+const BOARD_PAGE = 25;
+const BOARD_PAGE_MAX = 100;
 const LB_METRICS: readonly string[] = ['sends', 'messages', 'watch', 'level'];
 /** UTC 'YYYY-MM-DD' for an epoch-ms instant. */
 const utcDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
@@ -1158,14 +1159,18 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
   );
 
   /**
-   * Owner-only leaderboards: the same boards the public channel page shows, but the WHOLE room rather
-   * than the top ten. The public route stays capped — this is the streamer looking at their own
+   * Owner-only leaderboards: the same boards the public channel page shows, but PAGED through the
+   * whole room rather than capped at the public top ten. This is the streamer looking at their own
    * channel, where "who is in my top 40" is a real question and the viewer page was, until now, the
    * richer view of the two.
+   *
+   * Paged, not "all rows": a busy channel has thousands of chatters, every row carries the sender's
+   * cosmetics and costs a level lookup, and four boards load at once on this page. The client walks
+   * it with an offset as the reader scrolls.
    */
   app.get<{
     Params: { channelId: string };
-    Querystring: { metric?: string; period?: string };
+    Querystring: { metric?: string; period?: string; limit?: string; offset?: string };
   }>(
     '/api/dashboard/:channelId/leaderboard',
     async (req, reply): Promise<LeaderboardEntry[] | undefined> => {
@@ -1175,12 +1180,12 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         LB_METRICS.includes(req.query.metric ?? '') ? req.query.metric : 'sends'
       ) as LeaderboardMetric;
       const period: LeaderboardPeriod = req.query.period === 'month' ? 'month' : 'all';
+      const limit = clamp(parseInt(req.query.limit ?? '', 10) || BOARD_PAGE, 1, BOARD_PAGE_MAX);
+      const offset = Math.max(0, parseInt(req.query.offset ?? '', 10) || 0);
       const excluded = await excludedLogins();
-      // Capped all the same: a board is a list to read, and past a few hundred rows it is a data dump
-      // that costs a level lookup per row.
       return metric === 'sends'
-        ? sendsBoard(channel.id, period, excluded, OWNER_BOARD_LIMIT)
-        : chatBoard(channel.id, metric, period, excluded, OWNER_BOARD_LIMIT);
+        ? sendsBoard(channel.id, period, excluded, limit, offset)
+        : chatBoard(channel.id, metric, period, excluded, limit, offset);
     },
   );
 

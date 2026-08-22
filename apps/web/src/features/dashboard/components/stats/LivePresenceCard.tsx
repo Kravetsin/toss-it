@@ -31,7 +31,7 @@ export function LivePresenceCard({ channelId }: { channelId: string }) {
   const viewers = data?.viewers ?? [];
 
   return (
-    <Card className="flex flex-col gap-3">
+    <Card className="flex h-full flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
         <h3 className="flex items-center gap-2 label-mono text-text">
           <Icon name="eye" size={15} className="text-accent" />
@@ -49,7 +49,7 @@ export function LivePresenceCard({ channelId }: { channelId: string }) {
             <span className="text-2xl tabular-nums text-text">{viewers.length}</span>
             <span className="text-sm text-muted">{t('stats.inChat')}</span>
           </div>
-          <ul className="flex max-h-64 flex-col gap-0.5 overflow-y-auto">
+          <ul className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto">
             {viewers.map((v) => (
               <li key={v.id} className="flex items-center gap-2 px-1 py-1 text-sm text-text">
                 <Icon name="twitch" size={13} className="shrink-0 text-[#9147ff]" />

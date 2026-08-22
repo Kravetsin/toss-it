@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   levelTier,
   toRoman,
@@ -19,48 +19,116 @@ const METRICS: { key: LeaderboardMetric; icon: IconName; label: string }[] = [
   { key: 'level', icon: 'star', label: 'lb.level' },
 ];
 
-const EMPTY: Record<LeaderboardMetric, LeaderboardEntry[]> = {
-  sends: [],
-  messages: [],
-  watch: [],
-  level: [],
-};
+/** Rows per request. Matches the server's default page (see the dashboard leaderboard route). */
+const PAGE = 25;
 
 /**
- * The owner's board: EVERYONE, not a top five. The public channel page shows ten, and a streamer
- * looking at their own stats was getting half of what their viewers can see. Past a screenful the
- * list scrolls inside its card, so four boards still fit on one page.
+ * The owner's board: EVERYONE, not a top five — the public channel page shows ten, and a streamer
+ * looking at their own stats was getting half of what their viewers can see.
+ *
+ * Paged as the reader scrolls rather than fetched whole: a busy channel has thousands of chatters,
+ * each row carries the sender's cosmetics, and four of these load at once. A sentinel at the end of
+ * the list pulls the next page; a short page means the board is finished.
  */
 function Board({
+  channelId,
   metric,
+  period,
   icon,
   title,
-  entries,
   meId,
   formatValue,
 }: {
+  channelId: string;
   metric: LeaderboardMetric;
+  period: StatsPeriod;
   icon: IconName;
   title: string;
-  entries: LeaderboardEntry[];
   meId: string | null;
   formatValue: (v: number) => string;
 }) {
   const { t } = useI18n();
   const { me } = useMe();
+  const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
+  const [done, setDone] = useState(false);
+  const scrollRef = useRef<HTMLOListElement>(null);
+  const sentinelRef = useRef<HTMLLIElement>(null);
+  // Guards the loader against a second call while one is in flight — an IntersectionObserver fires
+  // again on every scroll tick, and `entries.length` only moves once the response lands.
+  const busy = useRef(false);
+  const loadedFor = useRef('');
+
+  const loadMore = useCallback(() => {
+    if (busy.current || done) return;
+    busy.current = true;
+    const key = `${channelId}:${metric}:${period}`;
+    void getOwnerLeaderboard(channelId, metric, period, PAGE, entries.length)
+      .then((page) => {
+        // The window can change while this is in flight; that answer belongs to the old board.
+        if (loadedFor.current !== key) return;
+        setEntries((prev) => [...prev, ...page]);
+        if (page.length < PAGE) setDone(true);
+      })
+      .catch(() => setDone(true))
+      .finally(() => {
+        busy.current = false;
+      });
+  }, [channelId, metric, period, entries.length, done]);
+
+  // A new window is a different board: drop what was loaded and fetch the first page STRAIGHT AWAY.
+  // The first page is deliberately not left to the observer below — an IntersectionObserver only
+  // reports while the page is actually compositing, so a board in a background tab (or one the
+  // browser has not painted yet) would sit empty until something made it draw.
+  useEffect(() => {
+    const key = `${channelId}:${metric}:${period}`;
+    if (loadedFor.current === key) return;
+    loadedFor.current = key;
+    busy.current = true;
+    setEntries([]);
+    setDone(false);
+    void getOwnerLeaderboard(channelId, metric, period, PAGE, 0)
+      .then((page) => {
+        if (loadedFor.current !== key) return;
+        setEntries(page);
+        if (page.length < PAGE) setDone(true);
+      })
+      .catch(() => setDone(true))
+      .finally(() => {
+        busy.current = false;
+      });
+  }, [channelId, metric, period]);
+
+  // Every page after the first: pulled by a sentinel at the end of the list as the reader scrolls.
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || done || entries.length === 0) return;
+    const io = new IntersectionObserver(
+      (rows) => rows.some((r) => r.isIntersecting) && loadMore(),
+      {
+        root: scrollRef.current,
+      },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [loadMore, done, entries.length]);
   return (
-    <Card className="flex flex-col gap-2">
-      <h3 className="flex items-center justify-between gap-2 label-mono text-text">
+    <Card className="flex h-full flex-col gap-2">
+      <h3 className="flex shrink-0 items-center justify-between gap-2 label-mono text-text">
         <span className="flex items-center gap-2">
           <Icon name={icon} size={15} className="text-accent" />
           {title}
         </span>
-        {entries.length > 0 && <span className="tabular-nums text-muted">{entries.length}</span>}
+        {entries.length > 0 && (
+          <span className="tabular-nums text-muted">
+            {entries.length}
+            {done ? '' : '+'}
+          </span>
+        )}
       </h3>
-      {entries.length === 0 ? (
+      {entries.length === 0 && done ? (
         <p className="py-3 text-center text-sm text-muted">{t('lb.empty')}</p>
       ) : (
-        <ol className="-mr-1 flex max-h-72 flex-col overflow-y-auto pr-1">
+        <ol ref={scrollRef} className="-mr-1 flex min-h-0 flex-1 flex-col overflow-y-auto pr-1">
           {entries.map((e, i) => {
             const isYou = e.userId === meId;
             const mine = isYou ? me?.user?.equipped : undefined;
@@ -96,6 +164,9 @@ function Board({
               </li>
             );
           })}
+          {/* Sits INSIDE the scroll box: the observer's root is the list, so a sentinel outside it
+              would be "visible" from the start and pull every page at once. */}
+          {!done && <li ref={sentinelRef} className="h-6 shrink-0" aria-hidden />}
         </ol>
       )}
     </Card>
@@ -117,24 +188,6 @@ export function StatsLeaderboards({
   period: StatsPeriod;
 }) {
   const { t } = useI18n();
-  const [boards, setBoards] = useState<Record<LeaderboardMetric, LeaderboardEntry[]>>(EMPTY);
-
-  useEffect(() => {
-    let cancelled = false;
-    void Promise.all(
-      METRICS.map((m) =>
-        getOwnerLeaderboard(channelId, m.key, period)
-          .then((b) => [m.key, b] as const)
-          .catch(() => [m.key, []] as const),
-      ),
-    ).then((pairs) => {
-      if (!cancelled) setBoards({ ...EMPTY, ...Object.fromEntries(pairs) });
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [channelId, period]);
-
   const formatValue = (metric: LeaderboardMetric) => (v: number) => {
     if (metric !== 'watch') return String(v);
     const h = Math.floor(v / 60);
@@ -148,14 +201,17 @@ export function StatsLeaderboards({
         <Icon name="trophy" size={16} className="text-warn" />
         {t('channel.leaderboard')}
       </h2>
-      <div className="grid gap-4 sm:grid-cols-2">
+      {/* Fixed row height: the boards fill different amounts and a stretching grid row left the
+          shorter cards padded out with dead space. Each card scrolls its own list instead. */}
+      <div className="grid auto-rows-[20rem] gap-4 sm:grid-cols-2">
         {METRICS.map((m) => (
           <Board
             key={m.key}
+            channelId={channelId}
             metric={m.key}
+            period={period}
             icon={m.icon}
             title={t(m.label)}
-            entries={boards[m.key]}
             meId={meId}
             formatValue={formatValue(m.key)}
           />

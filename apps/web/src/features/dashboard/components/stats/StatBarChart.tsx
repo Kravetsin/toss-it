@@ -34,7 +34,7 @@ export function StatBarChart({
   // Axis labels crowd past ~16 bars — thin them out.
   const step = points.length > 16 ? Math.ceil(points.length / 8) : 1;
   return (
-    <Card className="flex flex-col gap-3">
+    <Card className="flex h-full flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
         <h3 className="flex items-center gap-2 label-mono text-text">
           <Icon name={icon} size={15} className="text-accent" />
@@ -43,7 +43,9 @@ export function StatBarChart({
         <span className="tabular-nums text-sm text-text">{formatValue(sum)}</span>
       </div>
 
-      <div className="flex h-28 items-end gap-[3px]">
+      {/* The bar area takes whatever the row is tall: the grid fixes the cell height, so a chart
+          next to a taller card fills its card instead of leaving a hole under the axis. */}
+      <div className="flex min-h-0 flex-1 items-end gap-[3px]">
         {points.map((p, i) => {
           const anyPct = (p.value / max) * 100;
           const subFrac = subLabel && p.value > 0 ? Math.min(1, (p.sub ?? 0) / p.value) : 0;

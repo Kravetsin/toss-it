@@ -193,7 +193,9 @@ export function StatsPage() {
           </div>
 
           {/* Daily activity charts + live presence */}
-          <div className="grid gap-4 lg:grid-cols-2">
+          {/* Fixed row height, cards scroll inside: the live-viewer list is the tall one, and a
+              stretching row left the chart beside it drawn against a half-empty card. */}
+          <div className="grid auto-rows-[19rem] gap-4 lg:grid-cols-2">
             <StatBarChart
               title={perBucket('stats.submissionsPerDay', 'stats.submissionsPerMonth')}
               icon="send"

@@ -68,6 +68,7 @@ export async function sendsBoard(
   period: LeaderboardPeriod,
   excluded: string[],
   limit = 10,
+  offset = 0,
 ): Promise<LeaderboardEntry[]> {
   const rows = await db
     .select({
@@ -93,6 +94,7 @@ export async function sendsBoard(
     .groupBy(submissions.senderUserId)
     .orderBy(desc(count()))
     .limit(limit)
+    .offset(offset)
     .all();
 
   const levels = await levelsForKeys(
@@ -128,6 +130,7 @@ export async function chatBoard(
   period: LeaderboardPeriod,
   excluded: string[],
   limit = 10,
+  offset = 0,
 ): Promise<LeaderboardEntry[]> {
   // SUM aggregates months for 'all'; for a single month it's a no-op.
   const valueExpr =
@@ -155,6 +158,7 @@ export async function chatBoard(
     .groupBy(channelActivity.platformUserId)
     .orderBy(desc(valueExpr))
     .limit(limit)
+    .offset(offset)
     .all();
 
   // Linked/native accounts get their Tossit nick, colors and badge — same perks
