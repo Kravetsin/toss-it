@@ -173,24 +173,31 @@ function renderMessage(msg: ChatOverlayMessage): void {
 
   const color = msg.cosmetics?.nickColor ?? msg.twitchColor ?? DEFAULT_COLOR;
 
+  // Rank paint for the compact layout's left edge, which stands in for the marker below: a tier
+  // color for ranked viewers, the nick's own for newcomers — the same split the star/bead makes.
+  row.style.setProperty('--edge', tier?.color ?? color);
+
   // Thread marker. A notice hands the thread to the EVENT: the mark's silhouette is what says
   // "raid" or "watch streak" at a glance, and the author's rank still shows as the numeral on the
   // name line. Otherwise: a tier-colored star for ranked viewers, a small nick-colored bead for
-  // newcomers — the star is what marks an established viewer.
-  if (msg.notice) {
-    const mark = document.createElement('span');
-    mark.className = 'mark'; // shape and color come from data-notice (chat.css)
-    row.appendChild(mark);
-  } else if (tier) {
-    const star = document.createElement('span');
-    star.className = 'star';
-    star.innerHTML = STAR_SVG; // constant, trusted markup — not user input
-    row.appendChild(star);
-  } else {
-    const dot = document.createElement('span');
-    dot.className = 'dot';
-    dot.style.setProperty('--dot', color);
-    row.appendChild(dot);
+  // newcomers — the star is what marks an established viewer. Compact has no gutter and no thread:
+  // the bubble's left edge carries the rank instead (chat.css).
+  if (!compact) {
+    if (msg.notice) {
+      const mark = document.createElement('span');
+      mark.className = 'mark'; // shape and color come from data-notice (chat.css)
+      row.appendChild(mark);
+    } else if (tier) {
+      const star = document.createElement('span');
+      star.className = 'star';
+      star.innerHTML = STAR_SVG; // constant, trusted markup — not user input
+      row.appendChild(star);
+    } else {
+      const dot = document.createElement('span');
+      dot.className = 'dot';
+      dot.style.setProperty('--dot', color);
+      row.appendChild(dot);
+    }
   }
 
   const sealCls = sealEffectClass(msg.cosmetics?.seal);
@@ -501,6 +508,12 @@ let lastTipY: number | null = null;
 /** Re-fit the single thread line: from just above the oldest message down to the newest
  *  message's marker. Its CSS transition matches smoothRise, so it glides with the column. */
 function updateRail(): void {
+  // Compact drops the thread with the markers it strung together: nothing to fit.
+  if (compact) {
+    rail.style.opacity = '0';
+    lastTipY = null;
+    return;
+  }
   const first = chat.querySelector<HTMLElement>('.msg');
   const last = chat.querySelector<HTMLElement>('.msg:last-of-type');
   if (!first || !last) {
@@ -539,7 +552,7 @@ function animateMarker(row: HTMLElement, prevTip: number | null): void {
 
 /** The hot stretch of thread just drawn behind the marker: glows, then cools into the line. */
 function fireWake(color: string): void {
-  if (reduceMotion) return;
+  if (reduceMotion || compact) return;
   const w = document.createElement('div');
   w.className = 'wake';
   w.style.setProperty('--wake', color);

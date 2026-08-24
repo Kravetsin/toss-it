@@ -72,28 +72,35 @@ export function ChatPreview({
       >
         <div
           className="relative self-start"
-          style={{ paddingLeft: '1.65em', color: '#ededec', lineHeight: 1.4 }}
+          style={{ paddingLeft: compact ? 0 : '1.65em', color: '#ededec', lineHeight: 1.4 }}
         >
-          <span
-            className="absolute"
-            style={{
-              left: '0.06em',
-              // Follows the marker: on the name line normally, on the bubble's first line compact.
-              top: compact ? '0.52em' : '0.22em',
-              color: '#8df0cc',
-              filter: 'drop-shadow(0 0 4px rgba(141, 240, 204, 0.6))',
-            }}
-          >
-            <StarMark size={fontSize * 0.95} />
-          </span>
+          {/* Compact drops the marker and the thread with it — the rank moves to the left edge. */}
+          {!compact && (
+            <span
+              className="absolute"
+              style={{
+                left: '0.06em',
+                top: '0.22em',
+                color: '#8df0cc',
+                filter: 'drop-shadow(0 0 4px rgba(141, 240, 204, 0.6))',
+              }}
+            >
+              <StarMark size={fontSize * 0.95} />
+            </span>
+          )}
           {!compact && <div style={{ marginBottom: '0.28em' }}>{nameLine}</div>}
           <div
             style={{
               display: 'inline-block',
               maxWidth: '100%',
-              padding: '0.28em 0.7em',
-              borderRadius: '4px 12px 12px 12px',
+              padding: compact ? '0.28em 0.7em 0.28em 0.85em' : '0.28em 0.7em',
+              borderRadius: compact ? '2px 12px 12px 2px' : '4px 12px 12px 12px',
               background: `rgba(13, 17, 17, ${alpha})`,
+              // The rank edge, the compact layout's stand-in for the star (mint here: the preview
+              // row has no level of its own).
+              backgroundImage: compact
+                ? 'linear-gradient(to right, #8df0cc 0 3px, transparent 3px)'
+                : undefined,
               backdropFilter: `blur(${alpha * 14}px)`,
               WebkitBackdropFilter: `blur(${alpha * 14}px)`,
               border: `1px solid ${roleBorders ? `rgba(${ROLE}, 0.62)` : 'rgba(141, 240, 204, 0.14)'}`,

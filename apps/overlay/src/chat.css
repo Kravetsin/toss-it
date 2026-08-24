@@ -236,16 +236,10 @@
   /* Replaces the block layout's bottom gap: inline parts carry their own trailing space. */
   margin: 0 0.4em 0 0;
 }
-/* With one line, the gutter holds nothing but the thread marker, so each glyph re-centres on the
-   bubble's first line: border (1px) + padding (0.28em) + half a line (1.4/2) − half the glyph. */
-#chat[data-compact='on'] .msg .star {
-  top: 0.52em;
-}
-#chat[data-compact='on'] .msg .dot {
-  top: 0.79em;
-}
-#chat[data-compact='on'] .msg .mark {
-  top: 0.56em;
+/* No marker, no thread, no gutter to hold them (chat.ts skips both): the rank moves onto the
+   bubble's left edge, the way the dashboard's cards carry it. */
+#chat[data-compact='on'] .msg {
+  padding-left: 0;
 }
 /* The seal follows the nick into the line — an object the sender is holding, so it stays bigger
    than the platform badges and sits past the name instead of joining their row. */
@@ -361,6 +355,30 @@
    is not visibility. Everything else stays a normal bubble with a colored edge. */
 .msg[data-emphasis='highlighted'] .bubble {
   background: color-mix(in srgb, #9147ff 15%, rgb(13 17 17 / var(--chat-bg)));
+}
+/* The rank edge. Painted as a background layer, NOT as a border or a shadow: border-color is
+   rewritten wholesale by the role/event rules below, box-shadow likewise, and both pseudo-elements
+   belong to the frame cosmetic. A background layer collides with none of them.
+
+   It has to come after every rule that sets `background` on a bubble (the paid highlight does), or
+   that shorthand would reset the layer to none. Squared-off left corners so the edge keeps its full
+   height instead of being eaten by the radius — the bot-answer card does the same. */
+#chat[data-compact='on'] .msg .bubble {
+  background-image: linear-gradient(to right, var(--edge, #8df0cc) 0 3px, transparent 3px);
+  border-radius: 2px 12px 12px 2px;
+  padding-left: 0.85em;
+}
+/* Nothing to unfold from once the star is gone: the row slides in off its own edge, the entrance
+   the bot-answer card already uses. An equipped entrance still wins — [data-fx] excludes it here
+   exactly as it does on the roomy layout. */
+#chat[data-compact='on'] .msg .bubble:not([data-fx]) {
+  animation: sys-in 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+/* An event owns the row's accent, and with the silhouettes gone from the gutter the edge is what
+   is left to carry it — matching the border and caption it already tints. */
+#chat[data-compact='on'] .msg[data-notice] .bubble,
+#chat[data-compact='on'] .msg[data-emphasis] .bubble {
+  --edge: var(--event, #8df0cc);
 }
 /* The bits number rides next to its art in the tier's own color (set inline from the catalog). */
 .msg .bubble .bits {
