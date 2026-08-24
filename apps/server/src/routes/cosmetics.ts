@@ -54,7 +54,7 @@ function earnTotal(userId: string, metric: CosmeticEarn['metric']): Promise<numb
 }
 
 /**
- * Whether the user may USE an item — meets its earn milestone (live) if earned, else owns it.
+ * Whether the user may USE an item — meets its earn milestone (live), or owns it outright.
  * Admins (ADMIN_USER_IDS) may equip the whole catalog: they have to look at every cosmetic on real
  * surfaces to judge it, and grinding each threshold on the live account is not a way to do that.
  * The bypass is USE-only — the buy route still charges, so no grant is ever written for free.
@@ -65,9 +65,13 @@ async function unlocked(userId: string, itemId: string): Promise<boolean> {
   if (isAdmin(userId)) return true;
   // Not obtainable yet — in the catalog only so surfaces can render it (see CosmeticItem.draft).
   if (item.draft) return false;
-  return item.earn
-    ? (await earnProgress(userId, item.earn)) >= item.earn.count
-    : owns(userId, itemId);
+  // A milestone OR a purchase. Both, and in that order, because an item can change how it is
+  // obtained: the runner colours were sold for dust for three days before becoming an earn. Reading
+  // `earn` alone would have taken them back off everyone who paid and had not chatted enough yet —
+  // two of the four buyers, on the day of the switch. Nothing can be bought once it is free
+  // (/buy rejects a zero price), so an ownership row here only ever means "this was paid for".
+  if (item.earn && (await earnProgress(userId, item.earn)) >= item.earn.count) return true;
+  return owns(userId, itemId);
 }
 
 /** Current cosmetic state of a user (balance + owned + equipped). */

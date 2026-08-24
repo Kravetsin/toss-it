@@ -543,12 +543,13 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     equippedId: string | null,
     onEquip: (id: string | null) => void,
   ) => {
-    // Earned items (frames) count as "owned" once the milestone is met; the rest are owned by purchase.
+    // Earned items (frames) count as "owned" once the milestone is met — OR if they were bought
+    // back when they had a price. Same rule as the server's unlocked(); see its note.
     const earn = e.earn;
     const earnMeta = earn ? EARN_META[earn.metric] : null;
     const have = earn ? earnHave(earn) : 0;
     const earnUnit = earnMeta?.unit ?? 1;
-    const owned = earn ? have >= earn.count : ownsItem(e.id);
+    const owned = ownsItem(e.id) || (earn ? have >= earn.count : false);
     const on = equippedId === e.id;
     const mod = cosmeticModule(e.id);
     const labels = mod?.labels;
@@ -570,11 +571,8 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     const colorEarnMeta = colorEarn ? EARN_META[colorEarn.metric] : null;
     const colorHave = colorEarn ? earnHave(colorEarn) : 0;
     const colorUnit = colorEarnMeta?.unit ?? 1;
-    const ownsColorUp = colorEarn
-      ? admin || colorHave >= colorEarn.count
-      : colorUp
-        ? ownsItem(colorUp)
-        : false;
+    const ownsColorUp =
+      (colorUp ? ownsItem(colorUp) : false) || (colorEarn ? colorHave >= colorEarn.count : false);
     // One source of truth for whether the upgrade gets its own block below — the "new" mark on the
     // name covers the upgrade exactly when it does NOT, so the id always has something to clear it.
     const upgradeShown = !!(colorUp && owned && colorItem && colorMod);
@@ -808,11 +806,15 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     const colorItem = colorUp ? COSMETICS.find((c) => c.id === colorUp) : undefined;
     const colorMod = colorUp ? cosmeticModule(colorUp) : undefined;
     const headEarn = head.earn;
-    const headOwned = headEarn ? earnHave(headEarn) >= headEarn.count : ownsItem(head.id);
+    const headOwned =
+      ownsItem(head.id) || (headEarn ? earnHave(headEarn) >= headEarn.count : false);
     const colorEarn = colorItem?.earn;
     // Admins get the picker without the milestone, the same bypass `ownsItem` gives them everywhere
     // else here — otherwise an unreleased seal (no `earn` yet) could not be judged in its own colours.
-    const colorMet = admin || (colorEarn ? earnHave(colorEarn) >= colorEarn.count : false);
+    const colorMet =
+      admin ||
+      (colorUp ? ownsItem(colorUp) : false) ||
+      (colorEarn ? earnHave(colorEarn) >= colorEarn.count : false);
     const colorEarnMeta = colorEarn ? EARN_META[colorEarn.metric] : null;
     const colorHave = colorEarn ? earnHave(colorEarn) : 0;
     const colorUnit = colorEarnMeta?.unit ?? 1;
@@ -849,7 +851,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
               const earnMeta = earn ? EARN_META[earn.metric] : null;
               const have = earn ? earnHave(earn) : 0;
               const unit = earnMeta?.unit ?? 1;
-              const owned = earn ? have >= earn.count : ownsItem(r.id);
+              const owned = ownsItem(r.id) || (earn ? have >= earn.count : false);
               const on = equippedSeal === r.id;
               // A breadth rung's progress reads "2/5" in CHANNELS, which alone doesn't say what a
               // channel has to clear — so the bar goes under it. Without this the rungs of one

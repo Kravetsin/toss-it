@@ -9,8 +9,9 @@ legacy https://toss-it.win 301-redirects here, except /api/\* which stays live f
 
 - `apps/web` — Vite 8 + React 19 SPA, Tailwind 4, react-router 7. Alias `@/` → `apps/web/src`.
   Feature-first layout: `lib/ ui/ hooks/ providers/ features/ pages/`; pages stay thin.
-- `apps/server` — Fastify 5, SQLite (local) / Turso (prod) via Drizzle, socket.io. Serves the
-  built frontends in prod; per-route SEO meta + robots/sitemap live in `src/seo.ts`.
+- `apps/server` — Fastify 5, SQLite via Drizzle, socket.io. The DB is a file on disk both locally and
+  in prod (Turso was dropped in July 2026). Serves the built frontends in prod; per-route SEO meta +
+  robots/sitemap live in `src/seo.ts`.
 - `apps/overlay` — OBS browser-source overlay.
 - `packages/shared` — shared TypeScript types.
 
