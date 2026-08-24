@@ -1,0 +1,1 @@
+ALTER TABLE `channels` ADD `chat_gap` integer DEFAULT 40 NOT NULL;

@@ -481,6 +481,8 @@ export interface ChatOverlayConfig {
   fontSize: number;
   /** Opacity of the dark plate behind a message, in percent (0 = text straight on the stream). */
   bgOpacity: number;
+  /** Gap under each row, in hundredths of an em (40 = 0.4em) so it tracks the font size. */
+  gap: number;
   /** Corner rounding of the message card, in px. */
   radius: number;
   /** Name on the message's own first line instead of a line of its own above it. */
@@ -805,6 +807,7 @@ export interface ChannelSettings {
   chatBgOpacity: number;
   chatCompact: boolean;
   chatRadius: number;
+  chatGap: number;
   /** Chat overlay: render native Twitch badges (mod/vip/sub…) next to the nick. */
   chatShowBadges: boolean;
   /** Chat overlay: render the numeric level (Roman numeral) before the nick — star is unaffected. */

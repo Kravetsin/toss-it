@@ -8,8 +8,6 @@ const BROADCASTER_BADGE =
 /** Broadcaster red, straight from chat.css (--role). */
 const ROLE = '255, 77, 77';
 const NICK = '#8df0cc';
-/** Gap under a row, per layout — the same numbers chat.css sets on --msg-gap. */
-const GAP = { roomy: '0.5em', compact: '0.28em' };
 /** The ranked row's level: high enough to carry the glow (chat.ts lights it from level 6). */
 const DEMO_LEVEL = 8;
 
@@ -35,6 +33,7 @@ export function ChatPreview({
   bgOpacity,
   compact,
   radius,
+  gap,
   showBadges,
   showLevel,
   roleBorders,
@@ -45,13 +44,15 @@ export function ChatPreview({
   /** Nick on the message's first line instead of a line of its own above it. */
   compact: boolean;
   radius: number;
+  /** Hundredths of an em, as stored — chat.css divides the same way. */
+  gap: number;
   showBadges: boolean;
   showLevel: boolean;
   roleBorders: boolean;
 }) {
   const { t } = useI18n();
   const alpha = bgOpacity / 100;
-  const gap = compact ? GAP.compact : GAP.roomy;
+  const rowGap = `${gap / 100}em`;
 
   function Row({ name: who, text, level, badge, role }: RowProps) {
     const tier = level ? levelTier(level) : null;
@@ -107,8 +108,8 @@ export function ChatPreview({
       <div
         className="relative self-start"
         style={{
-          paddingLeft: compact ? 0 : '1.65em',
-          paddingBottom: gap,
+          paddingLeft: compact ? 3 : '1.65em',
+          paddingBottom: rowGap,
           color: '#ededec',
           lineHeight: 1.4,
         }}
@@ -120,9 +121,9 @@ export function ChatPreview({
             style={{
               left: 0,
               top: 0,
-              bottom: gap,
+              bottom: rowGap,
               width: 3,
-              borderRadius: radius * 0.17,
+              borderRadius: `${radius * 0.17}px 0 0 ${radius * 0.17}px`,
               background: edge,
               boxShadow: glow ? `0 0 14px 2px ${glow}` : undefined,
             }}
@@ -148,10 +149,10 @@ export function ChatPreview({
           style={{
             display: 'inline-block',
             maxWidth: '100%',
-            padding: compact ? '0.28em 0.7em 0.28em 0.85em' : '0.28em 0.7em',
-            // Compact squares off the left corners so the edge runs the bubble's full height.
+            padding: '0.28em 0.7em',
+            // Compact squares off the left corners: the card meets the edge along a straight seam.
             borderRadius: compact
-              ? `${radius * 0.17}px ${radius}px ${radius}px ${radius * 0.17}px`
+              ? `0 ${radius}px ${radius}px 0`
               : `${radius * 0.33}px ${radius}px ${radius}px ${radius}px`,
             background: `rgba(13, 17, 17, ${alpha})`,
             backdropFilter: `blur(${alpha * 14}px)`,

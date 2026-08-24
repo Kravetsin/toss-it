@@ -13,9 +13,8 @@
   /* Corner rounding of every card in the column (streamer setting). The corner that points back at
      the thread stays sharper than the rest — a third of it, which is the 4px it always was. */
   --chat-radius: 12px;
-  /* Gap under a row. Roomy rows are two lines tall and can carry a wider one; the compact layout
-     halves the row, so the same gap read as a blank line and it tightens below. */
-  --msg-gap: 0.5em;
+  /* Gap under a row (streamer setting, in em so it tracks the font). */
+  --msg-gap: 0.4em;
 }
 #chat {
   position: fixed;
@@ -259,11 +258,11 @@
 }
 /* No marker, no thread, no gutter to hold them (chat.ts skips both): the rank moves onto the row's
    left edge, the way the dashboard's cards carry it. Rows also close up — see --msg-gap. */
-#chat[data-compact='on'] {
-  --msg-gap: 0.28em;
-}
 #chat[data-compact='on'] .msg {
-  padding-left: 0;
+  /* Room for the edge, which butts against the card rather than lying under it: a backdrop-filter
+     blurs everything painted below it, and the card would smear its own edge away at high opacity.
+     Beside it, the edge also stays clear of a frame cosmetic's ring. */
+  padding-left: 3px;
   /* The bubble is an inline-block sitting on the row's baseline, so the row keeps a strut's worth
      of empty line under it. Invisible until the edge runs the row's full height and pokes out
      below the card; zeroed here and restored on the bubble itself. */
@@ -282,7 +281,8 @@
   top: 0;
   bottom: var(--msg-gap);
   width: 3px;
-  border-radius: calc(var(--chat-radius) * 0.17);
+  /* Round only the outer side: the inner one is a seam with the card. */
+  border-radius: calc(var(--chat-radius) * 0.17) 0 0 calc(var(--chat-radius) * 0.17);
   background: var(--edge, #8df0cc);
   /* From level 6 up only: below it chat.ts sets --tier-glow to the literal 'transparent', so this
      costs nothing there. Wide enough to wash over the rank numeral at the head of the line, and it
@@ -407,12 +407,13 @@
 .msg[data-emphasis='highlighted'] .bubble {
   background: color-mix(in srgb, #9147ff 15%, rgb(13 17 17 / var(--chat-bg)));
 }
-/* Left corners squared off so the edge runs the bubble's full height instead of parting from it
-   along the curve — the bot-answer card is shaped the same way, for the same reason. */
-#chat[data-compact='on'] .msg .bubble {
-  border-radius: calc(var(--chat-radius) * 0.17) var(--chat-radius) var(--chat-radius)
-    calc(var(--chat-radius) * 0.17);
-  padding-left: 0.85em;
+/* Left corners squared off, so the card meets the edge along a straight seam and the two read as
+   one object — a rounded corner would leave the edge standing past the card. Every card in the
+   column follows the rule, the bot answer's own rib included. */
+#chat[data-compact='on'] .msg .bubble,
+#chat[data-compact='on'] .msg.system .sys-card,
+#chat[data-compact='on'] .msg.redeem .redeem-card {
+  border-radius: 0 var(--chat-radius) var(--chat-radius) 0;
 }
 /* Nothing to unfold from once the star is gone: the row slides in off its own edge, the entrance
    the bot-answer card already uses. An equipped entrance still wins — [data-fx] excludes it here
@@ -658,8 +659,8 @@
   box-sizing: border-box;
   padding: 0.3em 0.7em;
   border-left: 2px solid rgba(141, 240, 204, 0.75);
-  border-radius: calc(var(--chat-radius) * 0.17) var(--chat-radius) var(--chat-radius)
-    calc(var(--chat-radius) * 0.17);
+  /* Square where the rib runs, so the 2px line does not stand past the card's own curve. */
+  border-radius: 0 var(--chat-radius) var(--chat-radius) 0;
   /* Lighter than the redemption card (0.18) so the two still read apart; darker than a plain
      message bubble so it never passes for one. */
   background: linear-gradient(

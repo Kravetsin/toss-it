@@ -136,7 +136,7 @@ function renderFragments(parent: HTMLElement, fragments: ChatFragment[]): void {
 function buildSeal(cosmetics: ChatOverlayMessage['cosmetics'], cls: string): HTMLElement {
   const seal = document.createElement('span');
   seal.className = `seal ${cls}`;
-  // Constant markup from the cosmetics registry â not user input (same rule as the star glyph).
+  // Constant markup from the cosmetics registry — not user input (same rule as the star glyph).
   seal.innerHTML = sealMarkup(cosmetics?.seal);
   // Colourable seals read their tint from --seal-tint; a plain seal has no entry.
   const sealColor = cosmetics?.seal ? cosmetics.sealColors?.[cosmetics.seal] : undefined;
@@ -623,6 +623,10 @@ function applyConfig(cfg: ChatOverlayConfig): void {
     document.documentElement.style.setProperty('--chat-bg', String(cfg.bgOpacity / 100));
   if (typeof cfg.radius === 'number')
     document.documentElement.style.setProperty('--chat-radius', `${cfg.radius}px`);
+  // Hundredths of an em on the wire: the gap has to scale with the font, and an integer column
+  // keeps the setting in the same shape as every other slider.
+  if (typeof cfg.gap === 'number')
+    document.documentElement.style.setProperty('--msg-gap', `${cfg.gap / 100}em`);
   compact = cfg.compact === true;
   chat.dataset.compact = compact ? 'on' : 'off';
   fadeSeconds = cfg.fadeSeconds;
@@ -652,13 +656,14 @@ function clearAll(): void {
 }
 
 if (DEMO) {
-  // ?font= / ?bg= / ?compact=1 / ?fade= / ?badges=0 / ?level=0 / ?roles=0 exercise config.
+  // ?font= / ?bg= / ?compact=1 / ?radius= / ?gap= / ?fade= / ?badges=0 / ?level=0 / ?roles=0.
   const q = new URLSearchParams(window.location.search);
   applyConfig({
     fontSize: Number(q.get('font')) || 19,
     bgOpacity: q.has('bg') ? Number(q.get('bg')) : 58,
     compact: q.get('compact') === '1',
     radius: q.has('radius') ? Number(q.get('radius')) : 12,
+    gap: q.has('gap') ? Number(q.get('gap')) : 40,
     fadeSeconds: Number(q.get('fade')) || 0,
     showBadges: q.get('badges') !== '0',
     showLevel: q.get('level') !== '0',

@@ -182,6 +182,7 @@ const MOCK_SETTINGS: ChannelSettings = {
   chatBgOpacity: 58,
   chatCompact: false,
   chatRadius: 12,
+  chatGap: 40,
   chatShowBadges: true,
   chatShowLevel: true,
   chatRoleBorders: true,

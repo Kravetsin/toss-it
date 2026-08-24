@@ -201,6 +201,7 @@ export function ChatSettings({
   const [chatBg, setChatBg] = useState(settings.chatBgOpacity);
   const [chatCompact, setChatCompact] = useState(settings.chatCompact);
   const [chatRadius, setChatRadius] = useState(settings.chatRadius);
+  const [chatGap, setChatGap] = useState(settings.chatGap);
   const [showBadges, setShowBadges] = useState(settings.chatShowBadges);
   const [roleBorders, setRoleBorders] = useState(settings.chatRoleBorders);
   return (
@@ -222,6 +223,7 @@ export function ChatSettings({
             bgOpacity={chatBg}
             compact={chatCompact}
             radius={chatRadius}
+            gap={chatGap}
             showBadges={showBadges}
             showLevel={settings.chatShowLevel}
             roleBorders={roleBorders}
@@ -278,6 +280,16 @@ export function ChatSettings({
               value={chatRadius}
               onChange={setChatRadius}
             />
+            {/* Stored in hundredths of an em; shown in px at the font in force, which is the number
+                the streamer is actually looking at. */}
+            <Slider
+              icon="grip-vertical"
+              label={t('dash.chatGap', { n: Math.round((chatGap * chatFont) / 100) })}
+              min={0}
+              max={120}
+              value={chatGap}
+              onChange={setChatGap}
+            />
           </div>
           <Switch
             icon="sparkles"
@@ -323,6 +335,7 @@ export function ChatSettings({
             chatBgOpacity: chatBg,
             chatCompact,
             chatRadius,
+            chatGap,
             chatShowBadges: showBadges,
             chatRoleBorders: roleBorders,
           })
