@@ -456,6 +456,13 @@
       "when": 1787065875739,
       "tag": "0064_quick_jimmy_woo",
       "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "6",
+      "when": 1787599173743,
+      "tag": "0065_abandoned_dazzler",
+      "breakpoints": true
     }
   ]
 }

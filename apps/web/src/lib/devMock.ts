@@ -179,6 +179,7 @@ const MOCK_SETTINGS: ChannelSettings = {
   botLocale: 'ru' as const,
   chatFontSize: 19,
   chatFadeSeconds: 0,
+  chatBgOpacity: 58,
   chatShowBadges: true,
   chatShowLevel: true,
   chatRoleBorders: true,

@@ -194,6 +194,7 @@ export function ChatSettings({
   const [chatOverlay, setChatOverlay] = useState(settings.chatOverlayEnabled);
   const [chatFont, setChatFont] = useState(settings.chatFontSize);
   const [chatFade, setChatFade] = useState(settings.chatFadeSeconds);
+  const [chatBg, setChatBg] = useState(settings.chatBgOpacity);
   const [showBadges, setShowBadges] = useState(settings.chatShowBadges);
   const [roleBorders, setRoleBorders] = useState(settings.chatRoleBorders);
   return (
@@ -223,6 +224,14 @@ export function ChatSettings({
               max={120}
               value={chatFade}
               onChange={setChatFade}
+            />
+            <Slider
+              icon="palette"
+              label={t('dash.chatBgOpacity', { n: chatBg })}
+              min={0}
+              max={100}
+              value={chatBg}
+              onChange={setChatBg}
             />
           </div>
           <Switch
@@ -266,6 +275,7 @@ export function ChatSettings({
             chatOverlayEnabled: chatOverlay,
             chatFontSize: chatFont,
             chatFadeSeconds: chatFade,
+            chatBgOpacity: chatBg,
             chatShowBadges: showBadges,
             chatRoleBorders: roleBorders,
           })

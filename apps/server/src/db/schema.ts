@@ -143,6 +143,8 @@ export const channels = sqliteTable('channels', {
    *  creation, then owned by the streamer — the UI language and the chat language differ often. */
   botLocale: text('bot_locale').$type<BotLocale>().notNull().default('ru'),
   chatFontSize: integer('chat_font_size').notNull().default(19),
+  // Opacity of the plate behind a chat message, in percent; 0 puts the text on the bare stream.
+  chatBgOpacity: integer('chat_bg_opacity').notNull().default(58),
   // Seconds before a chat message fades out; 0 = keep until pushed off by newer ones.
   chatFadeSeconds: integer('chat_fade_seconds').notNull().default(0),
   // Chat overlay per-element toggles (all default on): Twitch badges, level numeral, role borders.

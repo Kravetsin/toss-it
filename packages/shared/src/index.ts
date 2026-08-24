@@ -479,6 +479,8 @@ export interface ChatSystemEvent extends ChatSystemLine {
 export interface ChatOverlayConfig {
   /** Message font size in px. */
   fontSize: number;
+  /** Opacity of the dark plate behind a message, in percent (0 = text straight on the stream). */
+  bgOpacity: number;
   /** Seconds a message stays before fading out; 0 = keep until pushed off. */
   fadeSeconds: number;
   /** Render native Twitch badges next to the nick. */
@@ -796,6 +798,7 @@ export interface ChannelSettings {
   chatFontSize: number;
   /** Chat overlay: seconds before a message fades out; 0 = keep until pushed off. */
   chatFadeSeconds: number;
+  chatBgOpacity: number;
   /** Chat overlay: render native Twitch badges (mod/vip/sub…) next to the nick. */
   chatShowBadges: boolean;
   /** Chat overlay: render the numeric level (Roman numeral) before the nick — star is unaffected. */

@@ -6,6 +6,10 @@
      its box, so a tighter inset gets it clipped by the window edge. #rail is a sibling and must
      track the same number — hence one variable instead of two literals drifting apart. */
   --chat-left: 18px;
+  /* Alpha of the plate behind every chat card (streamer setting, pushed by chat:config).
+     The blur is derived from it, so dialing the plate away drops the frosting too — at 0 the text
+     has to sit on the bare stream, otherwise the setting only half-works. */
+  --chat-bg: 0.58;
 }
 #chat {
   position: fixed;
@@ -176,9 +180,9 @@
   box-sizing: border-box;
   padding: 0.28em 0.7em;
   border-radius: 4px 12px 12px 12px;
-  background: rgba(13, 17, 17, 0.58);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
+  background: rgb(13 17 17 / var(--chat-bg));
+  -webkit-backdrop-filter: blur(calc(var(--chat-bg) * 14px));
+  backdrop-filter: blur(calc(var(--chat-bg) * 14px));
   border: 1px solid rgba(141, 240, 204, 0.14);
   box-shadow: 0 8px 22px -12px rgba(0, 0, 0, 0.6);
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
@@ -323,7 +327,7 @@
 /* A paid highlight is the only one that also fills: the viewer bought visibility, and a hairline
    is not visibility. Everything else stays a normal bubble with a colored edge. */
 .msg[data-emphasis='highlighted'] .bubble {
-  background: color-mix(in srgb, #9147ff 15%, rgba(13, 17, 17, 0.58));
+  background: color-mix(in srgb, #9147ff 15%, rgb(13 17 17 / var(--chat-bg)));
 }
 /* The bits number rides next to its art in the tier's own color (set inline from the catalog). */
 .msg .bubble .bits {
@@ -437,7 +441,13 @@
   box-sizing: border-box;
   padding: 0.34em 0.7em;
   border-radius: 4px 12px 12px 12px;
-  background: linear-gradient(135deg, rgba(141, 240, 204, 0.18), rgba(13, 17, 17, 0.62));
+  /* Multipliers keep these cards a touch denser than a plain bubble at any setting (they were
+     0.62 and 0.66 against its 0.58), so the slider moves the whole surface as one. */
+  background: linear-gradient(
+    135deg,
+    rgba(141, 240, 204, 0.18),
+    rgb(13 17 17 / calc(var(--chat-bg) * 1.07))
+  );
   border: 1px solid rgba(141, 240, 204, 0.42);
   box-shadow:
     0 0 16px -4px rgba(141, 240, 204, 0.5),
@@ -547,9 +557,13 @@
   border-radius: 2px 12px 12px 2px;
   /* Lighter than the redemption card (0.18) so the two still read apart; darker than a plain
      message bubble so it never passes for one. */
-  background: linear-gradient(135deg, rgba(141, 240, 204, 0.12), rgba(13, 17, 17, 0.66));
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
+  background: linear-gradient(
+    135deg,
+    rgba(141, 240, 204, 0.12),
+    rgb(13 17 17 / calc(var(--chat-bg) * 1.14))
+  );
+  -webkit-backdrop-filter: blur(calc(var(--chat-bg) * 14px));
+  backdrop-filter: blur(calc(var(--chat-bg) * 14px));
   line-height: 1.25;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
   transform-origin: 0 0;

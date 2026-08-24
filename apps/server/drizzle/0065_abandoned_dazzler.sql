@@ -1,0 +1,1 @@
+ALTER TABLE `channels` ADD `chat_bg_opacity` integer DEFAULT 58 NOT NULL;

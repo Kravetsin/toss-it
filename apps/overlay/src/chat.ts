@@ -581,6 +581,10 @@ function fadeOut(row: HTMLElement): void {
 function applyConfig(cfg: ChatOverlayConfig): void {
   // On :root so both #chat and #rail (a sibling) pick it up.
   document.documentElement.style.setProperty('--chat-font', `${cfg.fontSize}px`);
+  // Percent on the wire, 0-1 alpha in CSS; an older server sends nothing, so the stylesheet
+  // default stands rather than the plate vanishing.
+  if (typeof cfg.bgOpacity === 'number')
+    document.documentElement.style.setProperty('--chat-bg', String(cfg.bgOpacity / 100));
   fadeSeconds = cfg.fadeSeconds;
   // Per-element toggles are applied via CSS on the container (chat.css), so flipping one instantly
   // affects every message, old and new. Default on: only 'off' when explicitly false.
@@ -608,10 +612,11 @@ function clearAll(): void {
 }
 
 if (DEMO) {
-  // ?font= / ?fade= / ?badges=0 / ?level=0 / ?roles=0 exercise config without a server.
+  // ?font= / ?bg= / ?fade= / ?badges=0 / ?level=0 / ?roles=0 exercise config without a server.
   const q = new URLSearchParams(window.location.search);
   applyConfig({
     fontSize: Number(q.get('font')) || 19,
+    bgOpacity: q.has('bg') ? Number(q.get('bg')) : 58,
     fadeSeconds: Number(q.get('fade')) || 0,
     showBadges: q.get('badges') !== '0',
     showLevel: q.get('level') !== '0',
