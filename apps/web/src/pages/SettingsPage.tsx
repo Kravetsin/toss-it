@@ -149,7 +149,12 @@ export function SettingsPage() {
             <MusicSettings settings={settings} onSave={onSave} />
           </Accordion>
           <Accordion title={t('settings.chat')} icon="message-circle">
-            <ChatSettings settings={settings} onSave={onSave} channelId={channelId} />
+            <ChatSettings
+              settings={settings}
+              onSave={onSave}
+              channelId={channelId}
+              login={current?.displayName ?? current?.login ?? 'streamer'}
+            />
           </Accordion>
         </div>
       ) : section === 'moderation' ? (

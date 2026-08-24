@@ -6,6 +6,7 @@ import { LayoutPreview, PositionGrid, Slider, Switch } from '@/ui';
 import { Icon } from '@/ui/icons';
 import { SaveRow } from './controls';
 import { ChatBurstButton } from './ChatBurstButton';
+import { ChatPreview } from './ChatPreview';
 import { MusicDisplayChoice } from '../MusicDisplayChoice';
 
 type Save = (patch: Partial<ChannelSettings>) => void;
@@ -185,10 +186,13 @@ export function ChatSettings({
   settings,
   onSave,
   channelId,
+  login,
 }: {
   settings: ChannelSettings;
   onSave: Save;
   channelId: string;
+  /** Whose name the preview row carries: the streamer's own, so it reads as their chat. */
+  login: string;
 }) {
   const { t } = useI18n();
   const [chatOverlay, setChatOverlay] = useState(settings.chatOverlayEnabled);
@@ -208,6 +212,15 @@ export function ChatSettings({
       />
       {chatOverlay && (
         <div className="flex flex-col gap-4 border-l border-accent/40 pl-4">
+          {/* Above the sliders that drive it: the row is what they are all about, and it has to
+              stay in frame while a slider under the thumb moves. */}
+          <ChatPreview
+            name={login}
+            fontSize={chatFont}
+            bgOpacity={chatBg}
+            showBadges={showBadges}
+            roleBorders={roleBorders}
+          />
           <div className="grid gap-4 sm:grid-cols-2">
             <Slider
               icon="message-circle"
