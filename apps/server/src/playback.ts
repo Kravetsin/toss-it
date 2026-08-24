@@ -1379,6 +1379,7 @@ export function setupRealtime(io: RealtimeServer, app: FastifyInstance): Playbac
             fontSize: channel.chatFontSize,
             fadeSeconds: channel.chatFadeSeconds,
             bgOpacity: channel.chatBgOpacity,
+            compact: channel.chatCompact,
             showBadges: channel.chatShowBadges,
             showLevel: channel.chatShowLevel,
             roleBorders: channel.chatRoleBorders,

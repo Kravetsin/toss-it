@@ -66,6 +66,10 @@ const SERVER_URL = overlayServerUrl();
 const chat = document.getElementById('chat')!;
 const rail = document.getElementById('rail')!;
 
+// Compact rows: the nick rides the message's first line, the way the bot-answer card lays out.
+// Updated by chat:config; the markup differs, so a change lands on the NEXT message, not on the
+// ones already on screen (they scroll off within seconds of chat).
+let compact = false;
 // Seconds a message lives before fading; 0 = keep. Updated by chat:config.
 let fadeSeconds = 0;
 // Pending fade timer per message, so a config change can reschedule/cancel them.
@@ -127,6 +131,19 @@ function renderFragments(parent: HTMLElement, fragments: ChatFragment[]): void {
   }
 }
 
+/** The sender's seal as a standalone element: the gutter object on a normal row, an item held at
+ *  the end of the name line on a compact one. */
+function buildSeal(cosmetics: ChatOverlayMessage['cosmetics'], cls: string): HTMLElement {
+  const seal = document.createElement('span');
+  seal.className = `seal ${cls}`;
+  // Constant markup from the cosmetics registry â not user input (same rule as the star glyph).
+  seal.innerHTML = sealMarkup(cosmetics?.seal);
+  // Colourable seals read their tint from --seal-tint; a plain seal has no entry.
+  const sealColor = cosmetics?.seal ? cosmetics.sealColors?.[cosmetics.seal] : undefined;
+  if (sealColor) seal.style.setProperty('--seal-tint', sealColor);
+  return seal;
+}
+
 function renderMessage(msg: ChatOverlayMessage): void {
   const row = document.createElement('div');
   row.className = 'msg';
@@ -177,6 +194,7 @@ function renderMessage(msg: ChatOverlayMessage): void {
   }
 
   const sealCls = sealEffectClass(msg.cosmetics?.seal);
+  const seal = sealCls ? buildSeal(msg.cosmetics, sealCls) : null;
 
   // Name on its own line above the message, so long pastes never wrap around it.
   const nameLine = document.createElement('div');
@@ -217,7 +235,10 @@ function renderMessage(msg: ChatOverlayMessage): void {
   if (nick.className) name.classList.add(...nick.className.split(' '));
   applyStyleMap(name, nick.style);
   nameLine.appendChild(name);
-  row.appendChild(nameLine);
+  // Compact puts the name INSIDE the bubble (added below, right before the body) so it shares the
+  // first line with the text. Otherwise it is its own line above the bubble.
+  if (compact && seal) nameLine.appendChild(seal);
+  if (!compact) row.appendChild(nameLine);
 
   // Message bubble; card-effect particles render behind the text, clipped to the bubble.
   const bubble = document.createElement('div');
@@ -267,6 +288,7 @@ function renderMessage(msg: ChatOverlayMessage): void {
     caption.textContent = captionText;
     bubble.appendChild(caption);
   }
+  if (compact) bubble.appendChild(nameLine);
   const body = document.createElement('span');
   body.className = 'body';
   renderFragments(body, msg.fragments);
@@ -274,19 +296,11 @@ function renderMessage(msg: ChatOverlayMessage): void {
   if (msg.fragments.length > 0 || !msg.notice) bubble.appendChild(body);
   // The seal rides WITH the bubble, not with the row: the name line's height varies (numeral,
   // badges), so anything positioned from the row's top drifts off the first line. Anchoring to a
-  // wrapper that starts exactly where the bubble starts makes the offset a constant.
-  if (sealCls) {
+  // wrapper that starts exactly where the bubble starts makes the offset a constant. Compact has
+  // no gutter to spare — the seal went into the name line above.
+  if (seal && !compact) {
     const bodyRow = document.createElement('div');
     bodyRow.className = 'body-row';
-    const seal = document.createElement('span');
-    seal.className = `seal ${sealCls}`;
-    // Constant markup from the cosmetics registry — not user input (same rule as the star glyph).
-    seal.innerHTML = sealMarkup(msg.cosmetics?.seal);
-    // Colourable seals read their tint from --seal-tint; a plain seal has no entry.
-    const sealColor = msg.cosmetics?.seal
-      ? msg.cosmetics.sealColors?.[msg.cosmetics.seal]
-      : undefined;
-    if (sealColor) seal.style.setProperty('--seal-tint', sealColor);
     bodyRow.append(seal, bubble);
     row.appendChild(bodyRow);
   } else {
@@ -585,6 +599,8 @@ function applyConfig(cfg: ChatOverlayConfig): void {
   // default stands rather than the plate vanishing.
   if (typeof cfg.bgOpacity === 'number')
     document.documentElement.style.setProperty('--chat-bg', String(cfg.bgOpacity / 100));
+  compact = cfg.compact === true;
+  chat.dataset.compact = compact ? 'on' : 'off';
   fadeSeconds = cfg.fadeSeconds;
   // Per-element toggles are applied via CSS on the container (chat.css), so flipping one instantly
   // affects every message, old and new. Default on: only 'off' when explicitly false.
@@ -612,11 +628,12 @@ function clearAll(): void {
 }
 
 if (DEMO) {
-  // ?font= / ?bg= / ?fade= / ?badges=0 / ?level=0 / ?roles=0 exercise config without a server.
+  // ?font= / ?bg= / ?compact=1 / ?fade= / ?badges=0 / ?level=0 / ?roles=0 exercise config.
   const q = new URLSearchParams(window.location.search);
   applyConfig({
     fontSize: Number(q.get('font')) || 19,
     bgOpacity: q.has('bg') ? Number(q.get('bg')) : 58,
+    compact: q.get('compact') === '1',
     fadeSeconds: Number(q.get('fade')) || 0,
     showBadges: q.get('badges') !== '0',
     showLevel: q.get('level') !== '0',

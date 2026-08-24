@@ -249,6 +249,7 @@ function toSettings(
     chatFontSize: ch.chatFontSize,
     chatFadeSeconds: ch.chatFadeSeconds,
     chatBgOpacity: ch.chatBgOpacity,
+    chatCompact: ch.chatCompact,
     chatShowBadges: ch.chatShowBadges,
     chatShowLevel: ch.chatShowLevel,
     chatRoleBorders: ch.chatRoleBorders,
@@ -754,6 +755,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
           typeof b.chatBgOpacity === 'number'
             ? clamp(Math.round(b.chatBgOpacity), 0, 100)
             : channel.chatBgOpacity,
+        chatCompact: typeof b.chatCompact === 'boolean' ? b.chatCompact : channel.chatCompact,
         chatShowBadges:
           typeof b.chatShowBadges === 'boolean' ? b.chatShowBadges : channel.chatShowBadges,
         chatShowLevel:
@@ -834,6 +836,7 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
         fontSize: patch.chatFontSize,
         fadeSeconds: patch.chatFadeSeconds,
         bgOpacity: patch.chatBgOpacity,
+        compact: patch.chatCompact,
         showBadges: patch.chatShowBadges,
         showLevel: patch.chatShowLevel,
         roleBorders: patch.chatRoleBorders,

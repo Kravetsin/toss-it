@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { ChannelSettings, MusicDisplay, OverlayPosition } from '@tmw/shared';
 import { useI18n } from '@/i18n';
-import { LayoutPreview, PositionGrid, Slider, Switch } from '@/ui';
+import { LayoutPreview, PositionGrid, Slider, Switch, TogglePill } from '@/ui';
 import { Icon } from '@/ui/icons';
 import { SaveRow } from './controls';
 import { ChatBurstButton } from './ChatBurstButton';
@@ -199,6 +199,7 @@ export function ChatSettings({
   const [chatFont, setChatFont] = useState(settings.chatFontSize);
   const [chatFade, setChatFade] = useState(settings.chatFadeSeconds);
   const [chatBg, setChatBg] = useState(settings.chatBgOpacity);
+  const [chatCompact, setChatCompact] = useState(settings.chatCompact);
   const [showBadges, setShowBadges] = useState(settings.chatShowBadges);
   const [roleBorders, setRoleBorders] = useState(settings.chatRoleBorders);
   return (
@@ -218,9 +219,29 @@ export function ChatSettings({
             name={login}
             fontSize={chatFont}
             bgOpacity={chatBg}
+            compact={chatCompact}
             showBadges={showBadges}
             roleBorders={roleBorders}
           />
+          {/* Right under the preview that shows what it does: the two words alone do not tell a
+              streamer which one their chat becomes. */}
+          <div>
+            <span className="label-mono text-muted">{t('dash.chatLayout')}</span>
+            <div className="mt-1.5 flex flex-wrap gap-2">
+              <TogglePill
+                active={!chatCompact}
+                icon="message-circle"
+                label={t('dash.chatLayoutRoomy')}
+                onClick={() => setChatCompact(false)}
+              />
+              <TogglePill
+                active={chatCompact}
+                icon="menu"
+                label={t('dash.chatLayoutCompact')}
+                onClick={() => setChatCompact(true)}
+              />
+            </div>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Slider
               icon="message-circle"
@@ -289,6 +310,7 @@ export function ChatSettings({
             chatFontSize: chatFont,
             chatFadeSeconds: chatFade,
             chatBgOpacity: chatBg,
+            chatCompact,
             chatShowBadges: showBadges,
             chatRoleBorders: roleBorders,
           })

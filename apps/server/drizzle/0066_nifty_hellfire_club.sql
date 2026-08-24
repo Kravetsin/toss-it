@@ -1,0 +1,1 @@
+ALTER TABLE `channels` ADD `chat_compact` integer DEFAULT false NOT NULL;

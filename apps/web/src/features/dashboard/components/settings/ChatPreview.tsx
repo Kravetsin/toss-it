@@ -19,17 +19,41 @@ export function ChatPreview({
   name,
   fontSize,
   bgOpacity,
+  compact,
   showBadges,
   roleBorders,
 }: {
   name: string;
   fontSize: number;
   bgOpacity: number;
+  /** Nick on the message's first line instead of a line of its own above it. */
+  compact: boolean;
   showBadges: boolean;
   roleBorders: boolean;
 }) {
   const { t } = useI18n();
   const alpha = bgOpacity / 100;
+  // The name line is the same content in both layouts — only where it lands changes.
+  const nameLine = (
+    <span
+      className="inline-flex items-center"
+      style={{ gap: '0.26em', whiteSpace: 'nowrap', marginRight: compact ? '0.4em' : undefined }}
+    >
+      {showBadges && (
+        <img
+          src={BROADCASTER_BADGE}
+          alt=""
+          style={{
+            width: '1.05em',
+            height: '1.05em',
+            borderRadius: 3,
+            filter: 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55))',
+          }}
+        />
+      )}
+      <span style={{ fontWeight: 700, color: '#8df0cc' }}>{name}</span>
+    </span>
+  );
   return (
     <div>
       <span className="text-sm text-muted">{t('dash.preview')}</span>
@@ -54,31 +78,15 @@ export function ChatPreview({
             className="absolute"
             style={{
               left: '0.06em',
-              top: '0.22em',
+              // Follows the marker: on the name line normally, on the bubble's first line compact.
+              top: compact ? '0.52em' : '0.22em',
               color: '#8df0cc',
               filter: 'drop-shadow(0 0 4px rgba(141, 240, 204, 0.6))',
             }}
           >
             <StarMark size={fontSize * 0.95} />
           </span>
-          <div
-            className="flex items-center"
-            style={{ gap: '0.26em', marginBottom: '0.28em', whiteSpace: 'nowrap' }}
-          >
-            {showBadges && (
-              <img
-                src={BROADCASTER_BADGE}
-                alt=""
-                style={{
-                  width: '1.05em',
-                  height: '1.05em',
-                  borderRadius: 3,
-                  filter: 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55))',
-                }}
-              />
-            )}
-            <span style={{ fontWeight: 700, color: '#8df0cc' }}>{name}</span>
-          </div>
+          {!compact && <div style={{ marginBottom: '0.28em' }}>{nameLine}</div>}
           <div
             style={{
               display: 'inline-block',
@@ -95,6 +103,7 @@ export function ChatPreview({
               textShadow: '0 1px 3px rgba(0, 0, 0, 0.5)',
             }}
           >
+            {compact && nameLine}
             {t('dash.chatPreviewText')}
           </div>
         </div>

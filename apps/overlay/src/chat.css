@@ -221,6 +221,39 @@
     0 8px 22px -12px rgba(0, 0, 0, 0.6),
     0 0 14px -3px color-mix(in srgb, var(--role) 42%, transparent);
 }
+/* --- Compact rows ------------------------------------------------------------------------------
+   The nick rides the message's first line instead of standing above it, in the bot-answer card's
+   layout (.sys-line): the name stays one unbreakable inline-flex box while the text flows inline
+   after it, so a long message wraps across the bubble's full width rather than into a narrow column
+   beside the nick. applyConfig sets the flag on #chat, but the markup differs — only rows rendered
+   after the switch are compact, the ones already up scroll off as they were. */
+#chat[data-compact='on'] .msg .name-line {
+  display: inline-flex;
+  /* Inside the bubble now, so it needs the same lift over the card-effect layer that .body has —
+     the particle layer is positioned and would otherwise paint straight over the nick. */
+  position: relative;
+  z-index: 1;
+  /* Replaces the block layout's bottom gap: inline parts carry their own trailing space. */
+  margin: 0 0.4em 0 0;
+}
+/* With one line, the gutter holds nothing but the thread marker, so each glyph re-centres on the
+   bubble's first line: border (1px) + padding (0.28em) + half a line (1.4/2) − half the glyph. */
+#chat[data-compact='on'] .msg .star {
+  top: 0.52em;
+}
+#chat[data-compact='on'] .msg .dot {
+  top: 0.79em;
+}
+#chat[data-compact='on'] .msg .mark {
+  top: 0.56em;
+}
+/* The seal follows the nick into the line — an object the sender is holding, so it stays bigger
+   than the platform badges and sits past the name instead of joining their row. */
+#chat[data-compact='on'] .msg .name-line .seal {
+  width: 1.25em;
+  height: 1.25em;
+  margin-left: 0.1em;
+}
 /* Per-element toggles from chat:config (applyConfig sets these on #chat). */
 #chat[data-badges='off'] .tw-badge {
   display: none;
