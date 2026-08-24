@@ -17,6 +17,9 @@ type RowProps = {
   level: number;
   badge: boolean;
   role: boolean;
+  /** Where the row sits in the column: the thread dissolves above the first and stops at the last. */
+  first?: boolean;
+  last?: boolean;
 };
 
 /**
@@ -54,7 +57,7 @@ export function ChatPreview({
   const alpha = bgOpacity / 100;
   const rowGap = `${gap / 100}em`;
 
-  function Row({ name: who, text, level, badge, role }: RowProps) {
+  function Row({ name: who, text, level, badge, role, first, last }: RowProps) {
     const tier = level ? levelTier(level) : null;
     const glow = tier && level >= LEVEL_GLOW_FROM ? tier.color : null;
     const edge = tier?.color ?? NICK;
@@ -115,9 +118,9 @@ export function ChatPreview({
         }}
       >
         {compact ? (
-          // The rank edge: on the row, so its glow is free to reach past the bubble's clip.
+          // The rank edge, above the card so its glow carries into it as well as out.
           <span
-            className="absolute"
+            className="absolute z-[1]"
             style={{
               left: 0,
               top: 0,
@@ -125,24 +128,48 @@ export function ChatPreview({
               width: 3,
               borderRadius: `${radius * 0.17}px 0 0 ${radius * 0.17}px`,
               background: edge,
-              boxShadow: glow ? `0 0 14px 2px ${glow}` : undefined,
+              boxShadow: glow
+                ? `0 0 6px 1px ${glow}, 0 0 18px 4px color-mix(in srgb, ${glow} 45%, transparent)`
+                : undefined,
             }}
           />
         ) : (
-          <span
-            className="absolute"
-            style={{
-              left: '0.06em',
-              top: '0.22em',
-              // The star is inline-block, so an inherited line-height would seat it on a baseline
-              // and push it below the name it is supposed to be level with.
-              lineHeight: 0,
-              color: edge,
-              filter: glow ? `drop-shadow(0 0 4px ${glow})` : undefined,
-            }}
-          >
-            <StarMark size={fontSize * 0.95} />
-          </span>
+          <>
+            {/* The thread the markers hang on: one line down the column, ending at the newest
+                star and dissolving into nothing at the top. */}
+            <span
+              aria-hidden
+              className="absolute"
+              style={{
+                left: '0.535em',
+                top: 0,
+                marginLeft: -1,
+                width: 2,
+                height: last ? '0.695em' : '100%',
+                background: 'rgba(141, 240, 204, 0.18)',
+                maskImage: first
+                  ? 'linear-gradient(to bottom, transparent, #000 2.2em)'
+                  : undefined,
+                WebkitMaskImage: first
+                  ? 'linear-gradient(to bottom, transparent, #000 2.2em)'
+                  : undefined,
+              }}
+            />
+            <span
+              className="absolute"
+              style={{
+                left: '0.06em',
+                top: '0.22em',
+                // The star is inline-block, so an inherited line-height would seat it on a baseline
+                // and push it below the name it is supposed to be level with.
+                lineHeight: 0,
+                color: edge,
+                filter: glow ? `drop-shadow(0 0 4px ${glow})` : undefined,
+              }}
+            >
+              <StarMark size={fontSize * 0.95} />
+            </span>
+          </>
         )}
         {!compact && <div style={{ marginBottom: '0.28em' }}>{nameLine}</div>}
         <div
@@ -191,8 +218,9 @@ export function ChatPreview({
           level={DEMO_LEVEL}
           badge={false}
           role={false}
+          first
         />
-        <Row name={name} text={t('dash.chatPreviewText2')} level={0} badge role />
+        <Row name={name} text={t('dash.chatPreviewText2')} level={0} badge role last />
       </div>
     </div>
   );

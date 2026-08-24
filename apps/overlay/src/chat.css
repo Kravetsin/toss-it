@@ -284,10 +284,17 @@
   /* Round only the outer side: the inner one is a seam with the card. */
   border-radius: calc(var(--chat-radius) * 0.17) 0 0 calc(var(--chat-radius) * 0.17);
   background: var(--edge, #8df0cc);
+  /* Above the card, so the glow below spills INTO it. The edge itself still butts against the card
+     rather than overlapping it, so a frame cosmetic's ring stays uncovered; only the light crosses. */
+  z-index: 1;
   /* From level 6 up only: below it chat.ts sets --tier-glow to the literal 'transparent', so this
      costs nothing there. Wide enough to wash over the rank numeral at the head of the line, and it
-     stays that wide when the streamer hides the numeral — the glow marks the rank, not the digit. */
-  box-shadow: 0 0 14px 2px var(--tier-glow, transparent);
+     stays that wide when the streamer hides the numeral — the glow marks the rank, not the digit.
+     Two stops: a tight bright one at the edge, and a wide soft one that carries over the card
+     without drowning the first word. */
+  box-shadow:
+    0 0 6px 1px var(--tier-glow, transparent),
+    0 0 18px 4px color-mix(in srgb, var(--tier-glow, transparent) 45%, transparent);
 }
 /* The seal follows the nick into the line — an object the sender is holding, so it stays bigger
    than the platform badges and sits past the name instead of joining their row. */
