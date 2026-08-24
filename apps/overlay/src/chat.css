@@ -10,6 +10,12 @@
      The blur is derived from it, so dialing the plate away drops the frosting too — at 0 the text
      has to sit on the bare stream, otherwise the setting only half-works. */
   --chat-bg: 0.58;
+  /* Corner rounding of every card in the column (streamer setting). The corner that points back at
+     the thread stays sharper than the rest — a third of it, which is the 4px it always was. */
+  --chat-radius: 12px;
+  /* Gap under a row. Roomy rows are two lines tall and can carry a wider one; the compact layout
+     halves the row, so the same gap read as a blank line and it tightens below. */
+  --msg-gap: 0.5em;
 }
 #chat {
   position: fixed;
@@ -33,7 +39,7 @@
   flex: 0 0 auto;
   max-width: 100%;
   box-sizing: border-box;
-  padding: 0 0 0.72em 1.65em;
+  padding: 0 0 var(--msg-gap) 1.65em;
   color: #ededec;
   line-height: 1.4;
 }
@@ -179,7 +185,8 @@
   max-width: 100%;
   box-sizing: border-box;
   padding: 0.28em 0.7em;
-  border-radius: 4px 12px 12px 12px;
+  border-radius: calc(var(--chat-radius) * 0.33) var(--chat-radius) var(--chat-radius)
+    var(--chat-radius);
   background: rgb(13 17 17 / var(--chat-bg));
   -webkit-backdrop-filter: blur(calc(var(--chat-bg) * 14px));
   backdrop-filter: blur(calc(var(--chat-bg) * 14px));
@@ -223,12 +230,16 @@
 }
 /* --- Compact rows ------------------------------------------------------------------------------
    The nick rides the message's first line instead of standing above it, in the bot-answer card's
-   layout (.sys-line): the name stays one unbreakable inline-flex box while the text flows inline
+   layout (.sys-line): the name stays one unbreakable inline-block while the text flows inline
    after it, so a long message wraps across the bubble's full width rather than into a narrow column
    beside the nick. applyConfig sets the flag on #chat, but the markup differs — only rows rendered
    after the switch are compact, the ones already up scroll off as they were. */
 #chat[data-compact='on'] .msg .name-line {
-  display: inline-flex;
+  /* inline-BLOCK, not inline-flex: a flex box takes its baseline from its first child, so a badge
+     image ahead of the nick dragged the whole name above the line the message text sits on. An
+     inline-block takes it from its own last line box — the nick — which is that same line.
+     (bloom animates a transform, which an inline box would drop as well.) */
+  display: inline-block;
   /* Inside the bubble now, so it needs the same lift over the card-effect layer that .body has —
      the particle layer is positioned and would otherwise paint straight over the nick. */
   position: relative;
@@ -236,14 +247,54 @@
   /* Replaces the block layout's bottom gap: inline parts carry their own trailing space. */
   margin: 0 0.4em 0 0;
 }
-/* No marker, no thread, no gutter to hold them (chat.ts skips both): the rank moves onto the
-   bubble's left edge, the way the dashboard's cards carry it. */
+/* Stands in for the flex gap an inline-block has no say over. The last child is the nick, and its
+   trailing space is the line's own margin — a second one here would push the text too far. */
+#chat[data-compact='on'] .msg .name-line > *:not(:last-child) {
+  margin-right: 0.3em;
+}
+/* Everything in the line that is not a word rides its middle (.tw-badge already does). */
+#chat[data-compact='on'] .msg .name-line .badge,
+#chat[data-compact='on'] .msg .name-line .seal {
+  vertical-align: middle;
+}
+/* No marker, no thread, no gutter to hold them (chat.ts skips both): the rank moves onto the row's
+   left edge, the way the dashboard's cards carry it. Rows also close up — see --msg-gap. */
+#chat[data-compact='on'] {
+  --msg-gap: 0.28em;
+}
 #chat[data-compact='on'] .msg {
   padding-left: 0;
+  /* The bubble is an inline-block sitting on the row's baseline, so the row keeps a strut's worth
+     of empty line under it. Invisible until the edge runs the row's full height and pokes out
+     below the card; zeroed here and restored on the bubble itself. */
+  line-height: 0;
+}
+#chat[data-compact='on'] .msg .bubble {
+  line-height: 1.4;
+}
+/* The rank edge. It belongs to the ROW, not to the bubble: the bubble clips its own overflow (the
+   particle layer needs that), and a glow that cannot leave the box is not a glow. Sitting here it
+   also inherits the tier-10 shimmer for free — level.ts animates [data-iris]::before. */
+#chat[data-compact='on'] .msg::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: var(--msg-gap);
+  width: 3px;
+  border-radius: calc(var(--chat-radius) * 0.17);
+  background: var(--edge, #8df0cc);
+  /* From level 6 up only: below it chat.ts sets --tier-glow to the literal 'transparent', so this
+     costs nothing there. Wide enough to wash over the rank numeral at the head of the line, and it
+     stays that wide when the streamer hides the numeral — the glow marks the rank, not the digit. */
+  box-shadow: 0 0 14px 2px var(--tier-glow, transparent);
 }
 /* The seal follows the nick into the line — an object the sender is holding, so it stays bigger
    than the platform badges and sits past the name instead of joining their row. */
 #chat[data-compact='on'] .msg .name-line .seal {
+  /* inline-block, or the size below is ignored and the artwork renders at its own 300px: the roomy
+     layout only gets away without it because the gutter seal is absolutely positioned. */
+  display: inline-block;
   width: 1.25em;
   height: 1.25em;
   margin-left: 0.1em;
@@ -356,16 +407,11 @@
 .msg[data-emphasis='highlighted'] .bubble {
   background: color-mix(in srgb, #9147ff 15%, rgb(13 17 17 / var(--chat-bg)));
 }
-/* The rank edge. Painted as a background layer, NOT as a border or a shadow: border-color is
-   rewritten wholesale by the role/event rules below, box-shadow likewise, and both pseudo-elements
-   belong to the frame cosmetic. A background layer collides with none of them.
-
-   It has to come after every rule that sets `background` on a bubble (the paid highlight does), or
-   that shorthand would reset the layer to none. Squared-off left corners so the edge keeps its full
-   height instead of being eaten by the radius — the bot-answer card does the same. */
+/* Left corners squared off so the edge runs the bubble's full height instead of parting from it
+   along the curve — the bot-answer card is shaped the same way, for the same reason. */
 #chat[data-compact='on'] .msg .bubble {
-  background-image: linear-gradient(to right, var(--edge, #8df0cc) 0 3px, transparent 3px);
-  border-radius: 2px 12px 12px 2px;
+  border-radius: calc(var(--chat-radius) * 0.17) var(--chat-radius) var(--chat-radius)
+    calc(var(--chat-radius) * 0.17);
   padding-left: 0.85em;
 }
 /* Nothing to unfold from once the star is gone: the row slides in off its own edge, the entrance
@@ -376,9 +422,15 @@
 }
 /* An event owns the row's accent, and with the silhouettes gone from the gutter the edge is what
    is left to carry it — matching the border and caption it already tints. */
-#chat[data-compact='on'] .msg[data-notice] .bubble,
-#chat[data-compact='on'] .msg[data-emphasis] .bubble {
+#chat[data-compact='on'] .msg[data-notice],
+#chat[data-compact='on'] .msg[data-emphasis] {
   --edge: var(--event, #8df0cc);
+}
+/* The bot-answer card's own left rib would double the row edge that now runs beside it. The edge
+   wins: it is the one every row in the column carries. */
+#chat[data-compact='on'] .msg.system .sys-card {
+  border-left: none;
+  padding-left: 0.85em;
 }
 /* The bits number rides next to its art in the tier's own color (set inline from the catalog). */
 .msg .bubble .bits {
@@ -491,7 +543,8 @@
   max-width: 100%;
   box-sizing: border-box;
   padding: 0.34em 0.7em;
-  border-radius: 4px 12px 12px 12px;
+  border-radius: calc(var(--chat-radius) * 0.33) var(--chat-radius) var(--chat-radius)
+    var(--chat-radius);
   /* Multipliers keep these cards a touch denser than a plain bubble at any setting (they were
      0.62 and 0.66 against its 0.58), so the slider moves the whole surface as one. */
   background: linear-gradient(
@@ -605,7 +658,8 @@
   box-sizing: border-box;
   padding: 0.3em 0.7em;
   border-left: 2px solid rgba(141, 240, 204, 0.75);
-  border-radius: 2px 12px 12px 2px;
+  border-radius: calc(var(--chat-radius) * 0.17) var(--chat-radius) var(--chat-radius)
+    calc(var(--chat-radius) * 0.17);
   /* Lighter than the redemption card (0.18) so the two still read apart; darker than a plain
      message bubble so it never passes for one. */
   background: linear-gradient(

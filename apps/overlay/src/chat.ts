@@ -175,7 +175,9 @@ function renderMessage(msg: ChatOverlayMessage): void {
 
   // Rank paint for the compact layout's left edge, which stands in for the marker below: a tier
   // color for ranked viewers, the nick's own for newcomers — the same split the star/bead makes.
-  row.style.setProperty('--edge', tier?.color ?? color);
+  // An event row is left alone: its edge takes the event accent from CSS, and an inline property
+  // set here would outrank that rule.
+  if (!msg.notice && !msg.emphasis) row.style.setProperty('--edge', tier?.color ?? color);
 
   // Thread marker. A notice hands the thread to the EVENT: the mark's silhouette is what says
   // "raid" or "watch streak" at a glance, and the author's rank still shows as the numeral on the
@@ -356,10 +358,14 @@ function renderSystem(line: ChatSystemEvent): void {
   row.className = 'msg system';
 
   // Star stays mint: it is the rail marker, part of the "bot answer" identity, not the asker's.
-  const star = document.createElement('span');
-  star.className = 'star';
-  star.innerHTML = STAR_SVG; // constant, trusted markup — not user input
-  row.appendChild(star);
+  // Compact has no gutter to hold it, and on the card itself it would read as a blot — there the
+  // row's left edge does the marking (chat.css).
+  if (!compact) {
+    const star = document.createElement('span');
+    star.className = 'star';
+    star.innerHTML = STAR_SVG; // constant, trusted markup — not user input
+    row.appendChild(star);
+  }
 
   const card = document.createElement('div');
   card.className = 'sys-card';
@@ -444,10 +450,13 @@ function renderRedemption(ev: { name: string; dust: number }): void {
   const row = document.createElement('div');
   row.className = 'msg redeem';
 
-  const star = document.createElement('span');
-  star.className = 'star';
-  star.innerHTML = STAR_SVG; // constant, trusted markup — not user input
-  row.appendChild(star);
+  // Same as the bot answer above: no gutter in compact, so no marker.
+  if (!compact) {
+    const star = document.createElement('span');
+    star.className = 'star';
+    star.innerHTML = STAR_SVG; // constant, trusted markup — not user input
+    row.appendChild(star);
+  }
 
   const card = document.createElement('div');
   card.className = 'redeem-card';
@@ -612,6 +621,8 @@ function applyConfig(cfg: ChatOverlayConfig): void {
   // default stands rather than the plate vanishing.
   if (typeof cfg.bgOpacity === 'number')
     document.documentElement.style.setProperty('--chat-bg', String(cfg.bgOpacity / 100));
+  if (typeof cfg.radius === 'number')
+    document.documentElement.style.setProperty('--chat-radius', `${cfg.radius}px`);
   compact = cfg.compact === true;
   chat.dataset.compact = compact ? 'on' : 'off';
   fadeSeconds = cfg.fadeSeconds;
@@ -647,6 +658,7 @@ if (DEMO) {
     fontSize: Number(q.get('font')) || 19,
     bgOpacity: q.has('bg') ? Number(q.get('bg')) : 58,
     compact: q.get('compact') === '1',
+    radius: q.has('radius') ? Number(q.get('radius')) : 12,
     fadeSeconds: Number(q.get('fade')) || 0,
     showBadges: q.get('badges') !== '0',
     showLevel: q.get('level') !== '0',

@@ -145,6 +145,8 @@ export const channels = sqliteTable('channels', {
   chatFontSize: integer('chat_font_size').notNull().default(19),
   // Opacity of the plate behind a chat message, in percent; 0 puts the text on the bare stream.
   chatBgOpacity: integer('chat_bg_opacity').notNull().default(58),
+  // Corner rounding of chat cards, in px.
+  chatRadius: integer('chat_radius').notNull().default(12),
   // Compact rows: the nick joins the message's first line instead of standing above it.
   chatCompact: integer('chat_compact', { mode: 'boolean' }).notNull().default(false),
   // Seconds before a chat message fades out; 0 = keep until pushed off by newer ones.

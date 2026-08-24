@@ -1,0 +1,1 @@
+ALTER TABLE `channels` ADD `chat_radius` integer DEFAULT 12 NOT NULL;

@@ -200,6 +200,7 @@ export function ChatSettings({
   const [chatFade, setChatFade] = useState(settings.chatFadeSeconds);
   const [chatBg, setChatBg] = useState(settings.chatBgOpacity);
   const [chatCompact, setChatCompact] = useState(settings.chatCompact);
+  const [chatRadius, setChatRadius] = useState(settings.chatRadius);
   const [showBadges, setShowBadges] = useState(settings.chatShowBadges);
   const [roleBorders, setRoleBorders] = useState(settings.chatRoleBorders);
   return (
@@ -220,7 +221,9 @@ export function ChatSettings({
             fontSize={chatFont}
             bgOpacity={chatBg}
             compact={chatCompact}
+            radius={chatRadius}
             showBadges={showBadges}
+            showLevel={settings.chatShowLevel}
             roleBorders={roleBorders}
           />
           {/* Right under the preview that shows what it does: the two words alone do not tell a
@@ -267,6 +270,14 @@ export function ChatSettings({
               value={chatBg}
               onChange={setChatBg}
             />
+            <Slider
+              icon="image"
+              label={t('dash.chatRadius', { n: chatRadius })}
+              min={0}
+              max={24}
+              value={chatRadius}
+              onChange={setChatRadius}
+            />
           </div>
           <Switch
             icon="sparkles"
@@ -311,6 +322,7 @@ export function ChatSettings({
             chatFadeSeconds: chatFade,
             chatBgOpacity: chatBg,
             chatCompact,
+            chatRadius,
             chatShowBadges: showBadges,
             chatRoleBorders: roleBorders,
           })
