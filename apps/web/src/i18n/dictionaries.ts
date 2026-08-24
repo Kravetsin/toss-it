@@ -159,6 +159,7 @@ export const en: Dict = {
   'shop.cardColorDesc': 'Repaint this effect any colour you like.',
   'shop.cardColorDualDesc': 'Two sides, two colours. Pick both.',
   'shop.colorUpgradeHint': 'A colour upgrade is sold for this effect.',
+  'shop.colorUpgradeEarnHint': 'Its colour unlocks at a milestone of its own.',
   'shop.colorUpgradeDualHint':
     'A colour upgrade is sold for this effect — two colours, one per side.',
   'shop.cardColorBlades': 'Blade colours',
@@ -1043,6 +1044,7 @@ export const ru: Dict = {
   'shop.cardColorDesc': 'Перекрась этот эффект в любой цвет.',
   'shop.cardColorDualDesc': 'Две стороны — два цвета. Выбери оба.',
   'shop.colorUpgradeHint': 'Для этого эффекта продаётся апгрейд цвета.',
+  'shop.colorUpgradeEarnHint': 'Цвет к нему открывается отдельной вехой.',
   'shop.colorUpgradeDualHint':
     'Для этого эффекта продаётся апгрейд цвета — две палитры, по одной на сторону.',
   'shop.cardColorBlades': 'Цвета клинков',
@@ -1927,6 +1929,7 @@ export const uk: Dict = {
   'shop.cardColorDesc': 'Перефарбуй цей ефект у будь-який колір.',
   'shop.cardColorDualDesc': 'Дві сторони — два кольори. Обери обидва.',
   'shop.colorUpgradeHint': 'Для цього ефекту продається апгрейд кольору.',
+  'shop.colorUpgradeEarnHint': 'Колір до нього відкривається окремою віхою.',
   'shop.colorUpgradeDualHint':
     'Для цього ефекту продається апгрейд кольору — дві палітри, по одній на бік.',
   'shop.cardColorBlades': 'Кольори клинків',

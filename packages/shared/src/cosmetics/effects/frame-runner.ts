@@ -69,15 +69,16 @@ export const frameRunner: FrameModule = {
 };
 
 /**
- * The colour UPGRADE for the single runner: bought with stardust even though the runner itself is
- * earned, so the frame stays a badge for 500 messages and the colour is a separate, optional spend.
- * Never equipped on its own — owning it turns on the picker (see FrameModule.colorUpgrade).
+ * The colour UPGRADE for the single runner: EARNED, like the runner itself — the next rung of the
+ * same chat ladder (500 messages for the frame, 750 for the right to repaint it) rather than a
+ * purchase, so the whole branch is paid for in the same currency. Never equipped on its own:
+ * clearing the milestone turns on the picker (see FrameModule.colorUpgrade).
  */
 export const frameRunnerColor: FrameModule = {
   id: 'frame-runner-color',
   type: 'frame',
-  costDust: 750,
-  requires: 'frame-runner',
+  costDust: 0,
+  earn: { metric: 'messages', count: 750 },
   upgrade: true,
   since: '2026-08-21',
   className: '',

@@ -557,14 +557,24 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     const isNick = e.type === 'nick_effect';
     const isEntrance = e.type === 'entrance';
     const isFrame = e.type === 'frame';
-    // Colourable card effects carry their own colour upgrade, whose buy/picker renders INSIDE this card.
     // Card effects and frames both carry their own colour upgrade, whose buy/picker renders INSIDE
     // this row. The seal ladders have their own row builder — same idea, different layout.
     const colorUp =
       mod?.type === 'card_effect' || mod?.type === 'frame' ? mod.colorUpgrade : undefined;
     const colorMod = colorUp ? cosmeticModule(colorUp) : undefined;
     const colorItem = colorUp ? COSMETICS.find((c) => c.id === colorUp) : undefined;
-    const ownsColorUp = colorUp ? ownsItem(colorUp) : false;
+    // An upgrade is either bought (the card effects) or EARNED on a milestone of its own (the runner
+    // frames, whose colour is the next rung of the same chat ladder). Same block either way — only
+    // what stands in for the price, and what unlocks the picker, differ.
+    const colorEarn = colorItem?.earn;
+    const colorEarnMeta = colorEarn ? EARN_META[colorEarn.metric] : null;
+    const colorHave = colorEarn ? earnHave(colorEarn) : 0;
+    const colorUnit = colorEarnMeta?.unit ?? 1;
+    const ownsColorUp = colorEarn
+      ? admin || colorHave >= colorEarn.count
+      : colorUp
+        ? ownsItem(colorUp)
+        : false;
     // One source of truth for whether the upgrade gets its own block below — the "new" mark on the
     // name covers the upgrade exactly when it does NOT, so the id always has something to clear it.
     const upgradeShown = !!(colorUp && owned && colorItem && colorMod);
@@ -615,7 +625,15 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
                   until now it only appeared after the purchase — the upgrade's own block is gated on
                   owning the effect. Drops away once the upgrade is owned: by then the pickers say it. */}
               {colorUp && !ownsColorUp && (
-                <Tooltip content={t(dual ? 'shop.colorUpgradeDualHint' : 'shop.colorUpgradeHint')}>
+                <Tooltip
+                  content={t(
+                    colorEarn
+                      ? 'shop.colorUpgradeEarnHint'
+                      : dual
+                        ? 'shop.colorUpgradeDualHint'
+                        : 'shop.colorUpgradeHint',
+                  )}
+                >
                   <Icon name="palette" size={14} className="shrink-0 text-text" />
                 </Tooltip>
               )}
@@ -690,6 +708,12 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
                 </span>
                 {ownsColorUp ? (
                   <Badge>{t('shop.owned')}</Badge>
+                ) : colorEarn && colorEarnMeta ? (
+                  <span className="inline-flex shrink-0 items-center gap-1.5 label-mono text-muted">
+                    <Icon name={colorEarnMeta.icon} size={13} />
+                    {Math.floor(Math.min(colorHave, colorEarn.count) / colorUnit)} /{' '}
+                    {Math.round(colorEarn.count / colorUnit)}
+                  </span>
                 ) : (
                   <span className="inline-flex shrink-0 items-center gap-1.5 label-mono text-accent">
                     <DustMark size={14} />
@@ -738,6 +762,12 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
                     </Button>
                   )}
                 </div>
+              ) : colorEarn && colorEarnMeta ? (
+                <span className="label-mono text-faint">
+                  {t(colorEarnMeta.lockedKey, {
+                    n: Math.ceil((colorEarn.count - colorHave) / colorUnit),
+                  })}
+                </span>
               ) : (
                 <div className="flex items-center gap-2">
                   <Button

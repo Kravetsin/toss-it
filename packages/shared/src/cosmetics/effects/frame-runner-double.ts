@@ -66,14 +66,15 @@ export const frameRunnerDouble: FrameModule = {
 };
 
 /**
- * The colour UPGRADE for the double runner. A separate purchase from the single runner's: the two
- * frames are separate items with separate tints, so one upgrade could only ever paint one of them.
+ * The colour UPGRADE for the double runner, earned at 1500 messages. Separate from the single
+ * runner's: the two frames are separate items with separate tints, so one upgrade could only ever
+ * paint one of them.
  */
 export const frameRunnerDoubleColor: FrameModule = {
   id: 'frame-runner-double-color',
   type: 'frame',
-  costDust: 1500,
-  requires: 'frame-runner-double',
+  costDust: 0,
+  earn: { metric: 'messages', count: 1500 },
   upgrade: true,
   since: '2026-08-21',
   className: '',
