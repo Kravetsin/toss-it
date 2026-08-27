@@ -24,6 +24,14 @@ export const DUST_POINTS = {
 } as const;
 
 /**
+ * One-time grant on a first-ever login. Deliberately equal to the cheapest cosmetic in the catalog,
+ * so a brand-new account can leave the shop wearing something instead of staring at a progress bar.
+ * A GRANT, not earnings: it moves the balance only and never `dustEarned`, so the wealth cosmetics
+ * keep measuring contribution (see creditDust).
+ */
+export const WELCOME_DUST = 1000;
+
+/**
  * Channel-points → stardust exchange (an app-owned Twitch reward the streamer opts into). Not a cap
  * risk: every dust sink is a permanent, non-transferable unlock, so the ceiling of any dust pile is
  * "own the whole catalog once" — the accepted whale outcome. The streamer sets the reward's point

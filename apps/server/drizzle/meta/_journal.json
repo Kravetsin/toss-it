@@ -484,6 +484,13 @@
       "when": 1787605759318,
       "tag": "0068_lame_gravity",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "6",
+      "when": 1787860896816,
+      "tag": "0069_light_warhawk",
+      "breakpoints": true
     }
   ]
 }

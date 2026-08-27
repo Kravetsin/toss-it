@@ -1,4 +1,5 @@
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
+import { WELCOME_DUST } from '@tmw/shared';
 import { db } from '../../db/index';
 import { linkedIdentities, pendingDust, users } from '../../db/schema';
 
@@ -23,6 +24,21 @@ export async function creditDust(userId: string, amount: number): Promise<void> 
       dustEarned: sql`${users.dustEarned} + ${amount}`,
     })
     .where(eq(users.id, userId));
+}
+
+/**
+ * Pay the one-time welcome bonus, returning what landed (0 if this account already had it). The
+ * `welcome_dust_at IS NULL` guard is inside the UPDATE on purpose: two tabs finishing the same first
+ * login would both pass a read-then-write check, but only one can win this one. Balance only — a
+ * grant is not earnings (see creditDust), so `dustEarned` stays a measure of contribution.
+ */
+export async function grantWelcomeDust(userId: string): Promise<number> {
+  const granted = await db
+    .update(users)
+    .set({ stardust: sql`${users.stardust} + ${WELCOME_DUST}`, welcomeDustAt: new Date() })
+    .where(and(eq(users.id, userId), isNull(users.welcomeDustAt)))
+    .returning({ id: users.id });
+  return granted.length > 0 ? WELCOME_DUST : 0;
 }
 
 export async function awardDust(chatterTwitchId: string, amount = 1): Promise<void> {

@@ -39,6 +39,10 @@ export const users = sqliteTable('users', {
   dustEarned: integer('dust_earned').notNull().default(0),
   /** Equipped cosmetics (nick color, etc.); null = nothing equipped. */
   equipped: text('equipped', { mode: 'json' }).$type<EquippedCosmetics>(),
+  /** When WELCOME_DUST was granted; null = not yet. The grant is a conditional UPDATE on this being
+   *  null, which is what makes it exactly-once without a read-then-write race. Accounts that predate
+   *  the bonus are null too, so they collect it on their next login. */
+  welcomeDustAt: integer('welcome_dust_at', { mode: 'timestamp_ms' }),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 });
 

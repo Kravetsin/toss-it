@@ -15,6 +15,9 @@ const STRINGS = {
     queueReview: 'in review',
     queueEmpty: 'nothing queued',
     queueUnlinked: 'nothing here — link your Twitch if you sent from the site',
+    /** Labels the total a first login would hand an unregistered chatter (dust the bot held for
+     *  them + the welcome bonus). A promise, not a balance — none of it is on an account yet. */
+    balanceWaiting: 'waiting for you',
     xpProgress: 'lvl {lvl} · {xp}/{next} XP',
     xpMax: 'lvl {lvl} · {xp} XP · max',
     playUsage: 'paste a YouTube link: !play <link>',
@@ -68,6 +71,7 @@ const STRINGS = {
     queueReview: 'на модерации',
     queueEmpty: 'ничего в очереди',
     queueUnlinked: 'ничего не вижу — если отправлял с сайта, привяжи Twitch',
+    balanceWaiting: 'тебя ждёт',
     xpProgress: 'ур. {lvl} · {xp}/{next} XP',
     xpMax: 'ур. {lvl} · {xp} XP · макс',
     playUsage: 'вставь ссылку на YouTube: !play <ссылка>',
@@ -114,6 +118,7 @@ const STRINGS = {
     queueReview: 'на модерації',
     queueEmpty: 'нічого в черзі',
     queueUnlinked: "нічого не бачу — якщо надсилав із сайту, прив'яжи Twitch",
+    balanceWaiting: 'на тебе чекає',
     xpProgress: 'рів. {lvl} · {xp}/{next} XP',
     xpMax: 'рів. {lvl} · {xp} XP · макс',
     playUsage: 'встав посилання на YouTube: !play <посилання>',

@@ -43,7 +43,7 @@ import {
   watchMinutesTotalFor,
 } from '../level';
 import { notifyNewUser } from '../notify';
-import { claimPendingDust } from '../modules/twitch-chat/accrual';
+import { claimPendingDust, grantWelcomeDust } from '../modules/twitch-chat/accrual';
 import { saveBotCredentials } from '../modules/twitch-chat/token';
 import type { TwitchChatModule } from '../modules/twitch-chat/index';
 import type { ChannelPointsModule, RewardKind } from '../modules/channel-points/index';
@@ -147,6 +147,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
           await addIdentity('fake', login, user.id);
         }
         await createSession(reply, user.id);
+        await grantWelcomeDust(user.id);
         return reply.redirect(oauthOrigin(req) + returnTo);
       }
 
@@ -296,8 +297,13 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
       // (channel-points redemptions) it made anonymously — both only reachable by the platform id.
       await claimPlatformSubmissions('twitch', twitchId, user.id);
       const claimed = await claimPendingDust('twitch', twitchId, user.id);
+      const welcome = await grantWelcomeDust(user.id);
       return reply.redirect(
-        oauthOrigin(req) + withParams(returnTo, claimed > 0 ? { dustClaimed: claimed } : {}),
+        oauthOrigin(req) +
+          withParams(returnTo, {
+            ...(claimed > 0 ? { dustClaimed: claimed } : {}),
+            ...(welcome > 0 ? { welcomeDust: welcome } : {}),
+          }),
       );
     },
   );
@@ -396,6 +402,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
     await db.delete(sessions).where(eq(sessions.userId, user.id));
     await claimPlatformSubmissions('twitch', pending.twitchId, pending.otherUserId);
     await claimPendingDust('twitch', pending.twitchId, pending.otherUserId);
+    await grantWelcomeDust(pending.otherUserId);
     await createSession(reply, pending.otherUserId);
     deps.twitchChat.settingsChanged();
     return { ok: true, switched: true };
@@ -453,7 +460,11 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
         user = await upsertUser({ ...info, login: user.login });
       }
       await createSession(reply, user.id);
-      return reply.redirect(oauthOrigin(req) + safeReturnTo(saved.returnTo));
+      const welcome = await grantWelcomeDust(user.id);
+      return reply.redirect(
+        oauthOrigin(req) +
+          withParams(safeReturnTo(saved.returnTo), welcome > 0 ? { welcomeDust: welcome } : {}),
+      );
     },
   );
 

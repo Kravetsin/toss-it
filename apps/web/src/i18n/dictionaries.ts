@@ -13,6 +13,7 @@ export const en: Dict = {
   'common.cancel': 'Cancel',
   'common.loginTwitch': 'Log in with Twitch',
   'common.loginGoogle': 'Continue with Google',
+  'auth.welcomeDust': '{n} stardust lands the moment you log in',
   'auth.twitchDust': 'Twitch also collects the dust you earned watching and chatting',
 
   'toast.saved': 'Saved',
@@ -303,6 +304,7 @@ export const en: Dict = {
   'chatDust.overlayNote': 'How the chat itself looks (font, badges, hiding) is set in',
   'chatDust.reading': 'The bot is reading your chat — dust is being earned',
   'chatDust.modHint': 'Type /mod {bot} in your chat — the bot connects within ~5 minutes.',
+  'toast.welcomeDust': 'Welcome! {n} stardust to start with',
   'toast.dustClaimed': 'You found {n} stardust!',
   'toast.twitchLinked': 'Twitch linked',
   'link.bannerText': 'Earn stardust for time on stream and every chat message — link your Twitch',
@@ -908,7 +910,8 @@ export const ru: Dict = {
   'common.cancel': 'Отмена',
   'common.loginTwitch': 'Войти через Twitch',
   'common.loginGoogle': 'Войти через Google',
-  'auth.twitchDust': 'Через Twitch сразу заберёшь пыль за просмотр и чат',
+  'auth.welcomeDust': '{n} звёздной пыли начислим сразу при входе',
+  'auth.twitchDust': 'А через Twitch ещё и заберёшь пыль за просмотр и чат',
 
   'toast.saved': 'Сохранено',
   'toast.tokenReissued': 'Токен перевыпущен',
@@ -1198,6 +1201,7 @@ export const ru: Dict = {
   'chatDust.reading': 'Бот читает ваш чат — пыль начисляется',
   'chatDust.modHint':
     'Напишите /mod {bot} в чате своего канала — бот подключится в течение ~5 минут.',
+  'toast.welcomeDust': 'Добро пожаловать! {n} звёздной пыли на старт',
   'toast.dustClaimed': 'Вы нашли {n} звёздной пыли!',
   'toast.twitchLinked': 'Twitch привязан',
   'link.bannerText': 'Получай пыль за время на стриме и за каждое сообщение — привяжи Twitch',
@@ -1802,7 +1806,8 @@ export const uk: Dict = {
   'common.cancel': 'Скасувати',
   'common.loginTwitch': 'Увійти через Twitch',
   'common.loginGoogle': 'Увійти через Google',
-  'auth.twitchDust': 'Через Twitch одразу забереш пил за перегляд і чат',
+  'auth.welcomeDust': '{n} зоряного пилу нарахуємо одразу під час входу',
+  'auth.twitchDust': 'А через Twitch ще й забереш пил за перегляд і чат',
 
   'toast.saved': 'Збережено',
   'toast.tokenReissued': 'Токен перевипущено',
@@ -2093,6 +2098,7 @@ export const uk: Dict = {
   'chatDust.reading': 'Бот читає ваш чат — пил нараховується',
   'chatDust.modHint':
     'Напишіть /mod {bot} у чаті свого каналу — бот підключиться протягом ~5 хвилин.',
+  'toast.welcomeDust': 'Ласкаво просимо! {n} зоряного пилу на старт',
   'toast.dustClaimed': 'Ви знайшли {n} зоряного пилу!',
   'toast.twitchLinked': 'Twitch прив’язано',
   'link.bannerText': 'Отримуй пил за час на стрімі та за кожне повідомлення — прив’яжи Twitch',
