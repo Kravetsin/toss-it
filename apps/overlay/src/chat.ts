@@ -847,6 +847,7 @@ if (DEMO) {
       cosmetics: {
         cardEffect: 'card-runner',
         cardEffectColors: { 'card-runner': '#7cb8ff' },
+        cardEffectColors2: { 'card-runner': '#ff5f8f' },
       },
       isFounder: false,
       level: 7,

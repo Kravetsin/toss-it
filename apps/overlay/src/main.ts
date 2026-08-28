@@ -1841,6 +1841,7 @@ const CARD_FX_DEMO_COLORS: Record<string, string | undefined> = {
 /** Second picker of the DUAL-colour effects, whose two sides are the whole point of the upgrade. */
 const CARD_FX_DEMO_COLORS2: Record<string, string | undefined> = {
   'card-spellclash': '#ffb03c',
+  'card-runner': '#ff5f8f',
 };
 
 function demoPayload(kind: MediaKind, st: DemoState): MediaPlayPayload {

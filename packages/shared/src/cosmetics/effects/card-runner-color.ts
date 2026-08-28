@@ -1,10 +1,10 @@
 import type { CardEffectModule } from '../types';
 
 /**
- * The colour UPGRADE for the RUNNER card effect — same shape as card-code-rain-color: bought
- * separately, gated on owning the runner, stores its own #rrggbb in
- * EquippedCosmetics.cardEffectColors. It repaints the cube, its edge highlight and its glow; the
- * obstacles keep their hazard colour, because the cube is the viewer and the spikes are the world.
+ * The colour UPGRADE for the RUNNER — one purchase, two pickers (see card-blade-duel-color for why
+ * a two-sided effect is never sold as two upgrades): colour 1 repaints the cube, its edge and glow;
+ * colour 2 repaints the world — the neon floor and the spikes share one hue because they are one
+ * level. Stored in EquippedCosmetics.cardEffectColors / cardEffectColors2.
  */
 export const cardRunnerColor: CardEffectModule = {
   id: 'card-runner-color',
@@ -15,5 +15,5 @@ export const cardRunnerColor: CardEffectModule = {
   since: '2026-08-28',
   className: '',
   counts: { web: 0, overlayCard: 0, overlayChat: 0 },
-  labels: { name: 'shop.cardColorRunner', desc: 'shop.cardColorDesc' },
+  labels: { name: 'shop.cardColorRunner', desc: 'shop.cardColorDualDesc' },
 };

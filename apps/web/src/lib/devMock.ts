@@ -587,8 +587,9 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderLevel: 7,
     senderColor: '#7cb8ff',
     senderCardEffect: 'card-runner',
-    // Recoloured cube next to the amber spikes: the upgrade repaints the runner, not the world.
+    // Both pickers of the dual upgrade: blue cube, pink world (floor + spikes).
     senderCardEffectColor: '#7cb8ff',
+    senderCardEffectColor2: '#ff5f8f',
     text: 'главное — вовремя прыгнуть',
     createdAt: t - 98 * min,
   }),

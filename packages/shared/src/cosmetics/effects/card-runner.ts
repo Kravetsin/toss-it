@@ -3,7 +3,10 @@ import { mountScene, sceneHash as hash, sceneLighten, sceneRgba as rgba } from '
 
 /**
  * An endless runner: a cube sprints along the card's bottom edge, vaults the spikes with a half-turn
- * and lands in a puff of dust while the world scrolls past on a seamless loop.
+ * and lands in a puff of dust while the world scrolls past on a seamless loop. The look is NEON —
+ * everything luminous is a wide soft halo around a white-hot core: the floor line, the spike
+ * outlines over translucent bodies, the cube's edge. Two palettes, sold as ONE dual upgrade:
+ * colour 1 is the cube (the viewer), colour 2 is the world (floor + spikes — one level, one hue).
  *
  * Everything about the pose is a PURE function of loop time: the obstacle course is laid once per
  * box size, every jump window is derived from where its obstacle passes the cube, and the ghost
@@ -23,7 +26,8 @@ const LOOP = 8000;
 const SECS = LOOP / 1000;
 const STILL = 1200;
 const MINT = '#8df0cc';
-/** Obstacles keep their own hazard colour: the colour upgrade repaints the RUNNER, not the world. */
+/** Default world colour. The DUAL upgrade sells two pickers: colour 1 the cube, colour 2 the world
+ *  (floor and spikes together — they are one level, splitting them would sell three pickers). */
 const OBST = '#f2a65a';
 
 interface Layout {
@@ -111,7 +115,7 @@ function jumpPhase(L: Layout, ts: number): number {
   return -1;
 }
 
-function scene(base: string) {
+function scene(base: string, obst: string) {
   const edge = sceneLighten(base, 0.8);
   return (ctx: CanvasRenderingContext2D, w: number, h: number, t: number): void => {
     const L = layoutFor(w, h);
@@ -123,13 +127,27 @@ function scene(base: string) {
       ctx.fillRect(x, st.sy, st.r, st.r);
     }
 
-    ctx.strokeStyle = 'rgba(220,245,235,0.3)';
+    // Neon floor: a wash of the world's colour under the line, then the line itself as a wide glow
+    // with a white core — the same halo-around-a-core recipe every neon element here uses.
+    const wash = ctx.createLinearGradient(0, L.gy, 0, h);
+    wash.addColorStop(0, rgba(obst, 0.22));
+    wash.addColorStop(1, rgba(obst, 0));
+    ctx.fillStyle = wash;
+    ctx.fillRect(0, L.gy, w, h - L.gy);
+    for (const [lw, style] of [
+      [5, rgba(obst, 0.3)],
+      [2, rgba(obst, 0.8)],
+      [1, 'rgba(255,255,255,0.85)'],
+    ] as const) {
+      ctx.strokeStyle = style;
+      ctx.lineWidth = lw;
+      ctx.beginPath();
+      ctx.moveTo(0, L.gy + 0.5);
+      ctx.lineTo(w, L.gy + 0.5);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = rgba(obst, 0.3);
     ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(0, L.gy + 0.5);
-    ctx.lineTo(w, L.gy + 0.5);
-    ctx.stroke();
-    ctx.strokeStyle = 'rgba(220,245,235,0.09)';
     ctx.beginPath();
     for (let gx = -((ts * L.v) % L.tickGap); gx < w; gx += L.tickGap) {
       ctx.moveTo(gx, L.gy + 2);
@@ -141,19 +159,47 @@ function scene(base: string) {
       const x = (((o.px - ts * L.v) % L.cl) + L.cl) % L.cl;
       if (x > w + 60) continue;
       const ow = L.s * 0.68;
-      for (let k = 0; k < (o.dbl ? 2 : 1); k++) {
+      const reps = o.dbl ? 2 : 1;
+      // One pool of light per obstacle group, not per spike — a double reads as one hazard.
+      const hr = L.s * 1.4;
+      const gcx = x + (reps * ow * 1.15 - ow * 0.15) / 2;
+      ctx.globalAlpha = 0.75;
+      ctx.drawImage(halo(obst), gcx - hr, L.gy - hr, hr * 2, hr * 2);
+      ctx.globalAlpha = 1;
+      for (let k = 0; k < reps; k++) {
         const bx = x + k * ow * 1.15;
-        ctx.fillStyle = rgba(OBST, 0.85);
-        if (o.block) {
-          ctx.fillRect(bx, L.gy - L.s * 0.6, ow, L.s * 0.6);
-          ctx.fillStyle = 'rgba(255,255,255,0.25)';
-          ctx.fillRect(bx, L.gy - L.s * 0.6, ow, Math.max(1, L.s * 0.07));
-        } else {
+        const shape = (): void => {
           ctx.beginPath();
-          ctx.moveTo(bx, L.gy);
-          ctx.lineTo(bx + ow / 2, L.gy - L.s * 0.85);
-          ctx.lineTo(bx + ow, L.gy);
-          ctx.closePath();
+          if (o.block) {
+            ctx.rect(bx, L.gy - L.s * 0.6, ow, L.s * 0.6);
+          } else {
+            ctx.moveTo(bx, L.gy);
+            ctx.lineTo(bx + ow / 2, L.gy - L.s * 0.85);
+            ctx.lineTo(bx + ow, L.gy);
+            ctx.closePath();
+          }
+        };
+        // Neon outline over a translucent body: glow pass, colour core, translucent fill.
+        shape();
+        ctx.fillStyle = rgba(obst, 0.2);
+        ctx.fill();
+        ctx.lineJoin = 'round';
+        for (const [lw, style] of [
+          [3.5, rgba(obst, 0.3)],
+          [1.4, rgba(obst, 0.95)],
+        ] as const) {
+          ctx.strokeStyle = style;
+          ctx.lineWidth = lw;
+          shape();
+          ctx.stroke();
+        }
+        if (o.block) {
+          ctx.fillStyle = 'rgba(255,255,255,0.5)';
+          ctx.fillRect(bx, L.gy - L.s * 0.6, ow, Math.max(1, L.s * 0.06));
+        } else {
+          ctx.fillStyle = 'rgba(255,255,255,0.9)';
+          ctx.beginPath();
+          ctx.arc(bx + ow / 2, L.gy - L.s * 0.85, 1, 0, Math.PI * 2);
           ctx.fill();
         }
       }
@@ -212,6 +258,14 @@ function scene(base: string) {
         ctx.strokeStyle = rgba(edge, 0.9);
         ctx.lineWidth = 1.2;
         ctx.stroke();
+        // The inner face outline — the one detail that says "runner cube", not "square".
+        ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+        ctx.lineWidth = 1;
+        const inner = L.s * 0.52;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(-inner / 2, -inner / 2, inner, inner, r * 0.6);
+        else ctx.rect(-inner / 2, -inner / 2, inner, inner);
+        ctx.stroke();
       }
       ctx.restore();
       if (live) {
@@ -227,9 +281,10 @@ function render(
   _surface: Surface,
   _compact: boolean,
   color?: string,
+  color2?: string,
 ): (() => void) | void {
   if (typeof document === 'undefined') return;
-  return mountScene(layer, 'card-runner', scene(color || MINT), {
+  return mountScene(layer, 'card-runner', scene(color || MINT, color2 || OBST), {
     loopMs: LOOP,
     stillMs: STILL,
     maxLive: 8,
@@ -246,6 +301,7 @@ export const cardRunner: CardEffectModule = {
   // be created at all (see CardEffectModule.render / cardEffectLayerClass).
   counts: { web: 1, overlayCard: 1, overlayChat: 1 },
   colorUpgrade: 'card-runner-color',
+  dualColor: true,
   labels: { name: 'shop.cardRunner', desc: 'shop.cardRunnerDesc' },
   render,
   // No css: the whole effect is the JS canvas; the shared `.card-fx` base already clips the layer.
