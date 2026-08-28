@@ -62,9 +62,15 @@ function scene(base: string) {
     ctx.fillRect(0, h - gh, w, gh);
     // The card's bottom edge GLOWS in the palette colour — the meadow's steady ambient light.
     // Deliberately NOT following the flash wave: a floor that chases the flies reads as a bug.
-    const glowH = clamp(h * 0.3, 10, 46);
+    // Height follows the box with NO upper cap: a fixed ceiling cut the glow off mid-card on a
+    // tall one. And the falloff is multi-stop rather than a straight ramp — a linear alpha ramp
+    // has a readable termination edge, which is exactly what a bright colour makes obvious.
+    const glowH = Math.max(14, h * 0.55);
     const wash = ctx.createLinearGradient(0, h, 0, h - glowH);
-    wash.addColorStop(0, rgba(base, 0.18));
+    wash.addColorStop(0, rgba(base, 0.2));
+    wash.addColorStop(0.22, rgba(base, 0.1));
+    wash.addColorStop(0.5, rgba(base, 0.035));
+    wash.addColorStop(0.78, rgba(base, 0.008));
     wash.addColorStop(1, rgba(base, 0));
     ctx.fillStyle = wash;
     ctx.fillRect(0, h - glowH, w, glowH);
