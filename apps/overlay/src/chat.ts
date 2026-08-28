@@ -1038,6 +1038,30 @@ if (DEMO) {
         },
       ],
     },
+    // Jigsaw, on a two-line message: more rows of pieces, and the last piece's pause is easiest to
+    // catch when the mosaic is big enough to watch filling up.
+    {
+      id: '22',
+      userId: 'u22',
+      name: 'missing_piece',
+      twitchColor: null,
+      cosmetics: { nickColor: '#8df0cc', entrance: 'entrance-puzzle' },
+      isFounder: false,
+      level: 8,
+      fragments: [{ type: 'text', text: 'собрался не сразу, зато весь — до последнего кусочка' }],
+    },
+    // Gust, on a short pill: the sweep is quick there, and the settlers on the top edge are the
+    // detail to check at small sizes.
+    {
+      id: '23',
+      userId: 'u23',
+      name: 'dune_walker',
+      twitchColor: null,
+      cosmetics: { nickColor: '#d9c9a3', entrance: 'entrance-gust' },
+      isFounder: false,
+      level: 5,
+      fragments: [{ type: 'text', text: 'меня сюда ветром занесло' }],
+    },
     {
       id: '12',
       userId: 'u12',

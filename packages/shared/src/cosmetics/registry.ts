@@ -74,7 +74,9 @@ import { entranceWarp } from './effects/entrance-warp';
 import { entranceEcho } from './effects/entrance-echo';
 import { entranceStrike } from './effects/entrance-strike';
 import { entranceTide } from './effects/entrance-tide';
+import { entranceGust } from './effects/entrance-gust';
 import { entranceLotus } from './effects/entrance-lotus';
+import { entrancePuzzle } from './effects/entrance-puzzle';
 import { entranceAstral } from './effects/entrance-astral';
 import { entrancePortal } from './effects/entrance-portal';
 import { entrancePortalColor } from './effects/entrance-portal-color';
@@ -357,7 +359,9 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   entranceEcho,
   entranceAstral,
   entranceTide,
+  entranceGust,
   entranceLotus,
+  entrancePuzzle,
   entranceStrike,
   entrancePortal,
   entrancePortalColor,
