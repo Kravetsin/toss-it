@@ -840,6 +840,19 @@ if (DEMO) {
       fragments: [{ type: 'text', text: 'кто кого' }],
     },
     {
+      id: '5h',
+      userId: 'u5h',
+      name: 'cubejumper',
+      twitchColor: '#7cb8ff',
+      cosmetics: {
+        cardEffect: 'card-runner',
+        cardEffectColors: { 'card-runner': '#7cb8ff' },
+      },
+      isFounder: false,
+      level: 7,
+      fragments: [{ type: 'text', text: 'главное — вовремя прыгнуть' }],
+    },
+    {
       id: '6',
       userId: 'u6',
       name: 'subfan',

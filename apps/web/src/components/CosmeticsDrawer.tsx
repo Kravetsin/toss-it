@@ -141,7 +141,14 @@ const CARD_GROUPS = [
   },
   {
     key: 'pop',
-    ids: ['card-blade-duel', 'card-code-rain', 'card-well', 'card-portals', 'card-spellclash'],
+    ids: [
+      'card-blade-duel',
+      'card-code-rain',
+      'card-well',
+      'card-portals',
+      'card-spellclash',
+      'card-runner',
+    ],
   },
 ] as const;
 type CardGroupKey = (typeof CARD_GROUPS)[number]['key'];

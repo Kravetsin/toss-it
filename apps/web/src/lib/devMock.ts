@@ -579,6 +579,19 @@ const MOCK_PENDING: SubmissionSummary[] = [
     text: 'кто кого',
     createdAt: t - 94 * min,
   }),
+  sub({
+    id: 's25',
+    kind: 'text',
+    senderUserId: 'twitch:v28',
+    senderName: 'cubejumper',
+    senderLevel: 7,
+    senderColor: '#7cb8ff',
+    senderCardEffect: 'card-runner',
+    // Recoloured cube next to the amber spikes: the upgrade repaints the runner, not the world.
+    senderCardEffectColor: '#7cb8ff',
+    text: 'главное — вовремя прыгнуть',
+    createdAt: t - 98 * min,
+  }),
 ];
 
 const MOCK_NOW: SubmissionSummary | null = sub({
