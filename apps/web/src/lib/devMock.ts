@@ -677,6 +677,21 @@ const MOCK_PENDING: SubmissionSummary[] = [
     text: 'окно снова зацвело',
     createdAt: t - 126 * min,
   }),
+  sub({
+    id: 's33',
+    kind: 'text',
+    senderUserId: 'twitch:v36',
+    senderName: 'nightdriver',
+    senderLevel: 10,
+    senderColor: '#ff4fd8',
+    senderCardEffect: 'card-outrun',
+    // Both pickers of the dual upgrade: mint neon over a blue counterpoint — the stand's second
+    // palette, so the recolour path shows next to the authored pink/cyan default in the chat demo.
+    senderCardEffectColor: '#8df0cc',
+    senderCardEffectColor2: '#7cb8ff',
+    text: 'до горизонта и дальше',
+    createdAt: t - 130 * min,
+  }),
 ];
 
 const MOCK_NOW: SubmissionSummary | null = sub({

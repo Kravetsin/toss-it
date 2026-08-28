@@ -47,6 +47,8 @@ import { cardSpellclash } from './effects/card-spellclash';
 import { cardSpellclashColor } from './effects/card-spellclash-color';
 import { cardRunner } from './effects/card-runner';
 import { cardRunnerColor } from './effects/card-runner-color';
+import { cardOutrun } from './effects/card-outrun';
+import { cardOutrunColor } from './effects/card-outrun-color';
 import { cardAurora } from './effects/card-aurora';
 import { cardRipples } from './effects/card-ripples';
 import { cardRipplesColor } from './effects/card-ripples-color';
@@ -324,6 +326,8 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   cardSpellclashColor,
   cardRunner,
   cardRunnerColor,
+  cardOutrun,
+  cardOutrunColor,
   // Frames group by the metric that earns them, each family in ladder order: chat messages first,
   // then watch time. A rung is a separate item, so the shop shows what the next one looks like.
   frameRunner,

@@ -934,6 +934,17 @@ if (DEMO) {
       fragments: [{ type: 'text', text: 'окно снова зацвело' }],
     },
     {
+      id: '5p',
+      userId: 'u5p',
+      name: 'nightdriver',
+      twitchColor: '#ff4fd8',
+      // The authored pink/cyan default — devMock carries the recoloured variant.
+      cosmetics: { cardEffect: 'card-outrun' },
+      isFounder: false,
+      level: 10,
+      fragments: [{ type: 'text', text: 'до горизонта и дальше' }],
+    },
+    {
       id: '6',
       userId: 'u6',
       name: 'subfan',

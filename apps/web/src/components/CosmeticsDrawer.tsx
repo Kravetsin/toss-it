@@ -173,6 +173,7 @@ const CARD_GROUPS = [
       'card-portals',
       'card-spellclash',
       'card-runner',
+      'card-outrun',
     ],
   },
 ] as const;
