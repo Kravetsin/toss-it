@@ -1836,6 +1836,8 @@ const CARD_FX_DEMO_COLORS: Record<string, string | undefined> = {
   'card-spellclash': '#8fb4ff',
   'card-runner': '#7cb8ff',
   'card-ripples': '#ffd166',
+  'card-flock': '#b18cff',
+  'card-fireflies': '#ffc46b',
 };
 
 /** Second picker of the DUAL-colour effects, whose two sides are the whole point of the upgrade. */

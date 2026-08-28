@@ -50,6 +50,13 @@ import { cardRunnerColor } from './effects/card-runner-color';
 import { cardAurora } from './effects/card-aurora';
 import { cardRipples } from './effects/card-ripples';
 import { cardRipplesColor } from './effects/card-ripples-color';
+import { cardFireworks } from './effects/card-fireworks';
+import { cardFrost } from './effects/card-frost';
+import { cardFlock } from './effects/card-flock';
+import { cardFlockColor } from './effects/card-flock-color';
+import { cardFireflies } from './effects/card-fireflies';
+import { cardFirefliesColor } from './effects/card-fireflies-color';
+import { cardKoi } from './effects/card-koi';
 import { cardClaws } from './effects/card-claws';
 import { cardClawsColor } from './effects/card-claws-color';
 import { cardJelly } from './effects/card-jelly';
@@ -280,6 +287,13 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   cardAurora,
   cardRipples,
   cardRipplesColor,
+  cardFireworks,
+  cardFrost,
+  cardFlock,
+  cardFlockColor,
+  cardFireflies,
+  cardFirefliesColor,
+  cardKoi,
   cardBubbles,
   cardWisp,
   cardButterflies,

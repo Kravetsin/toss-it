@@ -138,9 +138,28 @@ const CARD_GROUPS = [
   },
   {
     key: 'elements',
-    ids: ['card-rain', 'card-snow', 'card-lightning', 'card-embers', 'card-ripples'],
+    ids: [
+      'card-rain',
+      'card-snow',
+      'card-lightning',
+      'card-embers',
+      'card-ripples',
+      'card-fireworks',
+      'card-frost',
+    ],
   },
-  { key: 'nature', ids: ['card-sakura', 'card-bubbles', 'card-butterflies', 'card-jelly'] },
+  {
+    key: 'nature',
+    ids: [
+      'card-sakura',
+      'card-bubbles',
+      'card-butterflies',
+      'card-jelly',
+      'card-flock',
+      'card-fireflies',
+      'card-koi',
+    ],
+  },
   {
     key: 'arcane',
     ids: ['card-wisp', 'card-runes', 'card-web', 'card-eyes', 'card-candles', 'card-hextech'],
