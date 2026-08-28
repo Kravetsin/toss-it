@@ -144,18 +144,17 @@ function paint(
       }
       spine.push(prev);
     }
-    // Neon: ONE elongated halo along the whole body — a rotated, stretched radial spill — rather
-    // than a glow per segment: the fish lights up head to tail for the price of one gradient.
-    const [hx0, hy0] = spine[0]!;
-    const [cx0, cy0] = spine[3]!;
-    const [tx0, ty0] = spine[6]!;
-    const bodyAng = Math.atan2(hy0 - ty0, hx0 - tx0);
-    ctx.save();
-    ctx.translate(cx0, cy0);
-    ctx.rotate(bodyAng);
-    ctx.scale(1.55, 0.75);
-    spill(ctx, 0, 0, S * 4.6, f.body, 1);
-    ctx.restore();
+    // Neon: three overlapping halos ON THE SPINE ITSELF (head, mid, tail), tapering tailward.
+    // A single rotated ellipse was tried and looked wrong the moment the fish bent through a
+    // turn — a straight halo cannot follow a curved body. Three spills do, for three gradients.
+    for (const [si, rr, aa] of [
+      [1, 3.4, 0.7],
+      [3, 3, 0.55],
+      [5, 2.3, 0.45],
+    ] as const) {
+      const [gx, gy] = spine[si]!;
+      spill(ctx, gx, gy, S * rr, f.body, aa);
+    }
     // Undulation: a wave running head → tail, growing toward the tail.
     for (let k = 7; k >= 0; k--) {
       const [x, y] = spine[k]!;
