@@ -132,8 +132,14 @@ for (const c of COSMETICS) CATEGORY_IDS[CATEGORY_OF[c.type]].push(c.id);
  *  growing catalog doesn't run a dozen live particle layers and drop the shop's FPS. A card effect not
  *  listed here still shows (absorbed into the last group), so nothing hides silently. */
 const CARD_GROUPS = [
-  { key: 'cosmic', ids: ['card-stardust', 'card-constellation', 'card-levitation', 'card-claws'] },
-  { key: 'elements', ids: ['card-rain', 'card-snow', 'card-lightning', 'card-embers'] },
+  {
+    key: 'cosmic',
+    ids: ['card-stardust', 'card-constellation', 'card-levitation', 'card-claws', 'card-aurora'],
+  },
+  {
+    key: 'elements',
+    ids: ['card-rain', 'card-snow', 'card-lightning', 'card-embers', 'card-ripples'],
+  },
   { key: 'nature', ids: ['card-sakura', 'card-bubbles', 'card-butterflies', 'card-jelly'] },
   {
     key: 'arcane',

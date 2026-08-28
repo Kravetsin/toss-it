@@ -592,6 +592,30 @@ const MOCK_PENDING: SubmissionSummary[] = [
     text: 'главное — вовремя прыгнуть',
     createdAt: t - 98 * min,
   }),
+  sub({
+    id: 's26',
+    kind: 'text',
+    senderUserId: 'twitch:v29',
+    senderName: 'polarnight',
+    senderLevel: 6,
+    senderColor: '#b18cff',
+    senderCardEffect: 'card-aurora',
+    text: 'у нас такое небо сегодня',
+    createdAt: t - 102 * min,
+  }),
+  sub({
+    id: 's27',
+    kind: 'text',
+    senderUserId: 'twitch:v30',
+    senderName: 'stillwater',
+    senderLevel: 8,
+    senderColor: '#ffd166',
+    senderCardEffect: 'card-ripples',
+    // Recoloured sparks over neutral water: the upgrade paints the light, not the pond.
+    senderCardEffectColor: '#ffd166',
+    text: 'тихо, слышно каждую каплю',
+    createdAt: t - 106 * min,
+  }),
 ];
 
 const MOCK_NOW: SubmissionSummary | null = sub({

@@ -47,6 +47,9 @@ import { cardSpellclash } from './effects/card-spellclash';
 import { cardSpellclashColor } from './effects/card-spellclash-color';
 import { cardRunner } from './effects/card-runner';
 import { cardRunnerColor } from './effects/card-runner-color';
+import { cardAurora } from './effects/card-aurora';
+import { cardRipples } from './effects/card-ripples';
+import { cardRipplesColor } from './effects/card-ripples-color';
 import { cardClaws } from './effects/card-claws';
 import { cardClawsColor } from './effects/card-claws-color';
 import { cardJelly } from './effects/card-jelly';
@@ -272,6 +275,9 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   cardSakura,
   cardLightning,
   cardConstellation,
+  cardAurora,
+  cardRipples,
+  cardRipplesColor,
   cardBubbles,
   cardWisp,
   cardButterflies,
