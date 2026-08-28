@@ -1,5 +1,11 @@
 import type { CardEffectModule, Surface } from '../types';
-import { mountScene, sceneHash as hash, sceneLighten, sceneRgba as rgba } from '../canvas';
+import {
+  mountScene,
+  sceneHash as hash,
+  sceneLighten,
+  sceneRgb,
+  sceneRgba as rgba,
+} from '../canvas';
 
 /**
  * A firefly meadow at night. Two rows of grass sway at the bottom edge — a dim short row behind, a
@@ -10,8 +16,9 @@ import { mountScene, sceneHash as hash, sceneLighten, sceneRgba as rgba } from '
  * the effect read on a stream: one bright coordinated event instead of sixteen dim random blinks.
  *
  * All drift and sway frequencies are whole cycles per loop (three waves per 9s), so the wrap is
- * seamless. The colour upgrade repaints the LIGHT — flash glow and core — while the grass and the
- * dark meadow stay their own colours; the resting speck barely shows either way.
+ * seamless. The colour upgrade repaints the whole PALETTE: the flash glow and core directly, and
+ * the grass as a darkened cut of the same hue — one meadow, one colour family, so a recolour
+ * never leaves green grass under violet light.
  */
 
 const LOOP = 9000;
@@ -40,6 +47,10 @@ function spill(
 
 function scene(base: string) {
   const core = sceneLighten(base, 0.55);
+  // The grass is the same hue, cut down to foliage darkness — the front row keeps more of it.
+  const [br, bg, bb] = sceneRgb(base);
+  const grassF = `rgba(${Math.round(br * 0.5)},${Math.round(bg * 0.56)},${Math.round(bb * 0.5)},0.65)`;
+  const grassB = `rgba(${Math.round(br * 0.32)},${Math.round(bg * 0.37)},${Math.round(bb * 0.32)},0.45)`;
   return (ctx: CanvasRenderingContext2D, w: number, h: number, t: number): void => {
     const ts = t / 1000;
     // Ground: a dark strip that seats the meadow before any blade is drawn.
@@ -57,7 +68,7 @@ function scene(base: string) {
       const hgt = clamp(h * 0.22, 8, 34) * (0.55 + hash(i, 82) * 0.85) * (back ? 0.62 : 1);
       const bend = (hash(i, 83) - 0.5) * 9;
       const sway = Math.sin((TAU * ts) / SECS + hash(i, 84) * TAU) * (back ? 1.6 : 2.6);
-      ctx.strokeStyle = back ? 'rgba(64,88,75,0.45)' : 'rgba(101,134,115,0.65)';
+      ctx.strokeStyle = back ? grassB : grassF;
       ctx.lineWidth = back ? 1 : 1.4;
       ctx.beginPath();
       ctx.moveTo(x, h);

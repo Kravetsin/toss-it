@@ -57,6 +57,7 @@ import { cardFlockColor } from './effects/card-flock-color';
 import { cardFireflies } from './effects/card-fireflies';
 import { cardFirefliesColor } from './effects/card-fireflies-color';
 import { cardKoi } from './effects/card-koi';
+import { cardKoiColor } from './effects/card-koi-color';
 import { cardClaws } from './effects/card-claws';
 import { cardClawsColor } from './effects/card-claws-color';
 import { cardJelly } from './effects/card-jelly';
@@ -294,6 +295,7 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   cardFireflies,
   cardFirefliesColor,
   cardKoi,
+  cardKoiColor,
   cardBubbles,
   cardWisp,
   cardButterflies,

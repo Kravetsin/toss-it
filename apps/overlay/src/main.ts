@@ -1838,12 +1838,14 @@ const CARD_FX_DEMO_COLORS: Record<string, string | undefined> = {
   'card-ripples': '#ffd166',
   'card-flock': '#b18cff',
   'card-fireflies': '#ffc46b',
+  'card-koi': '#7cf0d8',
 };
 
 /** Second picker of the DUAL-colour effects, whose two sides are the whole point of the upgrade. */
 const CARD_FX_DEMO_COLORS2: Record<string, string | undefined> = {
   'card-spellclash': '#ffb03c',
   'card-runner': '#ff5f8f',
+  'card-koi': '#ff8fd4',
 };
 
 function demoPayload(kind: MediaKind, st: DemoState): MediaPlayPayload {

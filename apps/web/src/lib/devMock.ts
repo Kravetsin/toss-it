@@ -660,6 +660,9 @@ const MOCK_PENDING: SubmissionSummary[] = [
     senderLevel: 8,
     senderColor: '#f2b06a',
     senderCardEffect: 'card-koi',
+    // Both pickers of the dual upgrade: teal and pink neon fish, patches swapped between them.
+    senderCardEffectColor: '#7cf0d8',
+    senderCardEffectColor2: '#ff8fd4',
     text: 'у пруда своя очередь',
     createdAt: t - 122 * min,
   }),

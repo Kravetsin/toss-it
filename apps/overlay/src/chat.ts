@@ -914,7 +914,11 @@ if (DEMO) {
       userId: 'u5n',
       name: 'pondkeeper',
       twitchColor: '#f2b06a',
-      cosmetics: { cardEffect: 'card-koi' },
+      cosmetics: {
+        cardEffect: 'card-koi',
+        cardEffectColors: { 'card-koi': '#7cf0d8' },
+        cardEffectColors2: { 'card-koi': '#ff8fd4' },
+      },
       isFounder: false,
       level: 8,
       fragments: [{ type: 'text', text: 'у пруда своя очередь' }],
