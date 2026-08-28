@@ -16,9 +16,9 @@ import {
  * the effect read on a stream: one bright coordinated event instead of sixteen dim random blinks.
  *
  * All drift and sway frequencies are whole cycles per loop (three waves per 9s), so the wrap is
- * seamless. The colour upgrade repaints the whole PALETTE: the flash glow and core directly, and
- * the grass as a darkened cut of the same hue — one meadow, one colour family, so a recolour
- * never leaves green grass under violet light.
+ * seamless. The colour upgrade repaints the whole PALETTE: the flash glow and core, the card's
+ * bottom-edge glow (the meadow's ambient light, which also kindles under the passing wave), and
+ * the grass as a darkened cut of the same hue — one meadow, one colour family.
  */
 
 const LOOP = 9000;
@@ -60,6 +60,24 @@ function scene(base: string) {
     ground.addColorStop(1, 'rgba(18,28,23,0.75)');
     ctx.fillStyle = ground;
     ctx.fillRect(0, h - gh, w, gh);
+    // The card's bottom edge GLOWS in the palette colour — the meadow's ambient light. A steady
+    // base wash, plus slices that kindle under the flash wave as it sweeps by overhead.
+    const glowH = clamp(h * 0.3, 10, 46);
+    const wash = ctx.createLinearGradient(0, h, 0, h - glowH);
+    wash.addColorStop(0, rgba(base, 0.14));
+    wash.addColorStop(1, rgba(base, 0));
+    ctx.fillStyle = wash;
+    ctx.fillRect(0, h - glowH, w, glowH);
+    for (let si = 0; si < 10; si++) {
+      const xc = ((si + 0.5) / 10) * w;
+      const local = (((ts - (xc / w) * 1.2) % WAVE) + WAVE) % WAVE;
+      const fl = local < 0.6 ? Math.pow(1 - local / 0.6, 1.6) : 0;
+      if (fl < 0.03) continue;
+      ctx.globalAlpha = fl;
+      ctx.fillStyle = wash;
+      ctx.fillRect((si / 10) * w, h - glowH, w / 10 + 1, glowH);
+      ctx.globalAlpha = 1;
+    }
     // Two rows of grass, ~one blade per 13px — a meadow's edge, not a picket fence.
     const nb = Math.round(clamp(w / 13, 18, 46));
     for (let i = 0; i < nb; i++) {

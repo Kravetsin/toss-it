@@ -144,9 +144,18 @@ function paint(
       }
       spine.push(prev);
     }
-    // Neon: the fish swims in its own pool of light, thrown from the head.
+    // Neon: ONE elongated halo along the whole body — a rotated, stretched radial spill — rather
+    // than a glow per segment: the fish lights up head to tail for the price of one gradient.
     const [hx0, hy0] = spine[0]!;
-    spill(ctx, hx0, hy0, S * 4.2, f.body, 0.85);
+    const [cx0, cy0] = spine[3]!;
+    const [tx0, ty0] = spine[6]!;
+    const bodyAng = Math.atan2(hy0 - ty0, hx0 - tx0);
+    ctx.save();
+    ctx.translate(cx0, cy0);
+    ctx.rotate(bodyAng);
+    ctx.scale(1.55, 0.75);
+    spill(ctx, 0, 0, S * 4.6, f.body, 1);
+    ctx.restore();
     // Undulation: a wave running head → tail, growing toward the tail.
     for (let k = 7; k >= 0; k--) {
       const [x, y] = spine[k]!;
