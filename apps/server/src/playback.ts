@@ -85,6 +85,9 @@ export interface NickMarks {
   entrance: string | null;
   /** Portal entrance tint (#rrggbb); only set when `entrance` is the portal. */
   entranceColor: string | null;
+  /** The sender's provider name, carried so a bought name can be checked against the account it
+   *  belongs to. Not a cosmetic — it rides along because it comes off the same row. */
+  platformName: string | null;
 }
 const NO_MARKS: NickMarks = {
   color: null,
@@ -100,6 +103,7 @@ const NO_MARKS: NickMarks = {
   sealColor: null,
   entrance: null,
   entranceColor: null,
+  platformName: null,
 };
 
 /**
@@ -107,8 +111,12 @@ const NO_MARKS: NickMarks = {
  * routes used to hand-roll this object literal, which is how they silently stayed on four fields
  * while the type grew a fifth.
  */
-export function marksFromEquipped(equipped: EquippedCosmetics | null): NickMarks {
+export function marksFromEquipped(
+  equipped: EquippedCosmetics | null,
+  platformName: string | null = null,
+): NickMarks {
   return {
+    platformName,
     color: equipped?.nickColor ?? null,
     color2: equipped?.nickColor2 ?? null,
     flow: equipped?.nickFlow ?? false,
@@ -144,6 +152,10 @@ export function toSummary(
     id: sub.id,
     senderUserId: sub.senderUserId,
     senderName: sub.senderName,
+    // Only when it would actually reveal something: for everyone who never bought a name the two
+    // are the same string, and sending it would put a pointless tooltip on every card.
+    senderPlatformName:
+      marks.platformName && marks.platformName !== sub.senderName ? marks.platformName : null,
     senderColor: marks.color,
     senderColor2: marks.color2,
     senderNickFlow: marks.flow,
@@ -174,11 +186,11 @@ export function toSummary(
 export async function equippedMarksOf(userId: string | null): Promise<NickMarks> {
   if (!userId) return NO_MARKS;
   const row = await db
-    .select({ equipped: users.equipped })
+    .select({ equipped: users.equipped, platformName: users.platformName })
     .from(users)
     .where(eq(users.id, userId))
     .get();
-  return marksFromEquipped(row?.equipped ?? null);
+  return marksFromEquipped(row?.equipped ?? null, row?.platformName ?? null);
 }
 
 /** Batch-resolve equipped marks for a set of users (avoids N+1 in list endpoints). */
@@ -189,16 +201,14 @@ export async function equippedMarksFor(
   const out = new Map<string, NickMarks>();
   if (ids.length === 0) return out;
   const rows = await db
-    .select({ id: users.id, equipped: users.equipped })
+    .select({ id: users.id, equipped: users.equipped, platformName: users.platformName })
     .from(users)
     .where(inArray(users.id, ids))
     .all();
-  for (const r of rows) {
-    const e = r.equipped;
-    if (e?.nickColor || e?.nickEffect || e?.cardEffect || e?.frame || e?.seal || e?.entrance)
-      out.set(r.id, marksFromEquipped(e));
-    // nickColor2 needs no check of its own: it is only ever set alongside nickColor.
-  }
+  // Every found user gets an entry now, where this used to skip anyone with nothing equipped: the
+  // marks carry the provider's name as well, and that is exactly what a sender with no cosmetics
+  // and a bought name needs for the hover to have something to reveal.
+  for (const r of rows) out.set(r.id, marksFromEquipped(r.equipped ?? null, r.platformName));
   return out;
 }
 

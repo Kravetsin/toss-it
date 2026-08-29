@@ -4,6 +4,7 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import { db } from './db/index';
 import { linkedIdentities, sessions, submissions, users, type UserRow } from './db/schema';
 import { config } from './config';
+import { setPlatformName } from './displayName';
 
 const SESSION_COOKIE = 'sid';
 
@@ -275,13 +276,18 @@ export async function upsertUser(info: OAuthUserInfo): Promise<UserRow> {
       id: info.id,
       login: info.login,
       displayName: info.displayName,
+      platformName: info.displayName,
       avatarUrl: info.avatarUrl,
       createdAt: now,
     })
     .onConflictDoUpdate({
       target: users.id,
-      set: { login: info.login, displayName: info.displayName, avatarUrl: info.avatarUrl },
+      // `display_name` is NOT set here: it may be a bought name, and a login must not spend the
+      // viewer's dust for them. The provider's name lands in platform_name, and setPlatformName
+      // below moves it into display_name only when nothing was bought.
+      set: { login: info.login, platformName: info.displayName, avatarUrl: info.avatarUrl },
     });
+  await setPlatformName(info.id, info.displayName);
   const row = await db.select().from(users).where(eq(users.id, info.id)).get();
   return row!;
 }

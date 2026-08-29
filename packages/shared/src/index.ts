@@ -677,6 +677,10 @@ export interface SubmissionSummary {
   id: string;
   senderUserId: string | null;
   senderName: string | null;
+  /** The sender's real provider name, sent ONLY when it differs from what is displayed — i.e. when
+   *  they bought a name. Null otherwise, so a tooltip appears exactly where there is something to
+   *  reveal. This is what a streamer checks before banning. */
+  senderPlatformName: string | null;
   /** Sender's equipped nickname color (#rrggbb), null if none/anon. */
   senderColor: string | null;
   /** Sender's second gradient stop (#rrggbb), null unless they equipped a gradient. */
@@ -901,6 +905,7 @@ export interface UploadResponse {
  * for COSMETICS, makeParticles, the effect helpers, and the cosmetic types.
  */
 export * from './cosmetics';
+export * from './displayName';
 export * from './dust';
 export * from './level';
 export * from './realtime';
@@ -927,7 +932,13 @@ export function youtubePlaylistId(input: string): string | null {
 export interface SessionUser {
   id: string;
   login: string;
+  /** What every surface shows — the provider's name, or a bought one if there is one. */
   displayName: string;
+  /** The provider's own name, kept fresh underneath a bought one. Equals displayName unless a name
+   *  was bought; that is what the shop card and the hover compare against. */
+  platformName: string;
+  /** Set when displayName was bought rather than given by the provider. */
+  hasCustomName: boolean;
   avatarUrl: string | null;
   /** Founder — redeemed founder promo. Grants badge and grandfathering. */
   isFounder: boolean;

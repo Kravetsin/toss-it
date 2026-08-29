@@ -7,6 +7,7 @@ import {
   isBreadthMetric,
   isHexColor,
   breadthProgress,
+  NAME_MAX_GRAPHEMES,
   type CosmeticEarn,
   type CosmeticStateResponse,
   type EquippedCosmetics,
@@ -14,6 +15,7 @@ import {
 import { db } from '../db/index';
 import { userCosmetics, users } from '../db/schema';
 import { isAdmin, requireUser } from '../auth';
+import { buyDisplayName, clearDisplayName } from '../displayName';
 import {
   breadthFor,
   dustEarnedFor,
@@ -93,7 +95,43 @@ async function cosmeticState(userId: string): Promise<CosmeticStateResponse> {
   };
 }
 
+const NAME_ERRORS: Record<string, string> = {
+  empty: 'Введите имя',
+  tooShort: 'Слишком короткое имя',
+  tooLong: `Не длиннее ${NAME_MAX_GRAPHEMES} символов`,
+  tooWide: 'Слишком широкое имя — иероглифы считаются за два знака',
+  badChars: 'В имени только невидимые символы',
+  taken: 'Это настоящее имя другого пользователя',
+  poor: 'Недостаточно звёздной пыли',
+};
+
 export function registerCosmeticsRoutes(app: FastifyInstance): void {
+  /**
+   * Buy a display name. Not a catalog item and not an ownership row: the dust is charged at the
+   * rename itself, so nothing spendable is ever left sitting in an inventory (see ../displayName).
+   */
+  app.post<{ Body: { name?: unknown } | null }>('/api/cosmetics/name', async (req, reply) => {
+    const user = await requireUser(req, reply);
+    if (!user) return;
+    const raw = typeof req.body?.name === 'string' ? req.body.name : '';
+    const result = await buyDisplayName(user.id, raw);
+    if (!result.ok) {
+      return reply
+        .code(result.problem === 'poor' ? 400 : 422)
+        .send({ error: NAME_ERRORS[result.problem] ?? 'Имя не подходит' });
+    }
+    return { ...(await cosmeticState(user.id)), displayName: result.name };
+  });
+
+  /** Go back to the provider's name. Free — undoing a purchase is not itself a purchase. */
+  app.delete('/api/cosmetics/name', async (req, reply) => {
+    const user = await requireUser(req, reply);
+    if (!user) return;
+    const back = await clearDisplayName(user.id);
+    if (back === null) return reply.code(404).send({ error: 'Нет такого пользователя' });
+    return { ...(await cosmeticState(user.id)), displayName: back };
+  });
+
   /** Buy a cosmetic with stardust. Cosmetics are never bought with money. */
   app.post<{ Body: { itemId?: unknown } | null }>('/api/cosmetics/buy', async (req, reply) => {
     const user = await requireUser(req, reply);

@@ -23,7 +23,7 @@ import { useClipboard } from '@/hooks/useClipboard';
 import { useFidgetEnabled } from '@/hooks/useFidgetEnabled';
 import { disintegrate } from '@/lib/burst';
 import { Icon } from '@/ui/icons';
-import { IconButton, PositionMark } from '@/ui';
+import { IconButton, PositionMark, Tooltip } from '@/ui';
 import { PlatformIcon, SealMark, UserBadges } from '@/components/UserMarks';
 import { CardEffect } from '@/components/CardEffect';
 import { nickProps } from '@/lib/nick';
@@ -66,6 +66,16 @@ export function SubmissionCard({
     flow: s.senderNickFlow,
     effect: s.senderEffect,
   });
+  const nickEl = (
+    <b className={`truncate text-sm text-text ${nick.className}`} style={nick.style}>
+      {s.senderName ?? t('common.anon')}
+    </b>
+  );
+  const senderNick = s.senderPlatformName ? (
+    <Tooltip content={s.senderPlatformName}>{nickEl}</Tooltip>
+  ) : (
+    nickEl
+  );
   const { fillRef, handlers: fillHandlers } = useFillEffect();
   const { copiedKey, copy } = useClipboard();
   const link = sourceLink(s);
@@ -204,9 +214,11 @@ export function SubmissionCard({
                 </span>
               )}
               <SealMark seal={s.senderSeal} color={s.senderSealColor} />
-              <b className={`truncate text-sm text-text ${nick.className}`} style={nick.style}>
-                {s.senderName ?? t('common.anon')}
-              </b>
+              {/* A bought name reveals the account it belongs to on hover. The real name is sent
+                  only when it differs from what is shown (see SubmissionSummary.senderPlatformName),
+                  so the plain case stays a plain <b> with no tooltip wrapper at all. Ban acts on
+                  that account, not on the mask. */}
+              {senderNick}
               <RepChip rep={rep} />
               <PlatformIcon userId={s.senderUserId} size={13} />
               <UserBadges isFounder={rep?.isFounder} />

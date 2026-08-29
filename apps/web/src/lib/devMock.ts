@@ -63,7 +63,11 @@ const MOCK_ME: MeResponse = {
   user: {
     id: 'twitch:u_dev',
     login: 'kravetsinside',
-    displayName: 'Kravets',
+    // A bought name over a different platform one, so the shop card and the hover both have
+    // something to show without a round trip.
+    displayName: '长尺丹丷乇丁丂',
+    platformName: 'Kravets',
+    hasCustomName: true,
     avatarUrl: null,
     isFounder: true,
     isAdmin: true,
@@ -225,6 +229,7 @@ const sub = (
 ): SubmissionSummary => ({
   senderUserId: null,
   senderName: null,
+  senderPlatformName: null,
   senderColor: null,
   senderColor2: null,
   senderNickFlow: false,

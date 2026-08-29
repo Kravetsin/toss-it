@@ -10,6 +10,22 @@ export function buyCosmetic(itemId: string): Promise<CosmeticStateResponse> {
   }).then((r) => json<CosmeticStateResponse>(r));
 }
 
+/** Buy a display name. Charged at the rename itself — there is no token to own. */
+export function buyDisplayName(name: string): Promise<CosmeticStateResponse> {
+  return fetch('/api/cosmetics/name', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ name }),
+  }).then((r) => json<CosmeticStateResponse>(r));
+}
+
+/** Go back to the name the provider gives. Free. */
+export function clearDisplayName(): Promise<CosmeticStateResponse> {
+  return fetch('/api/cosmetics/name', { method: 'DELETE' }).then((r) =>
+    json<CosmeticStateResponse>(r),
+  );
+}
+
 /**
  * Equip/unequip cosmetics: a value sets that slot, null removes it, an omitted key leaves it alone.
  * Typed as the equipped state itself so a new cosmetic slot can never drift out of this client — except

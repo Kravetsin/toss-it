@@ -142,6 +142,7 @@ const DEMO_SUBMISSION: SubmissionSummary = {
   id: 'bench',
   senderUserId: 'twitch:bench',
   senderName: 'thunderstruck',
+  senderPlatformName: null,
   senderColor: null,
   senderColor2: null,
   senderNickFlow: false,

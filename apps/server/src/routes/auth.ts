@@ -487,6 +487,10 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
         id: user.id,
         login: user.login,
         displayName: user.displayName,
+        // Falls back to the displayed name for rows that predate the column and have neither
+        // logged in nor chatted since: without a bought name the two are the same thing anyway.
+        platformName: user.platformName ?? user.displayName,
+        hasCustomName: user.customNameAt != null,
         avatarUrl: user.avatarUrl,
         isFounder: user.founderSince != null,
         isAdmin: isAdmin(user.id),

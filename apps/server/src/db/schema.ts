@@ -27,7 +27,16 @@ export const appMeta = sqliteTable('app_meta', {
 export const users = sqliteTable('users', {
   id: text('id').primaryKey(),
   login: text('login').notNull().unique(),
+  /** The name every surface shows. Normally the provider's, but a bought name replaces it — which
+   *  is why this stays THE field to read: the ~15 places that render a name never learn about the
+   *  purchase. `customNameAt` says which of the two it currently holds. */
   displayName: text('display_name').notNull(),
+  /** The provider's own name for this account, kept fresh even while a custom one is displayed:
+   *  it is what moderation acts on and what the hover reveals. Null only for rows that predate the
+   *  column and have not logged in or chatted since. */
+  platformName: text('platform_name'),
+  /** When the displayed name was last bought; null = displayName is still the provider's. */
+  customNameAt: integer('custom_name_at', { mode: 'timestamp_ms' }),
   avatarUrl: text('avatar_url'),
   /** When founder status was granted (via promo code); null = regular user. */
   founderSince: integer('founder_since', { mode: 'timestamp_ms' }),
@@ -487,6 +496,23 @@ export const userCosmetics = sqliteTable(
   },
   (t) => [primaryKey({ columns: [t.userId, t.itemId] })],
 );
+
+/**
+ * Every bought display name, kept forever. Two jobs, and both need the whole history rather than
+ * just the current name: it is the ledger the 'dustSpent' axis reads for this sink (user_cosmetics
+ * can't hold it — its key is one row per item, and a name may be bought again and again), and it is
+ * what a streamer needs when a name turns abusive and the question is what else that account wore.
+ */
+export const nameChanges = sqliteTable('name_changes', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id),
+  name: text('name').notNull(),
+  /** Price frozen at purchase, exactly as user_cosmetics.paid_dust is, and for the same reason. */
+  paidDust: integer('paid_dust').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+});
 
 export const submissions = sqliteTable(
   'submissions',

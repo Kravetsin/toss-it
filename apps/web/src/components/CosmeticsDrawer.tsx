@@ -13,6 +13,9 @@ import {
   breadthProgress,
   type BreadthTotals,
   type CosmeticEarn,
+  checkDisplayName,
+  NAME_CHANGE_DUST,
+  NAME_MAX_GRAPHEMES,
   type CosmeticItem,
   type CosmeticMetric,
   type CosmeticType,
@@ -27,7 +30,7 @@ import { DustMark } from '@/components/DustMark';
 import { NewDot, NewDotGroup } from '@/components/NewDot';
 import { SealMark } from '@/components/UserMarks';
 import { CardEffect } from '@/components/CardEffect';
-import { buyCosmetic, equipCosmetic } from '@/lib/api/shop';
+import { buyCosmetic, buyDisplayName, clearDisplayName, equipCosmetic } from '@/lib/api/shop';
 import { nickProps } from '@/lib/nick';
 import { playVoicePreview } from '@/lib/voicePreview';
 
@@ -399,6 +402,7 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   const balance = user?.stardust ?? 0;
   const previewName = user?.displayName ?? 'nickname';
 
+  const [nameDraft, setNameDraft] = useState('');
   const [category, setCategory] = useState<ShopCategory>('nick');
   const [cardGroup, setCardGroup] = useState<CardGroupKey>('cosmic');
   const [color, setColor] = useState(equippedColor ?? DEFAULT_COLOR);
@@ -432,6 +436,30 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   useEffect(() => {
     if (equippedFlow) setFlow(true);
   }, [equippedFlow]);
+  // Start from the name in use, so the field reads as "edit this" rather than "invent something".
+  useEffect(() => {
+    if (user?.displayName) setNameDraft(user.displayName);
+  }, [user?.displayName]);
+
+  const buyName = async () => {
+    const ok = await confirm({
+      title: t('shop.confirmTitle'),
+      message: t('shop.confirmName', { name: nameCheck.value, n: NAME_CHANGE_DUST }),
+      confirmLabel: t('shop.nameApply'),
+    });
+    if (!ok) return;
+    void act(() => buyDisplayName(nameCheck.value), { after: refresh, success: t('shop.bought') });
+  };
+
+  const revertName = async () => {
+    const ok = await confirm({
+      title: t('shop.confirmTitle'),
+      message: t('shop.confirmRevertName', { name: user?.platformName ?? '' }),
+      confirmLabel: t('shop.nameRevert'),
+    });
+    if (!ok) return;
+    void act(() => clearDisplayName(), { after: refresh });
+  };
 
   const buy = async (id: string, label: string, cost: number) => {
     const ok = await confirm({
@@ -1036,6 +1064,60 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
     );
   };
 
+  /**
+   * The bought display name. Not a catalog row: there is nothing to own or equip, the dust is
+   * charged at the rename itself, so this is a field and a button rather than a buy/equip pair.
+   * The name is checked here with the very rules the server enforces (@tmw/shared), so the reason
+   * a name is refused shows up as you type instead of after paying.
+   */
+  const nameCheck = checkDisplayName(nameDraft);
+  const nameUnchanged = nameCheck.value === (user?.displayName ?? '');
+  const nameCard = (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="label-mono text-faint">{t('shop.realName')}</span>
+        <span className="truncate text-sm text-muted">{user?.platformName}</span>
+      </div>
+      <input
+        value={nameDraft}
+        onChange={(e) => setNameDraft(e.target.value)}
+        maxLength={NAME_MAX_GRAPHEMES * 4}
+        placeholder={user?.platformName ?? ''}
+        aria-label={t('shop.customName')}
+        className="w-full rounded-none border border-border bg-transparent px-2.5 py-1.5 text-sm text-text outline-none focus-visible:border-accent"
+      />
+      <div className="flex items-center justify-between gap-2">
+        <span className="label-mono text-faint">
+          {nameDraft && !nameCheck.ok
+            ? t(`shop.name_${nameCheck.problem}`)
+            : t('shop.nameLimit', { n: NAME_MAX_GRAPHEMES })}
+        </span>
+        <span className="inline-flex shrink-0 items-center gap-1.5 label-mono text-accent">
+          <DustMark size={14} />
+          {NAME_CHANGE_DUST}
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+        <Button
+          variant="accent"
+          size="sm"
+          onClick={buyName}
+          disabled={!nameCheck.ok || nameUnchanged || balance < NAME_CHANGE_DUST}
+        >
+          {t('shop.nameApply')}
+        </Button>
+        {user?.hasCustomName && (
+          <Button variant="ghost" size="sm" onClick={revertName}>
+            {t('shop.nameRevert')}
+          </Button>
+        )}
+        {balance < NAME_CHANGE_DUST && (
+          <span className="label-mono text-faint">{t('shop.notEnough')}</span>
+        )}
+      </div>
+    </div>
+  );
+
   /** `note`: a caveat the whole category shares — said once at the top, not per row. */
   const section = (title: string, body: ReactNode, note?: string) => (
     <Card corners>
@@ -1144,6 +1226,8 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
             category="voices"
           />
         </div>
+
+        {category === 'nick' && section(t('shop.customName'), nameCard, t('shop.customNameDesc'))}
 
         {category === 'nick' &&
           section(

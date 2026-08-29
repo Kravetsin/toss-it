@@ -10,6 +10,7 @@ import {
   userCosmetics,
   users,
 } from './db/schema';
+import { dustSpentOnNames } from './displayName';
 
 export interface LevelKey {
   userId: string | null;
@@ -189,6 +190,9 @@ export async function dustEarnedFor(userId: string): Promise<number> {
  * `paidDust` is the price frozen at purchase; rows written before that column exist carry 0, so those
  * fall back to today's catalog price. That fallback is the only place a price edit can still move an
  * old row, and it shrinks to nothing as pre-column purchases age out.
+ *
+ * Bought names are summed alongside, from their own ledger: they are a sink like any other, and a
+ * viewer who spent five thousand dust on names would otherwise read as having spent nothing.
  */
 export async function dustSpentFor(userId: string): Promise<number> {
   const rows = await db
@@ -196,10 +200,11 @@ export async function dustSpentFor(userId: string): Promise<number> {
     .from(userCosmetics)
     .where(eq(userCosmetics.userId, userId))
     .all();
-  return rows.reduce(
+  const onItems = rows.reduce(
     (sum, r) => sum + (r.paidDust || (COSMETICS.find((c) => c.id === r.itemId)?.costDust ?? 0)),
     0,
   );
+  return onItems + (await dustSpentOnNames(userId));
 }
 
 /**

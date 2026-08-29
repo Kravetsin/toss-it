@@ -136,7 +136,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
   /** twitch id -> Tossit cosmetics, short-lived cache (chat volume; avoid a DB read per msg). */
   const cosmeticsCache = new Map<
     string,
-    { cosmetics: EquippedCosmetics | null; isFounder: boolean; at: number }
+    { cosmetics: EquippedCosmetics | null; isFounder: boolean; name: string | null; at: number }
   >();
   /** `${channelId} ${twitchId}` -> per-channel XP, short-lived cache (chat volume). Level is
    *  derived (xpToLevel); XP is cached because the !xp command wants the raw number too. */
@@ -210,14 +210,26 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     excludedLogins = new Set(rows.map((r) => r.login));
   }
 
-  /** Author's equipped Tossit cosmetics by twitch id (null if not linked), cached ~60s. */
+  /**
+   * Author's equipped Tossit cosmetics by twitch id (null if not linked), cached ~60s.
+   *
+   * `name` comes back only for someone who BOUGHT a display name. Everyone else keeps the live
+   * name Twitch sent with the message, which is both what this overlay has always shown and what
+   * lets a streamer line a row up against their real chat. A bought name has to win here too, or
+   * the purchase would work everywhere except the surface people look at most.
+   */
   async function lookupCosmetics(
     twitchId: string,
-  ): Promise<{ cosmetics: EquippedCosmetics | null; isFounder: boolean }> {
+  ): Promise<{ cosmetics: EquippedCosmetics | null; isFounder: boolean; name: string | null }> {
     const hit = cosmeticsCache.get(twitchId);
     if (hit && Date.now() - hit.at < COSMETICS_TTL_MS) return hit;
     const row = await db
-      .select({ equipped: users.equipped, founderSince: users.founderSince })
+      .select({
+        equipped: users.equipped,
+        founderSince: users.founderSince,
+        displayName: users.displayName,
+        customNameAt: users.customNameAt,
+      })
       .from(linkedIdentities)
       .innerJoin(users, eq(users.id, linkedIdentities.userId))
       .where(
@@ -227,6 +239,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     const value = {
       cosmetics: row?.equipped ?? null,
       isFounder: row?.founderSince != null,
+      name: row?.customNameAt ? row.displayName : null,
       at: Date.now(),
     };
     cosmeticsCache.set(twitchId, value);
@@ -618,11 +631,11 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
       badgeResolver.resolve(ev.broadcasterId, ev.badges),
       cheermoteResolver.resolve(ev.broadcasterId, ev.fragments),
     ])
-      .then(([{ cosmetics, isFounder }, xp, badges, fragments]) => {
+      .then(([{ cosmetics, isFounder, name }, xp, badges, fragments]) => {
         deps.io.to(roomOf(channelId)).emit('chat:message', {
           id: ev.messageId,
           userId: ev.chatterId,
-          name: ev.chatterName,
+          name: name ?? ev.chatterName,
           twitchColor: ev.color,
           cosmetics,
           isFounder,
