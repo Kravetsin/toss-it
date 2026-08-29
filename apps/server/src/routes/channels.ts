@@ -75,6 +75,7 @@ export async function sendsBoard(
       userId: submissions.senderUserId,
       login: users.login,
       displayName: users.displayName,
+      platformName: users.platformName,
       founderSince: users.founderSince,
       equipped: users.equipped,
       value: count(),
@@ -105,6 +106,8 @@ export async function sendsBoard(
     userId: r.userId!,
     login: r.login,
     displayName: r.displayName,
+    // Only when it reveals something: for everyone who never bought a name the two match.
+    platformName: r.platformName !== r.displayName ? r.platformName : null,
     value: r.value,
     isFounder: r.founderSince != null,
     nickColor: r.equipped?.nickColor ?? null,
@@ -190,6 +193,9 @@ export async function chatBoard(
       userId: u?.id ?? `twitch:${r.platformUserId}`,
       login: u?.login ?? r.login,
       displayName: u?.displayName ?? r.displayName,
+      // Only an account can carry a bought name; an unregistered chatter's row is the activity
+      // snapshot, which is their real name by definition and needs no tooltip.
+      platformName: u && u.platformName !== u.displayName ? (u.platformName ?? null) : null,
       // The 'level' metric now shows the full level (same value the rank badge uses).
       value: metric === 'level' ? level : r.value,
       isFounder: u?.founderSince != null,
@@ -271,6 +277,7 @@ export function registerChannelRoutes(app: FastifyInstance): void {
         channelId: channels.id,
         login: users.login,
         displayName: users.displayName,
+        platformName: users.platformName,
         avatarUrl: users.avatarUrl,
         accepting: channels.accepting,
         maxDurationMs: channels.maxDurationMs,
@@ -317,6 +324,7 @@ export function registerChannelRoutes(app: FastifyInstance): void {
       bgHue,
       bgTint,
       pageBackground,
+      platformName,
       ...rest
     } = row;
     // The logged-in viewer's own per-channel XP — so their header card matches the chat badge, and
@@ -341,6 +349,8 @@ export function registerChannelRoutes(app: FastifyInstance): void {
       .get();
     const response: PublicChannelInfo = {
       ...rest,
+      // Only when it reveals something — see LeaderboardEntry.platformName for the same rule.
+      platformName: platformName !== rest.displayName ? platformName : null,
       ttsEnabled: ttsName || ttsMessage,
       // Collapsed to one flag: the viewer page only needs "could a link air unmoderated here?" to
       // warn that a caption would be dropped. Music vs video is decided server-side by category.

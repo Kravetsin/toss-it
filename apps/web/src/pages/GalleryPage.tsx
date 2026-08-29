@@ -167,6 +167,7 @@ const DEMO_ENTRY: LeaderboardEntry = {
   userId: 'twitch:bench',
   login: 'thunderstruck',
   displayName: 'thunderstruck',
+  platformName: null,
   value: 12,
   isFounder: false,
   nickColor: null,

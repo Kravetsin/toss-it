@@ -37,9 +37,19 @@ export function ChannelHeader({ channel }: { channel: PublicChannelInfo }) {
           <Avatar url={channel.avatarUrl} name={channel.displayName} size={56} />
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className={nick.className} style={nick.style}>
-                {channel.displayName}
-              </h1>
+              {/* Hovering a bought name shows the account it belongs to; only sent when the two
+                  differ, so an ordinary channel title stays a plain heading. */}
+              {channel.platformName ? (
+                <Tooltip content={channel.platformName}>
+                  <h1 className={nick.className} style={nick.style}>
+                    {channel.displayName}
+                  </h1>
+                </Tooltip>
+              ) : (
+                <h1 className={nick.className} style={nick.style}>
+                  {channel.displayName}
+                </h1>
+              )}
               {/* 28px against the 30px h1 — the mark reads at the nick's own scale, not as a chip. */}
               <UserBadges isFounder={channel.isFounder} size={28} />
             </div>

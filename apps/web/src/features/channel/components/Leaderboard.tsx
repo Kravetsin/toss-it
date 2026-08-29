@@ -12,7 +12,7 @@ import { getLeaderboard } from '@/lib/api';
 import { useI18n } from '@/i18n';
 import { useMe } from '@/hooks/useMe';
 import { Icon, type IconName } from '@/ui/icons';
-import { Card } from '@/ui';
+import { Card, Tooltip } from '@/ui';
 import { PlatformIcon, SealMark, UserBadges } from '@/components/UserMarks';
 import { CardEffect } from '@/components/CardEffect';
 import { nickProps } from '@/lib/nick';
@@ -135,12 +135,25 @@ export function LeaderboardRow({
           </span>
         )}
         <SealMark seal={e.seal} color={e.sealColor} />
-        <b
-          className={`${isYou ? 'text-accent' : 'text-text'} ${nick.className}`}
-          style={nick.style}
-        >
-          {e.displayName}
-        </b>
+        {/* A bought name reveals the account behind it on hover; sent only when it differs, so an
+            ordinary row carries no tooltip wrapper at all (see LeaderboardEntry.platformName). */}
+        {e.platformName ? (
+          <Tooltip content={e.platformName}>
+            <b
+              className={`${isYou ? 'text-accent' : 'text-text'} ${nick.className}`}
+              style={nick.style}
+            >
+              {e.displayName}
+            </b>
+          </Tooltip>
+        ) : (
+          <b
+            className={`${isYou ? 'text-accent' : 'text-text'} ${nick.className}`}
+            style={nick.style}
+          >
+            {e.displayName}
+          </b>
+        )}
         <PlatformIcon userId={e.userId} size={13} />
         <UserBadges isFounder={e.isFounder} />
         {isYou && <span className="label-mono text-accent">{t('channel.you')}</span>}

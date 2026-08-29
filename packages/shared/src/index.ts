@@ -1046,6 +1046,8 @@ export function earnedBackgroundIds(played: number): string[] {
 export interface PublicChannelInfo {
   login: string;
   displayName: string;
+  /** The streamer's real provider name, sent ONLY when they bought a different one to show. */
+  platformName: string | null;
   avatarUrl: string | null;
   /** false = streamer paused submissions. */
   accepting: boolean;
@@ -1251,6 +1253,9 @@ export interface LeaderboardEntry {
   userId: string;
   login: string;
   displayName: string;
+  /** The real provider name, sent ONLY when it differs from displayName — i.e. when this person
+   *  bought a name. Null otherwise, so a tooltip exists exactly where it reveals something. */
+  platformName: string | null;
   /** Metric value: plays / messages / watch minutes / level. */
   value: number;
   isFounder: boolean;
