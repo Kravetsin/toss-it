@@ -250,6 +250,20 @@ const sub = (
 });
 
 const MOCK_PENDING: SubmissionSummary[] = [
+  // A bought display name: the card shows the name, hovering it reveals the account it belongs to.
+  // Sits first so the tooltip is the first thing to try in the queue. The pair is deliberately a
+  // stylised CJK name over an ordinary Latin login — the case the item exists for.
+  sub({
+    id: 's0',
+    kind: 'text',
+    senderUserId: 'twitch:v0',
+    senderName: '工马尺口从丹刀匚卄工长',
+    senderPlatformName: 'ironmachine_xX21',
+    senderLevel: 6,
+    senderColor: '#8df0cc',
+    text: 'имя купил, а вот мем — нет',
+    createdAt: t - 30_000,
+  }),
   sub({
     id: 's1',
     kind: 'text',
