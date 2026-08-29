@@ -1,4 +1,4 @@
-import { and, eq, gte, ne, sql } from 'drizzle-orm';
+import { and, eq, gte, sql } from 'drizzle-orm';
 import {
   NAME_CHANGE_DUST,
   checkDisplayName,
@@ -6,7 +6,7 @@ import {
   type NameProblem,
 } from '@tmw/shared';
 import { db } from './db/index';
-import { nameChanges, users } from './db/schema';
+import { linkedIdentities, nameChanges, users } from './db/schema';
 
 /**
  * Buying a display name. The rules live in @tmw/shared (so the form rejects the same things this
@@ -25,9 +25,29 @@ export type RenameResult =
   | { ok: false; problem: NameProblem | 'poor' };
 
 /**
+ * Every users row that is really THIS person: their own row, plus the rows their other identities
+ * point at. Someone who signed up on Twitch and later made Google their primary still has the old
+ * `twitch:<id>` row sitting there, carrying their Twitch name — and asking to be called by your own
+ * Twitch name is the very thing this item is for, so those rows must never read as somebody else.
+ *
+ * The identity is the proof of ownership, not the row: a row is only skipped when one of the
+ * caller's own linked identities resolves to that exact id, so an identity they gave up (unlinked,
+ * then claimed by another person) still counts against them, correctly.
+ */
+async function selfRowIds(selfId: string): Promise<Set<string>> {
+  const ids = new Set([selfId]);
+  const rows = await db
+    .select({ provider: linkedIdentities.provider, providerId: linkedIdentities.providerId })
+    .from(linkedIdentities)
+    .where(eq(linkedIdentities.userId, selfId))
+    .all();
+  for (const r of rows) ids.add(`${r.provider}:${r.providerId}`);
+  return ids;
+}
+
+/**
  * Names that already belong to a real account, as collision keys. Only PLATFORM names and logins:
  * a custom name is nobody's identity, so two people may share one (see displayName.ts in shared).
- * `self` is excluded — re-buying your own current name is pointless but not an impersonation.
  *
  * A full scan, deliberately: the fold has no SQL equivalent, and this runs once per rename attempt
  * — a thousand-dust action, not a keystroke. If the user table ever outgrows that, the fold becomes
@@ -35,12 +55,13 @@ export type RenameResult =
  */
 async function isImpersonation(fold: string, selfId: string): Promise<boolean> {
   if (!fold) return false;
+  const mine = await selfRowIds(selfId);
   const rows = await db
-    .select({ login: users.login, platformName: users.platformName })
+    .select({ id: users.id, login: users.login, platformName: users.platformName })
     .from(users)
-    .where(ne(users.id, selfId))
     .all();
   for (const r of rows) {
+    if (mine.has(r.id)) continue;
     if (foldForCollision(r.login) === fold) return true;
     if (r.platformName && foldForCollision(r.platformName) === fold) return true;
   }

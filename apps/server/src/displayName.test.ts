@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { NAME_CHANGE_DUST } from '@tmw/shared';
 import { db } from './db/index';
-import { nameChanges, users } from './db/schema';
+import { linkedIdentities, nameChanges, users } from './db/schema';
 import { buyDisplayName, clearDisplayName, dustSpentOnNames, setPlatformName } from './displayName';
 
 /**
@@ -117,6 +117,44 @@ describe('bought display name', () => {
       const victim = `u_${crypto.randomUUID()}`;
       await insert(victim, 'night_driver', 'Someone Else');
       expect(await buyDisplayName(userId, 'Night Driver')).toMatchObject({
+        ok: false,
+        problem: 'taken',
+      });
+    });
+
+    // The one that shipped broken: signed up on Twitch, later made Google the primary, so the old
+    // `twitch:<id>` row still sits there carrying the Twitch name. Asking to be called by your OWN
+    // Twitch name is the whole point of the item, and it was being refused as impersonation.
+    it('allows your own name from another identity of yours', async () => {
+      const twitchId = `${Math.floor(Math.random() * 1e9)}`;
+      const googleId = `google:${crypto.randomUUID()}`;
+      await insert(googleId, `g_${twitchId}`, 'Kravets', NAME_CHANGE_DUST);
+      // The leftover row from before the switch, and the identity that now opens the Google one.
+      await insert(`twitch:${twitchId}`, `tw_${twitchId}`, '长尺丹丷乇丁丂');
+      await db.insert(linkedIdentities).values({
+        provider: 'twitch',
+        providerId: twitchId,
+        userId: googleId,
+        createdAt: new Date(),
+      });
+      expect(await buyDisplayName(googleId, '长尺丹丷乇丁丂')).toMatchObject({ ok: true });
+      expect((await read(googleId)).displayName).toBe('长尺丹丷乇丁丂');
+    });
+
+    // ...but an identity you gave up is not yours any more: ownership is proven by the identity
+    // row, not by the account id looking familiar.
+    it('still refuses a name whose identity now opens someone else', async () => {
+      const twitchId = `${Math.floor(Math.random() * 1e9)}`;
+      const stranger = `u_${crypto.randomUUID()}`;
+      await insert(stranger, `l_${stranger}`, 'Stranger');
+      await insert(`twitch:${twitchId}`, `tw_${twitchId}`, 'Somebody Else');
+      await db.insert(linkedIdentities).values({
+        provider: 'twitch',
+        providerId: twitchId,
+        userId: stranger,
+        createdAt: new Date(),
+      });
+      expect(await buyDisplayName(userId, 'Somebody Else')).toMatchObject({
         ok: false,
         problem: 'taken',
       });
