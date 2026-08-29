@@ -42,6 +42,7 @@ import { getRewardById } from '../channel-points/store';
 import { noticeText } from './notices';
 import { t } from './strings';
 import { bumpMessage, bumpWatch, flushActivity } from './stats';
+import { refreshChatterName } from './names';
 import { createSkipVotes } from './skipVotes';
 import { planSubs } from './subplan';
 import { loadBotCredentials, refreshBotCredentials, type BotCredentials } from './token';
@@ -522,6 +523,14 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     }
 
     if (excluded) return;
+
+    // Twitch just told us this chatter's current login and display name; if they renamed, this is
+    // where our copy finds out (see ./names). Not gated on `live` or on being a viewer: the
+    // broadcaster reading their own name across the dashboard is the likeliest one to have
+    // renamed, and off-stream chat carries the same fresh pair.
+    refreshChatterName(ev.chatterId, ev.chatterLogin, ev.chatterName, deps.log).catch((err) =>
+      deps.log.warn({ err }, 'twitch-chat: name refresh failed'),
+    );
 
     // A moderator sighting, for the breadth seal gated on "channels you moderate". Written once per
     // (channel, chatter) for the lifetime of the process: the in-memory guard is what keeps this off
