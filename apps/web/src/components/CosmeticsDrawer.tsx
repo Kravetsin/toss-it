@@ -380,13 +380,17 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
   const equippedSeal = user?.equipped.seal ?? null;
   // Per-seal saved colours (butterfly, eye) — the picker inside each seal's row reads/writes here.
   const equippedSealColors = user?.equipped.sealColors ?? {};
-  // Account-wide activity — earned cosmetics (frames, seals) unlock at a threshold instead of a price.
-  const earnTotals = {
+  // Account-wide activity — earned cosmetics (frames, seals) unlock at a threshold instead of a
+  // price. Typed exhaustively over every non-breadth metric: the roulette pair was once missing
+  // here while the server knew it fine, and every wheel rung read "NaN/25" forever.
+  const earnTotals: Record<Exclude<CosmeticMetric, `channels${string}`>, number> = {
     messages: admin ? Infinity : (user?.messagesTotal ?? 0),
     watchMinutes: admin ? Infinity : (user?.watchMinutesTotal ?? 0),
     submissions: admin ? Infinity : (user?.submissionsTotal ?? 0),
     dustEarned: admin ? Infinity : (user?.dustEarnedTotal ?? 0),
     dustSpent: admin ? Infinity : (user?.dustSpentTotal ?? 0),
+    rouletteGreens: admin ? Infinity : (user?.rouletteGreensTotal ?? 0),
+    rouletteWins: admin ? Infinity : (user?.rouletteWinsTotal ?? 0),
   };
   /**
    * How far along ONE milestone the viewer is. A breadth metric answers in CHANNELS — how many clear

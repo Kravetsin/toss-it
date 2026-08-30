@@ -98,6 +98,10 @@ const MOCK_ME: MeResponse = {
     // Lifetime spent dust. Past the black hole's first rung (2000) but not its second (10k), so that
     // ladder previews the LOCKED rung the nova's no longer shows.
     dustSpentTotal: 5400,
+    // Past the zero's first rung (2) but short of its second (10) — a wheel ladder mid-climb.
+    rouletteGreensTotal: 4,
+    // Past both laurel rungs (25 / 100) but short of the colour (200), mirroring the nova's shape.
+    rouletteWinsTotal: 130,
     // The breadth axis, per channel. Tuned so every new ladder previews mid-climb: 4 channels clear
     // the moons' first bar (25 messages) but only 2 clear its second (100); 2 of 3 channels clear the
     // rings' first bar (10 h); the keyring sits one channel short of its second rung.

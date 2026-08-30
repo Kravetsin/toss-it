@@ -501,6 +501,9 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
         submissionsTotal: await submissionsTotalFor(user.id),
         dustEarnedTotal: await dustEarnedFor(user.id),
         dustSpentTotal: await dustSpentFor(user.id),
+        // Straight off the row that is already in hand — these live on users (see noteSpin).
+        rouletteGreensTotal: user.rouletteGreens,
+        rouletteWinsTotal: user.rouletteWins,
         breadth: await breadthFor(user.id),
         equipped: user.equipped ?? {},
         hasTwitch: !!twitchIdentity,

@@ -996,6 +996,10 @@ export interface SessionUser {
   /** Lifetime stardust spent, summed over everything owned — unlocks the black hole seal. Climbs
    *  only, because every dust sink is a permanent grant. */
   dustSpentTotal: number;
+  /** Wheel greens caught — unlocks the zero seal. A live users column (see noteSpin). */
+  rouletteGreensTotal: number;
+  /** Wheel wins of any colour — unlocks the laurels. Same live column family as the greens. */
+  rouletteWinsTotal: number;
   /** Per-channel totals for the breadth axis (see BreadthTotals). */
   breadth: BreadthTotals;
   /** Currently equipped cosmetics (nick color, etc.). */
