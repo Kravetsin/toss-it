@@ -26,6 +26,9 @@ export function RouletteDrawer({ open, onClose }: { open: boolean; onClose: () =
   const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState<SpinDone | null>(null);
   const [target, setTarget] = useState<number | null>(null);
+  /** Outcome of the spin in flight, for the wheel's landing wash. Set with the target, not on
+   *  settle: the wash has to be ready the instant the pointer stops. */
+  const [wonPending, setWonPending] = useState<boolean | null>(null);
   /** Held over the wheel right now — lights the window's frame in its colour. */
   const [armed, setArmed] = useState<RouletteColor | null>(null);
   /** Out on the wheel until it stops; the tray keeps its socket empty that whole time. */
@@ -88,6 +91,7 @@ export function RouletteDrawer({ open, onClose }: { open: boolean; onClose: () =
       // The wheel is told where to stop before anything moves: the server already decided, and the
       // animation is only allowed to agree with it.
       pending.current = res.outcome;
+      setWonPending(res.outcome.payout > 0);
       setSpinning(true);
       setTarget(res.outcome.slot);
     },
@@ -136,6 +140,7 @@ export function RouletteDrawer({ open, onClose }: { open: boolean; onClose: () =
           slot={target}
           spinning={spinning}
           armed={armed}
+          won={wonPending}
           interior
           canvasRef={canvasRef}
           className="absolute inset-0 block size-full"
@@ -143,23 +148,7 @@ export function RouletteDrawer({ open, onClose }: { open: boolean; onClose: () =
         />
 
         {/* Controls live inside the arc. Narrow column so they stay clear of the curve on any width. */}
-        <div className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-3 px-4 pb-6 pt-2">
-          <div className="flex h-6 items-center gap-2 text-sm">
-            {result ? (
-              <span className={won ? 'text-accent' : 'text-muted'}>
-                {t(`roulette.color.${result.resultColor}`)}
-                {' · '}
-                <span className="font-mono font-bold">
-                  {won ? `+${result.payout - result.stake}` : `−${result.stake}`}
-                </span>
-              </span>
-            ) : (
-              <span className="text-faint">
-                {max === 0 ? t('roulette.broke') : t('roulette.throwHint')}
-              </span>
-            )}
-          </div>
-
+        <div className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-2 px-4 pb-5 pt-2">
           <div className="w-full max-w-[360px]">
             <AmountDial
               value={stake}
@@ -176,6 +165,25 @@ export function RouletteDrawer({ open, onClose }: { open: boolean; onClose: () =
             onArm={setArmed}
             onPlay={play}
           />
+
+          {/* Under the tray, never over the wheel: the wheel is the one thing being watched, and a
+              caption across it covers exactly the pockets the player is trying to read. */}
+          <div className="flex h-8 items-center">
+            {result ? (
+              <span
+                className={`text-xl font-bold tabular-nums ${won ? 'text-accent' : 'text-danger'}`}
+              >
+                {won ? `+${result.payout - result.stake}` : `−${result.stake}`}
+                <span className="ml-1.5 text-sm font-normal opacity-70">
+                  {t(`roulette.color.${result.resultColor}`)}
+                </span>
+              </span>
+            ) : (
+              <span className="text-xs text-faint">
+                {max === 0 ? t('roulette.broke') : t('roulette.throwHint')}
+              </span>
+            )}
+          </div>
 
           {/* Rates live here rather than on the tiles: the tiles are the verb, and a verb with a
               number printed on it stops reading as a thing you can pick up. */}

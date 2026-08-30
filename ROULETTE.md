@@ -196,10 +196,19 @@ and it leans **left**, the way the pockets travel, because a flapper is dragged 
 it. This is what makes a wheel feel mechanical rather than animated, and it needs per-frame knowledge
 of where the wheel is, which is why the whole thing is an rAF loop and not a CSS transition.
 
-**Landing.** The winning pocket takes a rim light that decays over 700 ms, and the dashboard's own
-`disintegrate` fires: mint on a win, red shards on a loss. Scaled by the multiple won, because that
-function derives its particle count from the rect's AREA — a pointer-sized rect yields about seven
-specks, which for a ×35 reads as a bug. A ×2 gets the pocket, a ×35 the whole rim plus a second wave.
+**Landing.** Three things fire at once, because one of them alone was not enough to answer "did I
+win" without reading:
+
+- the winning pocket takes a rim light, 700 ms;
+- the whole disc **washes** in the outcome's colour — mint or red — over 1400 ms, painted OVER the
+  glass (a tint the glass then dims is a tint nobody notices) with a ring running the rim, so the
+  answer is legible from across the room and outlives the particles;
+- `disintegrate` throws the dashboard's own particles, in **waves**: it caps at 60 per call however
+  large the rect, so "more" can only come from calling it again. Two waves for a loss, three for a
+  ×2, five for a ×35, staggered 110 ms so the burst keeps going a beat past where the eye expects it.
+
+The verdict number under the tray is the fourth cue and the quietest: by the time anyone reads it,
+the colour has already said it.
 
 ### Glass
 
@@ -229,7 +238,12 @@ against the circle. Move and release are watched on the WINDOW rather than throu
 lose the capture and the release never arrives, which strands the tile held forever.
 
 **Rates are printed under the tray**, not on the tiles. A verb with a number on it stops reading as
-a thing you can pick up.
+a thing you can pick up. The hint and the verdict live there too — never over the wheel, which is
+the one thing being watched, and a caption across it covers the pockets being read.
+
+**The tile empties its socket only once something else is representing it** — the ghost under the
+cursor, or the wheel itself. Emptying on the press alone left the first few pixels of every drag
+with nothing in hand.
 
 **The stake is a drum, not a field.** Flick it; harder flicks coast further, steps of ten, snapping
 to the nearest step. Velocity is measured over a 90 ms WINDOW of samples, not from the last pair:

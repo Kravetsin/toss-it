@@ -78,6 +78,7 @@ export function Wheel({
   spinning,
   suspense = true,
   armed = null,
+  won = null,
   interior = false,
   canvasRef: externalRef,
   className = 'block h-[150px] w-full',
@@ -90,6 +91,10 @@ export function Wheel({
   suspense?: boolean;
   /** Colour being dragged over the wheel right now — lights the window's frame in it. */
   armed?: RouletteColor | null;
+  /** The outcome this spin is travelling towards. Known in advance like the slot is, and used only
+   *  on landing: the disc washes in it, which is the loudest way to answer "did I win" without
+   *  making the player read anything. */
+  won?: boolean | null;
   /** Fill the disc's inside, making the arc the boundary of whatever sits under it. */
   interior?: boolean;
   /** Handed out so a caller can hit-test the band (see overBand). */
@@ -107,6 +112,10 @@ export function Wheel({
   const flap = useRef(0);
   /** 1 → 0 after landing: the winning pocket takes a rim light. */
   const flash = useRef(0);
+  /** 1 → 0 after landing: the whole disc washes in the outcome's colour. */
+  const wash = useRef(0);
+  const wonRef = useRef<boolean | null>(won);
+  wonRef.current = won;
   const armedRef = useRef<RouletteColor | null>(armed);
   armedRef.current = armed;
 
@@ -231,6 +240,42 @@ export function Wheel({
     ctx.stroke(outer);
     ctx.restore();
 
+    // The verdict wash: the whole disc takes the outcome's colour and drains out of it. Over the
+    // glass rather than under it, because a tint the glass then dims is a tint nobody notices.
+    if (wash.current > 0 && wonRef.current !== null) {
+      const hue = wonRef.current ? '141,240,204' : '229,72,77';
+      const g = ctx.createRadialGradient(
+        cx,
+        cy - R + DEPTH / 2,
+        0,
+        cx,
+        cy - R + DEPTH / 2,
+        R * 0.9,
+      );
+      g.addColorStop(0, `rgba(${hue},${0.5 * wash.current})`);
+      g.addColorStop(0.35, `rgba(${hue},${0.22 * wash.current})`);
+      g.addColorStop(1, `rgba(${hue},0)`);
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cx, cy, R + 1, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+      ctx.restore();
+
+      // A ring running the rim, so the shape of the thing that just answered is unmistakable.
+      ctx.save();
+      ctx.globalAlpha = wash.current;
+      ctx.strokeStyle = `rgb(${hue})`;
+      ctx.lineWidth = 2 + 3 * wash.current;
+      ctx.shadowColor = `rgb(${hue})`;
+      ctx.shadowBlur = 26 * wash.current;
+      ctx.beginPath();
+      ctx.arc(cx, cy, R - DEPTH / 2, Math.PI, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
     // The pointer, pivoting at its top. Kicked by every pocket edge that passes under it — the
     // flapper is what makes a wheel feel mechanical rather than animated.
     ctx.save();
@@ -289,16 +334,22 @@ export function Wheel({
     const travel = to - from;
     let lastEdge = Math.round(from / STEP);
     flash.current = 0;
+    wash.current = 0;
 
     const land = () => {
       flap.current = 0;
       flash.current = 1;
+      wash.current = 1;
       onSettled?.();
       const t1 = performance.now();
       const fade = (now: number) => {
-        flash.current = Math.max(0, 1 - (now - t1) / 700);
+        const dt = now - t1;
+        flash.current = Math.max(0, 1 - dt / 700);
+        // Longer than the rim light: the colour is the answer, and it should still be there when
+        // the eye comes back from watching the particles.
+        wash.current = Math.max(0, 1 - dt / 1400);
         draw();
-        if (flash.current > 0) raf.current = requestAnimationFrame(fade);
+        if (wash.current > 0) raf.current = requestAnimationFrame(fade);
       };
       raf.current = requestAnimationFrame(fade);
     };
@@ -339,18 +390,21 @@ export function Wheel({
 export function burstAt(el: HTMLElement | null, multiple: number): void {
   if (!el) return;
   const box = el.getBoundingClientRect();
-  if (multiple <= 0) {
-    disintegrate(new DOMRect(box.left + box.width / 2 - 90, box.top, 180, box.height), 'reject');
-    return;
-  }
-  const wide = multiple > 2;
-  const w = wide ? box.width : Math.min(box.width, 280);
-  disintegrate(new DOMRect(box.left + box.width / 2 - w / 2, box.top, w, box.height), 'approve');
-  // The jackpot gets a second wave a beat later, so it keeps going after the eye expects it to stop.
-  if (wide) {
-    setTimeout(
-      () => disintegrate(new DOMRect(box.left, box.top, box.width, box.height), 'approve'),
-      220,
+  const won = multiple > 0;
+  // Waves, not one big rect: disintegrate caps at 60 particles per call however large the area, so
+  // "more" can only come from calling it again. Staggered, so the burst keeps going a beat past the
+  // moment the eye expects it to be over.
+  const waves = won ? (multiple > 2 ? 5 : 3) : 2;
+  const width = won && multiple > 2 ? box.width : Math.min(box.width, 320);
+  for (let i = 0; i < waves; i++) {
+    const spread = width * (0.6 + 0.4 * (i / Math.max(1, waves - 1)));
+    const rect = new DOMRect(
+      box.left + box.width / 2 - spread / 2,
+      box.top,
+      spread,
+      box.height * 0.75,
     );
+    if (i === 0) disintegrate(rect, won ? 'approve' : 'reject');
+    else setTimeout(() => disintegrate(rect, won ? 'approve' : 'reject'), i * 110);
   }
 }

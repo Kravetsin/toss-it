@@ -91,9 +91,11 @@ export function BetChips({
     <>
       <div className="flex items-center justify-center gap-3">
         {COLORS.map((c) => {
-          // Out on the wheel, or in hand. The socket keeps its size either way, so nothing shifts
-          // under the finger and the tile has somewhere to fall back into.
-          const gone = away === c || held === c;
+          // Empty only while something is actually representing the tile elsewhere: out on the
+          // wheel, or under the cursor as a ghost. A press alone must not empty it, or the first
+          // few pixels of a drag are spent holding nothing. The socket keeps its size either way,
+          // so nothing shifts under the finger and the tile has somewhere to fall back into.
+          const gone = away === c || (held === c && !!ghost);
           return (
             <button
               key={c}
