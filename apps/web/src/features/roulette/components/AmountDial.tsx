@@ -93,13 +93,18 @@ export function AmountDial({
     ctx.globalAlpha = 1;
 
     // Edges dissolve instead of being clipped, so the strip reads as continuing past the box.
+    // ERASED, not painted over: a dark gradient laid on top is opaque, and over the wheel it drew a
+    // black slab across the arc. destination-out takes the numbers away and leaves nothing behind.
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-out';
     const fade = ctx.createLinearGradient(0, 0, w, 0);
-    fade.addColorStop(0, 'rgba(8,12,14,1)');
-    fade.addColorStop(0.16, 'rgba(8,12,14,0)');
-    fade.addColorStop(0.84, 'rgba(8,12,14,0)');
-    fade.addColorStop(1, 'rgba(8,12,14,1)');
+    fade.addColorStop(0, 'rgba(0,0,0,1)');
+    fade.addColorStop(0.18, 'rgba(0,0,0,0)');
+    fade.addColorStop(0.82, 'rgba(0,0,0,0)');
+    fade.addColorStop(1, 'rgba(0,0,0,1)');
     ctx.fillStyle = fade;
     ctx.fillRect(0, 0, w, h);
+    ctx.restore();
 
     // The caret. Two brackets rather than a box: it marks a position without fencing the number in.
     ctx.strokeStyle = '#8df0cc';
@@ -183,10 +188,14 @@ export function AmountDial({
     };
   }, []);
 
-  // Follow the value when it is changed from outside (the Max shortcut, a cap that shrank).
+  // Follow the value when it is changed from outside, and the cap when it arrives from the server.
+  // The REDRAW is unconditional on purpose: skipping it while a frame loop happened to be running
+  // left the drum painted against a cap of zero — one number, no strip — with nothing scheduled to
+  // ever correct it. Only the position is withheld, so a drag in progress is not yanked.
   useEffect(() => {
-    if (dragging.current || raf.current) return;
-    pos.current = Math.min(steps(), Math.max(1, value / GRAIN));
+    if (!dragging.current && !raf.current) {
+      pos.current = Math.min(steps(), Math.max(1, value / GRAIN));
+    }
     draw();
   }, [value, max]);
 

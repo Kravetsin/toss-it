@@ -196,16 +196,21 @@ and it leans **left**, the way the pockets travel, because a flapper is dragged 
 it. This is what makes a wheel feel mechanical rather than animated, and it needs per-frame knowledge
 of where the wheel is, which is why the whole thing is an rAF loop and not a CSS transition.
 
-**Landing.** Three things fire at once, because one of them alone was not enough to answer "did I
-win" without reading:
+**Landing.** Light goes DOWN, particles go UP, and both end:
 
 - the winning pocket takes a rim light, 700 ms;
-- the whole disc **washes** in the outcome's colour — mint or red — over 1400 ms, painted OVER the
-  glass (a tint the glass then dims is a tint nobody notices) with a ring running the rim, so the
-  answer is legible from across the room and outlives the particles;
-- `disintegrate` throws the dashboard's own particles, in **waves**: it caps at 60 per call however
-  large the rect, so "more" can only come from calling it again. Two waves for a loss, three for a
-  ×2, five for a ×35, staggered 110 ms so the burst keeps going a beat past where the eye expects it.
+- a **pulse** of the outcome's colour runs off the rim and travels towards the hub — a ring of
+  shrinking radius and widening stroke, clipped to the disc, 900 ms to zero. It replaces a wash that
+  tinted the whole platform and merely faded, which read as the interface breaking rather than as an
+  answer;
+- particles are thrown from NINE points sampled along the rim, upward and away. Under the wheel they
+  only fell back behind it, and from one rect in the middle they ignored that the wheel spans the
+  whole width. `disintegrate` caps at 60 per call from area alone, so it now takes an explicit
+  count — a thin strip on an arc has almost no area and would otherwise emit one speck.
+
+The landing fade runs on its OWN rAF handle. Settling flips `spinning`, which re-runs the spin
+effect, whose cleanup cancels the spin's handle — sharing one killed the fade on its first frame and
+froze the verdict light on screen indefinitely.
 
 The verdict number under the tray is the fourth cue and the quietest: by the time anyone reads it,
 the colour has already said it.
@@ -244,6 +249,17 @@ the one thing being watched, and a caption across it covers the pockets being re
 **The tile empties its socket only once something else is representing it** — the ghost under the
 cursor, or the wheel itself. Emptying on the press alone left the first few pixels of every drag
 with nothing in hand.
+
+**The ghost is PORTALLED to the body.** The drawer animates with a transform, and a transformed
+ancestor becomes the containing block for `position: fixed` — rendered inside it, client coordinates
+land a drawer-height below the pointer and off the bottom of the screen, which looks exactly like the
+tile vanishing on pickup.
+
+**The drum erases its edges rather than painting them.** A dark gradient laid on top is opaque, and
+over the wheel it drew a black slab across the arc; `destination-out` takes the numbers away and
+leaves nothing behind. Its redraw on a changing cap is unconditional, too — skipping it while a frame
+loop happened to be running left the drum painted against a cap of zero, one number and no strip,
+with nothing scheduled to correct it.
 
 **The stake is a drum, not a field.** Flick it; harder flicks coast further, steps of ten, snapping
 to the nearest step. Velocity is measured over a 90 ms WINDOW of samples, not from the last pair:

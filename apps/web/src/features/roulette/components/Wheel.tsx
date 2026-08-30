@@ -108,12 +108,16 @@ export function Wheel({
   const canvasRef = externalRef ?? ownRef;
   const rotation = useRef(0);
   const raf = useRef(0);
+  /** The landing fade runs on its OWN handle. Settling flips `spinning`, which re-runs the spin
+   *  effect, whose cleanup cancels `raf` — sharing one handle killed the fade on its first frame
+   *  and froze the verdict light on screen forever, which is what "the effect never ends" was. */
+  const fadeRaf = useRef(0);
   /** Deflection of the pointer, degrees. Positive leans it LEFT — the way the pockets travel. */
   const flap = useRef(0);
   /** 1 → 0 after landing: the winning pocket takes a rim light. */
   const flash = useRef(0);
-  /** 1 → 0 after landing: the whole disc washes in the outcome's colour. */
-  const wash = useRef(0);
+  /** 1 → 0 after landing: light runs off the rim and down the disc. */
+  const pulse = useRef(0);
   const wonRef = useRef<boolean | null>(won);
   wonRef.current = won;
   const armedRef = useRef<RouletteColor | null>(armed);
@@ -240,38 +244,34 @@ export function Wheel({
     ctx.stroke(outer);
     ctx.restore();
 
-    // The verdict wash: the whole disc takes the outcome's colour and drains out of it. Over the
-    // glass rather than under it, because a tint the glass then dims is a tint nobody notices.
-    if (wash.current > 0 && wonRef.current !== null) {
+    // The verdict, as light spilling off the rim and running DOWN the disc — one pulse, along the
+    // whole arc, that visibly ends. The wash this replaces tinted the entire platform and simply
+    // faded, which read as the interface being broken rather than as an answer.
+    if (pulse.current > 0 && wonRef.current !== null) {
       const hue = wonRef.current ? '141,240,204' : '229,72,77';
-      const g = ctx.createRadialGradient(
-        cx,
-        cy - R + DEPTH / 2,
-        0,
-        cx,
-        cy - R + DEPTH / 2,
-        R * 0.9,
-      );
-      g.addColorStop(0, `rgba(${hue},${0.5 * wash.current})`);
-      g.addColorStop(0.35, `rgba(${hue},${0.22 * wash.current})`);
-      g.addColorStop(1, `rgba(${hue},0)`);
+      const p1 = 1 - pulse.current;
       ctx.save();
       ctx.beginPath();
-      ctx.arc(cx, cy, R + 1, 0, Math.PI * 2);
+      ctx.arc(cx, cy, R - DEPTH, 0, Math.PI * 2);
       ctx.clip();
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = `rgba(${hue},${0.5 * pulse.current ** 1.5})`;
+      // Shrinking radius = travelling towards the hub, which on screen is downwards; the widening
+      // stroke is the light spreading out as it goes.
+      ctx.lineWidth = 12 + p1 * 60;
+      ctx.beginPath();
+      ctx.arc(cx, cy, R - DEPTH - 10 - p1 * 230, 0, Math.PI * 2);
+      ctx.stroke();
       ctx.restore();
 
-      // A ring running the rim, so the shape of the thing that just answered is unmistakable.
+      // A brief lick of the same light on the rim itself, so the pulse reads as coming FROM it.
       ctx.save();
-      ctx.globalAlpha = wash.current;
+      ctx.globalAlpha = Math.max(0, pulse.current * 2 - 1);
       ctx.strokeStyle = `rgb(${hue})`;
-      ctx.lineWidth = 2 + 3 * wash.current;
+      ctx.lineWidth = 3;
       ctx.shadowColor = `rgb(${hue})`;
-      ctx.shadowBlur = 26 * wash.current;
+      ctx.shadowBlur = 18;
       ctx.beginPath();
-      ctx.arc(cx, cy, R - DEPTH / 2, Math.PI, Math.PI * 2);
+      ctx.arc(cx, cy, R - DEPTH, Math.PI, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
     }
@@ -297,7 +297,10 @@ export function Wheel({
     draw();
     const ro = new ResizeObserver(draw);
     if (canvasRef.current) ro.observe(canvasRef.current);
-    return () => ro.disconnect();
+    return () => {
+      ro.disconnect();
+      cancelAnimationFrame(fadeRaf.current);
+    };
     // Mount only: `draw` closes over refs, never over state, so it cannot go stale.
   }, []);
 
@@ -330,28 +333,30 @@ export function Wheel({
 
     const total = suspense ? MS_SLOW : MS_FAST;
     const exp = suspense ? EXP_SLOW : EXP_FAST;
+    cancelAnimationFrame(fadeRaf.current);
     const t0 = performance.now();
     const travel = to - from;
     let lastEdge = Math.round(from / STEP);
     flash.current = 0;
-    wash.current = 0;
+    pulse.current = 0;
 
     const land = () => {
       flap.current = 0;
       flash.current = 1;
-      wash.current = 1;
+      pulse.current = 1;
       onSettled?.();
       const t1 = performance.now();
       const fade = (now: number) => {
         const dt = now - t1;
         flash.current = Math.max(0, 1 - dt / 700);
-        // Longer than the rim light: the colour is the answer, and it should still be there when
-        // the eye comes back from watching the particles.
-        wash.current = Math.max(0, 1 - dt / 1400);
+        // Slightly longer than the rim light, and it reaches zero: an effect with no end is what
+        // made the last one feel like a bug.
+        pulse.current = Math.max(0, 1 - dt / 900);
         draw();
-        if (wash.current > 0) raf.current = requestAnimationFrame(fade);
+        if (flash.current > 0 || pulse.current > 0) fadeRaf.current = requestAnimationFrame(fade);
+        else fadeRaf.current = 0;
       };
-      raf.current = requestAnimationFrame(fade);
+      fadeRaf.current = requestAnimationFrame(fade);
     };
 
     const step = (now: number) => {
@@ -387,24 +392,35 @@ export function Wheel({
  * Scaled by the multiple won, because `disintegrate` derives its particle count from the rect's
  * AREA: a pointer-sized rect yields about seven specks, which for a ×35 reads as a bug.
  */
-export function burstAt(el: HTMLElement | null, multiple: number): void {
-  if (!el) return;
-  const box = el.getBoundingClientRect();
+export function burstAt(canvas: HTMLCanvasElement | null, multiple: number): void {
+  if (!canvas) return;
+  const box = canvas.getBoundingClientRect();
   const won = multiple > 0;
-  // Waves, not one big rect: disintegrate caps at 60 particles per call however large the area, so
-  // "more" can only come from calling it again. Staggered, so the burst keeps going a beat past the
-  // moment the eye expects it to be over.
-  const waves = won ? (multiple > 2 ? 5 : 3) : 2;
-  const width = won && multiple > 2 ? box.width : Math.min(box.width, 320);
-  for (let i = 0; i < waves; i++) {
-    const spread = width * (0.6 + 0.4 * (i / Math.max(1, waves - 1)));
-    const rect = new DOMRect(
-      box.left + box.width / 2 - spread / 2,
-      box.top,
-      spread,
-      box.height * 0.75,
-    );
-    if (i === 0) disintegrate(rect, won ? 'approve' : 'reject');
-    else setTimeout(() => disintegrate(rect, won ? 'approve' : 'reject'), i * 110);
-  }
+  const R = radiusFor(box.width);
+  const cy = box.top + TOP_PAD + R;
+  const cx = box.left + box.width / 2;
+
+  // Sampled ALONG the rim rather than from one rect in the middle: the wheel spans the whole width,
+  // so its answer should too. Each point sits on the crown and throws upward, away from the disc —
+  // spawned below it they only fell back behind the wheel.
+  const points = 9;
+  const perPoint = won ? (multiple > 2 ? 9 : 6) : 5;
+  const halfSpan = Math.min(Math.asin(Math.min(1, box.width / 2 / R)), Math.PI / 2);
+  const emit = (wave: number) => {
+    for (let i = 0; i < points; i++) {
+      const a = -halfSpan + (2 * halfSpan * i) / (points - 1);
+      const x = cx + Math.sin(a) * R;
+      const y = cy - Math.cos(a) * R;
+      disintegrate(
+        new DOMRect(x - 16, y - 10, 32, 12),
+        won ? 'approve' : 'reject',
+        0,
+        perPoint + wave,
+      );
+    }
+  };
+  emit(0);
+  // A second and third wave, so it keeps going a beat past where the eye expects it to be over.
+  setTimeout(() => emit(1), 110);
+  if (won) setTimeout(() => emit(2), 230);
 }

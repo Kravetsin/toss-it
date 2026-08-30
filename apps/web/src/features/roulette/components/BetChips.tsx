@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { RouletteColor } from '@tmw/shared';
 
 const COLORS: RouletteColor[] = ['red', 'black', 'green'];
@@ -116,17 +117,23 @@ export function BetChips({
         })}
       </div>
 
-      {/* The tile in flight. Fixed and pointer-transparent so it never eats the drop it is part of. */}
-      {held && ghost && (
-        <div
-          className="pointer-events-none fixed z-[60] -translate-x-1/2 -translate-y-1/2"
-          style={{ left: ghost.x, top: ghost.y }}
-        >
-          <span
-            className={`block size-11 rounded-xl shadow-[0_8px_26px_rgba(0,0,0,0.7)] ${SWATCH[held]}`}
-          />
-        </div>
-      )}
+      {/* The tile in flight, PORTALLED to the body. The drawer animates with a transform, and a
+          transformed ancestor becomes the containing block for `position: fixed` — inside it these
+          client coordinates land a drawer-height below the pointer, off the bottom of the screen,
+          which reads exactly like the tile vanishing on pickup. */}
+      {held &&
+        ghost &&
+        createPortal(
+          <div
+            className="pointer-events-none fixed z-[60] -translate-x-1/2 -translate-y-1/2"
+            style={{ left: ghost.x, top: ghost.y }}
+          >
+            <span
+              className={`block size-11 rounded-xl shadow-[0_8px_26px_rgba(0,0,0,0.7)] ${SWATCH[held]}`}
+            />
+          </div>,
+          document.body,
+        )}
     </>
   );
 }

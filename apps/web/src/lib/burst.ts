@@ -108,13 +108,17 @@ function loop(now: number) {
 /**
  * Burst particle effect from card rect. approve: mint sparks upward; reject: red shards outward+down.
  * dir: X-spread bias (swipe direction). Uses lazy fixed canvas (z-45, pointer-events:none).
+ *
+ * `count` overrides the area-derived number. The formula assumes the rect IS the object coming
+ * apart, which is true for a card and false for a thin strip sampled along an arc — there the
+ * caller knows how many it wants and the area would say one.
  */
-export function disintegrate(rect: DOMRect, kind: 'approve' | 'reject', dir = 0) {
+export function disintegrate(rect: DOMRect, kind: 'approve' | 'reject', dir = 0, count?: number) {
   if (typeof window === 'undefined') return;
   ensure();
   const area = rect.width * rect.height;
   if (kind === 'approve') {
-    const n = Math.min(60, Math.round(area / 1200));
+    const n = count ?? Math.min(60, Math.round(area / 1200));
     for (let i = 0; i < n; i++) {
       parts.push({
         x: rect.left + Math.random() * rect.width,
@@ -136,7 +140,7 @@ export function disintegrate(rect: DOMRect, kind: 'approve' | 'reject', dir = 0)
   } else {
     const cx = rect.left + rect.width / 2;
     const cy = rect.top + rect.height / 2;
-    const n = Math.min(40, Math.round(area / 1400));
+    const n = count ?? Math.min(40, Math.round(area / 1400));
     for (let i = 0; i < n; i++) {
       const x = rect.left + Math.random() * rect.width;
       const y = rect.top + Math.random() * rect.height;
