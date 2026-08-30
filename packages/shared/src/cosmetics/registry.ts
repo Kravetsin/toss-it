@@ -80,6 +80,7 @@ import { sealKeyringFew, sealKeyring, sealKeyringColor } from './effects/seal-ke
 import { sealLanternsFew, sealLanterns, sealLanternsColor } from './effects/seal-lanterns';
 import { sealRingsSapling, sealRings, sealRingsColor } from './effects/seal-rings';
 import { sealZeroQuiet, sealZero, sealZeroColor } from './effects/seal-zero';
+import { sealLaurelSprig, sealLaurel, sealLaurelColor } from './effects/seal-laurel';
 import { entranceGlitch } from './effects/entrance-glitch';
 import { entranceWarp } from './effects/entrance-warp';
 import { entranceEcho } from './effects/entrance-echo';
@@ -365,6 +366,11 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   sealZeroQuiet,
   sealZero,
   sealZeroColor,
+  // The laurels on wins of ANY colour — the wheel's endurance axis next to the zero's outcome one:
+  // a win lands every other spin, so these rungs measure showing up where the zero measures the hit.
+  sealLaurelSprig,
+  sealLaurel,
+  sealLaurelColor,
   // The BREADTH family: earned by turning up in DIFFERENT channels rather than by piling up one
   // counter. Every one is `draft` — the catalog carries them so surfaces can render them, but the
   // metric they need (distinct channels) doesn't exist yet, so none of them is obtainable.

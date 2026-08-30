@@ -193,6 +193,17 @@ export async function rouletteGreensFor(userId: string): Promise<number> {
   return row?.n ?? 0;
 }
 
+/** Wheel wins of any colour, for cosmetics gated on `earn.metric === 'rouletteWins'`. Same live
+ *  column read as the greens — noteSpin is the one site that moves either. */
+export async function rouletteWinsFor(userId: string): Promise<number> {
+  const row = await db
+    .select({ n: users.rouletteWins })
+    .from(users)
+    .where(eq(users.id, userId))
+    .get();
+  return row?.n ?? 0;
+}
+
 /**
  * Lifetime dust SPENT, for cosmetics gated on `earn.metric === 'dustSpent'`. Derived from what the
  * user owns rather than kept as a counter, which is safe for exactly one reason: every dust sink is

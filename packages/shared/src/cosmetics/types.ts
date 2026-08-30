@@ -98,6 +98,9 @@ export type CosmeticMetric =
    *  derivable from them: nineteen wins in twenty are red or black. Its own column on users, for
    *  the same reason as the wins themselves — roulette_spins is pruned at 30 days. */
   | 'rouletteGreens'
+  /** Wheel wins of ANY colour — the endurance axis where `rouletteGreens` is the outcome one: a
+   *  win lands roughly every other spin, so these milestones count in dozens, not in luck. */
+  | 'rouletteWins'
   | 'channelsMessaged'
   | 'channelsSent'
   | 'channelsWatched'

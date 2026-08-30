@@ -1368,6 +1368,28 @@ if (DEMO) {
       level: 9,
       fragments: [{ type: 'text', text: 'десятое' }],
     },
+    // Both rungs of the laurels, adjacent for the same reason as the wheel's: the tier is the star
+    // the wave lights at the top, and that only reads next to the rung that never lights one.
+    {
+      id: '21c',
+      userId: 'u21c',
+      name: 'evenmoney',
+      twitchColor: '#9adbc5',
+      cosmetics: { seal: 'seal-laurel-sprig' },
+      isFounder: false,
+      level: 5,
+      fragments: [{ type: 'text', text: 'четверть сотни есть' }],
+    },
+    {
+      id: '21d',
+      userId: 'u21d',
+      name: 'centurion',
+      twitchColor: '#e0b840',
+      cosmetics: { seal: 'seal-laurel', sealColors: { 'seal-laurel': '#e0b840' } },
+      isFounder: false,
+      level: 10,
+      fragments: [{ type: 'text', text: 'сотая' }],
+    },
     {
       id: '22',
       userId: 'u22',
