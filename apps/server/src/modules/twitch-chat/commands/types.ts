@@ -112,6 +112,8 @@ export interface CommandDeps {
   }): Promise<BetOutcome>;
   /** This caller's balance and current cap, for a bare `!bet`. */
   betState(twitchId: string): Promise<{ balance: number; max: number; registered: boolean }>;
+  /** The wheel's published hash and last revealed seed, for `!fair`. */
+  fairness(): Promise<{ currentHash: string; revealedSeed: string | null }>;
 }
 
 /** One command = one file in this folder + one entry in the registry (see ./index.ts). */

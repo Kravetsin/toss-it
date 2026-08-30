@@ -116,6 +116,37 @@ describe('roulette payouts', () => {
     expect(after.stardust).toBe(5000 - 100 + (first.kind === 'done' ? first.payout : 0));
   });
 
+  // Two doors, one player. Keying the cooldown on the RAW input gave the site and chat separate
+  // clocks, so the same person could spin twice a minute by alternating between them.
+  it('shares one cooldown between the site and chat', async () => {
+    await db.insert(linkedIdentities).values({
+      userId,
+      provider: 'twitch',
+      providerId: twitchId,
+      createdAt: new Date(),
+    });
+    const site = await placeBet({
+      channelId: null,
+      platform: 'tossit',
+      platformUserId: userId,
+      userId,
+      stake: 100,
+      color: 'red',
+    });
+    expect(site.kind).toBe('done');
+
+    // Same human, arriving as a bare twitch id with no account attached to the call.
+    const chat = await placeBet({
+      channelId: 'ch',
+      platform: 'twitch',
+      platformUserId: twitchId,
+      userId: null,
+      stake: 100,
+      color: 'red',
+    });
+    expect(chat.kind).toBe('cooldown');
+  });
+
   it('refuses a stake over the cap without charging for it', async () => {
     const res = await placeBet({
       channelId: null,

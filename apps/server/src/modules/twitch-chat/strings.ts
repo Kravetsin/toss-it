@@ -72,6 +72,9 @@ const STRINGS = {
     betWait: 'too fast — wait {n}s',
     betMin: 'the smallest bet is {n} ✦',
     betMax: 'your max right now is {n} ✦',
+    /** The hash is published BEFORE the seed is used; the revealed one checks past spins. */
+    fairNow: 'seed hash {hash}…',
+    fairLast: 'last revealed seed',
   },
   ru: {
     queueAhead: 'перед тобой {n}',
@@ -127,6 +130,8 @@ const STRINGS = {
     betWait: 'слишком часто — подожди ещё {n}с',
     betMin: 'минимальная ставка {n} ✦',
     betMax: 'твой максимум сейчас {n} ✦',
+    fairNow: 'хеш сида {hash}…',
+    fairLast: 'последний раскрытый сид',
     emphasisIntro: 'первое сообщение',
   },
   uk: {
@@ -183,6 +188,8 @@ const STRINGS = {
     betWait: 'занадто часто — зачекай ще {n}с',
     betMin: 'мінімальна ставка {n} ✦',
     betMax: 'твій максимум зараз {n} ✦',
+    fairNow: 'хеш сіду {hash}…',
+    fairLast: 'останній розкритий сід',
     emphasisIntro: 'перше повідомлення',
   },
 } as const satisfies Record<BotLocale, Record<string, string>>;

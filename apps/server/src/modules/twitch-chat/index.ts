@@ -43,7 +43,7 @@ import { getRewardById } from '../channel-points/store';
 import { noticeText } from './notices';
 import { t } from './strings';
 import { bumpMessage, bumpWatch, flushActivity } from './stats';
-import { betState, placeBet, type BetOutcome } from '../../roulette';
+import { betState, fairness, placeBet, type BetOutcome } from '../../roulette';
 import { refreshChatterName } from './names';
 import { createSkipVotes } from './skipVotes';
 import { planSubs } from './subplan';
@@ -625,6 +625,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
           bet: betFromChat,
           betState: (twitchId) =>
             betState({ platform: 'twitch', platformUserId: twitchId, userId: null }),
+          fairness,
           channelUrl,
           commandState: commandStateOf,
         },

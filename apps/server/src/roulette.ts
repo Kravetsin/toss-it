@@ -63,9 +63,14 @@ export type BetOutcome =
  *  wait is not worth a write per bet. */
 const lastBetAt = new Map<string, number>();
 
-/** One key per PERSON, not per door — an account and its twitch id must share the cooldown. */
-function cooldownKey(input: BetInput): string {
-  return input.userId ?? `${input.platform}:${input.platformUserId}`;
+/**
+ * One key per PERSON, not per door. It must be derived from the RESOLVED account: the site passes a
+ * user id and chat passes a twitch id, so keying on the raw input gave the same player two
+ * independent cooldowns — exactly the "second door is the cheap way past the first" this was meant
+ * to prevent. Only someone with no account at all falls back to the platform id.
+ */
+function cooldownKey(input: BetInput, userId: string | null): string {
+  return userId ?? `${input.platform}:${input.platformUserId}`;
 }
 
 /** Serializes seed creation. Every seed gets its own hash, so a PK conflict can't dedupe two racing
@@ -192,13 +197,14 @@ async function credit(input: BetInput, userId: string | null, amount: number): P
 }
 
 export async function placeBet(input: BetInput): Promise<BetOutcome> {
-  const key = cooldownKey(input);
+  // Identity first: the cooldown key depends on it, and so does which wallet gets charged.
+  const { balance, onAccount, userId } = await readBalance(input);
+  const key = cooldownKey(input, userId);
   const since = Date.now() - (lastBetAt.get(key) ?? 0);
   if (since < BET_COOLDOWN_MS) {
     return { kind: 'cooldown', waitS: Math.ceil((BET_COOLDOWN_MS - since) / 1000) };
   }
 
-  const { balance, onAccount, userId } = await readBalance(input);
   const cap = maxBet(balance);
   if (cap === 0) return { kind: 'broke', balance, registered: onAccount };
   if (input.stake < BET.min) return { kind: 'tooSmall', min: BET.min };

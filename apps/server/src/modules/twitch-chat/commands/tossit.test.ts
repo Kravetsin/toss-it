@@ -31,6 +31,7 @@ describe('!tossit', () => {
     skip: async () => ({ kind: 'disabled' }),
     bet: async () => ({ kind: 'broke', balance: 0, registered: false }),
     betState: async () => ({ balance: 0, max: 0, registered: false }),
+    fairness: async () => ({ currentHash: 'deadbeef', revealedSeed: null }),
     channelUrl: () => 'toss-it.org/c/kravets',
     commandState: () => ({ playEnabled, ttsEnabled, skipEnabled, rouletteEnabled }),
   });
