@@ -129,6 +129,7 @@ roulette_spins
 ```
 users.roulette_wins    integer not null default 0
 users.roulette_losses  integer not null default 0
+users.roulette_greens  integer not null default 0
 ```
 
 The lifetime tally, for a seal gated on the wheel later ("100 wins", "100 losses"). It cannot be
@@ -138,6 +139,18 @@ derived from a shrinking count would come off by itself at the first sweep.
 
 Only spins by an ACCOUNT are counted. An unregistered chatter bets out of pending dust and has
 nothing to hang a cosmetic on anyway, so their tally starts when they sign up.
+
+`roulette_greens` counts greens CAUGHT — bet green and won. A subset of the wins, and not derivable
+from them: nineteen wins in twenty are red or black, so "won" says nothing about whether anything
+rare happened. Added while the wheel had run 59 spins with green bet five times and caught zero, so
+starting everyone at 0 took nothing from anyone.
+
+Worth knowing before a seal is priced on it. Green is 1/37, so at the minimum stake a catch costs
+about 37 × 10 = 370 dust of turnover and pays back 350 — a net ~10 dust. **Catching a green measures
+patience, not luck**, and any threshold on it is really a threshold on spin count. Genuine rarity
+would need two in a row (1/1369), which needs its own streak columns. The other risk is that hunting
+turns `!bet` into a grind, and the command has no cooldown: on the site that is nobody's problem, in
+a streamer's chat it is a slot-machine feed from one viewer.
 
 `roulette_spins` is the support record and the source for any future stats. Volume is real — a busy
 channel can write thousands per stream — so the existing `cleanup.ts` sweep prunes rows older than
