@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { BET, type RouletteColor } from '@tmw/shared';
 import { fetchRouletteState, spin, type RouletteState, type SpinDone } from '@/lib/api';
 import { useI18n } from '@/i18n';
+import { useMe } from '@/hooks/useMe';
 import { useToast } from '@/providers/ToastProvider';
 import { DustMark } from '@/components/DustMark';
 import { AmountDial } from './AmountDial';
@@ -21,6 +22,7 @@ const HEIGHT = 330;
 export function RouletteDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t } = useI18n();
   const toast = useToast();
+  const { refresh } = useMe();
   const [state, setState] = useState<RouletteState | null>(null);
   const [stake, setStake] = useState<number>(BET.min);
   const [spinning, setSpinning] = useState(false);
@@ -108,7 +110,11 @@ export function RouletteDrawer({ open, onClose }: { open: boolean; onClose: () =
     setResult(done);
     setState((s) => (s ? { ...s, balance: done.balance } : s));
     burstAt(canvasRef.current, done.stake > 0 ? done.payout / done.stake : 0);
-  }, []);
+    // Every wallet on the page reads the session, not this drawer — without this the number by the
+    // avatar and the one in the shop stayed at the pre-bet balance until a reload. Same refresh the
+    // shop runs after a purchase.
+    void refresh();
+  }, [refresh]);
 
   const max = state?.max ?? 0;
   const won = result !== null && result.payout > 0;

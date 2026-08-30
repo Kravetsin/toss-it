@@ -55,6 +55,7 @@ export function registerRouletteRoutes(app: FastifyInstance): void {
         return reply.code(400).send({ error: 'Нужны ставка и цвет' });
       }
       const outcome = await placeBet({
+        door: 'site',
         channelId: null,
         // The engine keys pending dust by PLATFORM id; a site better always has an account, so the
         // account id is both the identity and the wallet, and no pending row is ever involved.

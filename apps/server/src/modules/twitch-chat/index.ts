@@ -286,6 +286,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     color: RouletteColor;
   }): Promise<BetOutcome> {
     return placeBet({
+      door: 'chat',
       channelId: input.channelId,
       platform: 'twitch',
       platformUserId: input.twitchId,

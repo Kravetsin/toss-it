@@ -45,6 +45,7 @@ describe('roulette payouts', () => {
         createdAt: new Date(),
       });
       const res = await placeBet({
+        door: 'site',
         channelId: null,
         platform: 'tossit',
         platformUserId: id,
@@ -92,63 +93,68 @@ describe('roulette payouts', () => {
     expect(row!.dustEarned).toBe(0);
   });
 
-  it('refuses a second spin inside the cooldown', async () => {
-    const first = await placeBet({
-      channelId: null,
-      platform: 'tossit',
-      platformUserId: userId,
-      userId,
-      stake: 100,
-      color: 'red',
-    });
+  it('refuses a second CHAT spin inside the cooldown', async () => {
+    const chatBet = () =>
+      placeBet({
+        door: 'chat',
+        channelId: 'ch',
+        platform: 'tossit',
+        platformUserId: userId,
+        userId,
+        stake: 100,
+        color: 'red',
+      });
+    const first = await chatBet();
     expect(first.kind).toBe('done');
-    const second = await placeBet({
-      channelId: null,
-      platform: 'tossit',
-      platformUserId: userId,
-      userId,
-      stake: 100,
-      color: 'red',
-    });
-    expect(second.kind).toBe('cooldown');
+    expect((await chatBet()).kind).toBe('cooldown');
     // A refused bet must not have cost anything.
     const after = await account();
     expect(after.stardust).toBe(5000 - 100 + (first.kind === 'done' ? first.payout : 0));
   });
 
-  // Two doors, one player. Keying the cooldown on the RAW input gave the site and chat separate
-  // clocks, so the same person could spin twice a minute by alternating between them.
-  it('shares one cooldown between the site and chat', async () => {
+  // The cooldown exists for the bot's Twitch send budget, so it belongs to chat alone. Throttling
+  // the site was a limit invented for no reason — nothing there costs the bot anything.
+  it('throttles chat but never the site', async () => {
     await db.insert(linkedIdentities).values({
       userId,
       provider: 'twitch',
       providerId: twitchId,
       createdAt: new Date(),
     });
-    const site = await placeBet({
-      channelId: null,
-      platform: 'tossit',
-      platformUserId: userId,
-      userId,
-      stake: 100,
-      color: 'red',
-    });
-    expect(site.kind).toBe('done');
+    const site = () =>
+      placeBet({
+        door: 'site',
+        channelId: null,
+        platform: 'tossit',
+        platformUserId: userId,
+        userId,
+        stake: 100,
+        color: 'red',
+      });
+    const chat = () =>
+      placeBet({
+        door: 'chat',
+        channelId: 'ch',
+        platform: 'twitch',
+        platformUserId: twitchId,
+        userId: null,
+        stake: 100,
+        color: 'red',
+      });
 
-    // Same human, arriving as a bare twitch id with no account attached to the call.
-    const chat = await placeBet({
-      channelId: 'ch',
-      platform: 'twitch',
-      platformUserId: twitchId,
-      userId: null,
-      stake: 100,
-      color: 'red',
-    });
-    expect(chat.kind).toBe('cooldown');
+    expect((await site()).kind).toBe('done');
+    expect((await site()).kind).toBe('done');
+    // The same person, straight after two site spins: chat has not been used, so it is clear.
+    expect((await chat()).kind).toBe('done');
+    // ...and now it is not, because a chat bet is what spends the bot's budget.
+    expect((await chat()).kind).toBe('cooldown');
+    // A burnt chat cooldown still leaves the site alone.
+    expect((await site()).kind).toBe('done');
   });
 
   it('refuses a stake over the cap without charging for it', async () => {
     const res = await placeBet({
+      door: 'site',
       channelId: null,
       platform: 'tossit',
       platformUserId: userId,
@@ -162,6 +168,7 @@ describe('roulette payouts', () => {
 
   it('refuses a stake under the floor', async () => {
     const res = await placeBet({
+      door: 'site',
       channelId: null,
       platform: 'tossit',
       platformUserId: userId,
@@ -183,6 +190,7 @@ describe('roulette payouts', () => {
       updatedAt: new Date(),
     });
     const res = await placeBet({
+      door: 'site',
       channelId: 'ch',
       platform: 'twitch',
       platformUserId: twitchId,
@@ -204,6 +212,7 @@ describe('roulette payouts', () => {
 
   it('records every spin against the seed that produced it', async () => {
     const res = await placeBet({
+      door: 'site',
       channelId: 'ch',
       platform: 'tossit',
       platformUserId: userId,

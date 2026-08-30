@@ -13,8 +13,9 @@ import { db } from './db/index';
 import { linkedIdentities, pendingDust, rouletteSeeds, rouletteSpins, users } from './db/schema';
 
 /**
- * The dust wheel's engine, shared by both doors (the `!bet` chat command and the site) so neither
- * can become the cheap way past the other's limits — the same reasoning behind submitLimits.
+ * The dust wheel's engine, shared by both doors (the `!bet` chat command and the site) so the
+ * balance, the cap and the payout can never differ between them. The one thing that is NOT shared
+ * is the cooldown — see `door`.
  *
  * Money rules, in order of how badly they break things if ignored:
  *  - The stake is taken with a guarded UPDATE before the wheel is consulted. There are no
@@ -32,6 +33,12 @@ import { linkedIdentities, pendingDust, rouletteSeeds, rouletteSpins, users } fr
 const ROTATE_AFTER = 1000;
 
 export interface BetInput {
+  /**
+   * Which door this came through. The cooldown belongs to CHAT alone: it exists so one player
+   * cannot spend the bot's Twitch send budget by themselves, and the site spends nothing of the
+   * bot's. Throttling it there was a limit invented for no reason.
+   */
+  door: 'chat' | 'site';
   /** Null when placed on the site, which belongs to no channel. */
   channelId: string | null;
   platform: string;
@@ -59,15 +66,13 @@ export type BetOutcome =
       balance: number;
     };
 
-/** Last spin per player, for the shared cooldown. In memory on purpose: a restart forgiving a 60s
- *  wait is not worth a write per bet. */
+/** Last CHAT spin per player. In memory on purpose: a restart forgiving a 60s wait is not worth a
+ *  write per bet. */
 const lastBetAt = new Map<string, number>();
 
 /**
- * One key per PERSON, not per door. It must be derived from the RESOLVED account: the site passes a
- * user id and chat passes a twitch id, so keying on the raw input gave the same player two
- * independent cooldowns — exactly the "second door is the cheap way past the first" this was meant
- * to prevent. Only someone with no account at all falls back to the platform id.
+ * One key per PERSON. Derived from the RESOLVED account so that two twitch identities on one Tossit
+ * account share it; only someone with no account at all falls back to the platform id.
  */
 function cooldownKey(input: BetInput, userId: string | null): string {
   return userId ?? `${input.platform}:${input.platformUserId}`;
@@ -200,9 +205,12 @@ export async function placeBet(input: BetInput): Promise<BetOutcome> {
   // Identity first: the cooldown key depends on it, and so does which wallet gets charged.
   const { balance, onAccount, userId } = await readBalance(input);
   const key = cooldownKey(input, userId);
-  const since = Date.now() - (lastBetAt.get(key) ?? 0);
-  if (since < BET_COOLDOWN_MS) {
-    return { kind: 'cooldown', waitS: Math.ceil((BET_COOLDOWN_MS - since) / 1000) };
+  const throttled = input.door === 'chat';
+  if (throttled) {
+    const since = Date.now() - (lastBetAt.get(key) ?? 0);
+    if (since < BET_COOLDOWN_MS) {
+      return { kind: 'cooldown', waitS: Math.ceil((BET_COOLDOWN_MS - since) / 1000) };
+    }
   }
 
   const cap = maxBet(balance);
@@ -216,14 +224,14 @@ export async function placeBet(input: BetInput): Promise<BetOutcome> {
     return { kind: 'broke', balance: fresh.balance, registered: fresh.onAccount };
   }
   // Only now, once the stake is actually taken: a rejected bet must not burn a cooldown or a nonce.
-  lastBetAt.set(key, Date.now());
+  if (throttled) lastBetAt.set(key, Date.now());
 
   const { seedHash, seed } = await liveSeed();
   const nonce = await nextNonce(seedHash);
   if (nonce === null) {
     // The seed rotated out from under us — refund rather than spin against a revealed seed.
     await credit(input, userId, input.stake);
-    lastBetAt.delete(key);
+    if (throttled) lastBetAt.delete(key);
     return { kind: 'broke', balance, registered: onAccount };
   }
 
@@ -295,6 +303,7 @@ export async function betState(
 ): Promise<{ balance: number; max: number; registered: boolean }> {
   const { balance, onAccount } = await readBalance({
     ...input,
+    door: 'site',
     channelId: null,
     stake: 0,
     color: 'red',

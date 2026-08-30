@@ -58,10 +58,13 @@ grows with the player, which is its own reason to keep earning.
 `min(balance, …)` matters because the floor can exceed a tiny balance: 94% of unclaimed piles hold
 under 200 dust.
 
-**Per-viewer cooldown 60s**, not per channel. A channel-wide floor silences the second person to
-type, who then has no idea why the bot ignored them — the same reasoning already written into
-`USER_COOLDOWN_MS` in `commands/index.ts`. Start at 60s; five minutes kills the loss-chase, and the
-chase is the whole loop.
+**Per-viewer cooldown 60s, IN CHAT ONLY.** It exists so one player cannot spend the bot's Twitch
+send budget by themselves — and the site spends none of it, so throttling there was a limit invented
+for no reason. `BetInput.door` says which side asked; only `'chat'` is timed.
+
+Not per channel, either: a channel-wide floor silences the second person to type, who then has no
+idea why the bot ignored them — the same reasoning already written into `USER_COOLDOWN_MS` in
+`commands/index.ts`. Five minutes would kill the loss-chase, and the chase is the whole loop.
 
 ## Where the stake comes from
 
@@ -233,6 +236,10 @@ middle of the box, which is the one thing an arc does not have.
 behind it, so outside the disc the page keeps showing through. Everything the player needs sits
 inside the arc: three tiles and a stake. Opened from the sidebar and the profile menu, the same way
 the shop is.
+
+**Every wallet on the page follows a spin.** They read the session, not the drawer, so the settle
+calls the same `refresh()` the shop runs after a purchase — without it the number by the avatar sat
+at the pre-bet balance until a reload.
 
 **No Spin button, and no tap either.** The three colours are bare tiles thrown at the wheel: the
 tile IS the verb, so choosing a colour and committing to it are one motion. Drag only — a tap would
