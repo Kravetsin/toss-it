@@ -179,10 +179,16 @@ there is one answer per bet, sent as soon as the spin resolves:
 
 | case                     | line                                                       |
 | ------------------------ | ---------------------------------------------------------- |
-| win                      | `@nick · зелёное ×35 · +17 325 ✦`                          |
-| loss                     | `@nick · чёрное · −500 ✦`                                  |
+| win                      | `@nick · выпало ЗЕЛЁНОЕ · +17 325 ✦`                       |
+| loss                     | `@nick · выпало чёрное · -500 ✦`                           |
 | over the cap             | `@nick · твой максимум сейчас 8 165 ✦`                     |
 | no balance, unregistered | `@nick · у тебя 340 ✦ — на toss-it.org тебя ждёт ещё 1000` |
+
+The verdict answers two things and no more: what came up, and what it did to the pile. The
+multiplier used to ride along — `чёрное ×2` — and read as "two blacks" rather than as a payout rate;
+it also said nothing the amount does not, since a green win IS the ×35. And the amount carries an
+explicit sign (`ChatSystemLine.signed`): only the loss had a minus before, so a win and a balance
+looked identical.
 
 That last line is deliberate. "Bet more — register for 1000" is how a casino asks for a deposit;
 the same fact stated as a balance is a gift, and it is equally true.

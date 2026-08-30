@@ -561,7 +561,9 @@ function renderSystem(line: ChatSystemEvent): void {
     const amt = document.createElement('span');
     amt.className = 'sys-amt';
     const num = document.createElement('span');
-    num.textContent = String(line.dust);
+    // Same rule as the chat copy: a change shows its sign, a balance does not. A spin never reaches
+    // here — its block carries the sign and the amount itself.
+    num.textContent = (line.signed && line.dust > 0 ? '+' : '') + String(line.dust);
     amt.append(num, starIcon('sys-star'));
     head.appendChild(amt);
   }

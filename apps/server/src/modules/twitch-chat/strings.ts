@@ -67,6 +67,8 @@ const STRINGS = {
     color_black: 'black',
     color_green: 'GREEN',
     /** The bare-call answer: the SHAPE of the command, nothing else. */
+    /** Wraps the colour so the line says what HAPPENED, not just names a colour. */
+    betFell: '{color} came up',
     betUsage: '!bet <amount> red/black/green',
     betBroke: 'not enough to spin',
     betMin: 'the smallest bet is {n} ✦',
@@ -120,6 +122,7 @@ const STRINGS = {
     color_red: 'красное',
     color_black: 'чёрное',
     color_green: 'ЗЕЛЁНОЕ',
+    betFell: 'выпало {color}',
     betUsage: '!bet <ставка> красное/чёрное/зелёное',
     betBroke: 'не хватает на спин',
     betMin: 'минимальная ставка {n} ✦',
@@ -174,6 +177,7 @@ const STRINGS = {
     color_red: 'червоне',
     color_black: 'чорне',
     color_green: 'ЗЕЛЕНЕ',
+    betFell: 'випало {color}',
     betUsage: '!bet <ставка> червоне/чорне/зелене',
     betBroke: 'не вистачає на спін',
     betMin: 'мінімальна ставка {n} ✦',

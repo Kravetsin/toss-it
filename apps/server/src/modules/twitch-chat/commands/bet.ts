@@ -1,4 +1,4 @@
-import { BET, maxBet, parseColor, PAYOUT } from '@tmw/shared';
+import { BET, maxBet, parseColor } from '@tmw/shared';
 import { t } from '../strings';
 import type { ChatCommand } from './types';
 
@@ -72,14 +72,15 @@ export const bet: ChatCommand = {
         };
       case 'done': {
         const won = res.payout > 0;
-        // The number carries the sign so the outcome reads at a glance mid-stream: the colour that
-        // came up, then what it cost or paid. Net, not gross — "+500" on a won 500 at ×2, because
-        // the stake coming back is not winnings.
+        // What happened, then what it did to the pile. The multiplier used to ride here — "чёрное
+        // ×2" — and read as "two blacks" rather than as a payout rate; it says nothing the amount
+        // does not already, since a green win IS the ×35. Net, not gross: the stake coming back is
+        // not winnings.
         return {
           name: ctx.name,
-          text:
-            t(ctx.locale, `color_${res.resultColor}`) + (won ? ` ×${PAYOUT[res.betColor]}` : ''),
+          text: t(ctx.locale, 'betFell', { color: t(ctx.locale, `color_${res.resultColor}`) }),
           dust: won ? res.payout - res.stake : -res.stake,
+          signed: true,
           // The overlay plays this out before revealing the two fields above. Chat gets them
           // immediately — a second and a half is not a spoiler, and Twitch's own delay is longer.
           spin: { color: res.resultColor, won },

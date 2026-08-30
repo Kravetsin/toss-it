@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BET, maxBet } from '@tmw/shared';
 import { bet } from './bet';
+import { toChatText } from './index';
 import type { BetOutcome } from '../../../roulette';
 import type { CommandContext, CommandDeps } from './types';
 
@@ -108,6 +109,38 @@ describe('!bet parsing', () => {
     expect(seen).toHaveLength(0);
     expect(line?.dust).toBeUndefined();
     expect(line?.text).toContain('!bet');
+  });
+
+  // "чёрное ×2" read as "two blacks"; the multiplier says nothing the amount does not, since a
+  // green win IS the ×35. What is left has to answer "what happened" and "how much".
+  it('names what came up and signs the change', async () => {
+    const win = deps({
+      kind: 'done',
+      stake: 100,
+      betColor: 'black',
+      slot: 26,
+      resultColor: 'black',
+      payout: 200,
+      balance: 100,
+    });
+    const line = await bet.run(ctx(['100', 'чёрное']), win.deps);
+    expect(line?.text).toContain('чёрное');
+    expect(line?.text).not.toContain('×');
+    // The sign is what tells a win from a balance, so the renderer has to be told to draw it.
+    expect(line?.signed).toBe(true);
+    expect(toChatText({ name: 'v', ...line! })).toContain('+100 ✦');
+
+    const loss = deps({
+      kind: 'done',
+      stake: 100,
+      betColor: 'red',
+      slot: 26,
+      resultColor: 'black',
+      payout: 0,
+      balance: 0,
+    });
+    const lost = await bet.run(ctx(['100', 'красное']), loss.deps);
+    expect(toChatText({ name: 'v', ...lost! })).toContain('-100 ✦');
   });
 
   it('shows the net, not the gross, on a win', async () => {

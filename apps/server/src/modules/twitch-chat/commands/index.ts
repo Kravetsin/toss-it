@@ -45,7 +45,10 @@ for (const cmd of COMMANDS) {
 export function toChatText(line: ChatSystemLine): string {
   const parts = [`@${line.name}`];
   if (line.text) parts.push(line.text);
-  if (line.dust !== undefined) parts.push(`${line.dust} ✦`);
+  if (line.dust !== undefined) {
+    const sign = line.signed && line.dust > 0 ? '+' : '';
+    parts.push(`${sign}${line.dust} ✦`);
+  }
   const body = parts.join(' · ');
   return line.hint ? `${body} — ${line.hint}` : body;
 }

@@ -455,6 +455,11 @@ export interface ChatSystemLine {
   name: string;
   /** Stardust value, rendered with the brand star. */
   dust?: number;
+  /**
+   * `dust` is a CHANGE, not a balance: render it with an explicit sign. A bare `100` after a spin
+   * reads as a balance, and only the loss carried a minus — so a win and a balance looked alike.
+   */
+  signed?: boolean;
   /** Short label when a bare number is not self-explanatory. */
   text?: string;
   /** Small line underneath, e.g. the domain for dust waiting to be claimed. */
