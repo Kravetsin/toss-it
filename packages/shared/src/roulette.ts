@@ -45,25 +45,29 @@ export function payoutFor(bet: RouletteColor, slot: number, stake: number): numb
 export const BET = {
   /** Below this a spin is not worth a chat line. */
   min: 10,
+  /** Everyone may stake this much whatever their balance — it is the welcome bonus and the price of
+   *  the cheapest cosmetic, so "one spin, one thing you could have bought" is always on the table. */
+  floor: 1000,
   /** Hard ceiling whatever the balance, so one command can never move a fortune. */
   cap: 10_000,
-  /** Share of the balance a single bet may risk. */
+  /** Share of the balance a single bet may risk, once that is more than the floor. */
   share: 0.1,
 } as const;
 
 /**
  * The biggest bet this balance may place; 0 when it cannot play at all.
  *
- * A flat cap is wrong in both directions — 1000 is a rounding error to our largest holder and a
- * month of earnings to a median one. A share of the balance protects the small and engages the
- * large, and the ceiling visibly growing with the player is its own reason to keep earning.
+ * A flat 1000 up to a balance of ten thousand, then a tenth of it, then a hard stop at ten thousand.
+ * A pure share was wrong at the bottom: it told someone with 400 dust they could risk 40, which is
+ * not a bet, it is a rounding error. A pure flat cap is wrong at the top: 1000 is nothing to our
+ * largest holder. The floor makes the game playable from the first day and the share keeps it
+ * meaningful after, and the ceiling visibly growing past 10k is its own reason to keep earning.
  *
- * The outer `min` is not redundant: `min` (10) exceeds most unclaimed piles, 94% of which hold
- * under 200 dust.
+ * The outer `min` is what stops it offering more than the player actually has.
  */
 export function maxBet(balance: number): number {
   if (balance < BET.min) return 0;
-  return Math.min(balance, Math.max(BET.min, Math.min(BET.cap, Math.floor(balance * BET.share))));
+  return Math.min(balance, Math.max(BET.floor, Math.min(BET.cap, Math.floor(balance * BET.share))));
 }
 
 const COLOR_WORDS: Record<string, RouletteColor> = {

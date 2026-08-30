@@ -46,17 +46,17 @@ House edge 2.7% on colours, 5.4% on green. The two bets balance because `(1 − 
 ## Stakes and limits
 
 ```
-maxBet = min(balance, clamp(balance × 0.10, MIN_BET, 10_000))
-MIN_BET = 10
+maxBet = min(balance, clamp(balance × 0.10, 1000, 10_000))
+smallest stake = 10
 ```
 
-A flat cap is wrong in both directions: 1000 is 1.2% of our largest balance (that player never feels
-a bet) and nearly everything for a median one (that player loses a month in one command). A share of
-balance protects the small and engages the large, and it reads well in chat — the ceiling visibly
-grows with the player, which is its own reason to keep earning.
+A flat 1000 up to a balance of ten thousand, then a tenth of it, then a hard stop. A pure share was
+wrong at the bottom — it told someone with 400 dust they could risk 40, which is not a bet but a
+rounding error — and a pure flat cap is wrong at the top, where 1000 is nothing to our largest
+holder. 1000 is also the welcome bonus and the price of the cheapest cosmetic, so "one spin, one
+thing you could have bought" is on the table from the first day.
 
-`min(balance, …)` matters because the floor can exceed a tiny balance: 94% of unclaimed piles hold
-under 200 dust.
+`min(balance, …)` is what stops it offering more than the player actually has.
 
 **No cooldown at all**, on either door. One lived here to protect the bot's Twitch send budget and
 produced exactly the traffic it was meant to prevent: a refusal costs a message just as an answer
@@ -169,8 +169,10 @@ with flipping the default: a gate fix must not read as a feature being taken awa
 Colour accepts `red|black|green`, `r|b|g`, and the localized words in ru/uk. Amount accepts `all`
 (clamped to `maxBet`, not to the balance — the cap is a protection, not a suggestion).
 
-Bare `!bet` answers with balance, current max and the odds. That is also the upsell surface: for an
-unregistered caller it names what registering adds.
+Bare `!bet` answers with the SHAPE of the command — `!bet <ставка> красное/чёрное/зелёное` — and
+nothing else. It used to give the balance, the cap and the odds in one line, which explained
+everything except how to place a bet; the balance is what `!balance` is for. The sign-up nudge moved
+to `broke`, where someone has just found out they cannot play.
 
 Answers ride `ChatSystemLine`, rendered by `toChatText` as `@name · text · dust ✦ — hint`. In phase 1
 there is one answer per bet, sent as soon as the spin resolves:

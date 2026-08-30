@@ -34,15 +34,22 @@ describe('the wheel', () => {
 });
 
 describe('bet cap', () => {
-  it('is a share of the balance, so it means something at both ends', () => {
-    expect(maxBet(1200)).toBe(120);
-    expect(maxBet(81_655)).toBe(8165);
+  // A flat 1000 is playable from the first day; a pure share told someone with 400 dust they could
+  // risk 40, which is not a bet.
+  it('lets anyone stake the floor, whatever their balance', () => {
+    expect(maxBet(1200)).toBe(BET.floor);
+    expect(maxBet(BET.floor)).toBe(BET.floor);
+    expect(maxBet(9_990)).toBe(BET.floor);
+  });
+
+  it('switches to the share once that is the bigger number', () => {
+    // Ten thousand is where a tenth of the balance overtakes the floor.
+    expect(maxBet(20_000)).toBe(2_000);
+    expect(maxBet(81_655)).toBe(8_165);
   });
 
   it('never exceeds the balance, however small', () => {
-    // The floor (10) is above most unclaimed piles — 94% of them hold under 200 — so without the
-    // outer clamp the cap would offer a bet the player cannot cover.
-    expect(maxBet(50)).toBeLessThanOrEqual(50);
+    expect(maxBet(400)).toBe(400);
     expect(maxBet(BET.min)).toBe(BET.min);
     expect(maxBet(BET.min - 1)).toBe(0);
     expect(maxBet(0)).toBe(0);

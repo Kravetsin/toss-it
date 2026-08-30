@@ -14,10 +14,8 @@ const ALL_WORDS = new Set(['all', 'max', 'всё', 'все', 'усе', 'усі',
  * see their own timer just types again to find out. The send budget is defended where it lives,
  * in the chat module's per-channel and per-account windows.
  *
- * A bare `!bet` is the sign-up surface: for someone with no account it states the balance we are
- * holding for them and what a first login adds. Deliberately phrased as a balance, not as a stake —
- * "bet more, register for 1000" is how a casino asks for a deposit, and the same fact told as a
- * gift is just as true.
+ * A bare `!bet` answers with the syntax and nothing else. The sign-up nudge lives where it is
+ * actually useful — on `broke`, where someone just found out they cannot play.
  */
 export const bet: ChatCommand = {
   name: 'bet',
@@ -39,19 +37,10 @@ export const bet: ChatCommand = {
       else if (!amountArg) amountArg = arg;
     }
 
-    if (!amountArg && !colorArg) {
-      const s = await deps.betState(ctx.twitchId);
-      const text = t(ctx.locale, s.max > 0 ? 'betReady' : 'betBroke', {
-        max: s.max,
-        green: PAYOUT.green,
-      });
-      return {
-        name: ctx.name,
-        text,
-        dust: s.balance,
-        hint: s.registered ? undefined : 'toss-it.org',
-      };
-    }
+    // Bare call: show the SHAPE of the command. It used to answer with the balance, the cap and
+    // the odds at once, which explained everything except how to place a bet — and the balance is
+    // what !balance is for.
+    if (!amountArg && !colorArg) return { name: ctx.name, text: t(ctx.locale, 'betUsage') };
 
     const color = parseColor(colorArg ?? '');
     if (!color || !amountArg) return { name: ctx.name, text: t(ctx.locale, 'betUsage') };

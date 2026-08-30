@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BET } from '@tmw/shared';
+import { BET, maxBet } from '@tmw/shared';
 import { bet } from './bet';
 import type { BetOutcome } from '../../../roulette';
 import type { CommandContext, CommandDeps } from './types';
@@ -34,7 +34,7 @@ function deps(
       seen.push({ stake: input.stake, color: input.color });
       return outcome;
     },
-    betState: async () => ({ balance: 4000, max: 400, registered: true }),
+    betState: async () => ({ balance: 4000, max: maxBet(4000), registered: true }),
     channelUrl: () => 'toss-it.org/c/x',
     commandState: () => ({
       playEnabled: false,
@@ -87,7 +87,8 @@ describe('!bet parsing', () => {
     for (const word of ['all', 'ВСЁ', 'все', 'max']) {
       const { deps: d, seen } = deps();
       await bet.run(ctx([word, 'зелёное']), d);
-      expect(seen[0]!.stake).toBe(400);
+      // Derived, not hardcoded: the cap's shape is the shared module's business, not this test's.
+      expect(seen[0]!.stake).toBe(maxBet(4000));
     }
   });
 
@@ -100,13 +101,13 @@ describe('!bet parsing', () => {
     }
   });
 
-  // A bare !bet is the sign-up surface, so it must answer without placing anything.
-  it('reports the balance and cap on a bare call', async () => {
+  // The bare call teaches the syntax; the balance is what !balance is for.
+  it('answers a bare call with the syntax and nothing else', async () => {
     const { deps: d, seen } = deps();
     const line = await bet.run(ctx([]), d);
     expect(seen).toHaveLength(0);
-    expect(line?.dust).toBe(4000);
-    expect(line?.text).toContain('400');
+    expect(line?.dust).toBeUndefined();
+    expect(line?.text).toContain('!bet');
   });
 
   it('shows the net, not the gross, on a win', async () => {
