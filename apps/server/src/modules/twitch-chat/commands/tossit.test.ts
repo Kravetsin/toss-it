@@ -31,6 +31,7 @@ describe('!tossit', () => {
     skip: async () => ({ kind: 'disabled' }),
     bet: async () => ({ kind: 'broke', balance: 0, registered: false }),
     betState: async () => ({ balance: 0, max: 0, registered: false }),
+    gift: async () => ({ kind: 'noAccount' }) as const,
     channelUrl: () => 'toss-it.org/c/kravets',
     commandState: () => ({ playEnabled, ttsEnabled, skipEnabled, rouletteEnabled }),
   });
@@ -39,7 +40,7 @@ describe('!tossit', () => {
     const line = await tossit.run(ctx(), deps(false));
     expect(line).toEqual({
       name: 'Viewer',
-      text: '!balance !xp !queue',
+      text: '!balance !xp !queue !gift',
       hint: 'toss-it.org/c/kravets',
     });
   });
@@ -65,7 +66,7 @@ describe('!tossit', () => {
 
   it('reads as one line in Twitch chat', async () => {
     const line = await tossit.run(ctx(), deps(false));
-    expect(toChatText(line!)).toBe('@Viewer · !balance !xp !queue — toss-it.org/c/kravets');
+    expect(toChatText(line!)).toBe('@Viewer · !balance !xp !queue !gift — toss-it.org/c/kravets');
   });
 
   // Fresh channel ids: the registry's per-channel floor would swallow back-to-back runs otherwise.

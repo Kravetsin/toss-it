@@ -1,5 +1,6 @@
 import type { BotLocale, ChatSystemLine, RouletteColor } from '@tmw/shared';
 import type { BetOutcome } from '../../../roulette';
+import type { GiftOutcome } from '../../../gift';
 import type { QueueState } from '../../../playback';
 
 /** What the triggering message tells a command about its caller. */
@@ -112,6 +113,8 @@ export interface CommandDeps {
   }): Promise<BetOutcome>;
   /** This caller's balance and current cap, for a bare `!bet`. */
   betState(twitchId: string): Promise<{ balance: number; max: number; registered: boolean }>;
+  /** Hand dust to another viewer (`!gift`). The engine owns the resolution and the money. */
+  gift(input: { twitchId: string; login: string; amount: number }): Promise<GiftOutcome>;
 }
 
 /** One command = one file in this folder + one entry in the registry (see ./index.ts). */

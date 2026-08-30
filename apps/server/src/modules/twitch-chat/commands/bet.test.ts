@@ -128,7 +128,7 @@ describe('!bet parsing', () => {
     expect(line?.text).not.toContain('×');
     // The sign is what tells a win from a balance, so the renderer has to be told to draw it.
     expect(line?.signed).toBe(true);
-    expect(toChatText({ name: 'v', ...line! })).toContain('+100 ✦');
+    expect(toChatText(line!)).toContain('+100 ✦');
 
     const loss = deps({
       kind: 'done',
@@ -140,7 +140,7 @@ describe('!bet parsing', () => {
       balance: 0,
     });
     const lost = await bet.run(ctx(['100', 'красное']), loss.deps);
-    expect(toChatText({ name: 'v', ...lost! })).toContain('-100 ✦');
+    expect(toChatText(lost!)).toContain('-100 ✦');
   });
 
   it('shows the net, not the gross, on a win', async () => {

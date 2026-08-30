@@ -73,6 +73,15 @@ const STRINGS = {
     betBroke: 'not enough to spin',
     betMin: 'the smallest bet is {n} ✦',
     betMax: 'your max right now is {n} ✦',
+    // `!gift`. The recipient never needs an account — an unknown id waits in pending dust — so the
+    // "not signed up" answer is about the GIVER, who has no balance to give from.
+    giftUsage: '!gift <nick> <amount>',
+    giftMin: 'the smallest gift is {n} ✦',
+    giftUnknown: "don't know a {who} on Twitch",
+    giftSelf: 'that one is already yours',
+    giftNoAccount: 'log in first — the dust is held for you until you do',
+    giftNoFunds: "you don't have that much",
+    giftDone: 'sent to {who}',
   },
   ru: {
     queueAhead: 'перед тобой {n}',
@@ -127,6 +136,13 @@ const STRINGS = {
     betBroke: 'не хватает на спин',
     betMin: 'минимальная ставка {n} ✦',
     betMax: 'твой максимум сейчас {n} ✦',
+    giftUsage: '!gift <ник> <сколько>',
+    giftMin: 'минимальный подарок {n} ✦',
+    giftUnknown: 'не знаю такого на Twitch: {who}',
+    giftSelf: 'она и так твоя',
+    giftNoAccount: 'сначала войди — пыль пока копится за тобой',
+    giftNoFunds: 'столько нет',
+    giftDone: 'отправил {who}',
     emphasisIntro: 'первое сообщение',
   },
   uk: {
@@ -182,6 +198,13 @@ const STRINGS = {
     betBroke: 'не вистачає на спін',
     betMin: 'мінімальна ставка {n} ✦',
     betMax: 'твій максимум зараз {n} ✦',
+    giftUsage: '!gift <нік> <скільки>',
+    giftMin: 'мінімальний подарунок {n} ✦',
+    giftUnknown: 'не знаю такого на Twitch: {who}',
+    giftSelf: 'вона й так твоя',
+    giftNoAccount: 'спочатку увійди — пил поки збирається за тобою',
+    giftNoFunds: 'стільки немає',
+    giftDone: 'надіслав {who}',
     emphasisIntro: 'перше повідомлення',
   },
 } as const satisfies Record<BotLocale, Record<string, string>>;

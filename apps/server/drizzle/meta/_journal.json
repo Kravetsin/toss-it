@@ -526,6 +526,13 @@
       "when": 1788100472666,
       "tag": "0074_massive_wendigo",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "6",
+      "when": 1788101825235,
+      "tag": "0075_faulty_junta",
+      "breakpoints": true
     }
   ]
 }

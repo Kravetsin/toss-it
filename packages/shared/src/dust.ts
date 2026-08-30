@@ -32,6 +32,13 @@ export const DUST_POINTS = {
 export const WELCOME_DUST = 1000;
 
 /**
+ * Giving dust away. The floor keeps chat clear of `!gift someone 1` without getting in the way of a
+ * real thank-you; there is deliberately no ceiling, because the only thing a big pile buys is the
+ * catalog, and the catalog is bought once.
+ */
+export const GIFT = { min: 10 } as const;
+
+/**
  * Channel-points → stardust exchange (an app-owned Twitch reward the streamer opts into). Not a cap
  * risk: every dust sink is a permanent, non-transferable unlock, so the ceiling of any dust pile is
  * "own the whole catalog once" — the accepted whale outcome. The streamer sets the reward's point

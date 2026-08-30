@@ -662,6 +662,28 @@ export const submissionPayouts = sqliteTable(
 );
 
 /**
+ * Every gift, as the record that answers "where did my dust go" — the question a transfer between
+ * two people generates far more readily than a spin does, because there is someone to blame.
+ *
+ * The recipient is a PLATFORM id, not a user id: a gift to someone who has never logged in lands in
+ * pending_dust and waits for them, which is the whole point of being able to gift a stranger.
+ */
+export const dustGifts = sqliteTable(
+  'dust_gifts',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    fromUserId: text('from_user_id').notNull(),
+    toPlatform: text('to_platform').notNull(),
+    toPlatformUserId: text('to_platform_user_id').notNull(),
+    /** Filled when the recipient already had an account at the time of the gift. */
+    toUserId: text('to_user_id'),
+    amount: integer('amount').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [index('idx_dust_gifts_from').on(t.fromUserId, t.createdAt)],
+);
+
+/**
  * Every spin, as the record that answers "where did my dust go". Keyed by platform id rather than
  * user id because an unregistered chatter can bet out of the dust we are holding for them, and has
  * no account to point at yet.

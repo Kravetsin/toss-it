@@ -44,6 +44,7 @@ import { noticeText } from './notices';
 import { t } from './strings';
 import { bumpMessage, bumpWatch, flushActivity } from './stats';
 import { betState, placeBet, type BetOutcome } from '../../roulette';
+import { giftDust, type GiftOutcome } from '../../gift';
 import { refreshChatterName } from './names';
 import { createSkipVotes } from './skipVotes';
 import { planSubs } from './subplan';
@@ -294,6 +295,43 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
       stake: input.stake,
       color: input.color,
     });
+  }
+
+  /**
+   * Back `!gift`. Two things the engine cannot do for itself: find the account the GIVER is typing
+   * from, and look up a login nobody here has ever seen. Twitch is asked only as a last resort —
+   * most recipients are in the same chat and are already in channel_activity.
+   */
+  async function giftFromChat(input: {
+    twitchId: string;
+    login: string;
+    amount: number;
+  }): Promise<GiftOutcome> {
+    const from = await db
+      .select({ userId: linkedIdentities.userId })
+      .from(linkedIdentities)
+      .where(
+        and(
+          eq(linkedIdentities.provider, 'twitch'),
+          eq(linkedIdentities.providerId, input.twitchId),
+        ),
+      )
+      .get();
+    if (!from) return { kind: 'noAccount' };
+    return giftDust({ fromUserId: from.userId, toLogin: input.login, amount: input.amount }, (l) =>
+      lookupTwitchLogin(l),
+    );
+  }
+
+  /** Twitch's own answer for "who is this login", for a recipient we have never seen. */
+  async function lookupTwitchLogin(login: string): Promise<{ id: string; login: string } | null> {
+    const url = new URL('https://api.twitch.tv/helix/users');
+    url.searchParams.set('login', login);
+    const res = await helixGet(url);
+    if (!res?.ok) return null;
+    const body = (await res.json()) as { data?: { id: string; login: string }[] };
+    const hit = body.data?.[0];
+    return hit ? { id: hit.id, login: hit.login } : null;
   }
 
   /** This channel's command switches — what `available()` and the mirror both ask about. */
@@ -593,15 +631,11 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     // shared bot account off Twitch's platform-wide spam radar.
     const toOverlay = chatEnabledChannels.has(channelId) && live;
     const toChat = botReplyChannels.has(channelId) && live;
-    // !play, !tts, !skip and !bet have a side effect (they move what is on the stream, or move
-    // someone's dust), so the registry must run even when no answer can land — the confirmation is
-    // then simply dropped, but the command itself still takes effect.
-    const sendOn =
-      (rouletteCommandChannels.has(channelId) ||
-        playCommandChannels.has(channelId) ||
-        ttsCommandChannels.has(channelId) ||
-        skipCommandChannels.has(channelId)) &&
-      live;
+    // A command with a side effect must run even when no answer can land — the confirmation is
+    // then simply dropped, but the command itself still takes effect. `!gift` has no switch of its
+    // own (it touches nothing of the streamer's), so being live is the whole condition; the others
+    // gate themselves inside their own deps anyway.
+    const sendOn = live;
     if (toOverlay || toChat || sendOn) {
       const role = roleFromBadges(ev.badges);
       void runCommand(
@@ -626,6 +660,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
           bet: betFromChat,
           betState: (twitchId) =>
             betState({ platform: 'twitch', platformUserId: twitchId, userId: null }),
+          gift: giftFromChat,
           channelUrl,
           commandState: commandStateOf,
         },
