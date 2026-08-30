@@ -6,7 +6,7 @@ A dust wheel a viewer spins from chat (`!bet`) or the site.
 
 1. **Site wheel + chat command.** The animation lives on the site only, where it is cheap to throw
    away and redo. `!bet` works from chat and answers in text.
-2. **Overlay strip.** Not the site's wheel — see below. Done.
+2. **Overlay block.** Not the site's wheel — see below. Done.
 3. **The pot.** A shared round. Its data shape is settled below so we don't migrate twice.
 
 Everything outside those three headings is phase 1.
@@ -283,19 +283,29 @@ one thing that matters.
 
 ## Phase 2 — the overlay strip
 
-**Not a port of the wheel.** At the size of a chat card the arc's whole vocabulary — curvature, the
-glass window, the flapper, the pocket numbers, the light pulse — is invisible, and what reads is
-colour, motion, stop. A strip of tiles gives exactly those three. This is the right form for the
-surface, not the cheap one; the wheel would have needed extracting from React (the overlay is plain
-TS, zero React) into a shared DOM module, for a picture nobody could see.
+**Not a port of the wheel, and not a strip either.** At the size of a chat card the arc's whole
+vocabulary — curvature, the glass window, the flapper, the pocket numbers, the light pulse — is
+invisible; a strip of 22px tiles is barely better, a row of specks. What ships is ONE block the size
+of an emote (1.5em, same as `.emote`), running through colours and stopping on the winner with a
+`+` or `−` on it. Colour is the whole message, so it gets the largest square a chat line can hold,
+and the sign says which way it went.
+
+This is the right form for the surface, not the cheap one: the wheel would have needed extracting
+from React (the overlay is plain TS, zero React) into a shared DOM module, for a picture nobody
+could see.
+
+**The block stays** — it is the verdict, not a loader. And because it carries both the colour and
+the direction, the overlay drops the colour NAME and shows the amount unsigned. The chat copy keeps
+both: it has no block to read them off.
 
 **No second message either.** The verdict already travels in the same payload, so the overlay only
-delays SHOWING it. `ChatSystemLine` gains `spin?: { color }` — the winning COLOUR alone, since a
-strip has no pockets for a slot number to mean anything against. Chat gets text and dust
+delays SHOWING it. `ChatSystemLine` gains `spin?: { color, won }` — no slot number, since one block has no pockets for
+one to mean anything against, and `won` cannot be derived from the colour: landing on red is a win
+or a loss depending on what was staked. Chat gets text and dust
 immediately; a second and a half is not a spoiler, and Twitch's own delivery lag is longer.
 
-**The reveal is owned by a `setTimeout`, never by the animation.** An OBS source on an inactive
-scene has `rAF` paused: the strip would sit frozen and the numbers would never appear. A timeout
+**The settle is owned by a `setTimeout`, never by the animation.** An OBS source on an inactive
+scene has `rAF` paused: the block would sit on whatever colour it stopped at and never resolve. A timeout
 fires either way, and the result was decided server-side long before any of this. Same invariant as
 everywhere else — the picture agrees with the answer, it never produces it.
 
@@ -303,7 +313,7 @@ The hidden fields use `visibility`, not `display`: the card must already be its 
 jumps under the reader when the numbers land.
 
 Auto-hide was a worry and is not one: in production 29 channels never fade at all and the lowest
-non-zero setting is 10 seconds, against a 1.5 second strip.
+non-zero setting is 10 seconds, against a 1.5 second spin.
 
 ## Dashboard
 

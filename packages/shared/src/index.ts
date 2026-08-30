@@ -460,12 +460,15 @@ export interface ChatSystemLine {
   /** Small line underneath, e.g. the domain for dust waiting to be claimed. */
   hint?: string;
   /**
-   * A wheel result to play out before the numbers appear. Only the winning COLOUR travels: the
-   * overlay shows a strip of tiles, not pockets, so there is nothing for a slot number to mean at
-   * that size. The verdict is already in `text`/`dust` — the overlay only delays SHOWING it, which
-   * is why no second message is needed.
+   * A wheel result to play out before the numbers appear. The winning COLOUR and whether it paid —
+   * no slot number, because the overlay shows one block, not pockets, and nothing at that size could
+   * mean a number. `won` cannot be derived from the colour: landing on red is a win or a loss
+   * depending on what was staked.
+   *
+   * The verdict is already in `text`/`dust` — the overlay only delays SHOWING it, which is why no
+   * second message is needed.
    */
-  spin?: { color: RouletteColor };
+  spin?: { color: RouletteColor; won: boolean };
 }
 
 /**

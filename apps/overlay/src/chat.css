@@ -730,16 +730,22 @@
   color: #8df0cc;
   text-shadow: 0 0 8px rgba(141, 240, 204, 0.6);
 }
-/* The wheel's tiles, riding the card's own baseline. Rounded and inset so the strip reads as a
-   part of the line rather than as a picture pasted into it. */
+/* The wheel's verdict: a square the size of an emote (1.5em, same as .emote), because colour IS
+   the message here and this is the largest it can be on a chat line. The sign rides on top of it. */
 .msg.system .sys-spin {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5em;
+  height: 1.5em;
   margin-right: 0.4em;
-  vertical-align: -0.35em;
-  border-radius: 5px;
+  vertical-align: -0.4em;
+  border-radius: 6px;
+  font-weight: 800;
+  line-height: 1;
   box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.14),
-    0 2px 8px rgba(0, 0, 0, 0.45);
+    inset 0 0 0 1px rgba(255, 255, 255, 0.16),
+    0 2px 8px rgba(0, 0, 0, 0.5);
 }
 .msg.system .sys-star {
   display: inline-flex;
