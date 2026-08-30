@@ -149,9 +149,12 @@ export const channels = sqliteTable('channels', {
   // Streamer opt-out: render the Twitch chat (with Tossit cosmetics) in the chat overlay source.
   chatOverlayEnabled: integer('chat_overlay_enabled', { mode: 'boolean' }).notNull().default(true),
   /**
-   * Let the bot answer commands in the Twitch chat itself, not just in the overlay. Off by
-   * default on purpose: modding the bot was consented to as "read my chat", and writing is a
-   * different thing — the streamer says yes to it separately.
+   * Let the bot answer commands in the Twitch chat itself, not just in the overlay. ON for
+   * everyone since migration 0077. It began as a separate consent on top of the /mod ("read my
+   * chat" vs "write into it"), and the field voted that theory down: a modded bot that stays
+   * silent reads as broken, and finding this switch was THE setup question. The column default
+   * stays false because changing a DEFAULT in SQLite rebuilds the table — channel creation passes
+   * true explicitly instead, the same trick musicSeparate uses (see routes/channels.ts).
    */
   chatBotReplies: integer('chat_bot_replies', { mode: 'boolean' }).notNull().default(false),
   /**

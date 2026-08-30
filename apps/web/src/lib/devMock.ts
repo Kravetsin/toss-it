@@ -185,7 +185,7 @@ const MOCK_SETTINGS: ChannelSettings = {
   ttsName: false,
   ttsMessage: false,
   chatOverlayEnabled: true,
-  chatBotReplies: false,
+  chatBotReplies: true,
   chatPlayCommand: true,
   chatTtsCommand: true,
   chatSkipCommand: true,

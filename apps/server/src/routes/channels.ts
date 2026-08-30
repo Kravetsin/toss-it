@@ -246,6 +246,9 @@ export function registerChannelRoutes(app: FastifyInstance): void {
       musicPosition: 'bottom-left' as const,
       musicSize: 20,
       musicMargin: 2,
+      // The bot answers in chat from day one — a modded bot that stays silent reads as broken
+      // (see the column note). Explicit rather than a column default, like musicSeparate above.
+      chatBotReplies: true,
       // Seed the bot's language from the dashboard the streamer is creating the channel in — the
       // best guess we get for free. They can change it later; the two are independent settings.
       botLocale: BOT_LOCALES.includes(req.body?.locale as BotLocale)
