@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { RouletteColor } from '@tmw/shared';
+import { PAYOUT, type RouletteColor } from '@tmw/shared';
 
 const COLORS: RouletteColor[] = ['red', 'black', 'green'];
 
@@ -9,6 +9,22 @@ const SWATCH: Record<RouletteColor, string> = {
   black: 'bg-[#141a21] ring-1 ring-white/25',
   green: 'bg-accent',
 };
+/** The multiplier is printed ON the tile, so it needs to read against that exact fill. */
+const INK: Record<RouletteColor, string> = {
+  red: 'text-white/90',
+  black: 'text-white/70',
+  green: 'text-[#08160f]',
+};
+
+function Tile({ colour, className = '' }: { colour: RouletteColor; className?: string }) {
+  return (
+    <span
+      className={`grid size-11 place-items-center rounded-xl font-mono text-sm font-bold ${SWATCH[colour]} ${INK[colour]} ${className}`}
+    >
+      ×{PAYOUT[colour]}
+    </span>
+  );
+}
 
 /** How far the pointer must travel before a press counts as a drag. */
 const SLOP = 8;
@@ -107,8 +123,9 @@ export function BetChips({
               aria-label={c}
               className="grid size-14 cursor-grab place-items-center rounded-2xl ring-1 ring-inset ring-white/10 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <span
-                className={`size-11 rounded-xl shadow-[0_4px_14px_rgba(0,0,0,0.45)] transition-[transform,opacity] duration-300 ${SWATCH[c]} ${
+              <Tile
+                colour={c}
+                className={`shadow-[0_4px_14px_rgba(0,0,0,0.45)] transition-[transform,opacity] duration-300 ${
                   gone ? 'scale-50 opacity-0' : 'scale-100 opacity-100'
                 }`}
               />
@@ -128,9 +145,7 @@ export function BetChips({
             className="pointer-events-none fixed z-[60] -translate-x-1/2 -translate-y-1/2"
             style={{ left: ghost.x, top: ghost.y }}
           >
-            <span
-              className={`block size-11 rounded-xl shadow-[0_8px_26px_rgba(0,0,0,0.7)] ${SWATCH[held]}`}
-            />
+            <Tile colour={held} className="shadow-[0_8px_26px_rgba(0,0,0,0.7)]" />
           </div>,
           document.body,
         )}

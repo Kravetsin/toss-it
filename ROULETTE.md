@@ -199,14 +199,16 @@ of where the wheel is, which is why the whole thing is an rAF loop and not a CSS
 **Landing.** Light goes DOWN, particles go UP, and both end:
 
 - the winning pocket takes a rim light, 700 ms;
-- a **pulse** of the outcome's colour runs off the rim and travels towards the hub — a ring of
-  shrinking radius and widening stroke, clipped to the disc, 900 ms to zero. It replaces a wash that
-  tinted the whole platform and merely faded, which read as the interface breaking rather than as an
-  answer;
-- particles are thrown from NINE points sampled along the rim, upward and away. Under the wheel they
-  only fell back behind it, and from one rect in the middle they ignored that the wheel spans the
-  whole width. `disintegrate` caps at 60 per call from area alone, so it now takes an explicit
-  count — a thin strip on an arc has almost no area and would otherwise emit one speck.
+- a **pulse** of the outcome's colour runs off the rim and travels towards the hub, 900 ms to zero.
+  It is a RADIAL GRADIENT rising to the colour and falling away again, not a stroked ring: a ring
+  filled with a flat colour has two hard edges however wide it is drawn, and reads as a solid band
+  sliding down rather than as light. It replaces a wash that tinted the whole platform and merely
+  faded, which read as the interface breaking rather than as an answer;
+- particles are thrown from the rim, upward and away — **one per call at a uniformly random angle**
+  along the arc. Sampling a handful of fixed points and asking each for six particles reads as that
+  many little fountains; the edge has to come apart along its whole length, which means continuous
+  spawn positions, not a grid. `disintegrate` derives its count from area and caps at 60 per call,
+  so it now takes an explicit count — a two-pixel spawn point has no area to speak of.
 
 The landing fade runs on its OWN rAF handle. Settling flips `spinning`, which re-runs the spin
 effect, whose cleanup cancels the spin's handle — sharing one killed the fade on its first frame and
@@ -242,9 +244,10 @@ The drop target is geometry, not DOM: the band is drawn, so `overBand` tests the
 against the circle. Move and release are watched on the WINDOW rather than through pointer capture —
 lose the capture and the release never arrives, which strands the tile held forever.
 
-**Rates are printed under the tray**, not on the tiles. A verb with a number on it stops reading as
-a thing you can pick up. The hint and the verdict live there too — never over the wheel, which is
-the one thing being watched, and a caption across it covers the pockets being read.
+**The multiplier is printed ON the tile** — `×2`, `×2`, `×35`. A sentence under the tray was read as
+noise, and phrasing it as "green pays 35" made a multiplier sound like a flat prize. The hint and the
+verdict stay under the tray, never over the wheel: that is the one thing being watched, and a caption
+across it covers the pockets being read.
 
 **The tile empties its socket only once something else is representing it** — the ghost under the
 cursor, or the wheel itself. Emptying on the press alone left the first few pixels of every drag

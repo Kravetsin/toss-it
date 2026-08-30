@@ -250,28 +250,40 @@ export function Wheel({
     if (pulse.current > 0 && wonRef.current !== null) {
       const hue = wonRef.current ? '141,240,204' : '229,72,77';
       const p1 = 1 - pulse.current;
+      // Where the light has got to, and how far it has smeared out getting there.
+      const mid = R - DEPTH - 6 - p1 * 240;
+      const soft = 46 + p1 * 120;
+      const peak = 0.42 * pulse.current ** 1.4;
+      const g = ctx.createRadialGradient(
+        cx,
+        cy,
+        Math.max(0, mid - soft),
+        cx,
+        cy,
+        Math.max(1, mid + soft),
+      );
+      g.addColorStop(0, `rgba(${hue},0)`);
+      g.addColorStop(0.42, `rgba(${hue},${peak * 0.55})`);
+      g.addColorStop(0.5, `rgba(${hue},${peak})`);
+      g.addColorStop(0.62, `rgba(${hue},${peak * 0.45})`);
+      g.addColorStop(1, `rgba(${hue},0)`);
       ctx.save();
       ctx.beginPath();
       ctx.arc(cx, cy, R - DEPTH, 0, Math.PI * 2);
       ctx.clip();
-      ctx.strokeStyle = `rgba(${hue},${0.5 * pulse.current ** 1.5})`;
-      // Shrinking radius = travelling towards the hub, which on screen is downwards; the widening
-      // stroke is the light spreading out as it goes.
-      ctx.lineWidth = 12 + p1 * 60;
-      ctx.beginPath();
-      ctx.arc(cx, cy, R - DEPTH - 10 - p1 * 230, 0, Math.PI * 2);
-      ctx.stroke();
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
       ctx.restore();
 
-      // A brief lick of the same light on the rim itself, so the pulse reads as coming FROM it.
+      // The rim it came off, lit briefly and softly — a glow, not an outline.
       ctx.save();
-      ctx.globalAlpha = Math.max(0, pulse.current * 2 - 1);
-      ctx.strokeStyle = `rgb(${hue})`;
-      ctx.lineWidth = 3;
+      ctx.globalAlpha = Math.max(0, pulse.current * 2 - 1) * 0.8;
+      ctx.strokeStyle = `rgba(${hue},0.5)`;
+      ctx.lineWidth = 2;
       ctx.shadowColor = `rgb(${hue})`;
-      ctx.shadowBlur = 18;
+      ctx.shadowBlur = 22;
       ctx.beginPath();
-      ctx.arc(cx, cy, R - DEPTH, Math.PI, Math.PI * 2);
+      ctx.arc(cx, cy, R - DEPTH - 1, Math.PI, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
     }
@@ -399,28 +411,23 @@ export function burstAt(canvas: HTMLCanvasElement | null, multiple: number): voi
   const R = radiusFor(box.width);
   const cy = box.top + TOP_PAD + R;
   const cx = box.left + box.width / 2;
-
-  // Sampled ALONG the rim rather than from one rect in the middle: the wheel spans the whole width,
-  // so its answer should too. Each point sits on the crown and throws upward, away from the disc —
-  // spawned below it they only fell back behind the wheel.
-  const points = 9;
-  const perPoint = won ? (multiple > 2 ? 9 : 6) : 5;
   const halfSpan = Math.min(Math.asin(Math.min(1, box.width / 2 / R)), Math.PI / 2);
-  const emit = (wave: number) => {
-    for (let i = 0; i < points; i++) {
-      const a = -halfSpan + (2 * halfSpan * i) / (points - 1);
-      const x = cx + Math.sin(a) * R;
-      const y = cy - Math.cos(a) * R;
-      disintegrate(
-        new DOMRect(x - 16, y - 10, 32, 12),
-        won ? 'approve' : 'reject',
-        0,
-        perPoint + wave,
-      );
+
+  // ONE particle per call, at a uniformly random angle. Sampling a handful of fixed points and
+  // asking each for six particles reads as that many little fountains; the edge has to come apart
+  // along its whole length, which means the spawn positions must be continuous, not gridded.
+  const emit = (n: number) => {
+    for (let i = 0; i < n; i++) {
+      const ang = -halfSpan + Math.random() * 2 * halfSpan;
+      const x = cx + Math.sin(ang) * R;
+      const y = cy - Math.cos(ang) * R;
+      disintegrate(new DOMRect(x - 1, y - 3, 2, 4), won ? 'approve' : 'reject', 0, 1);
     }
   };
-  emit(0);
-  // A second and third wave, so it keeps going a beat past where the eye expects it to be over.
-  setTimeout(() => emit(1), 110);
-  if (won) setTimeout(() => emit(2), 230);
+
+  const total = won ? (multiple > 2 ? 150 : 90) : 70;
+  emit(Math.round(total * 0.5));
+  // Two more waves, so it keeps going a beat past where the eye expects it to be over.
+  setTimeout(() => emit(Math.round(total * 0.3)), 110);
+  setTimeout(() => emit(Math.round(total * 0.2)), 230);
 }

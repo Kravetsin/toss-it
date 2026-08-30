@@ -185,14 +185,9 @@ export function RouletteDrawer({ open, onClose }: { open: boolean; onClose: () =
             )}
           </div>
 
-          {/* Rates live here rather than on the tiles: the tiles are the verb, and a verb with a
-              number printed on it stops reading as a thing you can pick up. */}
-          <span className="flex items-center gap-3 text-xs text-faint">
-            <span>{t('roulette.odds')}</span>
-            <span className="flex items-center gap-1 text-muted">
-              <DustMark />
-              {state?.balance ?? 0}
-            </span>
+          <span className="flex items-center gap-1 text-xs text-muted">
+            <DustMark />
+            {state?.balance ?? 0}
           </span>
 
           {/* The seed's hash, published before it is used. Small, but present: being able to point
