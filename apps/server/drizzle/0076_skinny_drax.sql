@@ -1,0 +1,1 @@
+ALTER TABLE `users` ADD `roulette_greens` integer DEFAULT 0 NOT NULL;

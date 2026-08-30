@@ -60,6 +60,16 @@ export const users = sqliteTable('users', {
    */
   rouletteWins: integer('roulette_wins').notNull().default(0),
   rouletteLosses: integer('roulette_losses').notNull().default(0),
+  /**
+   * Greens CAUGHT: bet on green and won, one slot in thirty-seven. A subset of rouletteWins and not
+   * derivable from it — a win is red or black nineteen times out of twenty — so it needs its own
+   * column, and for the same reason as the two above: roulette_spins is pruned at 30 days and a
+   * milestone counted from a shrinking table would take itself back.
+   *
+   * Starts at 0 for everyone, nothing backfilled. Costs nobody anything: it was added while the
+   * wheel had run 59 spins and not one green had been caught.
+   */
+  rouletteGreens: integer('roulette_greens').notNull().default(0),
   /** When WELCOME_DUST was granted; null = not yet. The grant is a conditional UPDATE on this being
    *  null, which is what makes it exactly-once without a read-then-write race. Accounts that predate
    *  the bonus are null too, so they collect it on their next login. */

@@ -1226,6 +1226,7 @@ function route(pathname: string, init?: RequestInit, query?: URLSearchParams): u
           avatarUrl: null,
           stardust: 250,
           rouletteWins: 12,
+          rouletteGreens: 1,
           rouletteLosses: 27,
           isFounder: true,
           createdAt: Date.now() - 86_400_000 * 20,

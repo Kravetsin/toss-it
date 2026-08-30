@@ -1188,6 +1188,8 @@ export interface AdminUserRow {
   /** Lifetime wheel record. Straight off the user row — the spins table is pruned, this is not. */
   rouletteWins: number;
   rouletteLosses: number;
+  /** Greens caught, a subset of the wins: the 1-in-37 outcome, which is the only one worth a look. */
+  rouletteGreens: number;
   /** How many channels whitelisted this user. */
   whitelistedIn: number;
   /** How many channels banned this user. */

@@ -296,6 +296,7 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminRoutesDeps)
         // No extra query: the lifetime tally lives on the user row precisely so it survives the
         // pruning of roulette_spins.
         rouletteWins: u.rouletteWins,
+        rouletteGreens: u.rouletteGreens,
         rouletteLosses: u.rouletteLosses,
         whitelistedIn: whitelistBy.get(u.id) ?? 0,
         bannedIn: bansBy.get(u.id) ?? 0,

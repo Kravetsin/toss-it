@@ -25,7 +25,7 @@ describe('roulette payouts', () => {
 
   const tallyOf = async (id: string) =>
     (await db
-      .select({ w: users.rouletteWins, l: users.rouletteLosses })
+      .select({ w: users.rouletteWins, l: users.rouletteLosses, g: users.rouletteGreens })
       .from(users)
       .where(eq(users.id, id))
       .get())!;
@@ -40,8 +40,14 @@ describe('roulette payouts', () => {
     )?.amount ?? 0;
 
   /** Spin until the wheel gives this colour. A fresh account per try keeps the balances readable. */
-  const spinUntil = async (want: 'win' | 'lose', color: 'red' | 'black' = 'red') => {
-    for (let i = 0; i < 200; i++) {
+  /** `tries` is generous for green on purpose: at 1 slot in 37, a bound tuned for red would fail
+   *  this test a few times in a thousand runs, which is worse than a slow one. */
+  const spinUntil = async (
+    want: 'win' | 'lose',
+    color: 'red' | 'black' | 'green' = 'red',
+    tries = 200,
+  ) => {
+    for (let i = 0; i < tries; i++) {
       const id = `u_${crypto.randomUUID()}`;
       await db.insert(users).values({
         id,
@@ -157,17 +163,21 @@ describe('roulette payouts', () => {
   // The seal these will one day gate must never un-earn itself, and roulette_spins is pruned after
   // 30 days — so the tally lives on the account and only ever climbs.
   it('keeps a lifetime tally of wins and losses on the account', async () => {
-    const tally = async (id: string) =>
-      (await db
-        .select({ w: users.rouletteWins, l: users.rouletteLosses })
-        .from(users)
-        .where(eq(users.id, id))
-        .get())!;
-
     const win = await spinUntil('win');
-    expect(await tally(win.id)).toEqual({ w: 1, l: 0 });
+    expect(await tallyOf(win.id)).toEqual({ w: 1, l: 0, g: 0 });
     const loss = await spinUntil('lose');
-    expect(await tally(loss.id)).toEqual({ w: 0, l: 1 });
+    expect(await tallyOf(loss.id)).toEqual({ w: 0, l: 1, g: 0 });
+  });
+
+  // A caught green is 1 slot in 37 against the 18 red and black each own, so "won" cannot stand in
+  // for it — nineteen wins in twenty are ordinary. Hence a column of its own, not a derivation.
+  it('counts a caught green apart from the win it is part of', async () => {
+    const caught = await spinUntil('win', 'green', 900);
+    expect(await tallyOf(caught.id)).toEqual({ w: 1, l: 0, g: 1 });
+
+    // Betting green and missing is the other thirty-six outcomes: a plain loss, nothing caught.
+    const missed = await spinUntil('lose', 'green');
+    expect(await tallyOf(missed.id)).toEqual({ w: 0, l: 1, g: 0 });
   });
 
   it('leaves the tally alone for a chatter with no account', async () => {
@@ -187,7 +197,7 @@ describe('roulette payouts', () => {
     });
     expect(res.kind).toBe('done');
     // Nothing to hang a cosmetic on yet; the account that eventually claims the dust starts at zero.
-    expect(await tallyOf(userId)).toEqual({ w: 0, l: 0 });
+    expect(await tallyOf(userId)).toEqual({ w: 0, l: 0, g: 0 });
   });
 
   it('records every spin, so support can answer where the dust went', async () => {

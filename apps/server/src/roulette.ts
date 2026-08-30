@@ -123,13 +123,22 @@ async function debit(input: BetInput, userId: string | null, amount: number): Pr
 /**
  * The lifetime tally, for cosmetics gated on the wheel. Its own UPDATE because `credit` is skipped
  * on a loss, and a loss is exactly half of what this counts.
+ *
+ * A caught green is counted twice over — once as a win, once as itself. It is 1 slot in 37 against
+ * the 18 that red and black each own, so "won" says nothing about whether anything rare happened.
  */
-async function noteSpin(userId: string | null, won: boolean): Promise<void> {
+async function noteSpin(userId: string | null, color: RouletteColor, won: boolean): Promise<void> {
   if (!userId) return;
-  const col = won ? users.rouletteWins : users.rouletteLosses;
   await db
     .update(users)
-    .set(won ? { rouletteWins: sql`${col} + 1` } : { rouletteLosses: sql`${col} + 1` })
+    .set(
+      won
+        ? {
+            rouletteWins: sql`${users.rouletteWins} + 1`,
+            ...(color === 'green' ? { rouletteGreens: sql`${users.rouletteGreens} + 1` } : {}),
+          }
+        : { rouletteLosses: sql`${users.rouletteLosses} + 1` },
+    )
     .where(eq(users.id, userId));
 }
 
@@ -171,7 +180,7 @@ export async function placeBet(input: BetInput): Promise<BetOutcome> {
   const slot = crypto.randomInt(ROULETTE_SLOTS);
   const payout = payoutFor(input.color, slot, input.stake);
   await credit(input, userId, payout);
-  await noteSpin(userId, payout > 0);
+  await noteSpin(userId, input.color, payout > 0);
 
   await db.insert(rouletteSpins).values({
     channelId: input.channelId,

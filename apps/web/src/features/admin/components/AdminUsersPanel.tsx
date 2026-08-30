@@ -136,6 +136,16 @@ function UserRow({
                 hint={t('admin.spinsWon')}
                 tone="text-ok"
               />
+              {/* Only when caught: a zero here is the normal state, and 37:1 makes it the one
+                  number on the row that says something happened. */}
+              {u.rouletteGreens > 0 && (
+                <StatChip
+                  icon="star"
+                  value={u.rouletteGreens}
+                  hint={t('admin.spinsGreen')}
+                  tone="text-accent"
+                />
+              )}
               <StatChip
                 icon="close"
                 value={u.rouletteLosses}
