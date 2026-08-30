@@ -1,15 +1,7 @@
-import { and, like, ne, or, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { GIFT, type GiftTarget } from '@tmw/shared';
-import { db } from '../db/index';
-import { users } from '../db/schema';
 import { requireUser } from '../auth';
-import { giftDust } from '../gift';
-
-/** Enough to pick someone out, few enough that the list stays a list. */
-const SEARCH_LIMIT = 6;
-/** Below this a query matches half the site and means nothing. */
-const SEARCH_MIN = 2;
+import { findGiftTargets, giftDust } from '../gift';
 
 /**
  * Giving dust from the site.
@@ -27,27 +19,7 @@ export function registerGiftRoutes(app: FastifyInstance): void {
     async (req, reply): Promise<GiftTarget[] | undefined> => {
       const me = await requireUser(req, reply);
       if (!me) return;
-      const q = (req.query.q ?? '').trim().toLowerCase();
-      if (q.length < SEARCH_MIN) return [];
-      const prefix = `${q}%`;
-      const rows = await db
-        .select({
-          userId: users.id,
-          login: users.login,
-          displayName: users.displayName,
-          avatarUrl: users.avatarUrl,
-        })
-        .from(users)
-        .where(
-          and(
-            or(like(users.login, prefix), like(sql`lower(${users.displayName})`, prefix)),
-            // Never offer the giver themselves: the refusal would come after they had picked.
-            ne(users.id, me.id),
-          ),
-        )
-        .limit(SEARCH_LIMIT)
-        .all();
-      return rows;
+      return findGiftTargets(req.query.q ?? '', me.id);
     },
   );
 

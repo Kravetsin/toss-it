@@ -161,6 +161,19 @@ const CONFUSABLES: Record<string, string> = {
  * aggressive — it folds case, separators, accents and Cyrillic/Greek look-alikes — because the
  * attack is `Krаvets` with one Cyrillic а, not a name that differs honestly.
  */
+/**
+ * The key a name is MATCHED by while somebody is looking for it: case and accents folded, nothing
+ * else. Deliberately gentler than foldForCollision — that one answers "is this a claim on someone
+ * else's identity" and folds Cyrillic look-alikes onto Latin, which in a search would quietly merge
+ * two people who genuinely have different names.
+ *
+ * It exists because SQL cannot do this: SQLite's lower() folds ASCII and nothing else, so every
+ * Cyrillic name comes back from it untouched.
+ */
+export function foldForSearch(name: string): string {
+  return name.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase();
+}
+
 export function foldForCollision(name: string): string {
   const flat = name.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase();
   let out = '';

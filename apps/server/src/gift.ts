@@ -1,5 +1,5 @@
 import { and, desc, eq, gte, or, sql } from 'drizzle-orm';
-import { GIFT } from '@tmw/shared';
+import { GIFT, type GiftTarget, foldForSearch } from '@tmw/shared';
 import { db } from './db/index';
 import { channelActivity, dustGifts, linkedIdentities, pendingDust, users } from './db/schema';
 
@@ -111,24 +111,88 @@ async function localTwitchId(
     }
   }
 
-  // A Tossit account matching by either name, with a twitch identity attached. The login is the
-  // only name to come back from here: users.display_name can be one someone BOUGHT on Tossit.
+  // Last local resort: a Tossit account with a Twitch identity, for a display name we have simply
+  // never seen in a chat (Helix, next in line, cannot look one up).
+  //
+  // Only rows whose PRIMARY provider is Twitch, and only their Twitch-given names — the login and
+  // platform_name. The other two names would each let a string that exists only on Tossit collect
+  // dust meant for the Twitch user of that name: display_name can be one bought here for dust, and
+  // a Google-primary login is an email local part with no relation to Twitch at all.
   const acct = await db
-    .select({ id: linkedIdentities.providerId, login: users.login })
+    .select({ id: linkedIdentities.providerId, login: users.login, name: users.platformName })
     .from(users)
     .innerJoin(
       linkedIdentities,
       and(eq(linkedIdentities.userId, users.id), eq(linkedIdentities.provider, 'twitch')),
     )
     .where(
-      or(
-        eq(users.login, name),
-        eq(users.displayName, typed),
-        eq(sql`lower(${users.displayName})`, name),
+      and(
+        // The row's own identity IS this twitch account, which is what makes its login and
+        // platform_name Twitch's names rather than some other provider's.
+        eq(users.id, sql`'twitch:' || ${linkedIdentities.providerId}`),
+        or(
+          eq(users.login, name),
+          eq(users.platformName, typed),
+          eq(sql`lower(${users.platformName})`, name),
+        ),
       ),
     )
     .get();
-  return acct ? { id: acct.id, login: acct.login, name: acct.login } : null;
+  return acct ? { id: acct.id, login: acct.login, name: acct.name || acct.login } : null;
+}
+
+/** Enough to pick someone out, few enough that the list stays a list. */
+const SEARCH_LIMIT = 6;
+/** Below this a query matches half the site and means nothing. */
+const SEARCH_MIN = 2;
+
+/**
+ * Accounts whose name STARTS WITH what the giver typed, for the site's picker.
+ *
+ * This searches OUR namespace, and that is the whole difference from the chat lookup above: the
+ * person picking is looking at Tossit, so the name they half-remember is the one Tossit showed
+ * them. The provider's own name is searched too — a name bought here replaces the one their friends
+ * knew them by, and they should still be findable under it.
+ *
+ * A scan and a fold in JS rather than a LIKE, because SQLite's lower() folds ASCII only: every
+ * Cyrillic name was findable by nothing but its exact capitals, which for this audience is most of
+ * the interesting ones. The table is a few hundred rows and this is debounced; when that stops
+ * being true the fold becomes a stored column, exactly as isImpersonation's scan already says.
+ */
+export async function findGiftTargets(query: string, excludeUserId: string): Promise<GiftTarget[]> {
+  const q = foldForSearch(query.trim());
+  if (q.length < SEARCH_MIN) return [];
+  const rows = await db
+    .select({
+      userId: users.id,
+      login: users.login,
+      displayName: users.displayName,
+      platformName: users.platformName,
+      avatarUrl: users.avatarUrl,
+    })
+    .from(users)
+    .all();
+
+  const hits: { rank: number; row: (typeof rows)[number] }[] = [];
+  for (const row of rows) {
+    // Never offer the giver themselves: the refusal would come after they had picked.
+    if (row.userId === excludeUserId) continue;
+    // Rank by WHICH name matched, so the name on screen beats one only we know about.
+    const rank = [row.displayName, row.login, row.platformName].findIndex(
+      (f) => f && foldForSearch(f).startsWith(q),
+    );
+    if (rank >= 0) hits.push({ rank, row });
+  }
+  hits.sort((a, b) => a.rank - b.rank || a.row.displayName.length - b.row.displayName.length);
+
+  return hits.slice(0, SEARCH_LIMIT).map(({ row }) => ({
+    userId: row.userId,
+    login: row.login,
+    displayName: row.displayName,
+    avatarUrl: row.avatarUrl,
+    // Only when it reveals something — the same rule LeaderboardEntry.platformName follows.
+    platformName: row.platformName !== row.displayName ? row.platformName : null,
+  }));
 }
 
 export async function giftDust(

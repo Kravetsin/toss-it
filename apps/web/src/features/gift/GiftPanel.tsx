@@ -107,7 +107,9 @@ export function GiftPanel() {
           <Avatar url={picked.avatarUrl} name={picked.displayName} size={24} />
           <span className="min-w-0 flex-1 truncate text-sm">
             {picked.displayName}
-            <span className="ml-1 text-faint">@{picked.login}</span>
+            <span className="ml-1 text-faint">
+              {picked.platformName ? `${picked.platformName} ` : ''}@{picked.login}
+            </span>
           </span>
           <button
             type="button"
@@ -132,7 +134,11 @@ export function GiftPanel() {
                     <Avatar url={u.avatarUrl} name={u.displayName} size={24} />
                     <span className="min-w-0 flex-1 truncate text-sm">
                       {u.displayName}
-                      <span className="ml-1 text-faint">@{u.login}</span>
+                      {/* A bought name hides who this is; in a list that sends money away, that
+                          belongs on screen and not behind a hover. */}
+                      <span className="ml-1 text-faint">
+                        {u.platformName ? `${u.platformName} ` : ''}@{u.login}
+                      </span>
                     </span>
                   </button>
                 </li>

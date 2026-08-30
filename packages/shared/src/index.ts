@@ -907,6 +907,9 @@ export interface GiftTarget {
   userId: string;
   login: string;
   displayName: string;
+  /** The provider's own name, sent ONLY when a bought name is hiding it — see the same rule on
+   *  LeaderboardEntry. Shown outright rather than on hover: this list spends money. */
+  platformName: string | null;
   avatarUrl: string | null;
 }
 

@@ -7,6 +7,7 @@ import {
   BET,
   colorOfSlot,
   COSMETICS,
+  foldForSearch,
   maxBet,
   parseColor,
   PAYOUT,
@@ -1345,12 +1346,18 @@ function route(pathname: string, init?: RequestInit, query?: URLSearchParams): u
   }
 
   if (pathname === '/api/users/search') {
-    const q = (query?.get('q') ?? '').toLowerCase();
+    const q = foldForSearch(query?.get('q') ?? '');
     if (q.length < 2) return [];
     return [
-      { userId: 'twitch:1', login: 'gld0ra', displayName: 'gld0ra', avatarUrl: null },
-      { userId: 'twitch:2', login: 'neniisan', displayName: 'neniisan', avatarUrl: null },
-    ].filter((u) => u.login.startsWith(q) || u.displayName.toLowerCase().startsWith(q));
+      { userId: 'twitch:1', login: 'gld0ra', displayName: 'gld0ra', platformName: null },
+      { userId: 'twitch:2', login: 'neniisan', displayName: 'neniisan', platformName: null },
+      // A bought name, and a Cyrillic one — the two rows the picker has to get right.
+      { userId: 'twitch:3', login: 'kravetsin', displayName: 'Звёздный', platformName: 'Kravets' },
+    ]
+      .map((u) => ({ ...u, avatarUrl: null }))
+      .filter((u) =>
+        [u.displayName, u.login, u.platformName].some((f) => f && foldForSearch(f).startsWith(q)),
+      );
   }
   if (pathname === '/api/dust/gift') {
     const u = MOCK_ME.user!;
