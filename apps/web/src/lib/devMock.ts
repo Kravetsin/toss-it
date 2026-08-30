@@ -1224,6 +1224,8 @@ function route(pathname: string, init?: RequestInit, query?: URLSearchParams): u
           displayName: 'Kravets',
           avatarUrl: null,
           stardust: 250,
+          rouletteWins: 12,
+          rouletteLosses: 27,
           isFounder: true,
           createdAt: Date.now() - 86_400_000 * 20,
           identities: ['twitch', 'google'],

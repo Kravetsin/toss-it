@@ -121,6 +121,29 @@ function UserRow({
             <StatChip icon="shield" value={u.whitelistedIn} hint={t('admin.whitelistedIn')} />
             <StatChip icon="user-x" value={u.bannedIn} hint={t('admin.bannedIn')} />
           </span>
+          {/* Only for someone who has actually played: three more zeroes on every row would bury
+              the counts that matter on the rows that have none. */}
+          {u.rouletteWins + u.rouletteLosses > 0 && (
+            <span className="flex items-center gap-2 tabular-nums">
+              <StatChip
+                icon="reload"
+                value={u.rouletteWins + u.rouletteLosses}
+                hint={t('admin.spins')}
+              />
+              <StatChip
+                icon="check"
+                value={u.rouletteWins}
+                hint={t('admin.spinsWon')}
+                tone="text-ok"
+              />
+              <StatChip
+                icon="close"
+                value={u.rouletteLosses}
+                hint={t('admin.spinsLost')}
+                tone="text-danger"
+              />
+            </span>
+          )}
           {u.pendingDust > 0 && <Badge>{t('admin.pendingDust', { n: u.pendingDust })}</Badge>}
           {/* Names, not a count: finding one user's purchases by opening every cosmetic in turn is
               what this replaces. Plain text — refunds still live in the cosmetics panel. */}

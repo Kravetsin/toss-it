@@ -293,6 +293,10 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminRoutesDeps)
         ownedCosmetics: cosmeticsBy.get(u.id) ?? 0,
         accepted: acceptedBy.get(u.id) ?? 0,
         rejected: rejectedBy.get(u.id) ?? 0,
+        // No extra query: the lifetime tally lives on the user row precisely so it survives the
+        // pruning of roulette_spins.
+        rouletteWins: u.rouletteWins,
+        rouletteLosses: u.rouletteLosses,
         whitelistedIn: whitelistBy.get(u.id) ?? 0,
         bannedIn: bansBy.get(u.id) ?? 0,
         isLive: liveOwnerIds.has(u.id),

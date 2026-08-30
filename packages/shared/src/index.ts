@@ -1163,6 +1163,9 @@ export interface AdminUserRow {
   accepted: number;
   /** Submissions rejected by moderators. */
   rejected: number;
+  /** Lifetime wheel record. Straight off the user row — the spins table is pruned, this is not. */
+  rouletteWins: number;
+  rouletteLosses: number;
   /** How many channels whitelisted this user. */
   whitelistedIn: number;
   /** How many channels banned this user. */
