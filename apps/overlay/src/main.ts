@@ -1824,6 +1824,7 @@ const SEAL_DEMO_COLORS: Record<string, string | undefined> = {
   'seal-moons': '#ffb35c',
   'seal-keyring': '#ff8fd4',
   'seal-lanterns': '#ffd166',
+  'seal-zero': '#ffd166',
   'seal-rings': '#a0e34a',
 };
 

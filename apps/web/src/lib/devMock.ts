@@ -129,6 +129,7 @@ const MOCK_ME: MeResponse = {
         'seal-keyring': '#ff8fd4',
         'seal-lanterns': '#ffd166',
         'seal-rings': '#a0e34a',
+        'seal-zero': '#ffd166',
       },
       frame: 'frame-runner',
       frameColors: { 'frame-runner': '#ff6ec7' },

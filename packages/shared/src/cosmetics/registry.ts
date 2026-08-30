@@ -79,6 +79,7 @@ import { sealMoonsQuiet, sealMoons, sealMoonsColor } from './effects/seal-moons'
 import { sealKeyringFew, sealKeyring, sealKeyringColor } from './effects/seal-keyring';
 import { sealLanternsFew, sealLanterns, sealLanternsColor } from './effects/seal-lanterns';
 import { sealRingsSapling, sealRings, sealRingsColor } from './effects/seal-rings';
+import { sealZeroQuiet, sealZero, sealZeroColor } from './effects/seal-zero';
 import { entranceGlitch } from './effects/entrance-glitch';
 import { entranceWarp } from './effects/entrance-warp';
 import { entranceEcho } from './effects/entrance-echo';
@@ -359,6 +360,11 @@ export const COSMETIC_MODULES: CosmeticModule[] = [
   sealHourglassGlass,
   sealHourglass,
   sealHourglassColor,
+  // The wheel, on greens CAUGHT. The only axis in the set that is not activity but OUTCOME — one
+  // slot in 37 — so its rungs are counted in dozens where every other is counted in thousands.
+  sealZeroQuiet,
+  sealZero,
+  sealZeroColor,
   // The BREADTH family: earned by turning up in DIFFERENT channels rather than by piling up one
   // counter. Every one is `draft` — the catalog carries them so surfaces can render them, but the
   // metric they need (distinct channels) doesn't exist yet, so none of them is obtainable.

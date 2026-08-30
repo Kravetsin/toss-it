@@ -20,6 +20,7 @@ import {
   breadthFor,
   dustEarnedFor,
   dustSpentFor,
+  rouletteGreensFor,
   messagesTotalFor,
   submissionsTotalFor,
   watchMinutesTotalFor,
@@ -52,7 +53,9 @@ function earnTotal(userId: string, metric: CosmeticEarn['metric']): Promise<numb
         ? dustEarnedFor(userId)
         : metric === 'dustSpent'
           ? dustSpentFor(userId)
-          : messagesTotalFor(userId);
+          : metric === 'rouletteGreens'
+            ? rouletteGreensFor(userId)
+            : messagesTotalFor(userId);
 }
 
 /**

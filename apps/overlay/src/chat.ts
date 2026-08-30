@@ -1346,6 +1346,28 @@ if (DEMO) {
       level: 7,
       fragments: [{ type: 'text', text: 'не оборачивайся' }],
     },
+    // Both rungs of the wheel, adjacent: the tier is what it answers a caught green with, and that
+    // only reads when the quiet one is sitting next to the lit one.
+    {
+      id: '21a',
+      userId: 'u21a',
+      name: 'zerohunter',
+      twitchColor: '#8df0cc',
+      cosmetics: { seal: 'seal-zero-quiet' },
+      isFounder: false,
+      level: 4,
+      fragments: [{ type: 'text', text: 'два зелёных за вечер' }],
+    },
+    {
+      id: '21b',
+      userId: 'u21b',
+      name: 'greenstreak',
+      twitchColor: '#ffd166',
+      cosmetics: { seal: 'seal-zero', sealColors: { 'seal-zero': '#ffd166' } },
+      isFounder: false,
+      level: 9,
+      fragments: [{ type: 'text', text: 'десятое' }],
+    },
     {
       id: '22',
       userId: 'u22',

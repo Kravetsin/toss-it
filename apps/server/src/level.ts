@@ -182,6 +182,17 @@ export async function dustEarnedFor(userId: string): Promise<number> {
   return row?.n ?? 0;
 }
 
+/** Greens CAUGHT, for cosmetics gated on `earn.metric === 'rouletteGreens'`. A direct column read
+ *  — the counter is kept live at the one site that can move it (see noteSpin). */
+export async function rouletteGreensFor(userId: string): Promise<number> {
+  const row = await db
+    .select({ n: users.rouletteGreens })
+    .from(users)
+    .where(eq(users.id, userId))
+    .get();
+  return row?.n ?? 0;
+}
+
 /**
  * Lifetime dust SPENT, for cosmetics gated on `earn.metric === 'dustSpent'`. Derived from what the
  * user owns rather than kept as a counter, which is safe for exactly one reason: every dust sink is

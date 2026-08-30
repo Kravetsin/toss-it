@@ -94,6 +94,10 @@ export type CosmeticMetric =
   | 'submissions'
   | 'dustEarned'
   | 'dustSpent'
+  /** Greens CAUGHT on the wheel — bet green and won, one slot in 37. A subset of the wins and not
+   *  derivable from them: nineteen wins in twenty are red or black. Its own column on users, for
+   *  the same reason as the wins themselves — roulette_spins is pruned at 30 days. */
+  | 'rouletteGreens'
   | 'channelsMessaged'
   | 'channelsSent'
   | 'channelsWatched'

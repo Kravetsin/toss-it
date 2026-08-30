@@ -81,6 +81,7 @@ const EARN_META: Record<CosmeticMetric, EarnMeta> = {
   submissions: { icon: 'send', unit: 1, lockedKey: 'shop.earnLockedSends' },
   dustEarned: { icon: 'sparkles', unit: 1, lockedKey: 'shop.earnLockedDust' },
   dustSpent: { icon: 'sparkles', unit: 1, lockedKey: 'shop.earnLockedSpent' },
+  rouletteGreens: { icon: 'reload', unit: 1, lockedKey: 'shop.earnLockedGreens' },
   // The breadth axis counts CHANNELS, so the unit is always 1 and the icon is a stream, whatever the
   // per-channel bar happens to be. `barKey` is what that bar reads as under the rung; the bar's own
   // unit lives in `barUnit` (minutes shown as hours, as everywhere else).
