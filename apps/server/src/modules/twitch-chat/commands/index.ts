@@ -50,7 +50,7 @@ export function toChatText(line: ChatSystemLine): string {
     const sign = line.signed && line.dust > 0 ? '+' : '';
     parts.push(`${sign}${line.dust} ✦`);
   }
-  const body = parts.join(' · ');
+  const body = parts.join(line.flow ? ' ' : ' · ');
   return line.hint ? `${body} — ${line.hint}` : body;
 }
 

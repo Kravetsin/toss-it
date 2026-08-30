@@ -81,7 +81,7 @@ const STRINGS = {
     giftSelf: 'that one is already yours',
     giftNoAccount: 'log in first — the dust is held for you until you do',
     giftNoFunds: "you don't have that much",
-    giftDone: 'sent to {who}',
+    giftDone: 'sent @{who}',
   },
   ru: {
     queueAhead: 'перед тобой {n}',
@@ -142,7 +142,7 @@ const STRINGS = {
     giftSelf: 'она и так твоя',
     giftNoAccount: 'сначала войди — пыль пока копится за тобой',
     giftNoFunds: 'столько нет',
-    giftDone: 'отправил {who}',
+    giftDone: 'отправил @{who}',
     emphasisIntro: 'первое сообщение',
   },
   uk: {
@@ -204,7 +204,7 @@ const STRINGS = {
     giftSelf: 'вона й так твоя',
     giftNoAccount: 'спочатку увійди — пил поки збирається за тобою',
     giftNoFunds: 'стільки немає',
-    giftDone: 'надіслав {who}',
+    giftDone: 'надіслав @{who}',
     emphasisIntro: 'перше повідомлення',
   },
 } as const satisfies Record<BotLocale, Record<string, string>>;

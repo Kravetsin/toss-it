@@ -44,7 +44,20 @@ export type GiftOutcome =
   | { kind: 'unknown' }
   /** Giving to yourself is not a transaction, and letting it through only invites confusion. */
   | { kind: 'self' }
-  | { kind: 'done'; amount: number; toLogin: string; balance: number };
+  /**
+   * `toName` is what to ADDRESS the recipient by, and it is deliberately not the account's display
+   * name: that one can be a name bought on Tossit, which means nothing on Twitch and would not
+   * highlight for anyone. Only names Twitch itself gave us are safe to ping — the display name it
+   * sent with a chat message, else the login.
+   */
+  | { kind: 'done'; amount: number; toName: string; balance: number };
+
+/** Someone on Twitch, with the name their own chat would show for them. */
+interface TwitchTarget {
+  id: string;
+  login: string;
+  name: string;
+}
 
 /**
  * A twitch id for a name someone typed, or null.
@@ -59,18 +72,31 @@ export type GiftOutcome =
  * sighting in THIS channel wins over one anywhere else, because the person meant is nearly always
  * the person in the room. Ties break on the newest sighting: one name can belong to several twitch
  * ids over time — someone renames, and Twitch hands a freed login to somebody else.
+ *
+ * `typed` keeps its capitals on purpose. SQLite's lower() is ASCII-only, so a Cyrillic display name
+ * never folds and "Звёздный" would match nothing — while an exact match on what was typed always
+ * finds it, autocomplete having inserted the name verbatim. The folded form stays for ASCII.
  */
 async function localTwitchId(
-  name: string,
+  typed: string,
   preferChannelId?: string | null,
-): Promise<{ id: string; login: string } | null> {
+): Promise<TwitchTarget | null> {
+  const name = typed.toLowerCase();
+  // Twitch logins are lowercase ASCII, so only the display name needs both spellings.
   const byLogin = eq(channelActivity.login, name);
-  const byDisplay = eq(sql`lower(${channelActivity.displayName})`, name);
+  const byDisplay = or(
+    eq(channelActivity.displayName, typed),
+    eq(sql`lower(${channelActivity.displayName})`, name),
+  );
 
   for (const match of [byLogin, byDisplay]) {
     for (const scope of preferChannelId ? [preferChannelId, null] : [null]) {
       const row = await db
-        .select({ id: channelActivity.platformUserId, login: channelActivity.login })
+        .select({
+          id: channelActivity.platformUserId,
+          login: channelActivity.login,
+          name: channelActivity.displayName,
+        })
         .from(channelActivity)
         .where(
           and(
@@ -81,11 +107,12 @@ async function localTwitchId(
         )
         .orderBy(desc(channelActivity.updatedAt))
         .get();
-      if (row) return { id: row.id, login: row.login };
+      if (row) return { id: row.id, login: row.login, name: row.name || row.login };
     }
   }
 
-  // A Tossit account matching by either name, with a twitch identity attached.
+  // A Tossit account matching by either name, with a twitch identity attached. The login is the
+  // only name to come back from here: users.display_name can be one someone BOUGHT on Tossit.
   const acct = await db
     .select({ id: linkedIdentities.providerId, login: users.login })
     .from(users)
@@ -93,15 +120,21 @@ async function localTwitchId(
       linkedIdentities,
       and(eq(linkedIdentities.userId, users.id), eq(linkedIdentities.provider, 'twitch')),
     )
-    .where(or(eq(users.login, name), eq(sql`lower(${users.displayName})`, name)))
+    .where(
+      or(
+        eq(users.login, name),
+        eq(users.displayName, typed),
+        eq(sql`lower(${users.displayName})`, name),
+      ),
+    )
     .get();
-  return acct ? { id: acct.id, login: acct.login } : null;
+  return acct ? { id: acct.id, login: acct.login, name: acct.login } : null;
 }
 
 export async function giftDust(
   input: GiftInput,
   /** Last resort for a login nobody here has seen — the chat module passes a Helix lookup. */
-  resolveRemote?: (login: string) => Promise<{ id: string; login: string } | null>,
+  resolveRemote?: (login: string) => Promise<TwitchTarget | null>,
 ): Promise<GiftOutcome> {
   if (!Number.isInteger(input.amount) || input.amount < GIFT.min) {
     return { kind: 'tooSmall', min: GIFT.min };
@@ -109,9 +142,9 @@ export async function giftDust(
 
   // An account chosen from search needs no lookup and has no platform id to record; a typed login
   // has to be turned into one, and may belong to somebody with no account at all.
-  let target: { id: string; login: string } | null = null;
+  let target: TwitchTarget | null = null;
   let toUserId: string | null;
-  let toLogin: string;
+  let toName: string;
   if ('userId' in input.to) {
     const acct = await db
       .select({ id: users.id, login: users.login })
@@ -120,15 +153,18 @@ export async function giftDust(
       .get();
     if (!acct) return { kind: 'unknown' };
     toUserId = acct.id;
-    toLogin = acct.login;
+    toName = acct.login;
   } else {
-    const login = input.to.login.trim().replace(/^@/, '').toLowerCase();
-    if (!login) return { kind: 'unknown' };
+    const typed = input.to.login.trim().replace(/^@/, '');
+    if (!typed) return { kind: 'unknown' };
+    // Helix is asked with the folded name: its users?login= takes a login, which is always ASCII.
     target =
-      (await localTwitchId(login, input.channelId)) ?? (await resolveRemote?.(login)) ?? null;
+      (await localTwitchId(typed, input.channelId)) ??
+      (await resolveRemote?.(typed.toLowerCase())) ??
+      null;
     if (!target) return { kind: 'unknown' };
     toUserId = await accountFor(target.id);
-    toLogin = target.login;
+    toName = target.name;
   }
   if (toUserId === input.fromUserId) return { kind: 'self' };
 
@@ -181,7 +217,7 @@ export async function giftDust(
     .from(users)
     .where(eq(users.id, input.fromUserId))
     .get();
-  return { kind: 'done', amount: input.amount, toLogin, balance: after?.dust ?? 0 };
+  return { kind: 'done', amount: input.amount, toName, balance: after?.dust ?? 0 };
 }
 
 async function accountFor(twitchId: string): Promise<string | null> {

@@ -456,6 +456,12 @@ export interface ChatSystemLine {
   /** Stardust value, rendered with the brand star. */
   dust?: number;
   /**
+   * Render the chat copy as a SENTENCE — no ` · ` between the parts. For a line that is about two
+   * people rather than an answer to one ("@a sent @b 100 ✦"), the field separators read as a form.
+   * The overlay never had them, so this only concerns the Twitch copy.
+   */
+  flow?: boolean;
+  /**
    * `dust` is a CHANGE, not a balance: render it with an explicit sign. A bare `100` after a spin
    * reads as a balance, and only the loss carried a minus — so a win and a balance looked alike.
    */

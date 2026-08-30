@@ -331,14 +331,18 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
   }
 
   /** Twitch's own answer for "who is this login", for a recipient we have never seen. */
-  async function lookupTwitchLogin(login: string): Promise<{ id: string; login: string } | null> {
+  async function lookupTwitchLogin(
+    login: string,
+  ): Promise<{ id: string; login: string; name: string } | null> {
     const url = new URL('https://api.twitch.tv/helix/users');
     url.searchParams.set('login', login);
     const res = await helixGet(url);
     if (!res?.ok) return null;
-    const body = (await res.json()) as { data?: { id: string; login: string }[] };
+    const body = (await res.json()) as {
+      data?: { id: string; login: string; display_name?: string }[];
+    };
     const hit = body.data?.[0];
-    return hit ? { id: hit.id, login: hit.login } : null;
+    return hit ? { id: hit.id, login: hit.login, name: hit.display_name || hit.login } : null;
   }
 
   /** This channel's command switches — what `available()` and the mirror both ask about. */

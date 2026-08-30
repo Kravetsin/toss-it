@@ -44,13 +44,18 @@ export const gift: ChatCommand = {
       case 'noFunds':
         return { name: ctx.name, text: t(ctx.locale, 'giftNoFunds'), dust: res.balance };
       case 'done':
-        // Signed, because this is a change and not a balance — and negative, because it is the
-        // giver being answered. What the recipient got is the same number the other way round.
+        // Both people are pinged: the giver because the bot is answering them, the recipient
+        // because this is how they find out at all. A mention is not a Twitch feature — chat
+        // clients just match the text against your login AND your display name — so `toName`
+        // picks whichever of those Twitch itself gave us.
+        //
+        // The amount is positive and unsigned. It was a minus before, from the giver's side, which
+        // read as a penalty in a sentence that is about something arriving somewhere.
         return {
           name: ctx.name,
-          text: t(ctx.locale, 'giftDone', { who: res.toLogin }),
-          dust: -res.amount,
-          signed: true,
+          text: t(ctx.locale, 'giftDone', { who: res.toName }),
+          dust: res.amount,
+          flow: true,
         };
     }
   },

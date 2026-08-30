@@ -103,7 +103,39 @@ describe('gifting dust', () => {
       to: { login: '@长尺丹丷乇丁丂' },
       amount: 100,
     });
-    expect(res).toMatchObject({ kind: 'done', toLogin: strangerLogin });
+    // Addressed by the name Twitch shows, not the login — a mention is a text match on either.
+    expect(res).toMatchObject({ kind: 'done', toName: '长尺丹丷乇丁丂' });
+  });
+
+  // SQLite's lower() only folds ASCII, so a Cyrillic name has to match as typed.
+  it('finds a display name whose capitals no lower() would fold', async () => {
+    const tw = `tw_${crypto.randomUUID()}`;
+    await db.insert(channelActivity).values({
+      channelId: 'ch',
+      platform: 'twitch',
+      platformUserId: tw,
+      month: '2026-08',
+      displayName: 'Звёздный',
+      login: `zv_${crypto.randomUUID().slice(0, 8)}`,
+      messages: 1,
+      watchMinutes: 0,
+      updatedAt: new Date(),
+    });
+    const res = await giftDust({
+      fromUserId: giver,
+      to: { login: '@Звёздный' },
+      amount: 100,
+      channelId: 'ch',
+    });
+    expect(res).toMatchObject({ kind: 'done', toName: 'Звёздный' });
+  });
+
+  // A name bought on Tossit means nothing on Twitch: pinging it would highlight for nobody.
+  it('never addresses someone by a display name they bought here', async () => {
+    await db.update(users).set({ displayName: 'Куплённое Имя' }).where(eq(users.id, taker));
+    const takerLogin = (await db.select().from(users).where(eq(users.id, taker)).get())!.login;
+    const res = await giftDust({ fromUserId: giver, to: { login: takerLogin }, amount: 100 });
+    expect(res).toMatchObject({ kind: 'done', toName: takerLogin });
   });
 
   // Display names are not unique the way logins are, so the person in the room wins.
@@ -127,7 +159,14 @@ describe('gifting dust', () => {
       amount: 100,
       channelId: 'ch',
     });
-    expect(res).toMatchObject({ kind: 'done', toLogin: strangerLogin });
+    // Both rows carry the same display name, so only WHERE the dust landed tells them apart.
+    expect(res.kind).toBe('done');
+    const stray = await db
+      .select({ amount: pendingDust.amount })
+      .from(pendingDust)
+      .where(and(eq(pendingDust.platform, 'twitch'), eq(pendingDust.platformUserId, elsewhere)))
+      .get();
+    expect(stray).toBeUndefined();
   });
 
   it('takes the login as typed, @ and capitals included', async () => {
@@ -155,7 +194,7 @@ describe('gifting dust', () => {
       { fromUserId: giver, to: { login: 'nobody_here' }, amount: 100 },
       async () => {
         asked++;
-        return { id: 'tw_remote', login: 'nobody_here' };
+        return { id: 'tw_remote', login: 'nobody_here', name: 'Nobody_Here' };
       },
     );
     expect(remote.kind).toBe('done');
