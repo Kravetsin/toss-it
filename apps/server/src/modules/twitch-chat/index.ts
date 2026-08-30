@@ -303,6 +303,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
    * most recipients are in the same chat and are already in channel_activity.
    */
   async function giftFromChat(input: {
+    channelId: string;
     twitchId: string;
     login: string;
     amount: number;
@@ -319,7 +320,12 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
       .get();
     if (!from) return { kind: 'noAccount' };
     return giftDust(
-      { fromUserId: from.userId, to: { login: input.login }, amount: input.amount },
+      {
+        fromUserId: from.userId,
+        to: { login: input.login },
+        amount: input.amount,
+        channelId: input.channelId,
+      },
       (l) => lookupTwitchLogin(l),
     );
   }

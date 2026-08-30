@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, or, sql } from 'drizzle-orm';
 import { GIFT } from '@tmw/shared';
 import { db } from './db/index';
 import { channelActivity, dustGifts, linkedIdentities, pendingDust, users } from './db/schema';
@@ -30,6 +30,9 @@ export interface GiftInput {
    */
   to: { login: string } | { userId: string };
   amount: number;
+  /** Where the command was typed. A name is resolved against this channel's chatters first — the
+   *  person meant is nearly always the person in the room, and display names are not unique. */
+  channelId?: string | null;
 }
 
 export type GiftOutcome =
@@ -43,21 +46,46 @@ export type GiftOutcome =
   | { kind: 'self' }
   | { kind: 'done'; amount: number; toLogin: string; balance: number };
 
-/** A twitch id for this login, or null. Nothing here calls Twitch: the caller may pass a resolver
- *  (the chat module has one) for logins we have never seen. */
-async function localTwitchId(login: string): Promise<{ id: string; login: string } | null> {
-  // Newest sighting wins. One login can belong to several twitch ids over time — someone renames,
-  // and Twitch hands a freed login to somebody else — so an arbitrary row could send a gift to an
-  // account that gave the name up long ago.
-  const seen = await db
-    .select({ id: channelActivity.platformUserId, login: channelActivity.login })
-    .from(channelActivity)
-    .where(and(eq(channelActivity.platform, 'twitch'), eq(channelActivity.login, login)))
-    .orderBy(desc(channelActivity.updatedAt))
-    .get();
-  if (seen) return { id: seen.id, login: seen.login };
+/**
+ * A twitch id for a name someone typed, or null.
+ *
+ * The name may be a LOGIN or a DISPLAY NAME, and it usually is the latter: Twitch's own chat
+ * autocomplete inserts the display name, so `!gift 100 @长尺丹丷乇丁丂` is what actually gets sent.
+ * Those two are unrelated strings for anyone with an international name — the login stays ASCII —
+ * and Helix's `users?login=` only accepts the login, so a login-only chain misses every one of
+ * them. We keep display names in channel_activity, which is exactly what that autocomplete inserted.
+ *
+ * Order matters. A login is unique and a display name is not, so logins win; and within either, a
+ * sighting in THIS channel wins over one anywhere else, because the person meant is nearly always
+ * the person in the room. Ties break on the newest sighting: one name can belong to several twitch
+ * ids over time — someone renames, and Twitch hands a freed login to somebody else.
+ */
+async function localTwitchId(
+  name: string,
+  preferChannelId?: string | null,
+): Promise<{ id: string; login: string } | null> {
+  const byLogin = eq(channelActivity.login, name);
+  const byDisplay = eq(sql`lower(${channelActivity.displayName})`, name);
 
-  // A Tossit account whose own login matches and which has a twitch identity attached.
+  for (const match of [byLogin, byDisplay]) {
+    for (const scope of preferChannelId ? [preferChannelId, null] : [null]) {
+      const row = await db
+        .select({ id: channelActivity.platformUserId, login: channelActivity.login })
+        .from(channelActivity)
+        .where(
+          and(
+            eq(channelActivity.platform, 'twitch'),
+            match,
+            scope ? eq(channelActivity.channelId, scope) : undefined,
+          ),
+        )
+        .orderBy(desc(channelActivity.updatedAt))
+        .get();
+      if (row) return { id: row.id, login: row.login };
+    }
+  }
+
+  // A Tossit account matching by either name, with a twitch identity attached.
   const acct = await db
     .select({ id: linkedIdentities.providerId, login: users.login })
     .from(users)
@@ -65,7 +93,7 @@ async function localTwitchId(login: string): Promise<{ id: string; login: string
       linkedIdentities,
       and(eq(linkedIdentities.userId, users.id), eq(linkedIdentities.provider, 'twitch')),
     )
-    .where(eq(users.login, login))
+    .where(or(eq(users.login, name), eq(sql`lower(${users.displayName})`, name)))
     .get();
   return acct ? { id: acct.id, login: acct.login } : null;
 }
@@ -96,7 +124,8 @@ export async function giftDust(
   } else {
     const login = input.to.login.trim().replace(/^@/, '').toLowerCase();
     if (!login) return { kind: 'unknown' };
-    target = (await localTwitchId(login)) ?? (await resolveRemote?.(login)) ?? null;
+    target =
+      (await localTwitchId(login, input.channelId)) ?? (await resolveRemote?.(login)) ?? null;
     if (!target) return { kind: 'unknown' };
     toUserId = await accountFor(target.id);
     toLogin = target.login;

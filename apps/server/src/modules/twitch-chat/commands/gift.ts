@@ -25,7 +25,12 @@ export const gift: ChatCommand = {
     const login = asNumber(a) === null ? a : asNumber(b) === null ? b : null;
     if (amount === null || !login) return { name: ctx.name, text: t(ctx.locale, 'giftUsage') };
 
-    const res = await deps.gift({ twitchId: ctx.twitchId, login, amount });
+    const res = await deps.gift({
+      channelId: ctx.channelId,
+      twitchId: ctx.twitchId,
+      login,
+      amount,
+    });
     switch (res.kind) {
       case 'tooSmall':
         return { name: ctx.name, text: t(ctx.locale, 'giftMin', { n: GIFT.min }) };

@@ -52,7 +52,7 @@ describe('gifting dust', () => {
       platform: 'twitch',
       platformUserId: strangerTwitch,
       month: '2026-08',
-      displayName: 'Stranger',
+      displayName: '长尺丹丷乇丁丂',
       login: strangerLogin,
       messages: 3,
       watchMinutes: 0,
@@ -93,6 +93,41 @@ describe('gifting dust', () => {
       .get();
     expect(held?.amount).toBe(300);
     expect((await dustOf(giver)).d).toBe(4700);
+  });
+
+  // Twitch's chat autocomplete inserts the DISPLAY name, and for an international one that is a
+  // completely different string from the login — which Helix's users?login= cannot look up either.
+  it('finds someone by the display name Twitch autocompletes', async () => {
+    const res = await giftDust({
+      fromUserId: giver,
+      to: { login: '@长尺丹丷乇丁丂' },
+      amount: 100,
+    });
+    expect(res).toMatchObject({ kind: 'done', toLogin: strangerLogin });
+  });
+
+  // Display names are not unique the way logins are, so the person in the room wins.
+  it('prefers a sighting in the channel the command was typed in', async () => {
+    const elsewhere = `tw_${crypto.randomUUID()}`;
+    await db.insert(channelActivity).values({
+      channelId: 'other',
+      platform: 'twitch',
+      platformUserId: elsewhere,
+      month: '2026-08',
+      displayName: '长尺丹丷乇丁丂',
+      login: `other_${crypto.randomUUID().slice(0, 8)}`,
+      messages: 99,
+      watchMinutes: 0,
+      // Newer, so without the channel preference this row would win.
+      updatedAt: new Date(Date.now() + 60_000),
+    });
+    const res = await giftDust({
+      fromUserId: giver,
+      to: { login: '长尺丹丷乇丁丂' },
+      amount: 100,
+      channelId: 'ch',
+    });
+    expect(res).toMatchObject({ kind: 'done', toLogin: strangerLogin });
   });
 
   it('takes the login as typed, @ and capitals included', async () => {
