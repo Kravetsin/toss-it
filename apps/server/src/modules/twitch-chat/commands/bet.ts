@@ -2,8 +2,11 @@ import { BET, maxBet, parseColor, PAYOUT } from '@tmw/shared';
 import { t } from '../strings';
 import type { ChatCommand } from './types';
 
+/** "Everything I'm allowed", in the three languages the bot answers in. */
+const ALL_WORDS = new Set(['all', 'max', 'всё', 'все', 'усе', 'усі', 'макс']);
+
 /**
- * `!bet <amount> <colour>` — the dust wheel from chat.
+ * `!bet <amount> <colour>` — the dust wheel from chat, in either order.
  *
  * Cooldown 0 here because the engine owns the real one (60s, shared with the site so neither door
  * is the cheap way past the other). The registry's 15s would only ever hide the answer to a bet
@@ -20,9 +23,16 @@ export const bet: ChatCommand = {
   available: (state) => state.rouletteEnabled,
   cooldownMs: 0,
   async run(ctx, deps) {
-    const [amountArg, colorArg] = ctx.args;
+    // Either order. "!bet red 100" is at least as natural as "!bet 100 red", and someone typing
+    // mid-stream should not have to remember which way round we wanted it.
+    let colorArg: string | undefined;
+    let amountArg: string | undefined;
+    for (const arg of ctx.args) {
+      if (!colorArg && parseColor(arg)) colorArg = arg;
+      else if (!amountArg) amountArg = arg;
+    }
 
-    if (!amountArg) {
+    if (!amountArg && !colorArg) {
       const s = await deps.betState(ctx.twitchId);
       const text = t(ctx.locale, s.max > 0 ? 'betReady' : 'betBroke', {
         max: s.max,
@@ -37,12 +47,12 @@ export const bet: ChatCommand = {
     }
 
     const color = parseColor(colorArg ?? '');
-    if (!color) return { name: ctx.name, text: t(ctx.locale, 'betUsage') };
+    if (!color || !amountArg) return { name: ctx.name, text: t(ctx.locale, 'betUsage') };
 
     // `all` means "the most I'm allowed", not "everything I have" — the cap is a protection, and
-    // reading it as the balance would hand the whole pile over in one word.
-    const balanceForAll = amountArg.toLowerCase() === 'all' || amountArg.toLowerCase() === 'всё';
-    const stake = balanceForAll
+    // reading it as the balance would hand the whole pile over in one word. Spelled without ё too,
+    // because most keyboards are.
+    const stake = ALL_WORDS.has(amountArg.toLowerCase())
       ? maxBet((await deps.betState(ctx.twitchId)).balance)
       : Number.parseInt(amountArg, 10);
     if (!Number.isFinite(stake) || stake <= 0) {
