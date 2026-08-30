@@ -1351,12 +1351,19 @@ function route(pathname: string, init?: RequestInit, query?: URLSearchParams): u
     return [
       { userId: 'twitch:1', login: 'gld0ra', displayName: 'gld0ra', platformName: null },
       { userId: 'twitch:2', login: 'neniisan', displayName: 'neniisan', platformName: null },
-      // A bought name, and a Cyrillic one — the two rows the picker has to get right.
-      { userId: 'twitch:3', login: 'kravetsin', displayName: 'Звёздный', platformName: 'Kravets' },
+      // The two rows the picker has to get right: a decorative bought name, findable only by the
+      // account behind it, and a Cyrillic provider name no lower() would fold.
+      { userId: 'twitch:3', login: 'gidora', displayName: 'ＧＩＤＯＲＡ', platformName: 'gld0ra' },
+      {
+        userId: 'twitch:4',
+        login: 'slavaanfani',
+        displayName: 'Слава Anfani',
+        platformName: null,
+      },
     ]
       .map((u) => ({ ...u, avatarUrl: null }))
       .filter((u) =>
-        [u.displayName, u.login, u.platformName].some((f) => f && foldForSearch(f).startsWith(q)),
+        [u.login, u.platformName ?? u.displayName].some((f) => foldForSearch(f).startsWith(q)),
       );
   }
   if (pathname === '/api/dust/gift') {

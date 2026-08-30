@@ -149,10 +149,12 @@ const SEARCH_MIN = 2;
 /**
  * Accounts whose name STARTS WITH what the giver typed, for the site's picker.
  *
- * This searches OUR namespace, and that is the whole difference from the chat lookup above: the
- * person picking is looking at Tossit, so the name they half-remember is the one Tossit showed
- * them. The provider's own name is searched too — a name bought here replaces the one their friends
- * knew them by, and they should still be findable under it.
+ * Matched on the login and the PROVIDER's name — never on a bought one, which is the same pair
+ * isImpersonation compares and for the same reason: those two are who an account is, and a custom
+ * name is nobody's identity. It is not even unique (two people may both be Дракон), and an
+ * unstable, unowned string is the wrong thing to route money by. It stays the label of every row
+ * because it is what the rest of the site shows; the provider's name is rendered beside it, where
+ * it doubles as the reason the row matched at all.
  *
  * A scan and a fold in JS rather than a LIKE, because SQLite's lower() folds ASCII only: every
  * Cyrillic name was findable by nothing but its exact capitals, which for this audience is most of
@@ -177,8 +179,8 @@ export async function findGiftTargets(query: string, excludeUserId: string): Pro
   for (const row of rows) {
     // Never offer the giver themselves: the refusal would come after they had picked.
     if (row.userId === excludeUserId) continue;
-    // Rank by WHICH name matched, so the name on screen beats one only we know about.
-    const rank = [row.displayName, row.login, row.platformName].findIndex(
+    // Rank by WHICH name matched: the handle is unique, so an exact-ish one goes first.
+    const rank = [row.login, row.platformName].findIndex(
       (f) => f && foldForSearch(f).startsWith(q),
     );
     if (rank >= 0) hits.push({ rank, row });

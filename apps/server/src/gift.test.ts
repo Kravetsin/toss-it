@@ -247,26 +247,41 @@ describe('gifting dust', () => {
 
   // The site door, which searches the opposite namespace: the names Tossit shows.
   describe('finding someone from the site', () => {
-    // SQLite's lower() folds ASCII only, so this whole class of name used to be unfindable.
+    // SQLite's lower() folds ASCII only, so this whole class of name used to be unfindable — and
+    // it is not a rare one: most human names in this table are Cyrillic.
     it('finds a Cyrillic name however it was typed', async () => {
-      await makeUser(`zv_${crypto.randomUUID().slice(0, 8)}`, 0, { displayName: 'Звёздный' });
-      for (const q of ['Звёзд', 'звёзд', 'звезд']) {
-        expect((await findGiftTargets(q, giver)).map((r) => r.displayName)).toContain('Звёздный');
+      await makeUser(`sl_${crypto.randomUUID().slice(0, 8)}`, 0, { displayName: 'Слава Anfani' });
+      for (const q of ['Слав', 'слав']) {
+        expect((await findGiftTargets(q, giver)).map((r) => r.displayName)).toContain(
+          'Слава Anfani',
+        );
       }
     });
 
     it('finds someone by the provider name a bought one is hiding', async () => {
+      // Unique: rows from earlier cases are still in the table, only the fixtures are remade.
+      const real = `Kravets${crypto.randomUUID().slice(0, 8)}`;
       await db
         .update(users)
-        .set({ displayName: 'Куплённое Имя', platformName: 'Kravets' })
+        .set({ displayName: 'ＧＩＤＯＲＡ', platformName: real })
         .where(eq(users.id, taker));
-      const [hit] = await findGiftTargets('krav', giver);
+      const [hit] = await findGiftTargets(real.slice(0, 10), giver);
       // Sent only because it differs — that is what makes the row identifiable in the picker.
-      expect(hit).toMatchObject({
-        userId: taker,
-        displayName: 'Куплённое Имя',
-        platformName: 'Kravets',
-      });
+      expect(hit).toMatchObject({ userId: taker, displayName: 'ＧＩＤＯＲＡ', platformName: real });
+    });
+
+    // A bought name is decoration, not identity: not unique, and in practice not even typeable
+    // (every one of them in prod is fullwidth or CJK). The row is still labelled with it.
+    it('never matches a name bought here', async () => {
+      const real = `Kravets${crypto.randomUUID().slice(0, 8)}`;
+      await db
+        .update(users)
+        .set({ displayName: 'Дракон', platformName: real })
+        .where(eq(users.id, taker));
+      expect(await findGiftTargets('Дракон', giver)).toEqual([]);
+      expect((await findGiftTargets(real.slice(0, 10), giver)).map((r) => r.displayName)).toEqual([
+        'Дракон',
+      ]);
     });
 
     it('says nothing about the giver, or about a query too short to mean anything', async () => {
