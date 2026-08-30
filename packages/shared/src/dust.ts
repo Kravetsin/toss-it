@@ -2,10 +2,10 @@
  * Stardust award weights — the whole viewer economy in one place, so the shop's "how to earn" copy
  * (it interpolates these) can't drift from what the server actually pays.
  *
- * Deliberately NOT the same as LEVEL_POINTS, which they otherwise mirror: dust rewards the ATTEMPT
+ * Numerically the same as LEVEL_POINTS; what differs is WHEN each pays. Dust rewards the ATTEMPT
  * (a send counts the moment it arrives, even if it never airs), XP rewards the OUTCOME (only aired
  * sends, which need the streamer's pick). So dust makes the core action worth doing, while XP stays
- * an unfarmable medal.
+ * an unfarmable medal — same price tag, different thing being bought.
  *
  * One exception, and it is not an accident: a YouTube request (channel-points reward or !play) pays
  * only once it airs. There the attempt costs the viewer real channel points that we refund when it

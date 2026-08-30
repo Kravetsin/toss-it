@@ -153,7 +153,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
 
   /**
    * Sender's all-time per-channel XP: chat messages + watch-minutes (from channel_activity, by
-   * twitch id — works for unregistered chatters) + 10× aired submissions (played, by linked
+   * twitch id — works for unregistered chatters) + 50× aired submissions (played, by linked
    * userId). Cached ~60s to survive chat volume; the level badge and the !xp command both derive
    * from it (xpToLevel for the badge, the raw number for the command).
    */

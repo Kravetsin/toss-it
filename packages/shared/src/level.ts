@@ -1,12 +1,17 @@
 /**
  * Per-channel viewer level (0–10) and its rarity badge. XP is all-time, per channel:
- * chat messages + watch-minutes (1 pt each) + aired submissions (10 pts each). Thresholds double
+ * chat messages + watch-minutes (1 pt each) + aired submissions (50 pts each). Thresholds double
  * from 200 and cap at 10 — level 10 ≈ channel old-timer. The level is computed server-side (see the
  * twitch-chat module) and rides on ChatOverlayMessage; this module is the single source of the
  * curve, the rarity palette, and the badge SVG (consumed by the overlay now, web later).
  */
 
-export const LEVEL_POINTS = { message: 1, watchMinute: 1, airedSend: 10 } as const;
+/**
+ * `airedSend` deliberately equals DUST_POINTS.send: one aired post is worth about an hour of sitting
+ * in chat, which is the only ordering that matches what the product is for. At 10 it was worth ten
+ * idle minutes, so the level was mostly a measure of leaving a tab open.
+ */
+export const LEVEL_POINTS = { message: 1, watchMinute: 1, airedSend: 50 } as const;
 export const MAX_LEVEL = 10;
 
 /** All-time XP needed to reach level n: 200·2^(n-1) (L1=200 … L10=102 400). */

@@ -77,7 +77,7 @@ export interface CommandDeps {
   commandState(channelId: string): ChannelCommandState;
   /** The playback queue lives in server memory, not in SQL — see PlaybackManager.queueState. */
   queueState(channelId: string, submissionId: string): QueueState | null;
-  /** All-time per-channel XP for a twitch id (messages + watch-minutes + 10× aired sends). The
+  /** All-time per-channel XP for a twitch id (messages + watch-minutes + 50× aired sends). The
    *  module already computes and caches this for level badges, so commands reuse it. */
   xpFor(channelId: string, twitchId: string): Promise<number>;
   /** Order a YouTube link from chat (`!play`). Owns the enable gate, the per-viewer rate limit and

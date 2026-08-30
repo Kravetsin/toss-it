@@ -28,7 +28,7 @@ export async function levelsForKeys(channelId: string, keys: LevelKey[]): Promis
 
 /**
  * Per-channel raw XP for a batch of identity keys (0 if unknown), in input order. Chat messages +
- * watch-minutes (by twitch id, so it works for unregistered chatters) + 10× aired submissions (by
+ * watch-minutes (by twitch id, so it works for unregistered chatters) + 50× aired submissions (by
  * userId). A key may carry either side; the missing one is resolved via linked_identities, so
  * leaderboards (sends by userId, chat by twitch id), the dashboard and the media overlay share one
  * implementation.
