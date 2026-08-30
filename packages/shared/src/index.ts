@@ -1,5 +1,6 @@
 // Local bindings for use in the interfaces below; also re-exported for consumers (see `export *`).
 import type { BreadthTotals, EquippedCosmetics } from './cosmetics';
+import type { RouletteColor } from './roulette';
 import type { ChannelTheme } from './theme';
 
 export type MediaKind = 'image' | 'video' | 'audio' | 'text' | 'youtube' | 'gif';
@@ -458,6 +459,13 @@ export interface ChatSystemLine {
   text?: string;
   /** Small line underneath, e.g. the domain for dust waiting to be claimed. */
   hint?: string;
+  /**
+   * A wheel result to play out before the numbers appear. Only the winning COLOUR travels: the
+   * overlay shows a strip of tiles, not pockets, so there is nothing for a slot number to mean at
+   * that size. The verdict is already in `text`/`dust` — the overlay only delays SHOWING it, which
+   * is why no second message is needed.
+   */
+  spin?: { color: RouletteColor };
 }
 
 /**

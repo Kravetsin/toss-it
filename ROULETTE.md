@@ -6,8 +6,7 @@ A dust wheel a viewer spins from chat (`!bet`) or the site.
 
 1. **Site wheel + chat command.** The animation lives on the site only, where it is cheap to throw
    away and redo. `!bet` works from chat and answers in text.
-2. **Overlay wheel.** Only once the site animation has proven itself — a mediocre wheel shipped to
-   every stream at once is expensive to walk back.
+2. **Overlay strip.** Not the site's wheel — see below. Done.
 3. **The pot.** A shared round. Its data shape is settled below so we don't migrate twice.
 
 Everything outside those three headings is phase 1.
@@ -282,27 +281,29 @@ a window, holding still for a moment IS zero velocity.
 flapper is what shows they are discrete units — so the numbers were decoration competing with the
 one thing that matters.
 
-## Phase 2 — the overlay wheel
+## Phase 2 — the overlay strip
 
-Two events, because the wheel can scroll away before it lands:
+**Not a port of the wheel.** At the size of a chat card the arc's whole vocabulary — curvature, the
+glass window, the flapper, the pocket numbers, the light pulse — is invisible, and what reads is
+colour, motion, stop. A strip of tiles gives exactly those three. This is the right form for the
+surface, not the cheap one; the wheel would have needed extracting from React (the overlay is plain
+TS, zero React) into a shared DOM module, for a picture nobody could see.
 
-1. **`spin`** — a wheel the size of an emote card, on the existing `chat:system` path
-   (`ChatSystemEvent`, the mint card that already says "bot answer"). `ChatSystemLine` gains an
-   optional `spin?: { betColor, slot, payout }`.
-2. **`verdict`** — a normal system line, emitted after the animation, so the result survives being
-   pushed up the chat.
+**No second message either.** The verdict already travels in the same payload, so the overlay only
+delays SHOWING it. `ChatSystemLine` gains `spin?: { color }` — the winning COLOUR alone, since a
+strip has no pockets for a slot number to mean anything against. Chat gets text and dust
+immediately; a second and a half is not a spoiler, and Twitch's own delivery lag is longer.
 
-Rules:
+**The reveal is owned by a `setTimeout`, never by the animation.** An OBS source on an inactive
+scene has `rAF` paused: the strip would sit frozen and the numbers would never appear. A timeout
+fires either way, and the result was decided server-side long before any of this. Same invariant as
+everywhere else — the picture agrees with the answer, it never produces it.
 
-- **The result is decided server-side before the animation starts.** `rAF` is paused on a hidden
-  page — an OBS source on an inactive scene will not spin at all — so the animation can never be the
-  source of truth. This is the same class of bug as the overlay's init-timing gotcha.
-- The chat copy of the verdict is posted **after** the animation delay (~4s), or the bot spoils its
-  own wheel. The overlay is only visible to the streamer, so the result travelling inside the `spin`
-  payload leaks nothing.
-- The verdict must read standalone — name, stake, colour, result — because the delivery layer drops
-  the chat copy under Twitch's send limit and answers on the overlay alone.
-- Big media-overlay wheel: later still, and for the shared pot round, not for one viewer's 200.
+The hidden fields use `visibility`, not `display`: the card must already be its final size or it
+jumps under the reader when the numbers land.
+
+Auto-hide was a worry and is not one: in production 29 channels never fade at all and the lowest
+non-zero setting is 10 seconds, against a 1.5 second strip.
 
 ## Dashboard
 

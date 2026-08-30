@@ -84,6 +84,9 @@ export const bet: ChatCommand = {
           text:
             t(ctx.locale, `color_${res.resultColor}`) + (won ? ` ×${PAYOUT[res.betColor]}` : ''),
           dust: won ? res.payout - res.stake : -res.stake,
+          // The overlay plays this out before revealing the two fields above. Chat gets them
+          // immediately — a second and a half is not a spoiler, and Twitch's own delay is longer.
+          spin: { color: res.resultColor },
         };
       }
     }

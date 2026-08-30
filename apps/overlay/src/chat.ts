@@ -21,6 +21,8 @@ import {
   type ChatFragment,
   type ChatOverlayConfig,
   type ChatOverlayMessage,
+  colorOfSlot,
+  WHEEL_ORDER,
   type ChatSystemEvent,
 } from '@tmw/shared';
 
@@ -348,6 +350,70 @@ function starIcon(className: string): HTMLElement {
   return icon;
 }
 
+/** How long the tiles run before the numbers appear. Short: it rides a chat card, not the stage. */
+const SPIN_MS = 1500;
+const TILE_PX = 22;
+const STRIP_W = 132;
+/** Same locked colours as the site's wheel — a pocket and the tile standing for it must match, and
+ *  neither may follow the channel accent (see FILL in the web's Wheel.tsx). */
+const TILE_FILL: Record<string, string> = { red: '#b8342a', black: '#141a21', green: '#8df0cc' };
+
+/**
+ * The wheel, at the size a chat card can carry: a strip of tiles that runs and stops on the winner.
+ *
+ * Not the site's arc. At this size its whole vocabulary — curvature, the glass window, the flapper,
+ * the pocket numbers — is invisible, and what reads is colour, motion, stop. Three things, which is
+ * exactly what a strip gives.
+ *
+ * The REVEAL is owned by a timeout, never by the animation. An OBS source on an inactive scene has
+ * rAF paused, so the strip would sit frozen and the verdict would never appear; a timeout fires
+ * either way, and the result was decided on the server long before any of this.
+ */
+function mountSpin(head: HTMLElement, winner: string, reveal: () => void): void {
+  const canvas = document.createElement('canvas');
+  canvas.className = 'sys-spin';
+  canvas.width = STRIP_W * 2;
+  canvas.height = TILE_PX * 2;
+  canvas.style.width = `${STRIP_W}px`;
+  canvas.style.height = `${TILE_PX}px`;
+  head.appendChild(canvas);
+
+  const ctx = canvas.getContext('2d');
+  window.setTimeout(() => {
+    canvas.remove();
+    reveal();
+  }, SPIN_MS);
+  if (!ctx || reduceMotion) return;
+  ctx.setTransform(2, 0, 0, 2, 0, 0);
+
+  // An infinite strip of pockets in wheel order, so green stays as rare to the eye as it is in fact.
+  const faces = WHEEL_ORDER.map((n) => colorOfSlot(n));
+  let landing = Math.floor(Math.random() * faces.length);
+  while (faces[landing] !== winner) landing = (landing + 1) % faces.length;
+  const from = 0;
+  const to = faces.length * 3 + landing;
+
+  const t0 = performance.now();
+  const paint = (now: number) => {
+    const p = Math.min(1, (now - t0) / SPIN_MS);
+    const at = from + (to - from) * (1 - (1 - p) ** 3);
+    ctx.clearRect(0, 0, STRIP_W, TILE_PX);
+    const first = Math.floor(at) - Math.ceil(STRIP_W / 2 / TILE_PX) - 1;
+    const last = first + Math.ceil(STRIP_W / TILE_PX) + 2;
+    for (let k = first; k <= last; k++) {
+      const face = faces[((k % faces.length) + faces.length) % faces.length]!;
+      const x = STRIP_W / 2 + (k - at) * TILE_PX - TILE_PX / 2;
+      ctx.fillStyle = TILE_FILL[face]!;
+      ctx.fillRect(x + 1, 0, TILE_PX - 2, TILE_PX);
+    }
+    // The marker, so "stopped on" has somewhere to mean.
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.fillRect(STRIP_W / 2 - 1, 0, 2, TILE_PX);
+    if (p < 1) requestAnimationFrame(paint);
+  };
+  requestAnimationFrame(paint);
+}
+
 /**
  * The bot's answer to a chat command (!balance). Quieter than a redemption on purpose: this is a
  * reply, not an event. It must not read as a viewer's own message either, hence its own card
@@ -415,11 +481,13 @@ function renderSystem(line: ChatSystemEvent): void {
   applyStyleMap(name, nick.style);
   who.appendChild(name);
   head.appendChild(who);
+  const hidden: HTMLElement[] = [];
   if (line.text) {
     const label = document.createElement('span');
     label.className = 'sys-text';
     label.textContent = line.text;
     head.appendChild(label);
+    hidden.push(label);
   }
   if (line.dust !== undefined) {
     const amt = document.createElement('span');
@@ -428,6 +496,15 @@ function renderSystem(line: ChatSystemEvent): void {
     num.textContent = String(line.dust);
     amt.append(num, starIcon('sys-star'));
     head.appendChild(amt);
+    hidden.push(amt);
+  }
+  // A spin holds the verdict back while the tiles run. `visibility`, not `display`: the card must
+  // already be its final size, or it would jump under the reader the moment the numbers land.
+  if (line.spin) {
+    for (const el of hidden) el.style.visibility = 'hidden';
+    mountSpin(head, line.spin.color, () => {
+      for (const el of hidden) el.style.visibility = '';
+    });
   }
   card.appendChild(head);
   if (line.hint) {
@@ -1516,6 +1593,26 @@ if (DEMO) {
         hint: 'toss-it.org',
         isFounder: false,
         twitchColor: '#9ab0ad',
+        cosmetics: null,
+      },
+      // A settled bet, both ways round: the strip has to read at chat size on a win and a loss, and
+      // the jackpot is the one nobody will otherwise see in a demo.
+      {
+        name: 'gambler',
+        text: 'ЗЕЛЁНОЕ ×35',
+        dust: 3400,
+        spin: { color: 'green' },
+        isFounder: false,
+        twitchColor: '#c9a0ff',
+        cosmetics: null,
+      },
+      {
+        name: 'gambler',
+        text: 'чёрное',
+        dust: -200,
+        spin: { color: 'black' },
+        isFounder: false,
+        twitchColor: '#c9a0ff',
         cosmetics: null,
       },
       {
