@@ -730,22 +730,22 @@
   color: #8df0cc;
   text-shadow: 0 0 8px rgba(141, 240, 204, 0.6);
 }
-/* The wheel's verdict: a square the size of an emote (1.5em, same as .emote), because colour IS
-   the message here and this is the largest it can be on a chat line. The sign rides on top of it. */
+/* The wheel's verdict, at the scale a lone emote gets (see .body[data-big='1']): its own row under
+   the name, wide enough for colours to travel through it. Not inline — at this height it would drag
+   the whole line box with it, the same reason big emotes get a flex row of their own. */
 .msg.system .sys-spin {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.5em;
-  height: 1.5em;
-  margin-right: 0.4em;
-  vertical-align: -0.4em;
-  border-radius: 6px;
-  font-weight: 800;
-  line-height: 1;
+  display: block;
+  /* min-width, not just 100%: the card shrinks to its content, so a short nick left the block as
+     narrow as the name and the colours had no room to travel across it. */
+  width: 100%;
+  min-width: 10em;
+  max-width: 15em;
+  height: 5.5em;
+  margin-top: 0.35em;
+  border-radius: 10px;
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.16),
-    0 2px 8px rgba(0, 0, 0, 0.5);
+    0 3px 12px rgba(0, 0, 0, 0.5);
 }
 .msg.system .sys-star {
   display: inline-flex;

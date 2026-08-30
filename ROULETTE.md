@@ -283,20 +283,28 @@ one thing that matters.
 
 ## Phase 2 — the overlay strip
 
-**Not a port of the wheel, and not a strip either.** At the size of a chat card the arc's whole
-vocabulary — curvature, the glass window, the flapper, the pocket numbers, the light pulse — is
-invisible; a strip of 22px tiles is barely better, a row of specks. What ships is ONE block the size
-of an emote (1.5em, same as `.emote`), running through colours and stopping on the winner with a
-`+` or `−` on it. Colour is the whole message, so it gets the largest square a chat line can hold,
-and the sign says which way it went.
+**Not a port of the wheel.** At the size of a chat card the arc's whole vocabulary — curvature, the
+glass window, the flapper, the pocket numbers, the light pulse — is invisible. What ships is a BIG
+block, the scale Twitch gives a lone emote (5.5em tall, its own row under the name), with colours
+travelling right to left through it.
+
+TWO BEATS, because one could not do both jobs. While it runs, a cell is a third of the block, so
+several colours are in flight and the motion is legible; on landing the winner GROWS out of its cell
+to fill the whole block, and the signed amount is written on it. Full-width cells would have been a
+wipe with nothing moving through them; cells that stayed narrow would have left the answer a stripe.
+An earlier inline 1.5em square was tried and read as a speck — colour is the whole message here, so
+it gets the room.
+
+`min-width`, not just `width: 100%`: the card shrinks to its content, so a short nick left the block
+as narrow as the name and the colours had nowhere to travel.
 
 This is the right form for the surface, not the cheap one: the wheel would have needed extracting
 from React (the overlay is plain TS, zero React) into a shared DOM module, for a picture nobody
 could see.
 
-**The block stays** — it is the verdict, not a loader. And because it carries both the colour and
-the direction, the overlay drops the colour NAME and shows the amount unsigned. The chat copy keeps
-both: it has no block to read them off.
+**The block stays** — it is the verdict, not a loader. It carries the colour, the direction and the
+amount, so the overlay drops all three from the line itself. The chat copy keeps them: it has no
+block to read them off.
 
 **No second message either.** The verdict already travels in the same payload, so the overlay only
 delays SHOWING it. `ChatSystemLine` gains `spin?: { color, won }` — no slot number, since one block has no pockets for
@@ -305,7 +313,7 @@ or a loss depending on what was staked. Chat gets text and dust
 immediately; a second and a half is not a spoiler, and Twitch's own delivery lag is longer.
 
 **The settle is owned by a `setTimeout`, never by the animation.** An OBS source on an inactive
-scene has `rAF` paused: the block would sit on whatever colour it stopped at and never resolve. A timeout
+scene has `rAF` paused: the block would sit mid-shuffle forever and never resolve. A timeout
 fires either way, and the result was decided server-side long before any of this. Same invariant as
 everywhere else — the picture agrees with the answer, it never produces it.
 

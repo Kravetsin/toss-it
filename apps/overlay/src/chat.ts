@@ -350,65 +350,134 @@ function starIcon(className: string): HTMLElement {
   return icon;
 }
 
-/** How long the colours run before the verdict settles. Short: it rides a chat card, not the stage. */
-const SPIN_MS = 1500;
+/** How long the colours run. Short: it rides a chat card, not the stage. */
+const SPIN_MS = 1600;
+/** The last stretch, where the winner grows out of its cell to fill the block. */
+const SETTLE_MS = 260;
 /** Same locked colours as the site's wheel — a pocket and the block standing for it must match, and
  *  neither may follow the channel accent (see FILL in the web's Wheel.tsx). */
 const SPIN_FILL: Record<string, string> = { red: '#b8342a', black: '#141a21', green: '#8df0cc' };
-/** Ink that reads on each fill, for the sign printed on it. */
+/** Ink that reads on each fill, for the amount printed on it. */
 const SPIN_INK: Record<string, string> = {
-  red: 'rgba(255,255,255,0.95)',
-  black: 'rgba(255,255,255,0.8)',
+  red: 'rgba(255,255,255,0.96)',
+  black: 'rgba(255,255,255,0.88)',
   green: '#08160f',
 };
 
+function roundRect(ctx: CanvasRenderingContext2D, w: number, h: number, r: number): void {
+  ctx.beginPath();
+  ctx.moveTo(r, 0);
+  ctx.arcTo(w, 0, w, h, r);
+  ctx.arcTo(w, h, 0, h, r);
+  ctx.arcTo(0, h, 0, 0, r);
+  ctx.arcTo(0, 0, w, 0, r);
+  ctx.closePath();
+}
+
+function drawAmount(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  label: string,
+  ink: string,
+  alpha: number,
+): void {
+  if (alpha <= 0) return;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = ink;
+  ctx.font = '800 ' + Math.round(h * 0.4) + 'px ui-monospace, monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, w / 2, h / 2 + 1);
+  ctx.restore();
+}
+
 /**
- * The wheel, at the size a chat card can carry: ONE block, an emote square, running through colours
- * and stopping on the winner with a + or a − on it.
+ * The wheel, at the size a chat card can carry: a BIG block — the scale Twitch gives a lone emote —
+ * with colours travelling right to left through it.
  *
- * Not the site's arc, and not a strip either. At this size a strip of 22px tiles is a row of specks;
- * a single block the size of an emote is the largest the colour can possibly be, and colour is the
- * whole message. The sign then says which way it went, so the answer needs no words at all — which
- * is why the overlay hides the colour name the chat copy still needs.
- *
- * The block STAYS: it is the verdict, not a loader.
+ * Two beats, because one could not do both jobs. While it runs, a cell is a third of the block, so
+ * several colours are in flight and the motion is legible; on landing the winner GROWS out of its
+ * cell to fill the whole block and the amount is written on it. Full-width cells would have been a
+ * wipe with nothing moving through it; cells that stayed narrow would have left the answer a stripe.
  *
  * The settle is owned by a timeout, never by the animation. An OBS source on an inactive scene has
- * rAF paused, so the block would sit on a random colour forever; a timeout fires either way, and
- * the result was decided server-side long before any of this.
+ * rAF paused, so the block would sit mid-shuffle forever; a timeout fires either way, and the result
+ * was decided server-side long before any of this.
  */
-function mountSpin(head: HTMLElement, winner: string, won: boolean, reveal: () => void): void {
-  const block = document.createElement('span');
-  block.className = 'sys-spin';
-  head.appendChild(block);
+function mountSpin(card: HTMLElement, winner: string, won: boolean, amount: number): void {
+  const canvas = document.createElement('canvas');
+  canvas.className = 'sys-spin';
+  card.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
 
-  const settle = () => {
-    block.style.background = SPIN_FILL[winner] ?? SPIN_FILL.black!;
-    block.style.color = SPIN_INK[winner] ?? SPIN_INK.black!;
-    block.textContent = won ? '+' : '−';
-    reveal();
+  const label = (won ? '+' : '−') + Math.abs(amount);
+  const fill = SPIN_FILL[winner] ?? SPIN_FILL.black!;
+  const ink = SPIN_INK[winner] ?? SPIN_INK.black!;
+
+  const size = () => {
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      ctx?.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    return { w, h };
   };
-  window.setTimeout(settle, reduceMotion ? 0 : SPIN_MS);
-  if (reduceMotion) return;
+
+  const paintFinal = () => {
+    if (!ctx) return;
+    const { w, h } = size();
+    ctx.clearRect(0, 0, w, h);
+    roundRect(ctx, w, h, 10);
+    ctx.fillStyle = fill;
+    ctx.fill();
+    drawAmount(ctx, w, h, label, ink, 1);
+  };
+
+  window.setTimeout(paintFinal, reduceMotion ? 0 : SPIN_MS);
+  if (!ctx || reduceMotion) return;
 
   // Pockets in wheel order, so green stays as rare to the eye as it is in fact.
   const faces = WHEEL_ORDER.map((n) => colorOfSlot(n));
   let landing = Math.floor(Math.random() * faces.length);
   while (faces[landing] !== winner) landing = (landing + 1) % faces.length;
-  const to = faces.length * 3 + landing;
+  const to = faces.length * 4 + landing;
+  const runFor = SPIN_MS - SETTLE_MS;
 
   const t0 = performance.now();
-  let shown = -1;
   const paint = (now: number) => {
-    const p = Math.min(1, (now - t0) / SPIN_MS);
-    // Cubic ease-out: the colours flick past, then hesitate onto the last few.
-    const at = Math.floor(to * (1 - (1 - p) ** 3));
-    if (at !== shown) {
-      shown = at;
-      const face = faces[((at % faces.length) + faces.length) % faces.length]!;
-      block.style.background = SPIN_FILL[face]!;
+    const t = now - t0;
+    const { w, h } = size();
+    const cell = w / 3;
+    const p = Math.min(1, t / runFor);
+    const at = to * (1 - (1 - p) ** 3);
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.save();
+    roundRect(ctx, w, h, 10);
+    ctx.clip();
+    // Right to left: a cell's x falls as `at` rises.
+    const first = Math.floor(at) - 2;
+    for (let k = first; k <= first + 5; k++) {
+      const face = faces[((k % faces.length) + faces.length) % faces.length]!;
+      ctx.fillStyle = SPIN_FILL[face]!;
+      ctx.fillRect(Math.round(w / 2 - cell / 2 + (k - at) * cell), 0, Math.ceil(cell) + 1, h);
     }
-    if (p < 1) requestAnimationFrame(paint);
+
+    // The grow: once the travel is done, the winning cell opens out to the whole block.
+    if (t > runFor) {
+      const g = Math.min(1, (t - runFor) / SETTLE_MS);
+      const half = cell / 2 + (w / 2 - cell / 2) * g * g;
+      ctx.fillStyle = fill;
+      ctx.fillRect(w / 2 - half, 0, half * 2, h);
+      drawAmount(ctx, w, h, label, ink, Math.max(0, g * 2 - 1));
+    }
+    ctx.restore();
+    if (t < SPIN_MS) requestAnimationFrame(paint);
   };
   requestAnimationFrame(paint);
 }
@@ -480,34 +549,25 @@ function renderSystem(line: ChatSystemEvent): void {
   applyStyleMap(name, nick.style);
   who.appendChild(name);
   head.appendChild(who);
-  const hidden: HTMLElement[] = [];
-  // A spin says the colour and the direction with a block, so the word and the minus would only
-  // repeat it. The CHAT copy keeps both — it has no block to read them off.
+  // A spin puts the colour, the direction AND the amount on the block, so none of them belong in
+  // the line as well. The CHAT copy keeps all three — it has no block to read them off.
   if (line.text && !line.spin) {
     const label = document.createElement('span');
     label.className = 'sys-text';
     label.textContent = line.text;
     head.appendChild(label);
-    hidden.push(label);
   }
-  if (line.dust !== undefined) {
+  if (line.dust !== undefined && !line.spin) {
     const amt = document.createElement('span');
     amt.className = 'sys-amt';
     const num = document.createElement('span');
-    num.textContent = String(line.spin ? Math.abs(line.dust) : line.dust);
+    num.textContent = String(line.dust);
     amt.append(num, starIcon('sys-star'));
     head.appendChild(amt);
-    hidden.push(amt);
-  }
-  // A spin holds the verdict back while the tiles run. `visibility`, not `display`: the card must
-  // already be its final size, or it would jump under the reader the moment the numbers land.
-  if (line.spin) {
-    for (const el of hidden) el.style.visibility = 'hidden';
-    mountSpin(head, line.spin.color, line.spin.won, () => {
-      for (const el of hidden) el.style.visibility = '';
-    });
   }
   card.appendChild(head);
+  // Its own row under the name, the way a lone emote gets one — inline it would blow the line up.
+  if (line.spin) mountSpin(card, line.spin.color, line.spin.won, line.dust ?? 0);
   if (line.hint) {
     const hint = document.createElement('span');
     hint.className = 'sys-hint';
