@@ -738,9 +738,6 @@ export const en: Dict = {
   'roulette.min': 'The smallest bet is {n}',
   'roulette.max': 'Your max right now is {n}',
   'roulette.fair': 'Seed hash',
-  'roulette.color.red': 'Red',
-  'roulette.color.black': 'Black',
-  'roulette.color.green': 'Green',
   'dash.chatSkipCommand': 'Let viewers skip with !skip',
   'dash.chatSkipCommandNote':
     'Viewers vote; you and your moderators skip with one command. Media first, then music — the background playlist is never touched.',
@@ -1692,9 +1689,6 @@ export const ru: Dict = {
   'roulette.min': 'Минимальная ставка {n}',
   'roulette.max': 'Твой максимум сейчас {n}',
   'roulette.fair': 'Хеш сида',
-  'roulette.color.red': 'Красное',
-  'roulette.color.black': 'Чёрное',
-  'roulette.color.green': 'Зелёное',
   'dash.chatSkipCommand': 'Разрешить пропуск командой !skip',
   'dash.chatSkipCommandNote':
     'Зрители голосуют, ты и модераторы пропускаете с одной команды. Сначала медиа, потом музыка — фоновый плейлист не трогаем.',
@@ -2647,9 +2641,6 @@ export const uk: Dict = {
   'roulette.min': 'Мінімальна ставка {n}',
   'roulette.max': 'Твій максимум зараз {n}',
   'roulette.fair': 'Хеш сіду',
-  'roulette.color.red': 'Червоне',
-  'roulette.color.black': 'Чорне',
-  'roulette.color.green': 'Зелене',
   'dash.chatSkipCommand': 'Дозволити пропуск командою !skip',
   'dash.chatSkipCommandNote':
     'Глядачі голосують, ти та модератори пропускаєте з однієї команди. Спершу медіа, потім музика — фоновий плейлист не чіпаємо.',

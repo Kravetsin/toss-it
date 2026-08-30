@@ -95,10 +95,13 @@ Players will accuse the wheel of being rigged, loudly, and a screenshot travels 
 explanation. Committing to the result in advance is cheap now and **impossible to retrofit** — past
 spins can never be proven fair — so it goes in with v1.
 
-- A channel holds a secret `seed`; we publish `sha256(seed)` before it is ever used.
-- `slot = HMAC_SHA256(seed, "<channelId>:<nonce>") mod 37`, `nonce` incrementing per spin.
-- On rotation (per stream, or every N spins) the old seed is revealed, and anyone can recompute
-  every spin it produced.
+- ONE chain for the whole app, not one per channel: a site bet belongs to no channel, and a single
+  chain verifies exactly as well while leaving `!fair` with one answer for everyone.
+- We hold a secret `seed` and publish `sha256(seed)` before it is ever used.
+- `slot = HMAC_SHA256(seed, nonce) mod 37`, the nonce claimed atomically per spin so two concurrent
+  bets can never share one.
+- Every 1000 spins the seed is retired and revealed, and anyone can recompute every spin it made.
+  A count, not a schedule: there is no trustworthy "the stream ended" signal to rotate on.
 
 `!fair` answers with the current hash and the last revealed seed.
 
@@ -108,17 +111,15 @@ Two new tables and one channel column. Naming and comment style follow `db/schem
 
 ```
 roulette_seeds
-  channel_id    text     PK part
-  seed_hash     text     published before use
+  seed_hash     text     PK, published before use
   seed          text     null until revealed
-  nonce         integer  spins produced so far
+  nonce         integer  spins produced so far, and the HMAC counter
   created_at    integer
   revealed_at   integer  null while live
-  PK (channel_id, seed_hash)
 
 roulette_spins
   id            integer  PK autoincrement
-  channel_id    text
+  channel_id    text     null = placed on the site, which belongs to no channel
   platform      text     'twitch'
   platform_user_id text  the key that works before an account exists
   user_id       text     null when unregistered
@@ -248,6 +249,13 @@ lose the capture and the release never arrives, which strands the tile held fore
 noise, and phrasing it as "green pays 35" made a multiplier sound like a flat prize. The hint and the
 verdict stay under the tray, never over the wheel: that is the one thing being watched, and a caption
 across it covers the pockets being read.
+
+**The pocket colours are LOCKED** (`FILL` in Wheel.tsx, used by tile and canvas alike), never
+`--color-accent`. The channel theme moves the accent hue, so a themed page rendered the green tile
+lavender next to a mint pocket claiming to be the same bet. Same reasoning the theme already applies
+to ok/warn/danger: these are status colours, not brand ones. The verdict number takes its colour from
+the same map, and no longer names the colour at all — the window still shows the pocket it stopped on
+and the pulse has already answered win or lose.
 
 **The tile empties its socket only once something else is representing it** — the ghost under the
 cursor, or the wheel itself. Emptying on the press alone left the first few pixels of every drag

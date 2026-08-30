@@ -6,7 +6,7 @@ import { useToast } from '@/providers/ToastProvider';
 import { DustMark } from '@/components/DustMark';
 import { AmountDial } from './AmountDial';
 import { BetChips } from './BetChips';
-import { burstAt, overBand, Wheel } from './Wheel';
+import { burstAt, overBand, VERDICT, Wheel } from './Wheel';
 
 /**
  * The wheel as a drawer that rises from the bottom, where the ARC ITSELF is the boundary — there is
@@ -170,13 +170,14 @@ export function RouletteDrawer({ open, onClose }: { open: boolean; onClose: () =
               caption across it covers exactly the pockets the player is trying to read. */}
           <div className="flex h-8 items-center">
             {result ? (
+              // No colour name: the window is still showing the pocket it stopped on and the pulse
+              // has already answered win or lose, so the word would only repeat them — and it took
+              // its colour from the themed accent, which on a pink channel called mint "green".
               <span
-                className={`text-xl font-bold tabular-nums ${won ? 'text-accent' : 'text-danger'}`}
+                className="text-2xl font-bold tabular-nums"
+                style={{ color: won ? VERDICT.win : VERDICT.loss }}
               >
                 {won ? `+${result.payout - result.stake}` : `−${result.stake}`}
-                <span className="ml-1.5 text-sm font-normal opacity-70">
-                  {t(`roulette.color.${result.resultColor}`)}
-                </span>
               </span>
             ) : (
               <span className="text-xs text-faint">

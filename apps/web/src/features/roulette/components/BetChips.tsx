@@ -1,25 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { PAYOUT, type RouletteColor } from '@tmw/shared';
+import { FILL, INK } from './Wheel';
 
 const COLORS: RouletteColor[] = ['red', 'black', 'green'];
-
-const SWATCH: Record<RouletteColor, string> = {
-  red: 'bg-[#b8342a]',
-  black: 'bg-[#141a21] ring-1 ring-white/25',
-  green: 'bg-accent',
-};
-/** The multiplier is printed ON the tile, so it needs to read against that exact fill. */
-const INK: Record<RouletteColor, string> = {
-  red: 'text-white/90',
-  black: 'text-white/70',
-  green: 'text-[#08160f]',
-};
 
 function Tile({ colour, className = '' }: { colour: RouletteColor; className?: string }) {
   return (
     <span
-      className={`grid size-11 place-items-center rounded-xl font-mono text-sm font-bold ${SWATCH[colour]} ${INK[colour]} ${className}`}
+      // Inline, from the wheel's own map: the tile has to be the same colour as the pocket it bets
+      // on, and a Tailwind class would be a second copy of that hex free to drift.
+      style={{ background: FILL[colour], color: INK[colour] }}
+      className={`grid size-11 place-items-center rounded-xl font-mono text-sm font-bold ${
+        colour === 'black' ? 'ring-1 ring-white/25' : ''
+      } ${className}`}
     >
       ×{PAYOUT[colour]}
     </span>

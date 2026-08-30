@@ -42,11 +42,27 @@ export function overBand(canvas: HTMLCanvasElement | null, x: number, y: number)
  *  a hole one pocket wide would answer the question before the wheel had stopped asking it. */
 const WINDOW_POCKETS = 1.6;
 
-const FILL: Record<RouletteColor, string> = {
+/**
+ * The pockets, and everything that stands for one. LOCKED, never `--color-accent`: the channel
+ * theme moves the accent hue, and a mint pocket beside a pink tile claiming to be the same bet is
+ * simply a lie. This is the same reason the theme already leaves ok/warn/danger alone — these are
+ * status colours, not brand ones.
+ */
+export const FILL: Record<RouletteColor, string> = {
   red: '#b8342a',
   black: '#141a21',
   green: '#8df0cc',
 };
+
+/** Ink that reads on each fill, for anything printed on a pocket's colour. */
+export const INK: Record<RouletteColor, string> = {
+  red: 'rgba(255,255,255,0.9)',
+  black: 'rgba(255,255,255,0.7)',
+  green: '#08160f',
+};
+
+/** The two verdict colours, shared by the landing pulse and the number under the tray. */
+export const VERDICT = { win: '#8df0cc', loss: '#e5484d' } as const;
 /**
  * ONE curve, start to stop. An earlier version braked to a halt and then crept to the next pocket,
  * which was worse than no suspense at all: a wheel that stops on red and then moves has announced
@@ -224,7 +240,7 @@ export function Wheel({
 
     // The frame around the hole. One tone, one motif: a lit inner line and a dim outer one. It must
     // not compete for attention with what is inside it, which is the whole reason the hole exists.
-    const tint = armedRef.current ? FILL[armedRef.current] : '#8df0cc';
+    const tint = armedRef.current ? FILL[armedRef.current] : VERDICT.win;
     ctx.save();
     ctx.strokeStyle = tint;
     ctx.globalAlpha = armedRef.current ? 0.95 : 0.55;
@@ -248,7 +264,7 @@ export function Wheel({
     // whole arc, that visibly ends. The wash this replaces tinted the entire platform and simply
     // faded, which read as the interface being broken rather than as an answer.
     if (pulse.current > 0 && wonRef.current !== null) {
-      const hue = wonRef.current ? '141,240,204' : '229,72,77';
+      const hue = wonRef.current ? '141,240,204' : '229,72,77'; // VERDICT, as rgb triples
       const p1 = 1 - pulse.current;
       // Where the light has got to, and how far it has smeared out getting there.
       const mid = R - DEPTH - 6 - p1 * 240;
