@@ -650,34 +650,17 @@ export const submissionPayouts = sqliteTable(
 );
 
 /**
- * The wheel's commitment chain. A result must be provable AFTER the fact, which is only possible if
- * we committed to it BEFORE — so a channel publishes `seedHash` first, spins against the hidden
- * `seed`, and reveals it on rotation. Retrofitting this is impossible: spins already played can
- * never be proven fair, which is why it ships with v1 rather than after the first accusation.
- */
-export const rouletteSeeds = sqliteTable(
-  'roulette_seeds',
-  {
-    seedHash: text('seed_hash').primaryKey(),
-    /** Null while live; filled on rotation, which is what makes past spins verifiable. */
-    seed: text('seed'),
-    /** Spins produced so far — also the HMAC counter, so it must never go backwards. */
-    nonce: integer('nonce').notNull().default(0),
-    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
-    revealedAt: integer('revealed_at', { mode: 'timestamp_ms' }),
-  },
-  // One chain for the whole app, not one per channel: a site bet belongs to no channel, and a
-  // single chain verifies exactly as well while leaving `!fair` with one answer for everyone.
-  (t) => [index('idx_roulette_seed_live').on(t.revealedAt)],
-);
-
-/**
- * Every spin, kept as the answer to "the wheel is rigged" — the seed plus the nonce recomputes the
- * slot exactly. Keyed by platform id rather than user id because an unregistered chatter can bet
- * out of the dust we are holding for them, and has no account to point at yet.
+ * Every spin, as the record that answers "where did my dust go". Keyed by platform id rather than
+ * user id because an unregistered chatter can bet out of the dust we are holding for them, and has
+ * no account to point at yet.
  *
- * Pruned by the cleanup sweep: this grows by thousands per busy stream, and a month outlives both
- * the dispute window and a seed rotation.
+ * This is a support record, not a proof. A provably-fair seed chain lived here briefly and was
+ * removed: it is a crypto-casino convention for real money and untrusted operators, and verifying a
+ * spin would have meant saving a hash, saving a nonce, waiting for a rotation and computing an HMAC
+ * — which nobody was ever going to do. Nothing here converts to money, so there is nothing to prove.
+ *
+ * Pruned by the cleanup sweep: this grows by thousands per busy stream, and a month outlives any
+ * question anyone is still asking.
  */
 export const rouletteSpins = sqliteTable(
   'roulette_spins',
@@ -694,8 +677,6 @@ export const rouletteSpins = sqliteTable(
     slot: integer('slot').notNull(),
     /** Total returned including the stake; 0 = lost. */
     payout: integer('payout').notNull(),
-    seedHash: text('seed_hash').notNull(),
-    nonce: integer('nonce').notNull(),
     createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
   },
   (t) => [index('idx_roulette_spins_channel').on(t.channelId, t.createdAt)],

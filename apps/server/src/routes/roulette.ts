@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { BET, PAYOUT, parseColor, type RouletteColor } from '@tmw/shared';
 import { requireUser } from '../auth';
-import { betState, fairness, placeBet, type BetOutcome } from '../roulette';
+import { betState, placeBet, type BetOutcome } from '../roulette';
 
 /** What the site's wheel needs to render itself before anyone bets. */
 export interface RouletteStateResponse {
@@ -10,9 +10,6 @@ export interface RouletteStateResponse {
   max: number;
   min: number;
   payouts: Record<RouletteColor, number>;
-  cooldownS: number;
-  /** Hash of the seed spinning right now, published before it is used. */
-  fairHash: string;
 }
 
 export type RouletteSpinResponse =
@@ -30,17 +27,16 @@ export function registerRouletteRoutes(app: FastifyInstance): void {
   app.get('/api/roulette', async (req, reply): Promise<RouletteStateResponse | void> => {
     const user = await requireUser(req, reply);
     if (!user) return;
-    const [state, fair] = await Promise.all([
-      betState({ platform: 'tossit', platformUserId: user.id, userId: user.id }),
-      fairness(),
-    ]);
+    const state = await betState({
+      platform: 'tossit',
+      platformUserId: user.id,
+      userId: user.id,
+    });
     return {
       balance: state.balance,
       max: state.max,
       min: BET.min,
       payouts: PAYOUT,
-      cooldownS: 60,
-      fairHash: fair.currentHash,
     };
   });
 
@@ -55,7 +51,6 @@ export function registerRouletteRoutes(app: FastifyInstance): void {
         return reply.code(400).send({ error: 'Нужны ставка и цвет' });
       }
       const outcome = await placeBet({
-        door: 'site',
         channelId: null,
         // The engine keys pending dust by PLATFORM id; a site better always has an account, so the
         // account id is both the identity and the wallet, and no pending row is ever involved.

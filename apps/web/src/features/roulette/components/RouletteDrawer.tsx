@@ -78,13 +78,11 @@ export function RouletteDrawer({ open, onClose }: { open: boolean; onClose: () =
         // drawer being broken, and the commonest refusal is a cooldown the player cannot see.
         const o = res.outcome;
         toast(
-          o.kind === 'cooldown'
-            ? t('roulette.wait', { n: o.waitS })
-            : o.kind === 'tooSmall'
-              ? t('roulette.min', { n: o.min })
-              : o.kind === 'overCap'
-                ? t('roulette.max', { n: o.max })
-                : t('roulette.broke'),
+          o.kind === 'tooSmall'
+            ? t('roulette.min', { n: o.min })
+            : o.kind === 'overCap'
+              ? t('roulette.max', { n: o.max })
+              : t('roulette.broke'),
           'warn',
         );
         if ('balance' in o) setState({ ...state, balance: o.balance });
@@ -196,17 +194,6 @@ export function RouletteDrawer({ open, onClose }: { open: boolean; onClose: () =
             <DustMark />
             {state?.balance ?? 0}
           </span>
-
-          {/* The seed's hash, published before it is used. Small, but present: being able to point
-              at it is the entire value, and a wheel nobody can check is one accusation from dead. */}
-          {state && (
-            <span
-              title={state.fairHash}
-              className="max-w-full truncate font-mono text-[10px] text-faint/50"
-            >
-              {t('roulette.fair')}: {state.fairHash.slice(0, 16)}…
-            </span>
-          )}
         </div>
       </div>
     </>

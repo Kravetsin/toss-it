@@ -734,10 +734,8 @@ export const en: Dict = {
   'roulette.title': 'The wheel',
   'roulette.throwHint': 'Drag a tile onto the wheel',
   'roulette.broke': 'Not enough stardust to spin',
-  'roulette.wait': 'Too fast — wait {n}s',
   'roulette.min': 'The smallest bet is {n}',
   'roulette.max': 'Your max right now is {n}',
-  'roulette.fair': 'Seed hash',
   'dash.chatSkipCommand': 'Let viewers skip with !skip',
   'dash.chatSkipCommandNote':
     'Viewers vote; you and your moderators skip with one command. Media first, then music — the background playlist is never touched.',
@@ -1685,10 +1683,8 @@ export const ru: Dict = {
   'roulette.title': 'Колесо',
   'roulette.throwHint': 'Перетащи плитку на колесо',
   'roulette.broke': 'Не хватает пыли на спин',
-  'roulette.wait': 'Слишком часто — подожди ещё {n}с',
   'roulette.min': 'Минимальная ставка {n}',
   'roulette.max': 'Твой максимум сейчас {n}',
-  'roulette.fair': 'Хеш сида',
   'dash.chatSkipCommand': 'Разрешить пропуск командой !skip',
   'dash.chatSkipCommandNote':
     'Зрители голосуют, ты и модераторы пропускаете с одной команды. Сначала медиа, потом музыка — фоновый плейлист не трогаем.',
@@ -2637,10 +2633,8 @@ export const uk: Dict = {
   'roulette.title': 'Колесо',
   'roulette.throwHint': 'Перетягни плитку на колесо',
   'roulette.broke': 'Не вистачає пилу на спін',
-  'roulette.wait': 'Занадто часто — почекай ще {n}с',
   'roulette.min': 'Мінімальна ставка {n}',
   'roulette.max': 'Твій максимум зараз {n}',
-  'roulette.fair': 'Хеш сіду',
   'dash.chatSkipCommand': 'Дозволити пропуск командою !skip',
   'dash.chatSkipCommandNote':
     'Глядачі голосують, ти та модератори пропускаєте з однієї команди. Спершу медіа, потім музика — фоновий плейлист не чіпаємо.',

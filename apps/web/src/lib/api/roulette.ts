@@ -7,8 +7,6 @@ export interface RouletteState {
   max: number;
   min: number;
   payouts: Record<RouletteColor, number>;
-  cooldownS: number;
-  fairHash: string;
 }
 
 /** The server's verdict. The slot is what the animation must land on — it never decides anything. */
@@ -24,7 +22,6 @@ export interface SpinDone {
 }
 
 export type SpinRefusal =
-  | { kind: 'cooldown'; waitS: number }
   | { kind: 'tooSmall'; min: number }
   | { kind: 'overCap'; max: number; balance: number }
   | { kind: 'broke'; balance: number; registered: boolean };

@@ -58,13 +58,11 @@ grows with the player, which is its own reason to keep earning.
 `min(balance, …)` matters because the floor can exceed a tiny balance: 94% of unclaimed piles hold
 under 200 dust.
 
-**Per-viewer cooldown 60s, IN CHAT ONLY.** It exists so one player cannot spend the bot's Twitch
-send budget by themselves — and the site spends none of it, so throttling there was a limit invented
-for no reason. `BetInput.door` says which side asked; only `'chat'` is timed.
-
-Not per channel, either: a channel-wide floor silences the second person to type, who then has no
-idea why the bot ignored them — the same reasoning already written into `USER_COOLDOWN_MS` in
-`commands/index.ts`. Five minutes would kill the loss-chase, and the chase is the whole loop.
+**No cooldown at all**, on either door. One lived here to protect the bot's Twitch send budget and
+produced exactly the traffic it was meant to prevent: a refusal costs a message just as an answer
+does, so throttling only turned bets into "too fast, wait 40s" — and a player who cannot see their
+own timer types again to find out. The send budget is defended where it actually lives, in
+`SEND_PER_CHANNEL` and `SEND_GLOBAL`, which drop the chat copy and still answer on the overlay.
 
 ## Where the stake comes from
 
@@ -91,34 +89,29 @@ and burn dust ourselves.
 Winnings are a payout, not earnings: they move `stardust` only, never `dustEarned`, the same rule
 the welcome bonus follows (see `creditDust`). Otherwise the wealth cosmetics start measuring luck.
 
-## Fairness
+## Why there is no "provably fair"
 
-Players will accuse the wheel of being rigged, loudly, and a screenshot travels further than any
-explanation. Committing to the result in advance is cheap now and **impossible to retrofit** — past
-spins can never be proven fair — so it goes in with v1.
+There was, briefly: a seed chain, a published hash, an HMAC per spin and a `!fair` command. It is
+gone, and should stay gone.
 
-- ONE chain for the whole app, not one per channel: a site bet belongs to no channel, and a single
-  chain verifies exactly as well while leaving `!fair` with one answer for everyone.
-- We hold a secret `seed` and publish `sha256(seed)` before it is ever used.
-- `slot = HMAC_SHA256(seed, nonce) mod 37`, the nonce claimed atomically per spin so two concurrent
-  bets can never share one.
-- Every 1000 spins the seed is retired and revealed, and anyone can recompute every spin it made.
-  A count, not a schedule: there is no trustworthy "the stream ended" signal to rotate on.
+It is a crypto-casino convention, and it answers a question we do not have. Those schemes exist
+because real money is at stake and the operator is not trusted. Here the currency is earned by
+watching streams and spends only on cosmetics — nothing converts to money, so nothing regulates it
+and there is no loss to be made whole.
 
-`!fair` answers with the current hash and the last revealed seed.
+It also bought no actual trust. Verifying one spin meant saving a hash, saving your nonce, waiting
+for a rotation and computing an HMAC yourself. Nobody was ever going to do that, so what shipped was
+the appearance of proof plus a line of noise in chat: `seed hash 13f614edb0fc7bc7…` says nothing to
+the person reading it.
+
+What remains is `roulette_spins`, as a plain support record — enough to answer "where did my dust
+go", which is the question people actually ask. The slot comes from `crypto.randomInt`.
 
 ## Data
 
-Two new tables and one channel column. Naming and comment style follow `db/schema.ts`.
+One table and one channel column. Naming and comment style follow `db/schema.ts`.
 
 ```
-roulette_seeds
-  seed_hash     text     PK, published before use
-  seed          text     null until revealed
-  nonce         integer  spins produced so far, and the HMAC counter
-  created_at    integer
-  revealed_at   integer  null while live
-
 roulette_spins
   id            integer  PK autoincrement
   channel_id    text     null = placed on the site, which belongs to no channel
@@ -129,16 +122,17 @@ roulette_spins
   bet_color     text     'red' | 'black' | 'green'
   slot          integer  0..36
   payout        integer  0 on a loss, stake × multiplier on a win
-  seed_hash     text     which seed produced it
-  nonce         integer
   created_at    integer
   index (channel_id, created_at)
 ```
 
-`roulette_spins` is the audit trail for disputes, the verification record, and the source for any
-future stats. Volume is real — a busy channel can write thousands per stream — so the existing
-`cleanup.ts` sweep prunes rows older than 30 days, which outlives both the dispute window and a seed
-rotation.
+`roulette_spins` is the support record and the source for any future stats. Volume is real — a busy
+channel can write thousands per stream — so the existing `cleanup.ts` sweep prunes rows older than
+30 days, which outlives any question anyone is still asking.
+
+Migration 0071 shipped the seed chain and reached production; **0072 drops it**. 0071 is not edited:
+it is applied, and rewriting an applied migration is how you get `table already exists` on the next
+boot.
 
 ```
 channels.chat_roulette_command  boolean not null default false
@@ -332,8 +326,7 @@ non-zero setting is 10 seconds, against a 1.5 second spin.
 
 ## Dashboard
 
-One toggle next to the other command switches, with the odds and the bet cap stated plainly, plus
-the current fairness hash.
+One toggle next to the other command switches, with the odds and the bet cap stated plainly.
 
 ## Phase 3 — the pot
 

@@ -69,12 +69,8 @@ const STRINGS = {
     betUsage: 'bet like this: !bet 100 red',
     betReady: 'up to {max} ✦ per spin · red/black ×2, green ×{green}',
     betBroke: 'not enough to spin',
-    betWait: 'too fast — wait {n}s',
     betMin: 'the smallest bet is {n} ✦',
     betMax: 'your max right now is {n} ✦',
-    /** The hash is published BEFORE the seed is used; the revealed one checks past spins. */
-    fairNow: 'seed hash {hash}…',
-    fairLast: 'last revealed seed',
   },
   ru: {
     queueAhead: 'перед тобой {n}',
@@ -127,11 +123,8 @@ const STRINGS = {
     betUsage: 'ставка так: !bet 100 красное',
     betReady: 'до {max} ✦ за спин · красное/чёрное ×2, зелёное ×{green}',
     betBroke: 'не хватает на спин',
-    betWait: 'слишком часто — подожди ещё {n}с',
     betMin: 'минимальная ставка {n} ✦',
     betMax: 'твой максимум сейчас {n} ✦',
-    fairNow: 'хеш сида {hash}…',
-    fairLast: 'последний раскрытый сид',
     emphasisIntro: 'первое сообщение',
   },
   uk: {
@@ -185,11 +178,8 @@ const STRINGS = {
     betUsage: 'ставка так: !bet 100 червоне',
     betReady: 'до {max} ✦ за спін · червоне/чорне ×2, зелене ×{green}',
     betBroke: 'не вистачає на спін',
-    betWait: 'занадто часто — зачекай ще {n}с',
     betMin: 'мінімальна ставка {n} ✦',
     betMax: 'твій максимум зараз {n} ✦',
-    fairNow: 'хеш сіду {hash}…',
-    fairLast: 'останній розкритий сід',
     emphasisIntro: 'перше повідомлення',
   },
 } as const satisfies Record<BotLocale, Record<string, string>>;

@@ -1,8 +1,7 @@
 import crypto from 'node:crypto';
-import { and, desc, eq, gte, isNull, isNotNull, sql } from 'drizzle-orm';
+import { and, eq, gte, sql } from 'drizzle-orm';
 import {
   BET,
-  BET_COOLDOWN_MS,
   colorOfSlot,
   maxBet,
   payoutFor,
@@ -10,12 +9,17 @@ import {
   type RouletteColor,
 } from '@tmw/shared';
 import { db } from './db/index';
-import { linkedIdentities, pendingDust, rouletteSeeds, rouletteSpins, users } from './db/schema';
+import { linkedIdentities, pendingDust, rouletteSpins, users } from './db/schema';
 
 /**
  * The dust wheel's engine, shared by both doors (the `!bet` chat command and the site) so the
- * balance, the cap and the payout can never differ between them. The one thing that is NOT shared
- * is the cooldown — see `door`.
+ * balance, the cap and the payout can never differ between them.
+ *
+ * There is NO per-player cooldown. One lived here to protect the bot's Twitch send budget, and it
+ * produced exactly the traffic it was meant to prevent: a refusal costs a message just as an answer
+ * does, so throttling only converted bets into "too fast, wait 40s". The send budget is defended
+ * where it actually lives — SEND_PER_CHANNEL and SEND_GLOBAL in the chat module, which drop the
+ * chat copy and still answer on the overlay.
  *
  * Money rules, in order of how badly they break things if ignored:
  *  - The stake is taken with a guarded UPDATE before the wheel is consulted. There are no
@@ -28,17 +32,7 @@ import { linkedIdentities, pendingDust, rouletteSeeds, rouletteSpins, users } fr
  *    Risk-free spins would make "never register" the dominant strategy.
  */
 
-/** Spins before a seed is retired and revealed. Deliberately a count, not a schedule: we have no
- *  trustworthy "the stream ended" signal, and a chain that rotates on nothing is unverifiable. */
-const ROTATE_AFTER = 1000;
-
 export interface BetInput {
-  /**
-   * Which door this came through. The cooldown belongs to CHAT alone: it exists so one player
-   * cannot spend the bot's Twitch send budget by themselves, and the site spends nothing of the
-   * bot's. Throttling it there was a limit invented for no reason.
-   */
-  door: 'chat' | 'site';
   /** Null when placed on the site, which belongs to no channel. */
   channelId: string | null;
   platform: string;
@@ -50,7 +44,6 @@ export interface BetInput {
 }
 
 export type BetOutcome =
-  | { kind: 'cooldown'; waitS: number }
   | { kind: 'tooSmall'; min: number }
   | { kind: 'overCap'; max: number; balance: number }
   /** Cannot play at all: the balance is under the floor. `registered` drives the sign-up nudge. */
@@ -65,61 +58,6 @@ export type BetOutcome =
       payout: number;
       balance: number;
     };
-
-/** Last CHAT spin per player. In memory on purpose: a restart forgiving a 60s wait is not worth a
- *  write per bet. */
-const lastBetAt = new Map<string, number>();
-
-/**
- * One key per PERSON. Derived from the RESOLVED account so that two twitch identities on one Tossit
- * account share it; only someone with no account at all falls back to the platform id.
- */
-function cooldownKey(input: BetInput, userId: string | null): string {
-  return userId ?? `${input.platform}:${input.platformUserId}`;
-}
-
-/** Serializes seed creation. Every seed gets its own hash, so a PK conflict can't dedupe two racing
- *  creations — without this, a channel could end up with two live chains and rotation retiring one
- *  of them. A single in-process guard is enough because the server is one process. */
-let creatingSeed: Promise<{ seedHash: string; seed: string }> | null = null;
-
-/** The live seed, creating the first one on demand. Rotation happens after a spin, not here, so a
- *  bet never waits on it. */
-async function liveSeed(): Promise<{ seedHash: string; seed: string }> {
-  const row = await db
-    .select({ seedHash: rouletteSeeds.seedHash, seed: rouletteSeeds.seed })
-    .from(rouletteSeeds)
-    .where(isNull(rouletteSeeds.revealedAt))
-    .get();
-  if (row?.seed) return { seedHash: row.seedHash, seed: row.seed };
-
-  creatingSeed ??= (async () => {
-    const seed = crypto.randomBytes(32).toString('hex');
-    const seedHash = crypto.createHash('sha256').update(seed).digest('hex');
-    await db.insert(rouletteSeeds).values({ seedHash, seed, nonce: 0, createdAt: new Date() });
-    return { seedHash, seed };
-  })().finally(() => {
-    creatingSeed = null;
-  });
-  return creatingSeed;
-}
-
-/** The slot a seed produces at this nonce. Pure, so anyone holding a revealed seed can recompute
- *  every spin it ever made — which is the whole point of publishing the hash first. */
-export function slotFor(seed: string, nonce: number): number {
-  const mac = crypto.createHmac('sha256', seed).update(String(nonce)).digest();
-  return mac.readUInt32BE(0) % ROULETTE_SLOTS;
-}
-
-/** Claim the next nonce atomically; concurrent bets can then never share a slot by accident. */
-async function nextNonce(seedHash: string): Promise<number | null> {
-  const rows = await db
-    .update(rouletteSeeds)
-    .set({ nonce: sql`${rouletteSeeds.nonce} + 1` })
-    .where(and(eq(rouletteSeeds.seedHash, seedHash), isNull(rouletteSeeds.revealedAt)))
-    .returning({ nonce: rouletteSeeds.nonce });
-  return rows[0]?.nonce ?? null;
-}
 
 /** Current balance and whether it lives on an account (as opposed to pending_dust). */
 async function readBalance(
@@ -202,17 +140,8 @@ async function credit(input: BetInput, userId: string | null, amount: number): P
 }
 
 export async function placeBet(input: BetInput): Promise<BetOutcome> {
-  // Identity first: the cooldown key depends on it, and so does which wallet gets charged.
+  // Identity first: it decides which wallet gets charged.
   const { balance, onAccount, userId } = await readBalance(input);
-  const key = cooldownKey(input, userId);
-  const throttled = input.door === 'chat';
-  if (throttled) {
-    const since = Date.now() - (lastBetAt.get(key) ?? 0);
-    if (since < BET_COOLDOWN_MS) {
-      return { kind: 'cooldown', waitS: Math.ceil((BET_COOLDOWN_MS - since) / 1000) };
-    }
-  }
-
   const cap = maxBet(balance);
   if (cap === 0) return { kind: 'broke', balance, registered: onAccount };
   if (input.stake < BET.min) return { kind: 'tooSmall', min: BET.min };
@@ -223,19 +152,8 @@ export async function placeBet(input: BetInput): Promise<BetOutcome> {
     const fresh = await readBalance(input);
     return { kind: 'broke', balance: fresh.balance, registered: fresh.onAccount };
   }
-  // Only now, once the stake is actually taken: a rejected bet must not burn a cooldown or a nonce.
-  if (throttled) lastBetAt.set(key, Date.now());
 
-  const { seedHash, seed } = await liveSeed();
-  const nonce = await nextNonce(seedHash);
-  if (nonce === null) {
-    // The seed rotated out from under us — refund rather than spin against a revealed seed.
-    await credit(input, userId, input.stake);
-    if (throttled) lastBetAt.delete(key);
-    return { kind: 'broke', balance, registered: onAccount };
-  }
-
-  const slot = slotFor(seed, nonce);
+  const slot = crypto.randomInt(ROULETTE_SLOTS);
   const payout = payoutFor(input.color, slot, input.stake);
   await credit(input, userId, payout);
 
@@ -248,12 +166,8 @@ export async function placeBet(input: BetInput): Promise<BetOutcome> {
     betColor: input.color,
     slot,
     payout,
-    seedHash,
-    nonce,
     createdAt: new Date(),
   });
-
-  if (nonce >= ROTATE_AFTER) await rotateSeed(seedHash);
 
   return {
     kind: 'done',
@@ -266,44 +180,12 @@ export async function placeBet(input: BetInput): Promise<BetOutcome> {
   };
 }
 
-/** Retire a seed and publish it, so every spin it produced becomes checkable. */
-async function rotateSeed(seedHash: string): Promise<void> {
-  await db
-    .update(rouletteSeeds)
-    .set({ revealedAt: new Date() })
-    .where(and(eq(rouletteSeeds.seedHash, seedHash), isNull(rouletteSeeds.revealedAt)));
-}
-
-export interface Fairness {
-  /** Hash of the seed spinning right now — published before it is used. */
-  currentHash: string;
-  /** The most recently retired seed, with which its spins can be recomputed. */
-  revealedSeed: string | null;
-  revealedHash: string | null;
-}
-
-export async function fairness(): Promise<Fairness> {
-  const { seedHash } = await liveSeed();
-  const last = await db
-    .select({ seedHash: rouletteSeeds.seedHash, seed: rouletteSeeds.seed })
-    .from(rouletteSeeds)
-    .where(isNotNull(rouletteSeeds.revealedAt))
-    .orderBy(desc(rouletteSeeds.revealedAt))
-    .get();
-  return {
-    currentHash: seedHash,
-    revealedSeed: last?.seed ?? null,
-    revealedHash: last?.seedHash ?? null,
-  };
-}
-
 /** Balance + what this player may stake right now, for the site panel and a bare `!bet`. */
 export async function betState(
   input: Pick<BetInput, 'platform' | 'platformUserId' | 'userId'>,
 ): Promise<{ balance: number; max: number; registered: boolean }> {
   const { balance, onAccount } = await readBalance({
     ...input,
-    door: 'site',
     channelId: null,
     stake: 0,
     color: 'red',

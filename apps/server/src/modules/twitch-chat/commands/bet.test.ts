@@ -32,7 +32,6 @@ function deps(outcome: BetOutcome = { kind: 'broke', balance: 0, registered: tru
       return outcome;
     },
     betState: async () => ({ balance: 4000, max: 400, registered: true }),
-    fairness: async () => ({ currentHash: 'abc', revealedSeed: null }),
     channelUrl: () => 'toss-it.org/c/x',
     commandState: () => ({
       playEnabled: false,

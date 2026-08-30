@@ -505,6 +505,13 @@
       "when": 1788087138248,
       "tag": "0071_quiet_wendell_vaughn",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "6",
+      "when": 1788099095553,
+      "tag": "0072_freezing_thunderball",
+      "breakpoints": true
     }
   ]
 }

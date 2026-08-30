@@ -66,9 +66,6 @@ export function maxBet(balance: number): number {
   return Math.min(balance, Math.max(BET.min, Math.min(BET.cap, Math.floor(balance * BET.share))));
 }
 
-/** Seconds a viewer waits between spins. Shared by both doors so neither is the cheap way past. */
-export const BET_COOLDOWN_MS = 60_000;
-
 const COLOR_WORDS: Record<string, RouletteColor> = {
   red: 'red',
   r: 'red',

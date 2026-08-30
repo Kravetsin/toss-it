@@ -1,7 +1,6 @@
 import type { BotCommandInfo, ChatFragment, ChatSystemLine } from '@tmw/shared';
 import { balance } from './balance';
 import { bet } from './bet';
-import { fair } from './fair';
 import { play } from './play';
 import { queue } from './queue';
 import { skip } from './skip';
@@ -14,7 +13,7 @@ export type { ChannelCommandState, ChatCommand, CommandContext, CommandDeps } fr
 
 /** The registry: one entry per command file in this folder. Order is what `!tossit` lists, so it
  *  runs from the one a newcomer needs first to the one only a regular asks for. */
-const COMMANDS: ChatCommand[] = [tossit, balance, xp, queue, play, tts, skip, bet, fair];
+const COMMANDS: ChatCommand[] = [tossit, balance, xp, queue, play, tts, skip, bet];
 
 /** Triggers a viewer can actually use in this channel — what `!tossit` advertises. */
 export function availableTriggers(state: ChannelCommandState): string[] {

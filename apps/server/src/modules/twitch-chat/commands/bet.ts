@@ -8,9 +8,11 @@ const ALL_WORDS = new Set(['all', 'max', 'всё', 'все', 'усе', 'усі',
 /**
  * `!bet <amount> <colour>` — the dust wheel from chat, in either order.
  *
- * Cooldown 0 here because the engine owns the real one (60s, shared with the site so neither door
- * is the cheap way past the other). The registry's 15s would only ever hide the answer to a bet
- * that already happened, which is the worst of both.
+ * Cooldown 0, and there is none in the engine either. The one that used to be there produced
+ * exactly the traffic it was meant to prevent: a refusal costs the bot a chat message just as an
+ * answer does, so throttling only turned bets into "too fast, wait 40s" — and a player who cannot
+ * see their own timer just types again to find out. The send budget is defended where it lives,
+ * in the chat module's per-channel and per-account windows.
  *
  * A bare `!bet` is the sign-up surface: for someone with no account it states the balance we are
  * holding for them and what a first login adds. Deliberately phrased as a balance, not as a stake —
@@ -61,8 +63,6 @@ export const bet: ChatCommand = {
 
     const res = await deps.bet({ channelId: ctx.channelId, twitchId: ctx.twitchId, stake, color });
     switch (res.kind) {
-      case 'cooldown':
-        return { name: ctx.name, text: t(ctx.locale, 'betWait', { n: res.waitS }) };
       case 'tooSmall':
         return { name: ctx.name, text: t(ctx.locale, 'betMin', { n: BET.min }) };
       case 'overCap':

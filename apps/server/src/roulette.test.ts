@@ -1,10 +1,10 @@
 import crypto from 'node:crypto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { eq, and } from 'drizzle-orm';
-import { BET, maxBet, PAYOUT, WHEEL_ORDER } from '@tmw/shared';
+import { BET, maxBet, PAYOUT } from '@tmw/shared';
 import { db } from './db/index';
 import { linkedIdentities, pendingDust, rouletteSpins, users } from './db/schema';
-import { placeBet, slotFor } from './roulette';
+import { placeBet } from './roulette';
 
 /**
  * The wheel. Everything here is about money moving correctly — the odds themselves are arithmetic
@@ -32,7 +32,7 @@ describe('roulette payouts', () => {
         .get()
     )?.amount ?? 0;
 
-  /** Spin until the wheel gives this colour. The cooldown is per player, so each try is a new one. */
+  /** Spin until the wheel gives this colour. A fresh account per try keeps the balances readable. */
   const spinUntil = async (want: 'win' | 'lose', color: 'red' | 'black' = 'red') => {
     for (let i = 0; i < 200; i++) {
       const id = `u_${crypto.randomUUID()}`;
@@ -45,7 +45,6 @@ describe('roulette payouts', () => {
         createdAt: new Date(),
       });
       const res = await placeBet({
-        door: 'site',
         channelId: null,
         platform: 'tossit',
         platformUserId: id,
@@ -93,68 +92,8 @@ describe('roulette payouts', () => {
     expect(row!.dustEarned).toBe(0);
   });
 
-  it('refuses a second CHAT spin inside the cooldown', async () => {
-    const chatBet = () =>
-      placeBet({
-        door: 'chat',
-        channelId: 'ch',
-        platform: 'tossit',
-        platformUserId: userId,
-        userId,
-        stake: 100,
-        color: 'red',
-      });
-    const first = await chatBet();
-    expect(first.kind).toBe('done');
-    expect((await chatBet()).kind).toBe('cooldown');
-    // A refused bet must not have cost anything.
-    const after = await account();
-    expect(after.stardust).toBe(5000 - 100 + (first.kind === 'done' ? first.payout : 0));
-  });
-
-  // The cooldown exists for the bot's Twitch send budget, so it belongs to chat alone. Throttling
-  // the site was a limit invented for no reason — nothing there costs the bot anything.
-  it('throttles chat but never the site', async () => {
-    await db.insert(linkedIdentities).values({
-      userId,
-      provider: 'twitch',
-      providerId: twitchId,
-      createdAt: new Date(),
-    });
-    const site = () =>
-      placeBet({
-        door: 'site',
-        channelId: null,
-        platform: 'tossit',
-        platformUserId: userId,
-        userId,
-        stake: 100,
-        color: 'red',
-      });
-    const chat = () =>
-      placeBet({
-        door: 'chat',
-        channelId: 'ch',
-        platform: 'twitch',
-        platformUserId: twitchId,
-        userId: null,
-        stake: 100,
-        color: 'red',
-      });
-
-    expect((await site()).kind).toBe('done');
-    expect((await site()).kind).toBe('done');
-    // The same person, straight after two site spins: chat has not been used, so it is clear.
-    expect((await chat()).kind).toBe('done');
-    // ...and now it is not, because a chat bet is what spends the bot's budget.
-    expect((await chat()).kind).toBe('cooldown');
-    // A burnt chat cooldown still leaves the site alone.
-    expect((await site()).kind).toBe('done');
-  });
-
   it('refuses a stake over the cap without charging for it', async () => {
     const res = await placeBet({
-      door: 'site',
       channelId: null,
       platform: 'tossit',
       platformUserId: userId,
@@ -168,7 +107,6 @@ describe('roulette payouts', () => {
 
   it('refuses a stake under the floor', async () => {
     const res = await placeBet({
-      door: 'site',
       channelId: null,
       platform: 'tossit',
       platformUserId: userId,
@@ -190,7 +128,6 @@ describe('roulette payouts', () => {
       updatedAt: new Date(),
     });
     const res = await placeBet({
-      door: 'site',
       channelId: 'ch',
       platform: 'twitch',
       platformUserId: twitchId,
@@ -210,9 +147,8 @@ describe('roulette payouts', () => {
     ).toBeUndefined();
   });
 
-  it('records every spin against the seed that produced it', async () => {
+  it('records every spin, so support can answer where the dust went', async () => {
     const res = await placeBet({
-      door: 'site',
       channelId: 'ch',
       platform: 'tossit',
       platformUserId: userId,
@@ -223,22 +159,5 @@ describe('roulette payouts', () => {
     if (res.kind !== 'done') throw new Error(`unexpected ${res.kind}`);
     const row = await db.select().from(rouletteSpins).where(eq(rouletteSpins.userId, userId)).get();
     expect(row).toMatchObject({ stake: 100, betColor: 'black', slot: res.slot, channelId: 'ch' });
-  });
-});
-
-/** The commitment chain: without these two properties "provably fair" is just a word. */
-describe('roulette fairness', () => {
-  it('reproduces a slot from the revealed seed alone', () => {
-    const seed = crypto.randomBytes(32).toString('hex');
-    expect(slotFor(seed, 7)).toBe(slotFor(seed, 7));
-    expect(slotFor(seed, 7)).not.toBe(slotFor(seed, 8));
-  });
-
-  it('lands inside the wheel for every nonce it will ever see', () => {
-    const seed = crypto.randomBytes(32).toString('hex');
-    for (let n = 0; n < 2000; n++) {
-      const slot = slotFor(seed, n);
-      expect(WHEEL_ORDER).toContain(slot);
-    }
   });
 });

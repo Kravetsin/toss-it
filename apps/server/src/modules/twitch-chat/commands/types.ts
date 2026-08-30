@@ -102,8 +102,8 @@ export interface CommandDeps {
   /** Skip what is on screen (`!skip`). Owns the enable gate, the vote tally and the playback call;
    *  the command only turns the result into a line. */
   skip(input: { channelId: string; twitchId: string; privileged: boolean }): Promise<SkipResult>;
-  /** Spin the dust wheel (`!bet`). The engine owns the balance, the cap and the 60s cooldown it
-   *  shares with the site; the command only turns the outcome into a line. */
+  /** Spin the dust wheel (`!bet`). The engine owns the balance, the cap and the payout; the
+   *  command only turns the outcome into a line. */
   bet(input: {
     channelId: string;
     twitchId: string;
@@ -112,8 +112,6 @@ export interface CommandDeps {
   }): Promise<BetOutcome>;
   /** This caller's balance and current cap, for a bare `!bet`. */
   betState(twitchId: string): Promise<{ balance: number; max: number; registered: boolean }>;
-  /** The wheel's published hash and last revealed seed, for `!fair`. */
-  fairness(): Promise<{ currentHash: string; revealedSeed: string | null }>;
 }
 
 /** One command = one file in this folder + one entry in the registry (see ./index.ts). */
