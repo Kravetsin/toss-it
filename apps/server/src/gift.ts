@@ -1,7 +1,19 @@
-import { and, desc, eq, gte, or, sql } from 'drizzle-orm';
+import { and, desc, eq, exists, gte, or, sql } from 'drizzle-orm';
 import { GIFT, type GiftTarget, foldForSearch } from '@tmw/shared';
 import { db } from './db/index';
 import { channelActivity, dustGifts, linkedIdentities, pendingDust, users } from './db/schema';
+/**
+ * A users row somebody can still SIGN IN to, which is not every users row there is: linking moves
+ * an identity onto another row and leaves the old one behind, carrying its name and its balance.
+ * Nothing can reach that row again, so dust sent to it is destroyed — and it stays perfectly
+ * findable by name, which is how a stranger's gift would end up there.
+ */
+const reachable = exists(
+  db
+    .select({ one: sql`1` })
+    .from(linkedIdentities)
+    .where(eq(linkedIdentities.userId, users.id)),
+);
 
 /**
  * Giving stardust away, shared by the `!gift` chat command and the site.
@@ -173,11 +185,13 @@ export async function findGiftTargets(query: string, excludeUserId: string): Pro
       avatarUrl: users.avatarUrl,
     })
     .from(users)
+    .where(reachable)
     .all();
 
   const hits: { rank: number; row: (typeof rows)[number] }[] = [];
   for (const row of rows) {
-    // Never offer the giver themselves: the refusal would come after they had picked.
+    // Never offer the giver themselves: the refusal would come after they had picked. Their OTHER
+    // rows need no mention here — a row linking left behind is unreachable, and already gone.
     if (row.userId === excludeUserId) continue;
     // Rank by WHICH name matched: the handle is unique, so an exact-ish one goes first.
     const rank = [row.login, row.platformName].findIndex(
@@ -212,10 +226,12 @@ export async function giftDust(
   let toUserId: string | null;
   let toName: string;
   if ('userId' in input.to) {
+    // Reachability is checked HERE and not only in the picker: an unreachable row is not a
+    // destination, and the id arrives in a request body that search does not get to vet.
     const acct = await db
       .select({ id: users.id, login: users.login })
       .from(users)
-      .where(eq(users.id, input.to.userId))
+      .where(and(eq(users.id, input.to.userId), reachable))
       .get();
     if (!acct) return { kind: 'unknown' };
     toUserId = acct.id;

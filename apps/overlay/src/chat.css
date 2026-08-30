@@ -691,7 +691,11 @@
   overflow: hidden;
   pointer-events: none;
 }
+/* Everything the card actually SAYS lifts over that layer — the wheel block included, the way an
+   emote rides above the particles in a message bubble. Left out, the canvas stayed in the flow and
+   an effect painted straight over the colour it exists to show. */
 .msg.system .sys-line,
+.msg.system .sys-spin,
 .msg.system .sys-hint {
   position: relative;
   z-index: 1;

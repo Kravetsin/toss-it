@@ -297,6 +297,39 @@ describe('gifting dust', () => {
     });
   });
 
+  /**
+   * Linking moves an identity onto another row and leaves the old one behind — same name, same
+   * balance, no way in. Dust sent there is DESTROYED rather than moved, and the row is as findable
+   * by name as any other, so this is not only a way to lose your own dust: a stranger searching for
+   * that name would be offered it.
+   */
+  describe('a row linking left behind', () => {
+    /** Signed up on Twitch, later made another account primary: the identity moves, the row stays. */
+    const orphan = async () => {
+      const login = `old_${crypto.randomUUID().slice(0, 8)}`;
+      const made = await makeUser(login, 0);
+      await db
+        .update(linkedIdentities)
+        .set({ userId: giver })
+        .where(eq(linkedIdentities.providerId, made.providerId));
+      return { ...made, login };
+    };
+
+    it('is never offered as somewhere to send dust', async () => {
+      const old = await orphan();
+      expect(await findGiftTargets(old.login, giver)).toEqual([]);
+    });
+
+    it('takes nothing from anyone who names it anyway', async () => {
+      const old = await orphan();
+      const stranger = await makeUser(`s_${crypto.randomUUID().slice(0, 8)}`, 900);
+      const res = await giftDust({ fromUserId: stranger.id, to: { userId: old.id }, amount: 100 });
+      expect(res.kind).toBe('unknown');
+      expect((await dustOf(stranger.id)).d).toBe(900);
+      expect((await dustOf(old.id)).d).toBe(0);
+    });
+  });
+
   it('refuses the cases that would only confuse, without moving anything', async () => {
     const giverLogin = (await db.select().from(users).where(eq(users.id, giver)).get())!.login;
 
