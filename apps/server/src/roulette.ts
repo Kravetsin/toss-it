@@ -44,6 +44,8 @@ export interface BetInput {
 }
 
 export type BetOutcome =
+  /** The channel never switched the wheel on. Produced by the caller, never by the engine. */
+  | { kind: 'disabled' }
   | { kind: 'tooSmall'; min: number }
   | { kind: 'overCap'; max: number; balance: number }
   /** Cannot play at all: the balance is under the floor. `registered` drives the sign-up nudge. */

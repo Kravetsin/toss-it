@@ -163,13 +163,14 @@ export const channels = sqliteTable('channels', {
    */
   chatSkipCommand: integer('chat_skip_command', { mode: 'boolean' }).notNull().default(false),
   /**
-   * Let viewers bet stardust on the wheel with `!bet`. Off by default: it puts a betting game in
-   * someone else's chat, which is a separate yes from /mod'ding the bot. Nothing here converts to
-   * money, so Twitch's gambling rules don't reach it — the streamer decides anyway.
+   * Let viewers bet stardust on the wheel with `!bet`. ON by default, unlike the other command
+   * switches: it puts nothing on the streamer's screen and queues nothing on their behalf — it only
+   * moves a viewer's own dust — and it turned out to be the reason people talk to the bot at all.
+   * Still a switch, because it is a betting game in someone else's chat.
    */
   chatRouletteCommand: integer('chat_roulette_command', { mode: 'boolean' })
     .notNull()
-    .default(false),
+    .default(true),
   /** Viewer votes that skip the current show; 2–10, clamped on write. */
   skipVotesNeeded: integer('skip_votes_needed').notNull().default(3),
   /** Language the bot answers commands in. Seeded from the dashboard's language at channel

@@ -25,6 +25,11 @@ export const bet: ChatCommand = {
   available: (state) => state.rouletteEnabled,
   cooldownMs: 0,
   async run(ctx, deps) {
+    // The REAL gate. `available()` only feeds the !tossit listing and the dashboard catalog —
+    // runCommand never consults it, which is why every other switchable command re-checks in its
+    // own dep. Without this the wheel answered in channels that had never switched it on.
+    if (!deps.commandState(ctx.channelId).rouletteEnabled) return null;
+
     // Either order. "!bet red 100" is at least as natural as "!bet 100 red", and someone typing
     // mid-stream should not have to remember which way round we wanted it.
     let colorArg: string | undefined;
@@ -63,6 +68,8 @@ export const bet: ChatCommand = {
 
     const res = await deps.bet({ channelId: ctx.channelId, twitchId: ctx.twitchId, stake, color });
     switch (res.kind) {
+      case 'disabled':
+        return null;
       case 'tooSmall':
         return { name: ctx.name, text: t(ctx.locale, 'betMin', { n: BET.min }) };
       case 'overCap':

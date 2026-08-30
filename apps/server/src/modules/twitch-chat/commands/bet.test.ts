@@ -19,7 +19,10 @@ const ctx = (args: string[]): CommandContext => ({
   privileged: false,
 });
 
-function deps(outcome: BetOutcome = { kind: 'broke', balance: 0, registered: true }) {
+function deps(
+  outcome: BetOutcome = { kind: 'broke', balance: 0, registered: true },
+  rouletteEnabled = true,
+) {
   const seen: { stake: number; color: string }[] = [];
   const d = {
     queueState: () => null,
@@ -37,11 +40,23 @@ function deps(outcome: BetOutcome = { kind: 'broke', balance: 0, registered: tru
       playEnabled: false,
       ttsEnabled: false,
       skipEnabled: false,
-      rouletteEnabled: true,
+      rouletteEnabled,
     }),
   } as unknown as CommandDeps;
   return { deps: d, seen };
 }
+
+// available() only feeds the !tossit listing and the dashboard catalog — runCommand never consults
+// it, so a switchable command has to refuse for itself. Without this the wheel answered everywhere.
+describe('!bet gate', () => {
+  it('says nothing at all in a channel that never switched the wheel on', async () => {
+    for (const args of [[], ['100', 'красное'], ['all', 'зелёное']]) {
+      const { deps: d, seen } = deps(undefined, false);
+      expect(await bet.run(ctx(args), d)).toBeNull();
+      expect(seen).toHaveLength(0);
+    }
+  });
+});
 
 describe('!bet parsing', () => {
   it('takes the amount and the colour in either order', async () => {

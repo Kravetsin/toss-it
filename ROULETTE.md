@@ -151,9 +151,16 @@ boot.
 channels.chat_roulette_command  boolean not null default false
 ```
 
-Off by default, like `chat_play_command` and `chat_tts_command`. It puts a betting game in someone
-else's chat: that is a separate yes from /mod'ding the bot. Formally we are outside Twitch's
-gambling rules — nothing converts to money — but the streamer still decides.
+**ON by default**, unlike the other command switches. It queues nothing on the streamer's behalf
+and puts nothing on their screen — it only moves a viewer's own dust — and it turned out to be the
+reason people talk to the bot at all. Still a switch, because it is a betting game in someone else's
+chat; formally we are outside Twitch's gambling rules, since nothing converts to money.
+
+**The switch has to be enforced by the command itself.** `runCommand` never consults `available()` —
+that only feeds the `!tossit` listing and the dashboard catalog — so every switchable command
+re-checks in its own dep or at its entry. `!bet` shipped without that check and answered in channels
+that had never switched it on. Migration 0074 turns the column on for every existing channel along
+with flipping the default: a gate fix must not read as a feature being taken away.
 
 ## The command
 

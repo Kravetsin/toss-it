@@ -285,6 +285,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     stake: number;
     color: RouletteColor;
   }): Promise<BetOutcome> {
+    if (!rouletteCommandChannels.has(input.channelId)) return { kind: 'disabled' };
     return placeBet({
       channelId: input.channelId,
       platform: 'twitch',

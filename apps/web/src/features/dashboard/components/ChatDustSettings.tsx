@@ -105,7 +105,7 @@ export function ChatDustSettings({
               onChange={setSkipVotes}
             />
           )}
-          {/* Last of the command switches because it is the only one that touches nobody's
+          {/* Last of the command switches, and the only one ON by default: it touches nobody's
               stream — it moves viewers' dust between themselves and us, and nothing else. */}
           <Switch
             icon="sparkles"

@@ -519,6 +519,13 @@
       "when": 1788099390629,
       "tag": "0073_clever_layla_miller",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "6",
+      "when": 1788100472666,
+      "tag": "0074_massive_wendigo",
+      "breakpoints": true
     }
   ]
 }
