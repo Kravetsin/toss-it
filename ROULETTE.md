@@ -171,36 +171,59 @@ the same fact stated as a balance is a gift, and it is equally true.
 ## The site wheel
 
 The only animation in phase 1, and the reason phase 2 waits: this is where the design gets to be
-wrong cheaply. It is seen by the person who bet, on a page we can redeploy without touching a single
-stream.
+wrong cheaply — one page, redeployed without touching a single stream.
 
-Shipped as the rim of a very large disc, drawn on canvas. Canvas because wedges want to be wedges —
-laid out as rotated DOM rectangles they leave gaps at the rim, and a conic-gradient cannot carry the
-numbers. The pockets are an INFINITE strip rather than a closed ring: pocket `k` sits at `k · STEP`
-with face `WHEEL_ORDER[k mod 37]`. Closing the ring would need 37 readable pockets to add up to
-exactly 360°, which they don't, and forcing it leaves a seam that eventually rotates into view.
+The rim of a very large disc, under glass, drawn on canvas. Canvas because wedges want to be wedges:
+as rotated DOM rectangles they leave gaps at the rim, and a conic-gradient cannot carry the numbers.
+The pockets are an INFINITE strip rather than a closed ring — pocket `k` sits at `k · STEP` with face
+`WHEEL_ORDER[k mod 37]`. Closing the ring would need 37 readable pockets to total exactly 360°, which
+they don't, and forcing it leaves a seam that eventually rotates into view.
 
-Three things carry the feel, and they are the reason it is an rAF loop rather than a CSS transition:
+### Motion
 
-- **The crawl.** 2300 ms of decelerating travel that stops just over a pocket SHORT of the answer,
-  then 1300 ms creeping the last 1.35 pockets home. Deceleration alone never produces the beat where
-  the pointer sits on a boundary and has to be watched over it. **Site only** — the overlay spends
-  somebody else's airtime, so it gets the fast pass and nothing else (`suspense={false}`).
-- **The flapper.** The pointer is kicked by every pocket edge that passes under it and springs back.
-  This is what makes a wheel feel mechanical instead of animated, and it needs per-frame knowledge of
-  where the wheel is — which a CSS transition does not have.
-- **The landing.** The winning pocket takes a rim light that decays over 700 ms, and the dashboard's
-  own `disintegrate` fires: mint on a win, red shards on a loss. Same particles the moderation queue
-  throws, so a win reads like an approval there rather than like a new effect nobody has seen.
+**One curve, start to stop.** An earlier version braked to a halt and then crept to the next pocket.
+That was worse than no suspense at all: a wheel that stops on red and then moves has announced that
+the answer is its neighbour, and the restart read as a glitch. A single decelerating curve never
+stops, so nothing is announced.
 
-The burst is scaled by the multiple won, because `disintegrate` derives its particle count from the
-rect's AREA — a pointer-sized rect yields about seven specks, which for a ×35 reads as a bug. A ×2
-gets the pocket, a ×35 gets the whole rim plus a second wave 220 ms later.
+`remaining(p) = (1 − p)^EXP`. At 2.6 over 4 s the last pocket and a half take the final fifth of the
+spin, which is a real crawl — a quartic instead spends its last second not moving at all, which
+reads as a hang. The overlay gets exponent 2 over 2 s: the same curve, no tail, because airtime
+there is somebody else's to spend.
 
-Invariants that outlive the design: the server decides the slot BEFORE anything moves and the
-animation only agrees with it; the verdict, the balance and the burst all wait for `onSettled`, or
-the result is given away while the wheel is still turning; `prefers-reduced-motion` jumps straight
-to the answer.
+**The flapper.** The pointer is kicked by every pocket edge that passes under it and springs back —
+and it leans **left**, the way the pockets travel, because a flapper is dragged by what passes under
+it. This is what makes a wheel feel mechanical rather than animated, and it needs per-frame knowledge
+of where the wheel is, which is why the whole thing is an rAF loop and not a CSS transition.
+
+**Landing.** The winning pocket takes a rim light that decays over 700 ms, and the dashboard's own
+`disintegrate` fires: mint on a win, red shards on a loss. Scaled by the multiple won, because that
+function derives its particle count from the rect's AREA — a pointer-sized rect yields about seven
+specks, which for a ×35 reads as a bug. A ×2 gets the pocket, a ×35 the whole rim plus a second wave.
+
+### Glass
+
+Everything outside a wedge over the pointer is darkened: one fill, two subpaths, even-odd, so the
+hole follows the arc instead of being a rectangle pretending the rim is straight. The hole is 3.2
+pockets wide — one pocket wide would answer the question before the wheel had stopped asking it. Its
+frame is one lit hairline and one dim outer line, and it takes the colour of a chip held over it.
+
+Depth toward the hub is a RADIAL gradient. A straight `fillRect` was tried and drew a bar across the
+middle of the box, which is the one thing an arc does not have.
+
+### Controls
+
+**No Spin button.** The three colours are chips you throw at the wheel: the chip IS the verb, so
+choosing a colour and committing to it are one motion instead of two. A tap plays as well — drag is
+not discoverable enough to be the only way in, and on a trackpad it is simply worse.
+
+Move and release are watched on the WINDOW, not on the chip. Pointer capture is the usual way and it
+is exactly what strands a chip: lose the capture and the release never arrives, so the chip stays
+held and the wheel stays armed with nothing left to release it.
+
+**The stake is a drum, not a field.** Flick it; harder flicks coast further. Steps of ten, momentum
+with friction, snapping to the nearest step when it stops. A number field asks the player to decide
+before they have touched anything, which is the difference between filling in a form and playing.
 
 ## Phase 2 — the overlay wheel
 

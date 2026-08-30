@@ -734,10 +734,8 @@ export const en: Dict = {
   'roulette.title': 'The wheel',
   'roulette.tagline':
     'Bet the stardust you earned watching streams. Red or black doubles it, green pays 35.',
-  'roulette.spin': 'Spin',
-  'roulette.allIn': 'Max',
-  'roulette.stake': 'Bet, up to {n}',
-  'roulette.capNote': 'Up to {n} per spin — the cap grows with your balance',
+  'roulette.throwHint':
+    'Throw a chip on the wheel — up to {n} per spin, the cap grows with your balance',
   'roulette.broke': 'Not enough stardust to spin',
   'roulette.wait': 'Too fast — wait {n}s',
   'roulette.min': 'The smallest bet is {n}',
@@ -1693,10 +1691,7 @@ export const ru: Dict = {
   'roulette.title': 'Колесо',
   'roulette.tagline':
     'Ставь звёздную пыль, заработанную на стримах. Красное или чёрное удваивает, зелёное платит 35.',
-  'roulette.spin': 'Крутить',
-  'roulette.allIn': 'Максимум',
-  'roulette.stake': 'Ставка, до {n}',
-  'roulette.capNote': 'До {n} за спин — потолок растёт вместе с балансом',
+  'roulette.throwHint': 'Брось фишку на колесо — до {n} за спин, потолок растёт вместе с балансом',
   'roulette.broke': 'Не хватает пыли на спин',
   'roulette.wait': 'Слишком часто — подожди ещё {n}с',
   'roulette.min': 'Минимальная ставка {n}',
@@ -2653,10 +2648,7 @@ export const uk: Dict = {
   'roulette.title': 'Колесо',
   'roulette.tagline':
     'Став зоряний пил, зароблений на стрімах. Червоне або чорне подвоює, зелене платить 35.',
-  'roulette.spin': 'Крутити',
-  'roulette.allIn': 'Максимум',
-  'roulette.stake': 'Ставка, до {n}',
-  'roulette.capNote': 'До {n} за спін — стеля росте разом із балансом',
+  'roulette.throwHint': 'Кинь фішку на колесо — до {n} за спін, стеля росте разом із балансом',
   'roulette.broke': 'Не вистачає пилу на спін',
   'roulette.wait': 'Занадто часто — почекай ще {n}с',
   'roulette.min': 'Мінімальна ставка {n}',
