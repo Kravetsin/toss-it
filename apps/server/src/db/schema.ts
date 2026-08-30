@@ -49,6 +49,17 @@ export const users = sqliteTable('users', {
   dustEarned: integer('dust_earned').notNull().default(0),
   /** Equipped cosmetics (nick color, etc.); null = nothing equipped. */
   equipped: text('equipped', { mode: 'json' }).$type<EquippedCosmetics>(),
+  /**
+   * Lifetime wheel record: spins that paid, and spins that did not. Kept HERE rather than counted
+   * from roulette_spins because that table is pruned after 30 days, and an earned cosmetic gated on
+   * a shrinking number would un-earn itself — the one rule CosmeticEarn states outright. Forward
+   * only: both start at 0 and nothing is backfilled.
+   *
+   * Only spins by an ACCOUNT are counted. An unregistered chatter bets out of pending dust and has
+   * nothing to hang a cosmetic on anyway, so their tally starts when they sign up.
+   */
+  rouletteWins: integer('roulette_wins').notNull().default(0),
+  rouletteLosses: integer('roulette_losses').notNull().default(0),
   /** When WELCOME_DUST was granted; null = not yet. The grant is a conditional UPDATE on this being
    *  null, which is what makes it exactly-once without a read-then-write race. Accounts that predate
    *  the bonus are null too, so they collect it on their next login. */

@@ -23,6 +23,13 @@ describe('roulette payouts', () => {
       .where(eq(users.id, userId))
       .get())!;
 
+  const tallyOf = async (id: string) =>
+    (await db
+      .select({ w: users.rouletteWins, l: users.rouletteLosses })
+      .from(users)
+      .where(eq(users.id, id))
+      .get())!;
+
   const pending = async () =>
     (
       await db
@@ -145,6 +152,42 @@ describe('roulette payouts', () => {
         .where(eq(linkedIdentities.providerId, twitchId))
         .get(),
     ).toBeUndefined();
+  });
+
+  // The seal these will one day gate must never un-earn itself, and roulette_spins is pruned after
+  // 30 days — so the tally lives on the account and only ever climbs.
+  it('keeps a lifetime tally of wins and losses on the account', async () => {
+    const tally = async (id: string) =>
+      (await db
+        .select({ w: users.rouletteWins, l: users.rouletteLosses })
+        .from(users)
+        .where(eq(users.id, id))
+        .get())!;
+
+    const win = await spinUntil('win');
+    expect(await tally(win.id)).toEqual({ w: 1, l: 0 });
+    const loss = await spinUntil('lose');
+    expect(await tally(loss.id)).toEqual({ w: 0, l: 1 });
+  });
+
+  it('leaves the tally alone for a chatter with no account', async () => {
+    await db.insert(pendingDust).values({
+      platform: 'twitch',
+      platformUserId: twitchId,
+      amount: 2000,
+      updatedAt: new Date(),
+    });
+    const res = await placeBet({
+      channelId: 'ch',
+      platform: 'twitch',
+      platformUserId: twitchId,
+      userId: null,
+      stake: 100,
+      color: 'red',
+    });
+    expect(res.kind).toBe('done');
+    // Nothing to hang a cosmetic on yet; the account that eventually claims the dust starts at zero.
+    expect(await tallyOf(userId)).toEqual({ w: 0, l: 0 });
   });
 
   it('records every spin, so support can answer where the dust went', async () => {

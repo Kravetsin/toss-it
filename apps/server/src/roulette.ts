@@ -118,6 +118,19 @@ async function debit(input: BetInput, userId: string | null, amount: number): Pr
   return res.rowsAffected > 0;
 }
 
+/**
+ * The lifetime tally, for cosmetics gated on the wheel. Its own UPDATE because `credit` is skipped
+ * on a loss, and a loss is exactly half of what this counts.
+ */
+async function noteSpin(userId: string | null, won: boolean): Promise<void> {
+  if (!userId) return;
+  const col = won ? users.rouletteWins : users.rouletteLosses;
+  await db
+    .update(users)
+    .set(won ? { rouletteWins: sql`${col} + 1` } : { rouletteLosses: sql`${col} + 1` })
+    .where(eq(users.id, userId));
+}
+
 /** Balance only — a payout is not contribution, so `dustEarned` must not move. */
 async function credit(input: BetInput, userId: string | null, amount: number): Promise<void> {
   if (amount <= 0) return;
@@ -156,6 +169,7 @@ export async function placeBet(input: BetInput): Promise<BetOutcome> {
   const slot = crypto.randomInt(ROULETTE_SLOTS);
   const payout = payoutFor(input.color, slot, input.stake);
   await credit(input, userId, payout);
+  await noteSpin(userId, payout > 0);
 
   await db.insert(rouletteSpins).values({
     channelId: input.channelId,

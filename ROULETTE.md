@@ -126,6 +126,19 @@ roulette_spins
   index (channel_id, created_at)
 ```
 
+```
+users.roulette_wins    integer not null default 0
+users.roulette_losses  integer not null default 0
+```
+
+The lifetime tally, for a seal gated on the wheel later ("100 wins", "100 losses"). It cannot be
+counted from `roulette_spins`: that table is pruned after 30 days, and `CosmeticEarn` states the
+rule outright — every metric only ever CLIMBS, because a milestone must never un-earn itself. A seal
+derived from a shrinking count would come off by itself at the first sweep.
+
+Only spins by an ACCOUNT are counted. An unregistered chatter bets out of pending dust and has
+nothing to hang a cosmetic on anyway, so their tally starts when they sign up.
+
 `roulette_spins` is the support record and the source for any future stats. Volume is real — a busy
 channel can write thousands per stream — so the existing `cleanup.ts` sweep prunes rows older than
 30 days, which outlives any question anyone is still asking.
