@@ -34,11 +34,11 @@ dust the economy loses.
 
 37 sectors, the single-zero layout:
 
-| colour | sectors | payout | odds | return |
-| ------ | ------- | ------ | ------ | ------ |
-| red    | 18      | ×2     | 48.6% | 0.973 |
-| black  | 18      | ×2     | 48.6% | 0.973 |
-| green  | 1       | ×35    | 2.7%  | 0.946 |
+| colour | sectors | payout | odds  | return |
+| ------ | ------- | ------ | ----- | ------ |
+| red    | 18      | ×2     | 48.6% | 0.973  |
+| black  | 18      | ×2     | 48.6% | 0.973  |
+| green  | 1       | ×35    | 2.7%  | 0.946  |
 
 House edge 2.7% on colours, 5.4% on green. The two bets balance because `(1 − p) = 35p` at
 `p = 1/36`; changing one multiplier without the other breaks that and can make the wheel print dust.
@@ -158,11 +158,11 @@ unregistered caller it names what registering adds.
 Answers ride `ChatSystemLine`, rendered by `toChatText` as `@name · text · dust ✦ — hint`. In phase 1
 there is one answer per bet, sent as soon as the spin resolves:
 
-| case | line |
-| ---- | ---- |
-| win | `@nick · зелёное ×35 · +17 325 ✦` |
-| loss | `@nick · чёрное · −500 ✦` |
-| over the cap | `@nick · твой максимум сейчас 8 165 ✦` |
+| case                     | line                                                       |
+| ------------------------ | ---------------------------------------------------------- |
+| win                      | `@nick · зелёное ×35 · +17 325 ✦`                          |
+| loss                     | `@nick · чёрное · −500 ✦`                                  |
+| over the cap             | `@nick · твой максимум сейчас 8 165 ✦`                     |
 | no balance, unregistered | `@nick · у тебя 340 ✦ — на toss-it.org тебя ждёт ещё 1000` |
 
 That last line is deliberate. "Bet more — register for 1000" is how a casino asks for a deposit;
@@ -174,16 +174,33 @@ The only animation in phase 1, and the reason phase 2 waits: this is where the d
 wrong cheaply. It is seen by the person who bet, on a page we can redeploy without touching a single
 stream.
 
-- The result is already decided server-side when the page starts spinning; the animation reads the
-  slot out of the response and lands on it. Same rule as everywhere else — the picture never decides
-  anything.
-- It must survive being watched a hundred times in a row: no long wind-up, no unskippable
-  celebration. Somewhere near 3 seconds, and a repeat spin cancels the previous one rather than
-  queueing behind it.
-- Cheap to render. The catalog's effects budget applies here too — a wheel is a rotating element,
-  which is about as cheap as motion gets, so there is no excuse for anything heavier.
+Shipped as the rim of a very large disc, drawn on canvas. Canvas because wedges want to be wedges —
+laid out as rotated DOM rectangles they leave gaps at the rim, and a conic-gradient cannot carry the
+numbers. The pockets are an INFINITE strip rather than a closed ring: pocket `k` sits at `k · STEP`
+with face `WHEEL_ORDER[k mod 37]`. Closing the ring would need 37 readable pockets to add up to
+exactly 360°, which they don't, and forcing it leaves a seam that eventually rotates into view.
 
-Ship it, watch people use it, and only then decide what the overlay version should look like.
+Three things carry the feel, and they are the reason it is an rAF loop rather than a CSS transition:
+
+- **The crawl.** 2300 ms of decelerating travel that stops just over a pocket SHORT of the answer,
+  then 1300 ms creeping the last 1.35 pockets home. Deceleration alone never produces the beat where
+  the pointer sits on a boundary and has to be watched over it. **Site only** — the overlay spends
+  somebody else's airtime, so it gets the fast pass and nothing else (`suspense={false}`).
+- **The flapper.** The pointer is kicked by every pocket edge that passes under it and springs back.
+  This is what makes a wheel feel mechanical instead of animated, and it needs per-frame knowledge of
+  where the wheel is — which a CSS transition does not have.
+- **The landing.** The winning pocket takes a rim light that decays over 700 ms, and the dashboard's
+  own `disintegrate` fires: mint on a win, red shards on a loss. Same particles the moderation queue
+  throws, so a win reads like an approval there rather than like a new effect nobody has seen.
+
+The burst is scaled by the multiple won, because `disintegrate` derives its particle count from the
+rect's AREA — a pointer-sized rect yields about seven specks, which for a ×35 reads as a bug. A ×2
+gets the pocket, a ×35 gets the whole rim plus a second wave 220 ms later.
+
+Invariants that outlive the design: the server decides the slot BEFORE anything moves and the
+animation only agrees with it; the verdict, the balance and the burst all wait for `onSettled`, or
+the result is given away while the wheel is still turning; `prefers-reduced-motion` jumps straight
+to the answer.
 
 ## Phase 2 — the overlay wheel
 

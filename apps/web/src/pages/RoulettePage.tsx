@@ -8,7 +8,7 @@ import { Button, Input, Loader, PageShell } from '@/ui';
 import { Icon } from '@/ui/icons';
 import { AuthButtons } from '@/components/AuthButtons';
 import { DustMark } from '@/components/DustMark';
-import { Reel, SPIN_MS } from '@/features/roulette/components/Reel';
+import { burstAt, Wheel } from '@/features/roulette/components/Wheel';
 
 const COLORS: RouletteColor[] = ['red', 'black', 'green'];
 
@@ -29,7 +29,9 @@ export function RoulettePage() {
   const [result, setResult] = useState<SpinDone | null>(null);
   /** The slot the reel is travelling to; separate from `result`, which appears only once it lands. */
   const [target, setTarget] = useState<number | null>(null);
-  const timer = useRef<number | null>(null);
+  /** Held while the wheel is still turning; revealed by onSettled, never before. */
+  const pending = useRef<SpinDone | null>(null);
+  const wheelBox = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!me?.user) return;
@@ -37,8 +39,6 @@ export function RoulettePage() {
       .then(setState)
       .catch(() => undefined);
   }, [me?.user]);
-
-  useEffect(() => () => window.clearTimeout(timer.current ?? undefined), []);
 
   const play = useCallback(async () => {
     if (!state || spinning) return;
@@ -68,17 +68,25 @@ export function RoulettePage() {
       return;
     }
 
-    // The reel is told where to stop before it starts moving: the server already decided, and the
-    // animation is only allowed to agree with it.
+    // The wheel is told where to stop before it starts moving: the server already decided, and
+    // the animation is only allowed to agree with it.
+    pending.current = res.outcome;
     setSpinning(true);
     setTarget(res.outcome.slot);
-    const done = res.outcome;
-    timer.current = window.setTimeout(() => {
-      setSpinning(false);
-      setResult(done);
-      setState((s) => (s ? { ...s, balance: done.balance } : s));
-    }, SPIN_MS);
   }, [color, spinning, stake, state, t, toast]);
+
+  // The verdict, the balance and the burst all wait for the pointer to actually stop — announcing a
+  // win while the wheel is still turning gives the result away and wastes the suspense we just paid
+  // a second for.
+  const settle = useCallback(() => {
+    const done = pending.current;
+    if (!done) return;
+    pending.current = null;
+    setSpinning(false);
+    setResult(done);
+    setState((s) => (s ? { ...s, balance: done.balance } : s));
+    burstAt(wheelBox.current, done.stake > 0 ? done.payout / done.stake : 0);
+  }, []);
 
   if (loading) {
     return (
@@ -114,10 +122,12 @@ export function RoulettePage() {
           </span>
         </div>
 
-        <Reel slot={target} spinning={spinning} />
+        <div ref={wheelBox}>
+          <Wheel slot={target} spinning={spinning} onSettled={settle} />
+        </div>
 
-        {/* The verdict lives under the reel rather than replacing it: the strip is still showing
-            where it landed, and the line says what that meant. */}
+        {/* The verdict lives under the wheel rather than replacing it: the rim is still showing
+            where the pointer stopped, and the line says what that meant. */}
         <div className="min-h-10 text-center">
           {result && (
             <p className={`text-lg ${won ? 'text-accent' : 'text-muted'}`}>
