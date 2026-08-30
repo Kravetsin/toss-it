@@ -4,7 +4,14 @@
  * with fake responses—no component/hook changes needed.
  */
 import {
+  BET,
+  colorOfSlot,
   COSMETICS,
+  maxBet,
+  parseColor,
+  PAYOUT,
+  payoutFor,
+  WHEEL_ORDER,
   type AccessibleChannel,
   type ChannelSettings,
   type DirectoryChannel,
@@ -1291,6 +1298,48 @@ function route(pathname: string, init?: RequestInit, query?: URLSearchParams): u
   // add (POST) / remove (DELETE) for any reward kind — the kind is the last path segment.
   if (/^\/api\/channel-points\/(stardust|youtube|tts)$/.test(pathname)) {
     return { ok: true };
+  }
+
+  // The wheel. Spins for real against the mock balance — a wheel that always pays or always
+  // loses tells you nothing about how the animation feels, which is the only reason to preview it.
+  if (pathname === '/api/roulette') {
+    const u = MOCK_ME.user!;
+    return {
+      balance: u.stardust,
+      max: maxBet(u.stardust),
+      min: BET.min,
+      payouts: PAYOUT,
+      cooldownS: 60,
+      fairHash: 'mock0000000000000000000000000000000000000000000000000000000000',
+    };
+  }
+  if (pathname === '/api/roulette/bet') {
+    const u = MOCK_ME.user!;
+    const body = init?.body
+      ? (JSON.parse(String(init.body)) as { stake?: number; color?: string })
+      : {};
+    const color = parseColor(String(body.color ?? '')) ?? 'red';
+    const stake = Number(body.stake) || 0;
+    const cap = maxBet(u.stardust);
+    if (stake > cap)
+      return { ok: false, outcome: { kind: 'overCap', max: cap, balance: u.stardust } };
+    if (stake < BET.min) return { ok: false, outcome: { kind: 'tooSmall', min: BET.min } };
+    // No cooldown here on purpose: previewing the animation means spinning it back to back.
+    const slot = WHEEL_ORDER[Math.floor(Math.random() * WHEEL_ORDER.length)]!;
+    const payout = payoutFor(color, slot, stake);
+    u.stardust = u.stardust - stake + payout;
+    return {
+      ok: true,
+      outcome: {
+        kind: 'done',
+        stake,
+        betColor: color,
+        slot,
+        resultColor: colorOfSlot(slot),
+        payout,
+        balance: u.stardust,
+      },
+    };
   }
 
   if (pathname === '/api/cosmetics/buy') {

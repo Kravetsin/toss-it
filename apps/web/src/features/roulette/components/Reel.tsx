@@ -6,8 +6,15 @@ import { colorOfSlot, WHEEL_ORDER, type RouletteColor } from '@tmw/shared';
 export const SPIN_MS = 2800;
 
 const CELL_PX = 56;
-/** Three copies of the wheel: start on the first, land on the third, travel two full wheels. */
-const STRIP = [...WHEEL_ORDER, ...WHEEL_ORDER, ...WHEEL_ORDER];
+/**
+ * Four copies of the wheel. The reel resets to the SECOND and lands on the FOURTH, so it always
+ * travels two whole wheels AND always has a full copy of pockets to its left — start on the first
+ * copy and the left half of the viewport is empty void until the strip has slid far enough.
+ */
+const COPIES = 4;
+const RESET_COPY = 1;
+const LANDING_COPY = 3;
+const STRIP = Array.from({ length: COPIES }, () => WHEEL_ORDER).flat();
 
 const CELL_CLASS: Record<RouletteColor, string> = {
   red: 'bg-[#c0392f] text-white/90',
@@ -35,7 +42,7 @@ export function Reel({ slot, spinning }: { slot: number | null; spinning: boolea
   };
 
   useLayoutEffect(() => {
-    setOffset(centreOf(0));
+    setOffset(centreOf(WHEEL_ORDER.length * RESET_COPY));
   }, []);
 
   useEffect(() => {
@@ -46,7 +53,7 @@ export function Reel({ slot, spinning }: { slot: number | null; spinning: boolea
     // Jump back to the same pocket on the FIRST copy with no transition, so every spin travels the
     // same distance however the last one ended — then animate to the third copy.
     setAnimate(false);
-    setOffset(centreOf(landing));
+    setOffset(centreOf(landing + WHEEL_ORDER.length * RESET_COPY));
     // Two frames, not one: the first lets React commit the transition-less reset and the browser
     // paint it. Starting the transition in the same frame would animate from wherever the PREVIOUS
     // spin stopped, so the travel — and with it the perceived speed — would differ every time.
@@ -56,7 +63,7 @@ export function Reel({ slot, spinning }: { slot: number | null; spinning: boolea
         setAnimate(true);
         // Land a little off-centre so consecutive spins don't look like a rerun of the same frame.
         const jitter = (WHEEL_ORDER.length * 37 * ((landing % 7) + 1)) % (CELL_PX * 0.5);
-        setOffset(centreOf(landing + WHEEL_ORDER.length * 2) + jitter - CELL_PX * 0.25);
+        setOffset(centreOf(landing + WHEEL_ORDER.length * LANDING_COPY) + jitter - CELL_PX * 0.25);
       });
     });
     return () => {
