@@ -179,6 +179,7 @@ const MOCK_SETTINGS: ChannelSettings = {
   chatPlayCommand: true,
   chatTtsCommand: true,
   chatSkipCommand: true,
+  chatRouletteCommand: true,
   skipVotesNeeded: 3,
   botLocale: 'ru' as const,
   chatFontSize: 19,

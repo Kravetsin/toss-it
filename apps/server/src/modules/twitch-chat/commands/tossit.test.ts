@@ -18,14 +18,21 @@ describe('!tossit', () => {
     privileged: false,
   });
 
-  const deps = (playEnabled: boolean, ttsEnabled = false, skipEnabled = false): CommandDeps => ({
+  const deps = (
+    playEnabled: boolean,
+    ttsEnabled = false,
+    skipEnabled = false,
+    rouletteEnabled = false,
+  ): CommandDeps => ({
     queueState: () => null,
     xpFor: async () => 0,
     play: async () => ({ kind: 'disabled' }),
     say: async () => ({ kind: 'disabled' }),
     skip: async () => ({ kind: 'disabled' }),
+    bet: async () => ({ kind: 'broke', balance: 0, registered: false }),
+    betState: async () => ({ balance: 0, max: 0, registered: false }),
     channelUrl: () => 'toss-it.org/c/kravets',
-    commandState: () => ({ playEnabled, ttsEnabled, skipEnabled }),
+    commandState: () => ({ playEnabled, ttsEnabled, skipEnabled, rouletteEnabled }),
   });
 
   it('lists the other commands and points at the channel page', async () => {

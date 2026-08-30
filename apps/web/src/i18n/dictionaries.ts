@@ -728,6 +728,24 @@ export const en: Dict = {
   'dash.chatTtsCommand': 'Let viewers put a line on stream with !tts',
   'dash.chatTtsCommandNote':
     '!tts <text> sends up to {n} characters to the screen, same limits (1/min) as a site send. Read aloud only if you speak messages; goes for review unless you auto-approve text.',
+  'dash.chatRouletteCommand': 'Let viewers bet dust with !bet',
+  'dash.chatRouletteCommandNote':
+    'The stardust wheel in your chat: red/black pay double, green pays 35. Nothing converts to money — it is the same dust viewers earn watching you.',
+  'roulette.title': 'The wheel',
+  'roulette.tagline':
+    'Bet the stardust you earned watching streams. Red or black doubles it, green pays 35.',
+  'roulette.spin': 'Spin',
+  'roulette.allIn': 'Max',
+  'roulette.stake': 'Bet, up to {n}',
+  'roulette.capNote': 'Up to {n} per spin — the cap grows with your balance',
+  'roulette.broke': 'Not enough stardust to spin',
+  'roulette.wait': 'Too fast — wait {n}s',
+  'roulette.min': 'The smallest bet is {n}',
+  'roulette.max': 'Your max right now is {n}',
+  'roulette.fair': 'Seed hash',
+  'roulette.color.red': 'Red',
+  'roulette.color.black': 'Black',
+  'roulette.color.green': 'Green',
   'dash.chatSkipCommand': 'Let viewers skip with !skip',
   'dash.chatSkipCommandNote':
     'Viewers vote; you and your moderators skip with one command. Media first, then music — the background playlist is never touched.',
@@ -1669,6 +1687,24 @@ export const ru: Dict = {
   'dash.chatTtsCommand': 'Разрешить текст на экран командой !tts',
   'dash.chatTtsCommandNote':
     '!tts <текст> отправляет на экран до {n} символов, лимит тот же (1/мин), что и при отправке с сайта. Озвучится, только если у вас включено чтение сообщений; уйдёт на модерацию, если не включён автопропуск текста.',
+  'dash.chatRouletteCommand': 'Разрешить ставки командой !bet',
+  'dash.chatRouletteCommandNote':
+    'Колесо звёздной пыли в твоём чате: красное и чёрное удваивают ставку, зелёное платит 35. В деньги ничего не переводится — это та же пыль, которую зрители зарабатывают, смотря тебя.',
+  'roulette.title': 'Колесо',
+  'roulette.tagline':
+    'Ставь звёздную пыль, заработанную на стримах. Красное или чёрное удваивает, зелёное платит 35.',
+  'roulette.spin': 'Крутить',
+  'roulette.allIn': 'Максимум',
+  'roulette.stake': 'Ставка, до {n}',
+  'roulette.capNote': 'До {n} за спин — потолок растёт вместе с балансом',
+  'roulette.broke': 'Не хватает пыли на спин',
+  'roulette.wait': 'Слишком часто — подожди ещё {n}с',
+  'roulette.min': 'Минимальная ставка {n}',
+  'roulette.max': 'Твой максимум сейчас {n}',
+  'roulette.fair': 'Хеш сида',
+  'roulette.color.red': 'Красное',
+  'roulette.color.black': 'Чёрное',
+  'roulette.color.green': 'Зелёное',
   'dash.chatSkipCommand': 'Разрешить пропуск командой !skip',
   'dash.chatSkipCommandNote':
     'Зрители голосуют, ты и модераторы пропускаете с одной команды. Сначала медиа, потом музыка — фоновый плейлист не трогаем.',
@@ -2611,6 +2647,24 @@ export const uk: Dict = {
   'dash.chatTtsCommand': 'Дозволити текст на екран командою !tts',
   'dash.chatTtsCommandNote':
     '!tts <текст> надсилає на екран до {n} символів, ліміт той самий (1/хв), що й при надсиланні із сайту. Озвучиться, лише якщо у вас увімкнено читання повідомлень; піде на модерацію, якщо не ввімкнено автопропуск тексту.',
+  'dash.chatRouletteCommand': 'Дозволити ставки командою !bet',
+  'dash.chatRouletteCommandNote':
+    'Колесо зоряного пилу у твоєму чаті: червоне й чорне подвоюють ставку, зелене платить 35. У гроші нічого не переводиться — це той самий пил, який глядачі заробляють, дивлячись тебе.',
+  'roulette.title': 'Колесо',
+  'roulette.tagline':
+    'Став зоряний пил, зароблений на стрімах. Червоне або чорне подвоює, зелене платить 35.',
+  'roulette.spin': 'Крутити',
+  'roulette.allIn': 'Максимум',
+  'roulette.stake': 'Ставка, до {n}',
+  'roulette.capNote': 'До {n} за спін — стеля росте разом із балансом',
+  'roulette.broke': 'Не вистачає пилу на спін',
+  'roulette.wait': 'Занадто часто — почекай ще {n}с',
+  'roulette.min': 'Мінімальна ставка {n}',
+  'roulette.max': 'Твій максимум зараз {n}',
+  'roulette.fair': 'Хеш сіду',
+  'roulette.color.red': 'Червоне',
+  'roulette.color.black': 'Чорне',
+  'roulette.color.green': 'Зелене',
   'dash.chatSkipCommand': 'Дозволити пропуск командою !skip',
   'dash.chatSkipCommandNote':
     'Глядачі голосують, ти та модератори пропускаєте з однієї команди. Спершу медіа, потім музика — фоновий плейлист не чіпаємо.',

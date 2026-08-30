@@ -14,6 +14,7 @@ describe('isCommand', () => {
     playEnabled: false,
     ttsEnabled: false,
     skipEnabled: false,
+    rouletteEnabled: false,
     ...patch,
   });
 

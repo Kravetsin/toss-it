@@ -11,6 +11,7 @@ import {
   type EquippedCosmetics,
   type LiveViewer,
   type MediaKind,
+  type RouletteColor,
 } from '@tmw/shared';
 import { db } from '../../db/index';
 import {
@@ -42,6 +43,7 @@ import { getRewardById } from '../channel-points/store';
 import { noticeText } from './notices';
 import { t } from './strings';
 import { bumpMessage, bumpWatch, flushActivity } from './stats';
+import { betState, placeBet, type BetOutcome } from '../../roulette';
 import { refreshChatterName } from './names';
 import { createSkipVotes } from './skipVotes';
 import { planSubs } from './subplan';
@@ -125,6 +127,8 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
   let ttsCommandChannels = new Set<string>();
   /** Channel ids whose streamer enabled `!skip` (viewers vote the current show off screen). */
   let skipCommandChannels = new Set<string>();
+  /** Channel ids whose streamer enabled `!bet` (the dust wheel). Off by default. */
+  let rouletteCommandChannels = new Set<string>();
   /** channel id -> viewer votes a skip needs there. Missing = the column default. */
   let skipVotesNeeded = new Map<string, number>();
   /** Who has voted against what is on screen right now, per channel. */
@@ -270,12 +274,34 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
    * send has — the shared limits, then the shared submission pipeline (music/auto-approve/dust).
    * Disabled unless the streamer opted in. The command turns the result into a line.
    */
+  /**
+   * Back `!bet`: the engine owns the balance, the cap and the cooldown it shares with the site, so
+   * this only refuses when the streamer never switched the wheel on. A chatter with no account bets
+   * out of the dust held against their twitch id — the engine routes that itself.
+   */
+  async function betFromChat(input: {
+    channelId: string;
+    twitchId: string;
+    stake: number;
+    color: RouletteColor;
+  }): Promise<BetOutcome> {
+    return placeBet({
+      channelId: input.channelId,
+      platform: 'twitch',
+      platformUserId: input.twitchId,
+      userId: null,
+      stake: input.stake,
+      color: input.color,
+    });
+  }
+
   /** This channel's command switches — what `available()` and the mirror both ask about. */
   function commandStateOf(channelId: string): ChannelCommandState {
     return {
       playEnabled: playCommandChannels.has(channelId),
       ttsEnabled: ttsCommandChannels.has(channelId),
       skipEnabled: skipCommandChannels.has(channelId),
+      rouletteEnabled: rouletteCommandChannels.has(channelId),
     };
   }
 
@@ -566,11 +592,12 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     // shared bot account off Twitch's platform-wide spam radar.
     const toOverlay = chatEnabledChannels.has(channelId) && live;
     const toChat = botReplyChannels.has(channelId) && live;
-    // !play, !tts and !skip have a side effect (they move what is on the stream), so the registry
-    // must run even when no answer can land — the confirmation is then simply dropped, but the
-    // command itself still takes effect.
+    // !play, !tts, !skip and !bet have a side effect (they move what is on the stream, or move
+    // someone's dust), so the registry must run even when no answer can land — the confirmation is
+    // then simply dropped, but the command itself still takes effect.
     const sendOn =
-      (playCommandChannels.has(channelId) ||
+      (rouletteCommandChannels.has(channelId) ||
+        playCommandChannels.has(channelId) ||
         ttsCommandChannels.has(channelId) ||
         skipCommandChannels.has(channelId)) &&
       live;
@@ -595,6 +622,9 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
           play: playFromChat,
           say: sayFromChat,
           skip: skipFromChat,
+          bet: betFromChat,
+          betState: (twitchId) =>
+            betState({ platform: 'twitch', platformUserId: twitchId, userId: null }),
           channelUrl,
           commandState: commandStateOf,
         },
@@ -890,6 +920,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
         playCommand: channels.chatPlayCommand,
         ttsCommand: channels.chatTtsCommand,
         skipCommand: channels.chatSkipCommand,
+        rouletteCommand: channels.chatRouletteCommand,
         skipVotes: channels.skipVotesNeeded,
         botLocale: channels.botLocale,
         ownerLogin: users.login,
@@ -913,6 +944,7 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     playCommandChannels = new Set(modded.filter((r) => r.playCommand).map((r) => r.id));
     ttsCommandChannels = new Set(modded.filter((r) => r.ttsCommand).map((r) => r.id));
     skipCommandChannels = new Set(modded.filter((r) => r.skipCommand).map((r) => r.id));
+    rouletteCommandChannels = new Set(modded.filter((r) => r.rouletteCommand).map((r) => r.id));
     skipVotesNeeded = new Map(modded.map((r) => [r.id, r.skipVotes]));
     botLocales = new Map(modded.map((r) => [r.id, r.botLocale]));
     channelLogins = new Map(modded.map((r) => [r.id, r.ownerLogin]));

@@ -1,4 +1,5 @@
-import type { BotLocale, ChatSystemLine } from '@tmw/shared';
+import type { BotLocale, ChatSystemLine, RouletteColor } from '@tmw/shared';
+import type { BetOutcome } from '../../../roulette';
 import type { QueueState } from '../../../playback';
 
 /** What the triggering message tells a command about its caller. */
@@ -66,6 +67,8 @@ export interface ChannelCommandState {
   ttsEnabled: boolean;
   /** `!skip` — the one command that takes a post off the screen instead of putting one on it. */
   skipEnabled: boolean;
+  /** `!bet` — the dust wheel. Off by default: a betting game in someone else's chat is its own yes. */
+  rouletteEnabled: boolean;
 }
 
 /** Live state a command cannot read from the DB, injected by the twitch-chat module. */
@@ -99,6 +102,16 @@ export interface CommandDeps {
   /** Skip what is on screen (`!skip`). Owns the enable gate, the vote tally and the playback call;
    *  the command only turns the result into a line. */
   skip(input: { channelId: string; twitchId: string; privileged: boolean }): Promise<SkipResult>;
+  /** Spin the dust wheel (`!bet`). The engine owns the balance, the cap and the 60s cooldown it
+   *  shares with the site; the command only turns the outcome into a line. */
+  bet(input: {
+    channelId: string;
+    twitchId: string;
+    stake: number;
+    color: RouletteColor;
+  }): Promise<BetOutcome>;
+  /** This caller's balance and current cap, for a bare `!bet`. */
+  betState(twitchId: string): Promise<{ balance: number; max: number; registered: boolean }>;
 }
 
 /** One command = one file in this folder + one entry in the registry (see ./index.ts). */

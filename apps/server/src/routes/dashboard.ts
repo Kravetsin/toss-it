@@ -221,6 +221,7 @@ function toSettings(
       playEnabled: ch.chatPlayCommand,
       ttsEnabled: ch.chatTtsCommand,
       skipEnabled: ch.chatSkipCommand,
+      rouletteEnabled: ch.chatRouletteCommand,
     }),
     chatBotLogin: chatBot.login,
     chatBotReading: chatBot.reading,
@@ -244,6 +245,7 @@ function toSettings(
     chatPlayCommand: ch.chatPlayCommand,
     chatTtsCommand: ch.chatTtsCommand,
     chatSkipCommand: ch.chatSkipCommand,
+    chatRouletteCommand: ch.chatRouletteCommand,
     skipVotesNeeded: ch.skipVotesNeeded,
     botLocale: ch.botLocale,
     chatFontSize: ch.chatFontSize,
@@ -738,6 +740,10 @@ export function registerDashboardRoutes(app: FastifyInstance, deps: DashboardRou
           typeof b.chatTtsCommand === 'boolean' ? b.chatTtsCommand : channel.chatTtsCommand,
         chatSkipCommand:
           typeof b.chatSkipCommand === 'boolean' ? b.chatSkipCommand : channel.chatSkipCommand,
+        chatRouletteCommand:
+          typeof b.chatRouletteCommand === 'boolean'
+            ? b.chatRouletteCommand
+            : channel.chatRouletteCommand,
         skipVotesNeeded:
           typeof b.skipVotesNeeded === 'number'
             ? clampSkipVotes(b.skipVotesNeeded)

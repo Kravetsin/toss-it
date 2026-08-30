@@ -10,6 +10,7 @@ import { registerDashboardRoutes } from './dashboard';
 import { registerDirectoryRoutes } from './directory';
 import { registerMediaRoutes, type MediaRoutesDeps } from './media';
 import { registerPromoRoutes } from './promo';
+import { registerRouletteRoutes } from './roulette';
 import { registerDonationRoutes } from './donations';
 import type { TwitchChatModule } from '../modules/twitch-chat/index';
 import type { ChannelPointsModule } from '../modules/channel-points/index';
@@ -56,5 +57,6 @@ export function registerRoutes(
   });
   registerDonationRoutes(app, deps.io);
   registerPromoRoutes(app);
+  registerRouletteRoutes(app);
   registerAdminRoutes(app, { twitchChat: deps.twitchChat, playback: deps.playback });
 }

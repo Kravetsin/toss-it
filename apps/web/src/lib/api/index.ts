@@ -7,4 +7,5 @@ export * from './directory';
 export * from './invites';
 export * from './link';
 export * from './promo';
+export * from './roulette';
 export * from './shop';

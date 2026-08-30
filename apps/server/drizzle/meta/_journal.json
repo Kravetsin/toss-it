@@ -498,6 +498,13 @@
       "when": 1787994292773,
       "tag": "0070_bitter_dreadnoughts",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "6",
+      "when": 1788087138248,
+      "tag": "0071_quiet_wendell_vaughn",
+      "breakpoints": true
     }
   ]
 }

@@ -799,6 +799,8 @@ export interface ChannelSettings {
   /** Let viewers take what is on screen off it with `!skip` — a vote for viewers, one command
    *  for the streamer and their moderators. */
   chatSkipCommand: boolean;
+  /** Let viewers bet stardust on the wheel with `!bet`. */
+  chatRouletteCommand: boolean;
   /** Viewer votes a `!skip` needs (SKIP_VOTES bounds). */
   skipVotesNeeded: number;
   /** Language the bot answers in. Separate from the dashboard's own language: the streamer may
@@ -909,6 +911,7 @@ export * from './displayName';
 export * from './dust';
 export * from './level';
 export * from './realtime';
+export * from './roulette';
 export * from './theme';
 
 /** Validate a #rrggbb hex color (exactly 6 hex digits, no alpha). */

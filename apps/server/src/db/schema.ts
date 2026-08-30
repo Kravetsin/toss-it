@@ -15,6 +15,7 @@ import type {
   MusicDisplay,
   MusicTrack,
   OverlayPosition,
+  RouletteColor,
   SubmissionStatus,
 } from '@tmw/shared';
 
@@ -150,6 +151,14 @@ export const channels = sqliteTable('channels', {
    * single command, while everyone else has to gather `skipVotesNeeded` votes.
    */
   chatSkipCommand: integer('chat_skip_command', { mode: 'boolean' }).notNull().default(false),
+  /**
+   * Let viewers bet stardust on the wheel with `!bet`. Off by default: it puts a betting game in
+   * someone else's chat, which is a separate yes from /mod'ding the bot. Nothing here converts to
+   * money, so Twitch's gambling rules don't reach it — the streamer decides anyway.
+   */
+  chatRouletteCommand: integer('chat_roulette_command', { mode: 'boolean' })
+    .notNull()
+    .default(false),
   /** Viewer votes that skip the current show; 2–10, clamped on write. */
   skipVotesNeeded: integer('skip_votes_needed').notNull().default(3),
   /** Language the bot answers commands in. Seeded from the dashboard's language at channel
@@ -640,7 +649,60 @@ export const submissionPayouts = sqliteTable(
   ],
 );
 
+/**
+ * The wheel's commitment chain. A result must be provable AFTER the fact, which is only possible if
+ * we committed to it BEFORE — so a channel publishes `seedHash` first, spins against the hidden
+ * `seed`, and reveals it on rotation. Retrofitting this is impossible: spins already played can
+ * never be proven fair, which is why it ships with v1 rather than after the first accusation.
+ */
+export const rouletteSeeds = sqliteTable(
+  'roulette_seeds',
+  {
+    seedHash: text('seed_hash').primaryKey(),
+    /** Null while live; filled on rotation, which is what makes past spins verifiable. */
+    seed: text('seed'),
+    /** Spins produced so far — also the HMAC counter, so it must never go backwards. */
+    nonce: integer('nonce').notNull().default(0),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    revealedAt: integer('revealed_at', { mode: 'timestamp_ms' }),
+  },
+  // One chain for the whole app, not one per channel: a site bet belongs to no channel, and a
+  // single chain verifies exactly as well while leaving `!fair` with one answer for everyone.
+  (t) => [index('idx_roulette_seed_live').on(t.revealedAt)],
+);
+
+/**
+ * Every spin, kept as the answer to "the wheel is rigged" — the seed plus the nonce recomputes the
+ * slot exactly. Keyed by platform id rather than user id because an unregistered chatter can bet
+ * out of the dust we are holding for them, and has no account to point at yet.
+ *
+ * Pruned by the cleanup sweep: this grows by thousands per busy stream, and a month outlives both
+ * the dispute window and a seed rotation.
+ */
+export const rouletteSpins = sqliteTable(
+  'roulette_spins',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    /** Which chat it was placed from; null = placed on the site, which belongs to no channel. */
+    channelId: text('channel_id'),
+    platform: text('platform').notNull(),
+    platformUserId: text('platform_user_id').notNull(),
+    /** Null when the better has no account — the stake came out of pending_dust. */
+    userId: text('user_id'),
+    stake: integer('stake').notNull(),
+    betColor: text('bet_color').$type<RouletteColor>().notNull(),
+    slot: integer('slot').notNull(),
+    /** Total returned including the stake; 0 = lost. */
+    payout: integer('payout').notNull(),
+    seedHash: text('seed_hash').notNull(),
+    nonce: integer('nonce').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [index('idx_roulette_spins_channel').on(t.channelId, t.createdAt)],
+);
+
 export type UserRow = typeof users.$inferSelect;
+export type RouletteSpinRow = typeof rouletteSpins.$inferSelect;
 export type SubmissionPayoutRow = typeof submissionPayouts.$inferSelect;
 export type UserCosmeticRow = typeof userCosmetics.$inferSelect;
 export type ChannelRow = typeof channels.$inferSelect;

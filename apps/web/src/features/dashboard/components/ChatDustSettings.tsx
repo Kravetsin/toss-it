@@ -32,6 +32,7 @@ export function ChatDustSettings({
   const [playCommand, setPlayCommand] = useState(settings.chatPlayCommand);
   const [ttsCommand, setTtsCommand] = useState(settings.chatTtsCommand);
   const [skipCommand, setSkipCommand] = useState(settings.chatSkipCommand);
+  const [rouletteCommand, setRouletteCommand] = useState(settings.chatRouletteCommand);
   const [skipVotes, setSkipVotes] = useState(settings.skipVotesNeeded);
   const [botLocale, setBotLocale] = useState<BotLocale>(settings.botLocale);
   if (!settings.chatBotLogin) return null;
@@ -104,6 +105,15 @@ export function ChatDustSettings({
               onChange={setSkipVotes}
             />
           )}
+          {/* Last of the command switches because it is the only one that touches nobody's
+              stream — it moves viewers' dust between themselves and us, and nothing else. */}
+          <Switch
+            icon="sparkles"
+            label={t('dash.chatRouletteCommand')}
+            description={t('dash.chatRouletteCommandNote')}
+            checked={rouletteCommand}
+            onChange={setRouletteCommand}
+          />
           <div className="flex flex-col gap-1.5">
             {/* Select renders `label` as aria only, so the visible caption is ours to draw. */}
             <span className="label-mono text-faint">{t('dash.botLocale')}</span>
@@ -122,6 +132,7 @@ export function ChatDustSettings({
                 chatPlayCommand: playCommand,
                 chatTtsCommand: ttsCommand,
                 chatSkipCommand: skipCommand,
+                chatRouletteCommand: rouletteCommand,
                 skipVotesNeeded: skipVotes,
                 botLocale,
               })

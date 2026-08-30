@@ -1,7 +1,7 @@
 import { and, inArray, isNotNull, isNull, lt, eq, notInArray } from 'drizzle-orm';
 import type { FastifyBaseLogger } from 'fastify';
 import { db } from './db/index';
-import { submissions } from './db/schema';
+import { rouletteSpins, submissions } from './db/schema';
 import { config } from './config';
 import type { Payouts } from './media/payout';
 import type { Storage } from './storage';
@@ -14,6 +14,9 @@ import type { Storage } from './storage';
  * `liveChannelIds` returns the channels currently in the air (an overlay is connected). Their queues
  * are exempt from the TTL sweep — see sweep().
  */
+/** How long a spin stays checkable. See the prune at the end of sweep(). */
+const SPIN_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+
 export function startCleanup(
   storage: Storage,
   log: FastifyBaseLogger,
@@ -131,4 +134,12 @@ export async function sweep(
       ),
     );
   if (rowsAffected) log.info({ n: rowsAffected }, 'self-send submissions purged');
+
+  // The wheel's audit trail. A busy channel writes thousands of these per stream, and a month
+  // outlives both the dispute window and a seed rotation — after that they answer nothing anyone
+  // is still asking.
+  const spins = await db
+    .delete(rouletteSpins)
+    .where(lt(rouletteSpins.createdAt, new Date(now - SPIN_RETENTION_MS)));
+  if (spins.rowsAffected) log.info({ n: spins.rowsAffected }, 'roulette spins pruned');
 }
