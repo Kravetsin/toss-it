@@ -732,10 +732,8 @@ export const en: Dict = {
   'dash.chatRouletteCommandNote':
     'The stardust wheel in your chat: red/black pay double, green pays 35. Nothing converts to money — it is the same dust viewers earn watching you.',
   'roulette.title': 'The wheel',
-  'roulette.tagline':
-    'Bet the stardust you earned watching streams. Red or black doubles it, green pays 35.',
-  'roulette.throwHint':
-    'Throw a chip on the wheel — up to {n} per spin, the cap grows with your balance',
+  'roulette.throwHint': 'Drag a tile onto the wheel',
+  'roulette.odds': 'Red / black pay double · green pays 35',
   'roulette.broke': 'Not enough stardust to spin',
   'roulette.wait': 'Too fast — wait {n}s',
   'roulette.min': 'The smallest bet is {n}',
@@ -1689,9 +1687,8 @@ export const ru: Dict = {
   'dash.chatRouletteCommandNote':
     'Колесо звёздной пыли в твоём чате: красное и чёрное удваивают ставку, зелёное платит 35. В деньги ничего не переводится — это та же пыль, которую зрители зарабатывают, смотря тебя.',
   'roulette.title': 'Колесо',
-  'roulette.tagline':
-    'Ставь звёздную пыль, заработанную на стримах. Красное или чёрное удваивает, зелёное платит 35.',
-  'roulette.throwHint': 'Брось фишку на колесо — до {n} за спин, потолок растёт вместе с балансом',
+  'roulette.throwHint': 'Перетащи плитку на колесо',
+  'roulette.odds': 'Красное и чёрное удваивают · зелёное платит 35',
   'roulette.broke': 'Не хватает пыли на спин',
   'roulette.wait': 'Слишком часто — подожди ещё {n}с',
   'roulette.min': 'Минимальная ставка {n}',
@@ -2646,9 +2643,8 @@ export const uk: Dict = {
   'dash.chatRouletteCommandNote':
     'Колесо зоряного пилу у твоєму чаті: червоне й чорне подвоюють ставку, зелене платить 35. У гроші нічого не переводиться — це той самий пил, який глядачі заробляють, дивлячись тебе.',
   'roulette.title': 'Колесо',
-  'roulette.tagline':
-    'Став зоряний пил, зароблений на стрімах. Червоне або чорне подвоює, зелене платить 35.',
-  'roulette.throwHint': 'Кинь фішку на колесо — до {n} за спін, стеля росте разом із балансом',
+  'roulette.throwHint': 'Перетягни плитку на колесо',
+  'roulette.odds': 'Червоне й чорне подвоюють · зелене платить 35',
   'roulette.broke': 'Не вистачає пилу на спін',
   'roulette.wait': 'Занадто часто — почекай ще {n}с',
   'roulette.min': 'Мінімальна ставка {n}',

@@ -213,17 +213,33 @@ middle of the box, which is the one thing an arc does not have.
 
 ### Controls
 
-**No Spin button.** The three colours are chips you throw at the wheel: the chip IS the verb, so
-choosing a colour and committing to it are one motion instead of two. A tap plays as well — drag is
-not discoverable enough to be the only way in, and on a trackpad it is simply worse.
+**A drawer, not a page.** It rises from the bottom and the ARC ITSELF is its boundary — no panel
+behind it, so outside the disc the page keeps showing through. Everything the player needs sits
+inside the arc: three tiles and a stake. Opened from the sidebar and the profile menu, the same way
+the shop is.
 
-Move and release are watched on the WINDOW, not on the chip. Pointer capture is the usual way and it
-is exactly what strands a chip: lose the capture and the release never arrives, so the chip stays
-held and the wheel stays armed with nothing left to release it.
+**No Spin button, and no tap either.** The three colours are bare tiles thrown at the wheel: the
+tile IS the verb, so choosing a colour and committing to it are one motion. Drag only — a tap would
+put someone's stake one misclick away, and the point of throwing a chip is that committing takes
+intent rather than a twitch. A thrown tile leaves its socket and stays gone until the wheel stops,
+because it is on the wheel and cannot also be in the tray.
 
-**The stake is a drum, not a field.** Flick it; harder flicks coast further. Steps of ten, momentum
-with friction, snapping to the nearest step when it stops. A number field asks the player to decide
-before they have touched anything, which is the difference between filling in a form and playing.
+The drop target is geometry, not DOM: the band is drawn, so `overBand` tests the client point
+against the circle. Move and release are watched on the WINDOW rather than through pointer capture —
+lose the capture and the release never arrives, which strands the tile held forever.
+
+**Rates are printed under the tray**, not on the tiles. A verb with a number on it stops reading as
+a thing you can pick up.
+
+**The stake is a drum, not a field.** Flick it; harder flicks coast further, steps of ten, snapping
+to the nearest step. Velocity is measured over a 90 ms WINDOW of samples, not from the last pair:
+a single 1px jitter across a 1ms frame reads as 1 px/ms, which under this friction throws the drum
+five steps — which is exactly why placing it on a number by hand always landed on the next one. Over
+a window, holding still for a moment IS zero velocity.
+
+**No numbers on the pockets.** The bet is on colour, adjacent pockets already alternate, and the
+flapper is what shows they are discrete units — so the numbers were decoration competing with the
+one thing that matters.
 
 ## Phase 2 — the overlay wheel
 

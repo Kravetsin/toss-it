@@ -6,7 +6,7 @@ import { disintegrate } from '@/lib/burst';
  * The wheel: the rim of a very large disc under glass, drawn on canvas.
  *
  * Canvas because wedges want to be wedges — laid out as rotated DOM rectangles they leave gaps at
- * the rim, and a conic-gradient cannot carry the numbers. It is also the cheaper of the two: one
+ * the rim, and because the glass over them is one even-odd fill rather than a stack of layers. One
  * context, a dozen paths a frame, which is the budget every effect here is held to.
  *
  * The pockets are an INFINITE strip along the arc, not a closed ring: pocket `k` sits at `k · STEP`
@@ -14,12 +14,29 @@ import { disintegrate } from '@/lib/burst';
  * exactly 360°, which they don't, and forcing it leaves a seam that eventually rotates into view.
  */
 
-/** Degrees per pocket. Sized so ~8 sit in the window: fewer reads as a slot machine, more and the
- *  numbers stop being legible while moving. */
+/** Degrees per pocket. Sized so a handful sit across the visible arc: fewer reads as a slot
+ *  machine, more and the pockets stop being distinguishable while moving. */
 const STEP = 7;
-const R = 560;
-const DEPTH = 62;
+const DEPTH = 66;
 const TOP_PAD = 18;
+
+/** The disc's radius, from the box it is drawn in. Fixed radii read as a different object on every
+ *  screen — flat on a desktop, a tight bend on a phone — so it scales and then clamps. */
+export function radiusFor(width: number): number {
+  return Math.min(900, Math.max(420, width * 0.62));
+}
+
+/** Is this client point on the wheel's band? The drop test for a thrown chip, kept here because the
+ *  geometry is: the band is drawn, never laid out, so there is no element to hit-test. */
+export function overBand(canvas: HTMLCanvasElement | null, x: number, y: number): boolean {
+  if (!canvas) return false;
+  const box = canvas.getBoundingClientRect();
+  const r = radiusFor(box.width);
+  const dx = x - (box.left + box.width / 2);
+  const dy = y - (box.top + TOP_PAD + r);
+  const d = Math.hypot(dx, dy);
+  return d <= r + 10 && d >= r - DEPTH - 10;
+}
 
 /** Half-width of the hole in the glass, in pockets. Wide enough to show the winner's neighbours —
  *  a hole one pocket wide would answer the question before the wheel had stopped asking it. */
@@ -30,12 +47,6 @@ const FILL: Record<RouletteColor, string> = {
   black: '#141a21',
   green: '#8df0cc',
 };
-const TEXT: Record<RouletteColor, string> = {
-  red: 'rgba(255,255,255,0.92)',
-  black: 'rgba(255,255,255,0.74)',
-  green: '#08160f',
-};
-
 /**
  * ONE curve, start to stop. An earlier version braked to a halt and then crept to the next pocket,
  * which was worse than no suspense at all: a wheel that stops on red and then moves has announced
@@ -67,6 +78,9 @@ export function Wheel({
   spinning,
   suspense = true,
   armed = null,
+  interior = false,
+  canvasRef: externalRef,
+  className = 'block h-[150px] w-full',
   onSettled,
 }: {
   /** The pocket the server picked. The animation only ever agrees with it. */
@@ -76,11 +90,17 @@ export function Wheel({
   suspense?: boolean;
   /** Colour being dragged over the wheel right now — lights the window's frame in it. */
   armed?: RouletteColor | null;
+  /** Fill the disc's inside, making the arc the boundary of whatever sits under it. */
+  interior?: boolean;
+  /** Handed out so a caller can hit-test the band (see overBand). */
+  canvasRef?: React.RefObject<HTMLCanvasElement | null>;
+  className?: string;
   /** Fired once the pointer has settled. The verdict, the balance and the burst all wait for it,
    *  or the result is given away while the wheel is still turning. */
   onSettled?: () => void;
 }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const ownRef = useRef<HTMLCanvasElement>(null);
+  const canvasRef = externalRef ?? ownRef;
   const rotation = useRef(0);
   const raf = useRef(0);
   /** Deflection of the pointer, degrees. Positive leans it LEFT — the way the pockets travel. */
@@ -104,16 +124,27 @@ export function Wheel({
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
 
+    const R = radiusFor(w);
     const cx = w / 2;
     const cy = R + TOP_PAD;
+
+    // The disc's inside is the drawer's body: everything under the band, clipped to the circle, so
+    // the arc IS the boundary and there is no panel behind it.
+    if (interior) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cx, cy, R - DEPTH + 1, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(9,13,15,0.94)';
+      ctx.fill();
+      ctx.restore();
+    }
     const rot = rotation.current;
     const rad = (deg: number) => (deg * Math.PI) / 180;
     const centre = Math.round(rot / STEP);
     const span = Math.ceil(w / 2 / ((2 * Math.PI * R) / (360 / STEP))) + 2;
 
     for (let k = centre - span; k <= centre + span; k++) {
-      const face = faceOf(k);
-      const colour = colorOfSlot(face);
+      const colour = colorOfSlot(faceOf(k));
       const mid = rad(angleOf(k) - rot) - Math.PI / 2;
       const half = rad(STEP / 2);
 
@@ -136,19 +167,6 @@ export function Wheel({
       ctx.strokeStyle = 'rgba(0,0,0,0.55)';
       ctx.lineWidth = 1.5;
       ctx.stroke();
-
-      // Numbers ride the wheel: upright at the top, tilting away at the edges — that is what says
-      // "disc" more than the curve of the rim alone does.
-      const tr = R - DEPTH / 2;
-      ctx.save();
-      ctx.translate(cx + Math.cos(mid) * tr, cy + Math.sin(mid) * tr);
-      ctx.rotate(mid + Math.PI / 2);
-      ctx.fillStyle = TEXT[colour];
-      ctx.font = '600 15px ui-monospace, monospace';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(String(face), 0, 0);
-      ctx.restore();
     }
 
     // Depth toward the hub. A RADIAL gradient because the band is an arc: the straight fillRect
@@ -172,8 +190,13 @@ export function Wheel({
     winPath.arc(cx, cy, R - DEPTH - 7, top + halfWin, top - halfWin, true);
     winPath.closePath();
 
+    // Three subpaths, even-odd: the ring is covered once (filled), the hub twice (clear), and the
+    // window twice (clear). Bounding it by the disc rather than the canvas is what lets the page
+    // show through outside the arc.
     const glass = new Path2D();
-    glass.rect(0, 0, w, h);
+    glass.arc(cx, cy, R + 1, 0, Math.PI * 2);
+    glass.moveTo(cx + R - DEPTH, cy);
+    glass.arc(cx, cy, R - DEPTH, 0, Math.PI * 2);
     glass.addPath(winPath);
     ctx.fillStyle = 'rgba(5,9,11,0.68)';
     ctx.fill(glass, 'evenodd');
@@ -303,7 +326,7 @@ export function Wheel({
     // spin mid-flight, which is worse than calling a callback one render old.
   }, [spinning, slot, suspense]);
 
-  return <canvas ref={canvasRef} className="block h-[150px] w-full" aria-hidden="true" />;
+  return <canvas ref={canvasRef} className={className} aria-hidden="true" />;
 }
 
 /**

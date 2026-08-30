@@ -13,6 +13,7 @@ import { BrandSeal } from '@/components/BrandSeal';
 import { DustMark } from '@/components/DustMark';
 import { NewDotGroup } from '@/components/NewDot';
 import { ProfileCard } from '@/components/ProfileCard';
+import { useRoulette } from '@/providers/RouletteProvider';
 import { useShop } from '@/providers/ShopProvider';
 import { useStreamers } from '@/providers/StreamersProvider';
 import { NotificationBell } from '@/components/NotificationBell';
@@ -337,6 +338,7 @@ function Sidebar({
   const { t } = useI18n();
   const { openShop } = useShop();
   const { openStreamers } = useStreamers();
+  const { openRoulette } = useRoulette();
   return (
     <aside
       className="relative sticky top-0 hidden h-screen shrink-0 flex-col border-r border-border bg-surface md:flex overflow-visible"
@@ -407,6 +409,12 @@ function Sidebar({
           collapsed={collapsed}
           onClick={openStreamers}
         />
+        <NavButton
+          icon="reload"
+          label={t('roulette.title')}
+          collapsed={collapsed}
+          onClick={openRoulette}
+        />
         <NotificationBell variant="sidebar" collapsed={collapsed} />
       </nav>
 
@@ -472,6 +480,7 @@ function MobileSidebar({
 }) {
   const { t } = useI18n();
   const { openStreamers } = useStreamers();
+  const { openRoulette } = useRoulette();
 
   useEffect(() => {
     if (!open) return;
@@ -536,6 +545,14 @@ function MobileSidebar({
             onClick={() => {
               onClose();
               openStreamers();
+            }}
+          />
+          <NavButton
+            icon="reload"
+            label={t('roulette.title')}
+            onClick={() => {
+              onClose();
+              openRoulette();
             }}
           />
         </nav>

@@ -4,6 +4,7 @@ import { LEVEL_GLOW_FROM, levelThreshold, levelTier, MAX_LEVEL, toRoman } from '
 import { logout } from '@/lib/api';
 import { useMe } from '@/hooks/useMe';
 import { useI18n } from '@/i18n';
+import { useRoulette } from '@/providers/RouletteProvider';
 import { useShop } from '@/providers/ShopProvider';
 import { useStreamers } from '@/providers/StreamersProvider';
 import { useApiAction } from '@/hooks/useApiAction';
@@ -68,6 +69,7 @@ export function ProfileMenu({
   const { me, refresh } = useMe();
   const { t } = useI18n();
   const { openShop } = useShop();
+  const { openRoulette } = useRoulette();
   const { openStreamers } = useStreamers();
   const act = useApiAction();
   const navigate = useNavigate();
@@ -216,6 +218,16 @@ export function ProfileMenu({
             onClick={() => {
               setOpen(false);
               openShop();
+            }}
+          />
+          {/* Under the shop: the wheel is where dust goes to become more dust, and the shop is
+              what it is ultimately for. */}
+          <Row
+            icon="reload"
+            label={t('roulette.title')}
+            onClick={() => {
+              setOpen(false);
+              openRoulette();
             }}
           />
           <Row

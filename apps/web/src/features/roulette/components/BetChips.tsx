@@ -1,82 +1,75 @@
 import { useEffect, useRef, useState } from 'react';
-import { PAYOUT, type RouletteColor } from '@tmw/shared';
-import { useI18n } from '@/i18n';
+import type { RouletteColor } from '@tmw/shared';
 
 const COLORS: RouletteColor[] = ['red', 'black', 'green'];
 
 const SWATCH: Record<RouletteColor, string> = {
   red: 'bg-[#b8342a]',
-  black: 'bg-[#141a21] ring-1 ring-white/20',
+  black: 'bg-[#141a21] ring-1 ring-white/25',
   green: 'bg-accent',
 };
 
-/** How far the pointer must travel before this counts as a drag rather than a tap. */
+/** How far the pointer must travel before a press counts as a drag. */
 const SLOP = 8;
 
 /**
- * The three bets, as chips you throw at the wheel. There is no Spin button on purpose: the chip IS
- * the verb, so choosing a colour and committing to it are one motion instead of two.
+ * The three bets, as bare colour tiles thrown at the wheel.
  *
- * A tap plays too. Drag is the flourish and it is not discoverable enough to be the only way in —
- * and on a trackpad it is simply worse.
+ * DRAG ONLY, deliberately. A tap would put someone's stake one misclick away, and the whole point of
+ * throwing a chip is that committing takes an act of intent rather than a twitch.
+ *
+ * A thrown tile leaves its slot and stays gone until the wheel has stopped — it is on the wheel, so
+ * it cannot also be sitting in the tray — and then drops back into place.
  */
 export function BetChips({
   disabled,
-  dropRef,
+  away,
+  hitTest,
   onArm,
   onPlay,
 }: {
   disabled?: boolean;
-  /** The wheel. A chip released over it is a bet; released anywhere else it goes home. */
-  dropRef: React.RefObject<HTMLElement | null>;
-  /** Which colour is currently held over the wheel, so it can light its frame. */
+  /** The tile currently out on the wheel; null once the spin has settled and it may come home. */
+  away: RouletteColor | null;
+  /** Whether a client point is on the wheel's band. Geometry, not DOM: the band is drawn. */
+  hitTest: (x: number, y: number) => boolean;
+  /** Which colour is over the wheel right now, so its frame can light up. */
   onArm: (c: RouletteColor | null) => void;
   onPlay: (c: RouletteColor) => void;
 }) {
-  const { t } = useI18n();
   const [held, setHeld] = useState<RouletteColor | null>(null);
   const [ghost, setGhost] = useState<{ x: number; y: number } | null>(null);
   const origin = useRef({ x: 0, y: 0 });
   const moved = useRef(false);
-  // Read through refs: the window listeners are bound once per held chip and must not go stale.
+  // Read through refs: the window listeners bind once per held tile and must not go stale.
   const onArmRef = useRef(onArm);
   onArmRef.current = onArm;
   const onPlayRef = useRef(onPlay);
   onPlayRef.current = onPlay;
+  const hitRef = useRef(hitTest);
+  hitRef.current = hitTest;
 
-  const overWheel = (x: number, y: number): boolean => {
-    const box = dropRef.current?.getBoundingClientRect();
-    return !!box && x >= box.left && x <= box.right && y >= box.top && y <= box.bottom;
-  };
-
-  // Move and release are watched on the WINDOW, not on the chip. Pointer capture is the usual way
-  // to do this and it is exactly what strands a chip: lose the capture — a cancelled gesture, a
-  // pointer that left the surface — and the release never arrives, so the chip stays held and the
-  // wheel stays armed with nothing to release it.
+  // Move and release are watched on the WINDOW, not on the tile. Pointer capture is the usual way
+  // and it is exactly what strands a chip: lose the capture — a cancelled gesture, a pointer that
+  // left the surface — and the release never arrives, so the tile stays held forever.
   useEffect(() => {
     if (!held) return;
     const move = (e: PointerEvent) => {
-      const dx = e.clientX - origin.current.x;
-      const dy = e.clientY - origin.current.y;
-      if (!moved.current && Math.hypot(dx, dy) < SLOP) return;
+      const d = Math.hypot(e.clientX - origin.current.x, e.clientY - origin.current.y);
+      if (!moved.current && d < SLOP) return;
       moved.current = true;
       setGhost({ x: e.clientX, y: e.clientY });
-      onArmRef.current(overWheel(e.clientX, e.clientY) ? held : null);
+      onArmRef.current(hitRef.current(e.clientX, e.clientY) ? held : null);
     };
-    const up = (e: PointerEvent) => {
-      const dragged = moved.current;
+    const finish = (e: PointerEvent | null) => {
+      const landed = !!e && moved.current && hitRef.current(e.clientX, e.clientY);
       setHeld(null);
       setGhost(null);
       onArmRef.current(null);
-      // A tap plays; a drag plays only if it landed on the wheel, so changing your mind is just a
-      // matter of letting go somewhere else.
-      if (!dragged || overWheel(e.clientX, e.clientY)) onPlayRef.current(held);
+      if (landed) onPlayRef.current(held);
     };
-    const cancel = () => {
-      setHeld(null);
-      setGhost(null);
-      onArmRef.current(null);
-    };
+    const up = (e: PointerEvent) => finish(e);
+    const cancel = () => finish(null);
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
     window.addEventListener('pointercancel', cancel);
@@ -88,7 +81,7 @@ export function BetChips({
   }, [held]);
 
   const down = (c: RouletteColor) => (e: React.PointerEvent<HTMLButtonElement>) => {
-    if (disabled) return;
+    if (disabled || away) return;
     origin.current = { x: e.clientX, y: e.clientY };
     moved.current = false;
     setHeld(c);
@@ -96,33 +89,39 @@ export function BetChips({
 
   return (
     <>
-      <div className="flex flex-wrap gap-2">
-        {COLORS.map((c) => (
-          <button
-            key={c}
-            type="button"
-            disabled={disabled}
-            onPointerDown={down(c)}
-            style={{ touchAction: 'none' }}
-            className={`flex flex-1 cursor-grab select-none items-center justify-center gap-2 rounded-[var(--radius)] px-4 py-3 ring-1 ring-white/10 transition-all hover:ring-white/30 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-40 ${
-              held === c ? 'opacity-40 ring-accent' : ''
-            }`}
-          >
-            <span className={`size-4 rounded-full ${SWATCH[c]}`} />
-            <span className="label-mono">{t(`roulette.color.${c}`)}</span>
-            <span className="text-faint">×{PAYOUT[c]}</span>
-          </button>
-        ))}
+      <div className="flex items-center justify-center gap-3">
+        {COLORS.map((c) => {
+          // Out on the wheel, or in hand. The socket keeps its size either way, so nothing shifts
+          // under the finger and the tile has somewhere to fall back into.
+          const gone = away === c || held === c;
+          return (
+            <button
+              key={c}
+              type="button"
+              disabled={disabled}
+              onPointerDown={down(c)}
+              style={{ touchAction: 'none' }}
+              aria-label={c}
+              className="grid size-14 cursor-grab place-items-center rounded-2xl ring-1 ring-inset ring-white/10 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <span
+                className={`size-11 rounded-xl shadow-[0_4px_14px_rgba(0,0,0,0.45)] transition-[transform,opacity] duration-300 ${SWATCH[c]} ${
+                  gone ? 'scale-50 opacity-0' : 'scale-100 opacity-100'
+                }`}
+              />
+            </button>
+          );
+        })}
       </div>
 
-      {/* The chip in flight. Fixed and pointer-transparent so it never eats the drop it is part of. */}
+      {/* The tile in flight. Fixed and pointer-transparent so it never eats the drop it is part of. */}
       {held && ghost && (
         <div
-          className="pointer-events-none fixed z-50 -translate-x-1/2 -translate-y-1/2"
+          className="pointer-events-none fixed z-[60] -translate-x-1/2 -translate-y-1/2"
           style={{ left: ghost.x, top: ghost.y }}
         >
           <span
-            className={`block size-9 rounded-full shadow-[0_6px_20px_rgba(0,0,0,0.6)] ${SWATCH[held]}`}
+            className={`block size-11 rounded-xl shadow-[0_8px_26px_rgba(0,0,0,0.7)] ${SWATCH[held]}`}
           />
         </div>
       )}

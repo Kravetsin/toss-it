@@ -16,7 +16,9 @@ const GRAIN = 10;
 /** Friction per millisecond. Tuned so a hard flick coasts a couple of seconds, a nudge barely moves. */
 const DRAG = 0.0026;
 /** Below this the drum is done coasting and snaps to the nearest step. */
-const STILL = 0.02;
+const STILL = 0.05;
+/** How far back velocity is measured. Long enough that a pause before letting go reads as a stop. */
+const VEL_WINDOW_MS = 90;
 /** How hard the drum pulls to the nearest step once it has stopped coasting. */
 const SNAP = 0.16;
 
@@ -40,6 +42,11 @@ export function AmountDial({
   const dragging = useRef(false);
   const lastX = useRef(0);
   const lastT = useRef(0);
+  /** Recent pointer samples, newest last. Velocity comes from the span of these rather than from
+   *  the last pair: a single 1px jitter over a 1ms frame reads as 1 px/ms, which under this
+   *  friction throws the drum five steps — which is why placing it on a number by hand always
+   *  ended up on the next one. Over a window, holding still for a moment IS zero velocity. */
+  const samples = useRef<{ t: number; x: number }[]>([]);
   const maxRef = useRef(max);
   maxRef.current = max;
   const onChangeRef = useRef(onChange);
@@ -159,6 +166,7 @@ export function AmountDial({
   useEffect(() => {
     const release = () => {
       if (!dragging.current) return;
+      vel.current = 0;
       dragging.current = false;
       wake();
     };
@@ -193,6 +201,7 @@ export function AmountDial({
     vel.current = 0;
     lastX.current = e.clientX;
     lastT.current = performance.now();
+    samples.current = [{ t: lastT.current, x: e.clientX }];
     wake();
   };
 
@@ -200,18 +209,32 @@ export function AmountDial({
     if (!dragging.current) return;
     const now = performance.now();
     const dx = e.clientX - lastX.current;
-    const dt = Math.max(1, now - lastT.current);
     lastX.current = e.clientX;
     lastT.current = now;
     // Dragging right should reveal SMALLER numbers, the way pushing a real drum works.
     pos.current -= dx / PITCH;
     pos.current = Math.min(steps(), Math.max(1, pos.current));
-    // Velocity in px/ms, smoothed so one jittery sample cannot launch the drum.
-    vel.current = vel.current * 0.7 + (-dx / dt) * 0.3;
+    samples.current.push({ t: now, x: e.clientX });
+    while (samples.current.length > 2 && now - samples.current[0]!.t > VEL_WINDOW_MS) {
+      samples.current.shift();
+    }
+  };
+
+  /** Velocity over the sample window, px/ms. Zero if the pointer was resting when it let go. */
+  const flickVelocity = (): number => {
+    const now = performance.now();
+    const recent = samples.current.filter((s) => now - s.t <= VEL_WINDOW_MS);
+    const first = recent[0];
+    const last = recent[recent.length - 1];
+    if (!first || !last || last.t - first.t < 15) return 0;
+    // Stale window: the pointer sat still long enough that whatever it did before does not count.
+    if (now - last.t > 60) return 0;
+    return -(last.x - first.x) / (last.t - first.t);
   };
 
   const onUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!dragging.current) return;
+    vel.current = flickVelocity();
     dragging.current = false;
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
