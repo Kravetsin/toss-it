@@ -47,13 +47,22 @@ export function Reel({ slot, spinning }: { slot: number | null; spinning: boolea
     // same distance however the last one ended — then animate to the third copy.
     setAnimate(false);
     setOffset(centreOf(landing));
-    const id = requestAnimationFrame(() => {
-      setAnimate(true);
-      // Land a little off-centre so consecutive spins don't look like a rerun of the same frame.
-      const jitter = (WHEEL_ORDER.length * 37 * ((landing % 7) + 1)) % (CELL_PX * 0.5);
-      setOffset(centreOf(landing + WHEEL_ORDER.length * 2) + jitter - CELL_PX * 0.25);
+    // Two frames, not one: the first lets React commit the transition-less reset and the browser
+    // paint it. Starting the transition in the same frame would animate from wherever the PREVIOUS
+    // spin stopped, so the travel — and with it the perceived speed — would differ every time.
+    let inner = 0;
+    const outer = requestAnimationFrame(() => {
+      inner = requestAnimationFrame(() => {
+        setAnimate(true);
+        // Land a little off-centre so consecutive spins don't look like a rerun of the same frame.
+        const jitter = (WHEEL_ORDER.length * 37 * ((landing % 7) + 1)) % (CELL_PX * 0.5);
+        setOffset(centreOf(landing + WHEEL_ORDER.length * 2) + jitter - CELL_PX * 0.25);
+      });
     });
-    return () => cancelAnimationFrame(id);
+    return () => {
+      cancelAnimationFrame(outer);
+      cancelAnimationFrame(inner);
+    };
   }, [spinning, slot]);
 
   return (
