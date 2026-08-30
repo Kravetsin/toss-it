@@ -665,16 +665,19 @@ export const submissionPayouts = sqliteTable(
  * Every gift, as the record that answers "where did my dust go" — the question a transfer between
  * two people generates far more readily than a spin does, because there is someone to blame.
  *
- * The recipient is a PLATFORM id, not a user id: a gift to someone who has never logged in lands in
- * pending_dust and waits for them, which is the whole point of being able to gift a stranger.
+ * The recipient is named by whichever of the two we have. From chat it is a PLATFORM id, because a
+ * gift to someone who has never logged in lands in pending_dust and waits for them — the whole
+ * point of being able to gift a stranger. From the site it is an ACCOUNT, chosen from search, and
+ * that account may have no twitch identity at all.
  */
 export const dustGifts = sqliteTable(
   'dust_gifts',
   {
     id: integer('id').primaryKey({ autoIncrement: true }),
     fromUserId: text('from_user_id').notNull(),
-    toPlatform: text('to_platform').notNull(),
-    toPlatformUserId: text('to_platform_user_id').notNull(),
+    /** Null when the recipient was picked as an account and has no twitch identity. */
+    toPlatform: text('to_platform'),
+    toPlatformUserId: text('to_platform_user_id'),
     /** Filled when the recipient already had an account at the time of the gift. */
     toUserId: text('to_user_id'),
     amount: integer('amount').notNull(),

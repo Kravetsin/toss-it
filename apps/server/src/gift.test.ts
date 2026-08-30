@@ -62,7 +62,7 @@ describe('gifting dust', () => {
 
   it('moves the dust and records who gave it', async () => {
     const takerLogin = (await db.select().from(users).where(eq(users.id, taker)).get())!.login;
-    const res = await giftDust({ fromUserId: giver, toLogin: takerLogin, amount: 500 });
+    const res = await giftDust({ fromUserId: giver, to: { login: takerLogin }, amount: 500 });
     expect(res).toMatchObject({ kind: 'done', amount: 500 });
     expect((await dustOf(giver)).d).toBe(4500);
     expect((await dustOf(taker)).d).toBe(600);
@@ -75,14 +75,14 @@ describe('gifting dust', () => {
   // stop measuring what someone did for a channel and start measuring who they know.
   it('never counts as lifetime earned, on either side', async () => {
     const takerLogin = (await db.select().from(users).where(eq(users.id, taker)).get())!.login;
-    await giftDust({ fromUserId: giver, toLogin: takerLogin, amount: 500 });
+    await giftDust({ fromUserId: giver, to: { login: takerLogin }, amount: 500 });
     expect((await dustOf(taker)).e).toBe(0);
     expect((await dustOf(giver)).e).toBe(0);
   });
 
   // The whole reason gifting a stranger is worth having: it is also an invitation.
   it('holds a gift for someone who has never signed up', async () => {
-    const res = await giftDust({ fromUserId: giver, toLogin: strangerLogin, amount: 300 });
+    const res = await giftDust({ fromUserId: giver, to: { login: strangerLogin }, amount: 300 });
     expect(res.kind).toBe('done');
     const held = await db
       .select({ amount: pendingDust.amount })
@@ -98,7 +98,7 @@ describe('gifting dust', () => {
   it('takes the login as typed, @ and capitals included', async () => {
     const res = await giftDust({
       fromUserId: giver,
-      toLogin: `  @${strangerLogin.toUpperCase()} `,
+      to: { login: `  @${strangerLogin.toUpperCase()} ` },
       amount: 100,
     });
     expect(res.kind).toBe('done');
@@ -107,7 +107,7 @@ describe('gifting dust', () => {
   it('asks Twitch only for a login nobody here has seen', async () => {
     let asked = 0;
     const res = await giftDust(
-      { fromUserId: giver, toLogin: strangerLogin, amount: 100 },
+      { fromUserId: giver, to: { login: strangerLogin }, amount: 100 },
       async () => {
         asked++;
         return null;
@@ -117,7 +117,7 @@ describe('gifting dust', () => {
     expect(asked).toBe(0);
 
     const remote = await giftDust(
-      { fromUserId: giver, toLogin: 'nobody_here', amount: 100 },
+      { fromUserId: giver, to: { login: 'nobody_here' }, amount: 100 },
       async () => {
         asked++;
         return { id: 'tw_remote', login: 'nobody_here' };
@@ -136,17 +136,18 @@ describe('gifting dust', () => {
       createdAt: new Date(),
     });
 
-    expect((await giftDust({ fromUserId: giver, toLogin: giverLogin, amount: 100 })).kind).toBe(
-      'self',
-    );
     expect(
-      (await giftDust({ fromUserId: giver, toLogin: strangerLogin, amount: GIFT.min - 1 })).kind,
+      (await giftDust({ fromUserId: giver, to: { login: giverLogin }, amount: 100 })).kind,
+    ).toBe('self');
+    expect(
+      (await giftDust({ fromUserId: giver, to: { login: strangerLogin }, amount: GIFT.min - 1 }))
+        .kind,
     ).toBe('tooSmall');
-    expect((await giftDust({ fromUserId: giver, toLogin: 'ghost_nobody', amount: 100 })).kind).toBe(
-      'unknown',
-    );
     expect(
-      (await giftDust({ fromUserId: giver, toLogin: strangerLogin, amount: 99_999 })).kind,
+      (await giftDust({ fromUserId: giver, to: { login: 'ghost_nobody' }, amount: 100 })).kind,
+    ).toBe('unknown');
+    expect(
+      (await giftDust({ fromUserId: giver, to: { login: strangerLogin }, amount: 99_999 })).kind,
     ).toBe('noFunds');
     // Nothing left the giver through any of those.
     expect((await dustOf(giver)).d).toBe(5000);

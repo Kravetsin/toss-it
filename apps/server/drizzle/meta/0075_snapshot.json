@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "4a826bcf-d432-47a9-85da-e0ccce3ee264",
+  "id": "3e097fc3-1323-4546-b41b-4218631ae485",
   "prevId": "1306fe69-32ae-4cce-a931-cf6b5634cdf6",
   "tables": {
     "app_meta": {
@@ -1102,14 +1102,14 @@
           "name": "to_platform",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
         "to_platform_user_id": {
           "name": "to_platform_user_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
         "to_user_id": {

@@ -1344,6 +1344,22 @@ function route(pathname: string, init?: RequestInit, query?: URLSearchParams): u
     };
   }
 
+  if (pathname === '/api/users/search') {
+    const q = (query?.get('q') ?? '').toLowerCase();
+    if (q.length < 2) return [];
+    return [
+      { userId: 'twitch:1', login: 'gld0ra', displayName: 'gld0ra', avatarUrl: null },
+      { userId: 'twitch:2', login: 'neniisan', displayName: 'neniisan', avatarUrl: null },
+    ].filter((u) => u.login.startsWith(q) || u.displayName.toLowerCase().startsWith(q));
+  }
+  if (pathname === '/api/dust/gift') {
+    const u = MOCK_ME.user!;
+    const body = init?.body ? (JSON.parse(String(init.body)) as { amount?: number }) : {};
+    const amount = Number(body.amount) || 0;
+    u.stardust -= amount;
+    return { kind: 'done', amount, balance: u.stardust };
+  }
+
   if (pathname === '/api/cosmetics/buy') {
     const u = MOCK_ME.user!;
     const body = init?.body ? (JSON.parse(String(init.body)) as { itemId?: string }) : {};

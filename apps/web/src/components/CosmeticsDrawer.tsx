@@ -27,6 +27,7 @@ import { useConfirm } from '@/providers/ConfirmProvider';
 import { Badge, Button, Card, Drawer, IconButton, Tooltip } from '@/ui';
 import { Icon, type IconName } from '@/ui/icons';
 import { DustMark } from '@/components/DustMark';
+import { GiftPanel } from '@/features/gift/GiftPanel';
 import { NewDot, NewDotGroup } from '@/components/NewDot';
 import { SealMark } from '@/components/UserMarks';
 import { CardEffect } from '@/components/CardEffect';
@@ -1166,6 +1167,11 @@ export function CosmeticsDrawer({ open, onClose }: { open: boolean; onClose: () 
             ))}
           </div>
         </div>
+
+        {/* Under the earn explainer, because giving is the other half of the same subject: this is
+            the one screen where the currency itself is the topic. Folded away by default — most
+            visits here are to spend, not to give. */}
+        <GiftPanel />
 
         {user && !user.hasTwitch && (
           <Card className="flex flex-col gap-2 border-accent/40">

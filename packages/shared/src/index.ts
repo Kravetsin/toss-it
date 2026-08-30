@@ -896,6 +896,14 @@ export interface ListedUser {
   isFounder: boolean;
 }
 
+/** Someone the giver may hand dust to, as returned by the site's search. */
+export interface GiftTarget {
+  userId: string;
+  login: string;
+  displayName: string;
+  avatarUrl: string | null;
+}
+
 export interface UploadResponse {
   id: string;
   status: SubmissionStatus;

@@ -23,8 +23,12 @@ import { channelActivity, dustGifts, linkedIdentities, pendingDust, users } from
 
 export interface GiftInput {
   fromUserId: string;
-  /** Twitch login as typed. Resolved case-insensitively, `@` tolerated. */
-  toLogin: string;
+  /**
+   * Who gets it, named by whichever the door can offer. Chat has a typed Twitch login and must
+   * resolve it; the site has an account the giver PICKED from search, which is why the site needs
+   * no resolution at all and cannot miss by a character.
+   */
+  to: { login: string } | { userId: string };
   amount: number;
 }
 
@@ -71,16 +75,32 @@ export async function giftDust(
   /** Last resort for a login nobody here has seen — the chat module passes a Helix lookup. */
   resolveRemote?: (login: string) => Promise<{ id: string; login: string } | null>,
 ): Promise<GiftOutcome> {
-  const login = input.toLogin.trim().replace(/^@/, '').toLowerCase();
-  if (!login) return { kind: 'unknown' };
   if (!Number.isInteger(input.amount) || input.amount < GIFT.min) {
     return { kind: 'tooSmall', min: GIFT.min };
   }
 
-  const target = (await localTwitchId(login)) ?? (await resolveRemote?.(login)) ?? null;
-  if (!target) return { kind: 'unknown' };
-
-  const toUserId = await accountFor(target.id);
+  // An account chosen from search needs no lookup and has no platform id to record; a typed login
+  // has to be turned into one, and may belong to somebody with no account at all.
+  let target: { id: string; login: string } | null = null;
+  let toUserId: string | null;
+  let toLogin: string;
+  if ('userId' in input.to) {
+    const acct = await db
+      .select({ id: users.id, login: users.login })
+      .from(users)
+      .where(eq(users.id, input.to.userId))
+      .get();
+    if (!acct) return { kind: 'unknown' };
+    toUserId = acct.id;
+    toLogin = acct.login;
+  } else {
+    const login = input.to.login.trim().replace(/^@/, '').toLowerCase();
+    if (!login) return { kind: 'unknown' };
+    target = (await localTwitchId(login)) ?? (await resolveRemote?.(login)) ?? null;
+    if (!target) return { kind: 'unknown' };
+    toUserId = await accountFor(target.id);
+    toLogin = target.login;
+  }
   if (toUserId === input.fromUserId) return { kind: 'self' };
 
   // Charge FIRST with an atomic balance guard, the way every other spend here does — there are no
@@ -103,7 +123,7 @@ export async function giftDust(
       .update(users)
       .set({ stardust: sql`${users.stardust} + ${input.amount}` })
       .where(eq(users.id, toUserId));
-  } else {
+  } else if (target) {
     await db
       .insert(pendingDust)
       .values({
@@ -120,8 +140,8 @@ export async function giftDust(
 
   await db.insert(dustGifts).values({
     fromUserId: input.fromUserId,
-    toPlatform: 'twitch',
-    toPlatformUserId: target.id,
+    toPlatform: target ? 'twitch' : null,
+    toPlatformUserId: target?.id ?? null,
     toUserId,
     amount: input.amount,
     createdAt: new Date(),
@@ -132,7 +152,7 @@ export async function giftDust(
     .from(users)
     .where(eq(users.id, input.fromUserId))
     .get();
-  return { kind: 'done', amount: input.amount, toLogin: target.login, balance: after?.dust ?? 0 };
+  return { kind: 'done', amount: input.amount, toLogin, balance: after?.dust ?? 0 };
 }
 
 async function accountFor(twitchId: string): Promise<string | null> {

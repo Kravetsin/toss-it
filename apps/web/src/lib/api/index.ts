@@ -6,6 +6,7 @@ export * from './dashboard';
 export * from './directory';
 export * from './invites';
 export * from './link';
+export * from './gift';
 export * from './promo';
 export * from './roulette';
 export * from './shop';

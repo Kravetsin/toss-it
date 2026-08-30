@@ -318,8 +318,9 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
       )
       .get();
     if (!from) return { kind: 'noAccount' };
-    return giftDust({ fromUserId: from.userId, toLogin: input.login, amount: input.amount }, (l) =>
-      lookupTwitchLogin(l),
+    return giftDust(
+      { fromUserId: from.userId, to: { login: input.login }, amount: input.amount },
+      (l) => lookupTwitchLogin(l),
     );
   }
 

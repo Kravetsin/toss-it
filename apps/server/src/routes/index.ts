@@ -9,6 +9,7 @@ import { registerCosmeticsRoutes } from './cosmetics';
 import { registerDashboardRoutes } from './dashboard';
 import { registerDirectoryRoutes } from './directory';
 import { registerMediaRoutes, type MediaRoutesDeps } from './media';
+import { registerGiftRoutes } from './gift';
 import { registerPromoRoutes } from './promo';
 import { registerRouletteRoutes } from './roulette';
 import { registerDonationRoutes } from './donations';
@@ -56,6 +57,7 @@ export function registerRoutes(
     payouts: deps.payouts,
   });
   registerDonationRoutes(app, deps.io);
+  registerGiftRoutes(app);
   registerPromoRoutes(app);
   registerRouletteRoutes(app);
   registerAdminRoutes(app, { twitchChat: deps.twitchChat, playback: deps.playback });
