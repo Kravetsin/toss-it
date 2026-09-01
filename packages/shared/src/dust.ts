@@ -16,8 +16,8 @@
  */
 export const DUST_POINTS = {
   /** One chat message — double a watched minute, because talking is what the streamer is after.
-   *  Spam is handled by the accrual guards in the twitch-chat module (no repeats, min length) and
-   *  deliberately not by a cooldown: chat cannot show a timer, so an invisible one reads as unfair. */
+   *  Every line counts, however short: chat has nowhere to show a cooldown or explain a rejected
+   *  line, so any rule beyond "you wrote, you got paid" reads as us shortchanging people. */
   message: 2,
   /** One minute present in a channel's chat while its overlay is live. */
   watchMinute: 1,

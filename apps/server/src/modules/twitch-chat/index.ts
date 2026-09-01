@@ -38,7 +38,6 @@ import { createBadgeResolver, roleFromBadges, type EventBadge } from './badges';
 import { createCheermoteResolver } from './cheermotes';
 import { awardDust } from './accrual';
 import { isCommand, runCommand, toChatText } from './commands/index';
-import { createEarningGuard } from './earning';
 import type { ChannelCommandState, PlayResult, SayResult, SkipResult } from './commands/types';
 import { getRewardById } from '../channel-points/store';
 import { noticeText } from './notices';
@@ -149,8 +148,6 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
   const xpCache = new Map<string, { xp: number; at: number }>();
   /** channel id -> latest Get-Chatters snapshot, for the streamer "who's on stream now" panel. */
   const liveChatters = new Map<string, { viewers: LiveViewer[]; at: number }>();
-  /** Which chat lines earn dust and XP (no repeats, nothing too short) — see ./earning. */
-  const earningGuard = createEarningGuard();
   /** broadcaster id -> when we wrote to that chat, within the current send window. */
   const sendTimes = new Map<string, number[]>();
   let globalSends: number[] = [];
@@ -606,14 +603,10 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
     const excluded = excludedLogins.has(ev.chatterLogin);
     const live = deps.overlayCount(channelId) > 0;
 
-    // Accrual: not the broadcaster's own chat, not an excluded bot, only while live. The guard
-    // gates the leaderboard bump too — dust and XP both read it, and they must not disagree.
-    if (
-      !excluded &&
-      ev.chatterId !== ev.broadcasterId &&
-      live &&
-      earningGuard.earns(channelId, ev.chatterId, ev.fragments.map((f) => f.text).join(''))
-    ) {
+    // Accrual: not the broadcaster's own chat, not an excluded bot, only while live. Every line
+    // counts, `+` and emote-only reactions included — those ARE chat activity, and a rule that
+    // silently pays some lines and not others is worse than the farming it would prevent.
+    if (!excluded && ev.chatterId !== ev.broadcasterId && live) {
       bumpMessage(channelId, ev.chatterId, ev.chatterLogin, ev.chatterName);
       awardDust(ev.chatterId, DUST_POINTS.message).catch((err) =>
         deps.log.warn({ err }, 'twitch-chat: accrual failed'),
@@ -912,7 +905,6 @@ export function createTwitchChatModule(deps: TwitchChatDeps): TwitchChatModule {
   async function pollChatters(): Promise<void> {
     if (!client || !creds) return;
     const minutes = Math.round(WATCH_POLL_MS / 60_000);
-    earningGuard.prune();
     // Dust is per-account and global, while minutes are per-channel: someone sitting in several
     // Tossit chats still only lived one minute, so pay each id once across the whole sweep.
     const watched = new Set<string>();
