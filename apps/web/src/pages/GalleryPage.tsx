@@ -32,6 +32,7 @@ import { SubmissionCard } from '@/features/dashboard/components/SubmissionCard';
 import { ComposeForm } from '@/features/channel/components/ComposeForm';
 import { RankDraftBench } from '@/features/gallery/RankDraft';
 import { PopBench } from '@/features/gallery/PopBench';
+import { FloodBench } from '@/features/gallery/FloodBench';
 import { Vessel } from '@/features/channel/components/Vessel/Vessel';
 import type { Phase } from '@/features/channel/hooks/useMediaSubmission';
 
@@ -579,6 +580,11 @@ export function GalleryPage() {
 
       <Section title="Entrances — sizes & backgrounds">
         <EntrancesShowcase />
+      </Section>
+
+      {/* DRAFT — delete with features/gallery/FloodBench.tsx once a flood becomes a real module. */}
+      <Section title="Frames — rare flood concepts (not in the registry)">
+        <FloodBench />
       </Section>
 
       {/* DRAFT — delete with features/gallery/PopBench.tsx once the survivors become real modules. */}
