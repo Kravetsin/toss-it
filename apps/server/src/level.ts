@@ -73,7 +73,7 @@ export async function xpForKeys(channelId: string, keys: LevelKey[]): Promise<nu
     const rows = await db
       .select({
         twitchId: channelActivity.platformUserId,
-        xp: sql<number>`sum(${channelActivity.messages} + ${channelActivity.watchMinutes})`,
+        xp: sql<number>`sum(${channelActivity.messages} * ${LEVEL_POINTS.message} + ${channelActivity.watchMinutes} * ${LEVEL_POINTS.watchMinute})`,
       })
       .from(channelActivity)
       .where(

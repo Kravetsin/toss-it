@@ -6,8 +6,8 @@ import { linkedIdentities, pendingDust, users } from '../../db/schema';
 /**
  * Award stardust by raw Twitch id. Identity lookup covers both native Twitch accounts and Google
  * accounts with a linked Twitch; unknown ids accumulate in pending_dust until they first log in.
- * Weights mirror the level XP ones (1 msg = 1, 1 watched minute = 1, send = 50) so there is one
- * mental model. No cooldown by design — Twitch's own chat rate limits are the spam ceiling.
+ * Weights mirror the level XP ones (1 msg = 2, 1 watched minute = 1, send = 50) so there is one
+ * mental model. No cooldown by design — see earnsAccrual in ./index for what guards chat instead.
  */
 /**
  * Credit EARNED dust to a real account: bumps the spendable balance AND the lifetime-earned counter

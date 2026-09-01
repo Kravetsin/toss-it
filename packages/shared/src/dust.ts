@@ -15,8 +15,10 @@
  * for the same stretch, or the product's central action becomes the least rewarding one.
  */
 export const DUST_POINTS = {
-  /** One chat message. No cooldown — Twitch's own rate limits are the ceiling. */
-  message: 1,
+  /** One chat message — double a watched minute, because talking is what the streamer is after.
+   *  Spam is handled by the accrual guards in the twitch-chat module (no repeats, min length) and
+   *  deliberately not by a cooldown: chat cannot show a timer, so an invisible one reads as unfair. */
+  message: 2,
   /** One minute present in a channel's chat while its overlay is live. */
   watchMinute: 1,
   /** One submission received (mirrored to the streamer — their dust tracks real inbox use). */
